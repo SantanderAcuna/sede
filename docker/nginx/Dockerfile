@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1.7
+#
+# Imagen del punto de entrada.
+#
+# nginx sirve la SPA del panel desde disco —sin tocar PHP— y hace de proxy al
+# servidor del sitio. Es el único contenedor que publica puertos y el único
+# lugar donde se aplican las cabeceras de seguridad.
+
+# ---------------------------------------------------------------------------
+# Etapa 1 — compilación del panel
+# ---------------------------------------------------------------------------
+FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS panel
+
+WORKDIR /app
+
+COPY panel/package.json panel/package-lock.json ./
+RUN npm ci --ignore-scripts
+
+COPY contract/ /contract/
+COPY panel/ ./
+
+# Los tipos se generan desde el contrato y no se versionan.
+RUN npx openapi-typescript /contract/openapi.yaml -o src/types/openapi.d.ts --read-write-markers \
+    && npm run build
+
+# ---------------------------------------------------------------------------
+# Etapa 2 — imagen final
+# ---------------------------------------------------------------------------
+FROM nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94 AS final
+
+RUN apk add --no-cache curl tzdata \
+    && rm -rf /var/cache/apk/*
+
+# La configuración vive en el repositorio y se versiona, no se copia a mano en
+# el servidor.
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/nginx/conf.d/ /etc/nginx/conf.d/
+COPY docker/nginx/snippets/ /etc/nginx/snippets/
+
+# La SPA compilada se sirve desde disco.
+COPY --from=panel /app/dist /usr/share/nginx/panel
+
+# nginx necesita escuchar en 80 y 443 y escribir en su caché. Nada más: el
+# contenedor corre con todas las capacidades retiradas salvo ésa.
+EXPOSE 80 443
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS http://127.0.0.1/health > /dev/null || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

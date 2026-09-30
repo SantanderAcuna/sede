@@ -480,6 +480,16 @@ MACS="$(filtrar mac hmac-sha2-512-etm@openssh.com hmac-sha2-256-etm@openssh.com 
 # Se sanea a caracteres seguros: este valor sólo alimenta un COMENTARIO, y no
 # puede permitirse que un salto de línea o un "|" tumbe el endurecimiento entero
 # rompiendo la orden sed de más abajo.
+# Volver a ejecutar este guion NO debe reabrir el acceso de root. `cerrar-root.sh`
+# se ejecuta DESPUÉS, y cambia esta misma directiva a `no`; si esta segunda
+# ejecución la reescribiera, reabriría root sin que nadie lo pidiera y sin avisar.
+# Un guion idempotente que deshace el trabajo posterior no es idempotente: es
+# peligroso, porque se ejecuta justamente cuando algo va mal.
+PERMITROOT="prohibit-password"
+if [ -f "$CONF_SSH" ] && grep -qx 'PermitRootLogin no' "$CONF_SSH"; then
+  PERMITROOT="no"
+  aviso "  el acceso de root ya estaba cerrado: se conserva cerrado"
+fi
 VERSION_OPENSSH="$(ssh -V 2>&1 | head -1 | cut -d, -f1 | tr -cd 'A-Za-z0-9._+ -')"
 
 # El heredoc va ENTRECOMILLADO y los valores dinámicos entran por marcadores
@@ -521,7 +531,7 @@ PermitTTY yes
 
 # `root` sigue permitido POR LLAVE en este paso. Se cierra al final, cuando esté
 # verificado que la cuenta de administración entra y eleva.
-PermitRootLogin prohibit-password
+PermitRootLogin %%PERMITROOT%%
 StrictModes yes
 UseDNS no
 Compression no
@@ -529,7 +539,7 @@ TCPKeepAlive no
 PrintMotd no
 DebianBanner no
 SSHD
-sed -i "s|%%OPENSSH%%|$VERSION_OPENSSH|; s|%%CIPHERS%%|$CIPHERS|; s|%%MACS%%|$MACS|" "$CONF_SSH"
+sed -i "s|%%OPENSSH%%|$VERSION_OPENSSH|; s|%%CIPHERS%%|$CIPHERS|; s|%%MACS%%|$MACS|; s|%%PERMITROOT%%|$PERMITROOT|" "$CONF_SSH"
 # Un conjunto que quedó vacío se retira: una directiva sin valor es un archivo roto.
 sed -i -E '/^(Ciphers|MACs)[[:space:]]*$/d' "$CONF_SSH"
 if grep -q '%%[A-Z_]*%%' "$CONF_SSH"; then

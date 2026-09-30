@@ -248,6 +248,37 @@
 
 
 /* ============================================================================
+   El color de los enlaces, del Kit y no de Bootstrap
+   ============================================================================
+
+   Bootstrap pinta los enlaces con su azul por defecto, #0D6EFD. Sobre blanco da
+   **exactamente 4,50:1**: justo en el límite de AA, sin margen. En cuanto el
+   fondo se tiñe —el amarillo suave del Kit, un aviso, una tarjeta— baja por
+   debajo y **incumple**. Se midió: sobre el amarillo #FEE697 daba **3,63:1**.
+
+   El Kit tiene su propio azul, el cobalto #0943B5, que da **8,46:1 sobre blanco**
+   y sigue pasando holgado sobre los fondos teñidos del propio Kit (7,69:1 sobre
+   el gris del aviso). Es además el color que el Kit manda usar, así que se
+   aplica a todos los enlaces del sitio.
+
+   Se hace aquí y no página a página para que no dependa de que cada vista se
+   acuerde: un enlace nuevo hereda el color correcto sin que nadie lo escriba.
+   ============================================================================ */
+
+a:not(.btn):not([class*="btn-"]) {
+  color: var(--govcolor-cobalt, #0943b5);
+}
+
+a:not(.btn):not([class*="btn-"]):hover {
+  color: var(--govcolor-havelock-lue, #4672c8);
+}
+
+/* Los enlaces dentro de la banda celeste del pie van en oscuro, como su texto. */
+.pie-pagina-govco .second-section a {
+  color: #000;
+}
+
+/* ============================================================================
    Reflujo en pantallas estrechas
    ============================================================================
 
@@ -302,3 +333,20 @@
   white-space: normal;
 }
 
+
+/*
+  Los botones de contorno heredan el azul de Bootstrap, que sobre blanco da
+  exactamente 4,50:1 —el límite— y no deja margen. El Kit no trae
+  `.btn-outline-primary`, así que se reapunta al cobalto del Kit (8,46:1),
+  incluidos sus estados, para que el botón no cambie de color al pasar el ratón.
+*/
+.btn-outline-primary {
+  --bs-btn-color: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-border-color: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-hover-border-color: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-active-bg: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-active-border-color: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-focus-shadow-rgb: 9, 67, 181;
+}

@@ -130,6 +130,7 @@ useHead({ title: 'Declaración de accesibilidad · Sede Electrónica' })
               decir lo que lee.
             -->
             <a
+              class="correo"
               :href="`mailto:${correo.direccion}`"
               :aria-label="`${correo.direccion} (abre el programa de correo)`"
             >{{ correo.direccion }}</a>
@@ -158,3 +159,16 @@ useHead({ title: 'Declaración de accesibilidad · Sede Electrónica' })
     </div>
   </div>
 </template>
+
+<style scoped>
+/*
+  Desborde en pantalla estrecha, medido y no supuesto: una dirección de correo no
+  tiene ningún espacio donde partirse y a 320 px de ancho se sale de la columna,
+  arrastrando la página a desplazamiento horizontal —lo que prohíbe WCAG 1.4.10—.
+  Se permite partirla en lugar de recortarla: el canal para reportar una barrera
+  de accesibilidad no puede quedar a medias.
+*/
+.correo {
+  overflow-wrap: anywhere;
+}
+</style>

@@ -96,7 +96,7 @@ useHead({ title: 'Canales de atención y sedes · Sede Electrónica' })
 
     <h2 class="h3 mt-5">Sede principal</h2>
 
-    <dl class="row">
+    <dl class="row datos-contacto">
       <dt class="col-sm-4">Dirección</dt>
       <dd class="col-sm-8">{{ sede.direccion }}</dd>
 
@@ -109,7 +109,7 @@ useHead({ title: 'Canales de atención y sedes · Sede Electrónica' })
 
     <h2 class="h3 mt-5">Canales telefónicos</h2>
 
-    <dl class="row">
+    <dl class="row datos-contacto">
       <template v-for="telefono in telefonos" :key="telefono.etiqueta">
         <dt class="col-sm-4">{{ telefono.etiqueta }}</dt>
         <dd class="col-sm-8">{{ telefono.numero }}</dd>
@@ -118,7 +118,7 @@ useHead({ title: 'Canales de atención y sedes · Sede Electrónica' })
 
     <h2 class="h3 mt-5">Canales electrónicos</h2>
 
-    <dl class="row">
+    <dl class="row datos-contacto">
       <template v-for="correo in correos" :key="correo.direccion">
         <dt class="col-sm-4">{{ correo.etiqueta }}</dt>
         <dd class="col-sm-8">
@@ -128,6 +128,7 @@ useHead({ title: 'Canales de atención y sedes · Sede Electrónica' })
             que lee.
           -->
           <a
+            class="correo"
             :href="`mailto:${correo.direccion}`"
             :aria-label="`${correo.direccion} (abre el programa de correo)`"
           >{{ correo.direccion }}</a>
@@ -144,7 +145,7 @@ useHead({ title: 'Canales de atención y sedes · Sede Electrónica' })
           publicará y el estado en que se encuentran hoy:
         </p>
 
-        <dl class="row">
+        <dl class="row datos-contacto">
           <template v-for="servicio in serviciosEnLinea" :key="servicio.ruta">
             <dt class="col-sm-4">
               <NuxtLink :to="servicio.ruta">{{ servicio.titulo }}</NuxtLink>
@@ -174,3 +175,34 @@ useHead({ title: 'Canales de atención y sedes · Sede Electrónica' })
     </div>
   </div>
 </template>
+
+<style scoped>
+/*
+  Desborde en pantalla estrecha, medido y no supuesto. Una dirección de correo es
+  una cadena larga sin ningún espacio donde partirse, y el Anexo 2 exige publicar
+  la de notificaciones judiciales, que a 15 px mide unos 380 px: a 320 px de
+  pantalla se sale de la columna y arrastra toda la página a desplazamiento
+  horizontal, que es lo que prohíbe WCAG 1.4.10.
+
+  Hacen falta las dos reglas, no una:
+
+    · `min-width: 0` en las celdas de la lista, porque el padre es una fila de la
+      rejilla (`display: flex`) y un elemento flex no baja de su `min-width: auto`,
+      que es justo el ancho de la palabra más larga. Sin esto la columna se ensancha
+      en vez de encogerse.
+    · `overflow-wrap: anywhere` en el enlace, porque es el texto y no la caja quien
+      no cabe. Se parte la dirección —que es lo único que puede partirse ahí— en
+      lugar de recortarla, que ocultaría parte de un dato de contacto.
+
+  El pie del sitio resuelve el mismo caso exactamente igual; cuando los datos de la
+  Entidad se extraigan a un módulo compartido, esto se corrige en un solo sitio.
+*/
+.datos-contacto dt,
+.datos-contacto dd {
+  min-width: 0;
+}
+
+.correo {
+  overflow-wrap: anywhere;
+}
+</style>

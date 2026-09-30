@@ -89,7 +89,7 @@ construye de nuevo, con los documentos como única fuente.
 | D-15 | Fuera de alcance | Wazuh/IDS, Prometheus/Grafana, app móvil Flutter, sidecar de IA |
 | D-16 | Formato de la API | **Sobre plano** `{success, message, data, meta, errors}` con `application/json`. La regla R-24 se mantiene; JSON:API se descarta |
 | D-17 | Imágenes base | Imágenes oficiales **fijadas por resumen**, con endurecimiento por configuración (§21.J) |
-| D-18 | Rutas del dominio | Sitio Nuxt en `/`, panel en `/panel`, API en `/api/v1` |
+| D-18 | Rutas del dominio | Sitio Nuxt en `/`, panel en `/admin`, API en `/api/v1` |
 | D-19 | Dominio de staging | `staging.santamarta.gov.co` |
 | D-20 | Dominio de producción | **Sin decidir** (§21.A) |
 | D-21 | Droplet | Nuevo, `165.22.46.11` (el primero, `198.199.89.119`, se descartó por capacidad) |
@@ -280,7 +280,7 @@ autoridad) y la obligación O-01 (dominio canónico único).
 | Ruta | Servicio | Tipo | Autenticación |
 |---|---|---|---|
 | `/` | `nuxt` | SSR de Node | Pública |
-| `/panel` | `nginx` (disco) | SPA estática | Sanctum, por ruta |
+| `/admin` | `nginx` (disco) | SPA estática | Sanctum, por ruta |
 | `/api/v1/*` | `app` | PHP-FPM | Sanctum, por ruta |
 | `/storage/*` | `app` | Archivos privados con URL firmada | Firma temporal |
 | `/health` | `app` | Sonda de vida | Sólo red interna |
@@ -406,9 +406,7 @@ sede/
 │   ├── panel/            Dockerfile del panel (compilación de la SPA)
 │   ├── sitio/            Dockerfile del sitio (servidor SSR de Nuxt)
 │   ├── nginx/            Configuración del punto de entrada
-│   ├── postgres/         Configuración e inicialización
-│   ├── redis/            Configuración y ACL
-│   └── backup/           Imagen y scripts de copia de seguridad
+│   └── (postgres, redis y las copias se configuran en compose.yaml)
 ├── deploy/
 │   ├── droplet/          preparar.sh · certificado.sh · despliegue-remoto.sh
 │   └── plantilla.env     Plantilla del entorno, renderizada en cada despliegue
@@ -754,8 +752,8 @@ Una sola aplicación en `panel/` con **dos áreas** separadas por rol y por ruta
 
 | Área | Ruta | Para quién | Qué hace |
 |---|---|---|---|
-| Editorial y administración | `/panel/*` | Funcionarios | El CMS completo (§10) |
-| Autogestión | `/panel/mi-cuenta/*` | Ciudadanos | Mis radicados, notificaciones, pagos, documentos y datos |
+| Editorial y administración | `/admin/*` | Funcionarios | El CMS completo (§10) |
+| Autogestión | `/admin/mi-cuenta/*` | Ciudadanos | Mis radicados, notificaciones, pagos, documentos y datos |
 
 Ambas se sirven desde el mismo origen y comparten el cliente HTTP, el guardia de rutas y
 los componentes de interfaz. La separación es de autorización, no de origen.

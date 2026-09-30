@@ -6,25 +6,19 @@
 # servidor del sitio. Es el único contenedor que publica puertos y el único
 # lugar donde se aplican las cabeceras de seguridad.
 
+# El panel NO se compila aquí. Llega como CONTEXTO DE CONSTRUCCIÓN con nombre
+# —«panel»—, que es la imagen `sede-panel` ya construida y publicada:
+#
+#     docker buildx build --build-context panel=docker-image://…/sede-panel:<versión>
+#
+# Se compilaba en una etapa de este mismo archivo, y funcionaba, pero tenía dos
+# consecuencias que no se ven hasta que hacen falta: el artefacto del panel no
+# existía por separado —así que no se podía publicar, versionar ni servir desde
+# otro sitio—, y este archivo tenía que saber de Node, de npm y del contrato,
+# cuando lo único que le importa es tener los archivos en su sitio.
+#
 # ---------------------------------------------------------------------------
-# Etapa 1 — compilación del panel
-# ---------------------------------------------------------------------------
-FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS panel
-
-WORKDIR /app
-
-COPY panel/package.json panel/package-lock.json ./
-RUN npm ci --ignore-scripts
-
-COPY contract/ /contract/
-COPY panel/ ./
-
-# Los tipos se generan desde el contrato y no se versionan.
-RUN npx openapi-typescript /contract/openapi.yaml -o src/types/openapi.d.ts --read-write-markers \
-    && npm run build
-
-# ---------------------------------------------------------------------------
-# Etapa 2 — imagen final
+# Imagen final
 # ---------------------------------------------------------------------------
 FROM nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94 AS final
 
@@ -67,7 +61,9 @@ COPY docker/nginx/conf.d/ /etc/nginx/conf.d/
 COPY docker/nginx/snippets/ /etc/nginx/snippets/
 
 # La SPA compilada se sirve desde disco.
-COPY --from=panel /app/dist /usr/share/nginx/panel
+# La carpeta en disco acompaña a la ruta pública `/admin`: así `root` y la URI
+# siguen cuadrando sin `alias`, cuyo `try_files` es una fuente clásica de sorpresas.
+COPY --from=panel /srv/panel /usr/share/nginx/admin
 
 # nginx necesita escuchar en 80 y 443 y escribir en su caché. Nada más: el
 # contenedor corre con todas las capacidades retiradas salvo ésa.

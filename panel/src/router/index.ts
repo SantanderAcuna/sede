@@ -47,7 +47,7 @@ const rutas: RouteRecordRaw[] = [
 export default createRouter({
   // Historial del navegador, no almohadilla: las direcciones del panel tienen
   // que poder pegarse y compartirse.
-  history: createWebHistory('/panel'),
+  history: createWebHistory('/admin'),
   routes: rutas,
   scrollBehavior: () => ({ top: 0 }),
 })

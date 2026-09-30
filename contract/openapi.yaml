@@ -47,6 +47,8 @@ servers:
 tags:
   - name: Entidad
     description: Datos institucionales de la autoridad titular
+  - name: Trámites
+    description: Catálogo de trámites y servicios
 
 paths:
   /entidad:
@@ -124,6 +126,114 @@ paths:
                     errors: null
       security: []
 
+  /tramites:
+    get:
+      tags: [Trámites]
+      operationId: listarTramites
+      summary: Catálogo de trámites y servicios
+      description: |
+        Devuelve los trámites **publicados**. Un trámite sin alguno de sus seis
+        atributos obligatorios no se publica, de modo que lo que devuelve esta
+        operación siempre está completo.
+      x-status: pending
+      x-criterios: [FUN-001, FUN-021, FUN-022, RN-01]
+      parameters:
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+        - name: categoria
+          in: query
+          required: false
+          description: Slug de la categoría por la que filtrar
+          schema: { type: string, maxLength: 120 }
+        - name: buscar
+          in: query
+          required: false
+          description: Texto a buscar en el nombre y la descripción
+          schema: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: Colección paginada de trámites
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/TramiteItem' }
+              examples:
+                paginada:
+                  summary: Primera página de trámites
+                  value:
+                    success: true
+                    message: null
+                    data:
+                      - id: 1
+                        type: tramites
+                        slug: certificado-de-residencia
+                        nombre: Certificado de residencia
+                        resumen: Acredita el domicilio del solicitante en el Distrito.
+                        modalidad: en_linea
+                        tiene_costo: gratuito
+                        tiempo_solucion_dias: 5
+                        canal_inicio: propio
+                        url_inicio: /tramites/certificado-de-residencia/iniciar
+                        consulta_estado: /seguimiento
+                        categoria:
+                          slug: certificados
+                          nombre: Certificados
+                    meta:
+                      current_page: 1
+                      from: 1
+                      last_page: 3
+                      path: https://staging.santamarta.gov.co/api/v1/tramites
+                      per_page: 15
+                      to: 1
+                      total: 31
+                    links:
+                      first: https://staging.santamarta.gov.co/api/v1/tramites?page=1
+                      last: https://staging.santamarta.gov.co/api/v1/tramites?page=3
+                      prev: null
+                      next: https://staging.santamarta.gov.co/api/v1/tramites?page=2
+                    errors: null
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security: []
+
+  /tramites/{slug}:
+    get:
+      tags: [Trámites]
+      operationId: obtenerTramite
+      summary: Ficha completa de un trámite
+      description: |
+        La ficha declara siempre sus seis atributos obligatorios: modalidad,
+        costo, tiempo de solución, canal de inicio, mecanismo de consulta del
+        estado y documentos o requisitos.
+      x-status: pending
+      x-criterios: [FUN-021, FUN-023, FUN-024, CAG-20]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, maxLength: 160 }
+      responses:
+        '200':
+          description: Ficha del trámite con sus seis atributos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data: { $ref: '#/components/schemas/TramiteItem' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security: []
+
 components:
   securitySchemes:
     cookieSesion:
@@ -135,6 +245,20 @@ components:
       type: http
       scheme: bearer
       description: Token de API, para clientes que no son un navegador.
+
+  parameters:
+    Pagina:
+      name: page
+      in: query
+      required: false
+      description: Número de página, empezando en 1
+      schema: { type: integer, minimum: 1, default: 1 }
+    PorPagina:
+      name: per_page
+      in: query
+      required: false
+      description: Elementos por página. Por encima de 100 la respuesta es 422.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 15 }
 
   responses:
     NoEncontrado:
@@ -269,3 +393,102 @@ components:
         slug: { type: string }
         nombre: { type: string }
         actualizada_en: { type: [string, 'null'], format: date, readOnly: true }
+
+    # ------------------------------------------------------------------
+    # Trámites
+    # ------------------------------------------------------------------
+    TramiteItem:
+      type: object
+      required:
+        - id
+        - type
+        - slug
+        - nombre
+        - modalidad
+        - tiene_costo
+        - tiempo_solucion_dias
+        - canal_inicio
+      description: |
+        Los seis atributos obligatorios de un trámite son `modalidad`,
+        `tiene_costo`, `tiempo_solucion_dias`, `canal_inicio`, `consulta_estado`
+        y `requisitos`. Sin ellos el trámite no se publica, de modo que los campos
+        marcados como requeridos siempre viajan.
+      properties:
+        id: { type: integer }
+        type: { type: string, const: tramites }
+        slug: { type: string }
+        nombre: { type: string }
+        resumen: { type: [string, 'null'] }
+        modalidad:
+          type: string
+          enum: [en_linea, parcialmente_en_linea, presencial]
+        tiene_costo:
+          type: string
+          enum: [gratuito, con_costo]
+        costo:
+          type: [string, 'null']
+          description: Importe en formato decimal. Lo fija el catálogo, nunca la petición.
+        tiempo_solucion_dias: { type: integer, minimum: 0 }
+        canal_inicio:
+          type: string
+          enum: [propio, portal_nacional]
+        url_inicio: { type: [string, 'null'] }
+        consulta_estado: { type: [string, 'null'] }
+        requisitos:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteRequisito' }
+        documentos:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteDocumento' }
+        categoria: { $ref: '#/components/schemas/TramiteCategoria' }
+        pasos:
+          type: array
+          items: { $ref: '#/components/schemas/TramitePaso' }
+        publicado_en: { type: [string, 'null'], format: date-time, readOnly: true }
+        actualizado_en: { type: [string, 'null'], format: date-time, readOnly: true }
+
+    TramiteCategoria:
+      type: object
+      required: [slug, nombre]
+      properties:
+        slug: { type: string }
+        nombre: { type: string }
+
+    TramiteRequisito:
+      type: object
+      required: [descripcion]
+      properties:
+        descripcion: { type: string }
+        obligatorio: { type: boolean, default: true }
+
+    TramiteDocumento:
+      type: object
+      required: [nombre]
+      properties:
+        nombre: { type: string }
+        url: { type: [string, 'null'] }
+        formato: { type: [string, 'null'] }
+
+    TramitePaso:
+      type: object
+      required: [orden, titulo]
+      properties:
+        orden: { type: integer, minimum: 1 }
+        titulo: { type: string }
+        descripcion: { type: [string, 'null'] }
+
+    TramiteInput:
+      type: object
+      required: [nombre, modalidad, tiene_costo, tiempo_solucion_dias, canal_inicio]
+      properties:
+        nombre: { type: string, maxLength: 200 }
+        slug: { type: string, maxLength: 160 }
+        resumen: { type: [string, 'null'], maxLength: 500 }
+        modalidad: { type: string, enum: [en_linea, parcialmente_en_linea, presencial] }
+        tiene_costo: { type: string, enum: [gratuito, con_costo] }
+        costo: { type: [string, 'null'], maxLength: 30 }
+        tiempo_solucion_dias: { type: integer, minimum: 0 }
+        canal_inicio: { type: string, enum: [propio, portal_nacional] }
+        url_inicio: { type: [string, 'null'], maxLength: 500 }
+        consulta_estado: { type: [string, 'null'], maxLength: 500 }
+        categoria_slug: { type: [string, 'null'], maxLength: 120 }

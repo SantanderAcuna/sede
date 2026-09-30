@@ -1,0 +1,74 @@
+# --- Secretos: nunca al control de versiones ---
+# El repositorio es PÚBLICO. Un valor aquí es un valor filtrado.
+.env
+.env.*
+!.env.example
+*.local.env
+.accesos.local.env
+*.pem
+*.key
+!**/public/**/*.key
+id_ed25519*
+*_ed25519
+*_rsa
+
+# --- Puentes locales de valores generados ---
+.cache/
+.scratch/
+
+# --- Backend (Laravel) ---
+/backend/vendor/
+/backend/node_modules/
+/backend/storage/*.key
+/backend/storage/pail
+/backend/public/storage
+/backend/public/hot
+/backend/public/build
+/backend/database/database.sqlite
+/backend/.phpunit.result.cache
+/backend/.phpunit.cache/
+/backend/bootstrap/cache/*.php
+
+# --- Panel (Vue + Vite) ---
+/panel/node_modules/
+/panel/dist/
+/panel/.vite/
+/panel/coverage/
+/panel/playwright-report/
+/panel/test-results/
+
+# --- Sitio (Nuxt) ---
+/sitio/node_modules/
+/sitio/.nuxt/
+/sitio/.output/
+/sitio/dist/
+/sitio/.data/
+
+# --- Contrato: artefactos generados ---
+/panel/src/types/api.d.ts
+/sitio/types/api.d.ts
+
+# --- Pila de contenedores ---
+/docker/nginx/certs/
+
+# --- Sondeos manuales de diagnóstico ---
+/panel/tests/.*.mjs
+/sitio/tests/.*.mjs
+
+# --- Sistema ---
+.DS_Store
+*.log
+
+# --- Material no versionado (repositorio público) ---
+# Documentos primarios: son de la entidad y de MinTIC, pesan 84 MB y su contenido
+# está transcrito en los informes markdown de docs/investigacion.
+/docs/*.pdf
+/docs/*.pptx
+# Evidencia cruda de las investigaciones: pesa más de 300 MB y no aporta al código.
+/investigacion/
+/research/
+# Claves privadas de despliegue
+.claves/
+# Copia de referencia del Kit gov.co: se usa para extraer los activos que se
+# vendorizan en sitio/public/govco, pero no es parte del proyecto.
+/vendor-src/

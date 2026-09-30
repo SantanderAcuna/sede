@@ -1676,19 +1676,41 @@ que publica. La respuesta del plan es de diseño, no de parcheo:
 ### 14.7 Fail2Ban
 
 Una **sola** configuración para todo el sistema. El capítulo 02, el apéndice A y el
-capítulo 05 definen tres incompatibles entre sí; se adopta una y se documenta:
+capítulo 05 definen tres incompatibles entre sí; se adopta una y se documenta en
+`/etc/fail2ban/jail.d/10-sede.local`, escrito por `preparar.sh`:
 
 | Jail | Umbral | Duración del bloqueo |
 |---|---|---|
-| `sshd` | 3 intentos en 10 minutos | 24 horas, incrementales |
-| `nginx-http-auth` | 5 en 10 minutos | 1 hora |
-| `nginx-badbots` | 2 | 48 horas |
-| `nginx-noscript` | 3 en 10 minutos | 24 horas |
-| `nginx-ddos` | 200 en 1 minuto | 1 hora |
-| `recidive` | 3 bloqueos en 1 día | 1 semana, en todos los puertos |
+| `sshd` | 5 intentos en 10 minutos | 1 hora, que se duplica con cada reincidencia |
+| `recidive` | 3 bloqueos en 1 día | 4 semanas, en todos los puertos |
 
-El incremento exponencial multiplica la duración por el número de reincidencias, con un
-tope de cuatro semanas. La IP del operador está en la lista de exclusión.
+El incremento exponencial multiplica la duración por la reincidencia, con un tope de cuatro
+semanas. **Quien ataca hace miles de intentos**, así que una hora ya lo frena; el umbral se
+separó del que castiga a quien teclea mal porque un administrador bloqueado no puede
+arreglar nada.
+
+> **Corregido tras un bloqueo real durante el aprovisionamiento.** Este apartado describía
+> 3 intentos y 24 horas, y `preparar.sh` **no configuraba Fail2Ban en absoluto**: quedaba con
+> los valores por defecto del paquete, que cambian con la versión y no incluyen ni la cárcel
+> de reincidentes ni lista de exclusión alguna. Un endurecimiento que se apoya en un valor
+> por defecto no es un endurecimiento.
+>
+> El fallo se descubrió de la peor manera: dos intentos de entrar como `root` —que ya está
+> cerrado y por tanto **siempre** fallan— activaron la cárcel y dejaron la administración sin
+> acceso por SSH. La propia protección se convirtió en el incidente, y recuperarse exigió la
+> consola del proveedor. La orden es
+> `fail2ban-client set sshd unbanip <dirección>`, y el guion la imprime al terminar.
+>
+> **La lista de exclusión se usa con cuidado.** Sólo incluye `127.0.0.1/8` y `::1` salvo que
+> se pase `IP_ADMIN=<dirección>`. Escribir de antemano la dirección del operador da una falsa
+> tranquilidad: una dirección doméstica cambia, y una exclusión obsoleta no protege de nada.
+
+> **Cárceles de nginx: no implementadas, a propósito.** Los umbrales que la guía propone para
+> `nginx-http-auth`, `nginx-badbots`, `nginx-noscript` y `nginx-ddos` no están puestos porque
+> en este diseño nginx corre **en un contenedor** y sus registros viven en un volumen: el
+> Fail2Ban del host no los ve. Ponerlos produciría cárceles activas que nunca encontrarían una
+> coincidencia, que es peor que no tenerlas, porque cuentan como protección prestada. Lo que
+> cubre ese hueco es el límite de peticiones por segundo de nginx, que sí corta en el borde.
 
 **Acción contra Cloudflare, corregida.** El capítulo 02 autentica con la clave de API
 global, que él mismo prohíbe, y apunta a un recurso de ámbito de usuario que no es

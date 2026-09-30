@@ -260,9 +260,16 @@ La lista de exclusión incluye la propia máquina y la dirección del administra
 | Elemento | Estado |
 |---|---|
 | `/usr/local/bin/desplegar.sh` | **Instalado** — es el único comando que `deploy` puede ejecutar |
-| `/opt/sede` | **Vacío** — el entorno aún no se ha publicado (§10) |
-| Certificado del origen | **No existe** — bloqueado por Cloudflare (§10) |
-| Imágenes en el registro | **No publicadas** — la construcción fallaba antes de construir (§10) |
+| `/opt/sede/staging/` | **Publicado** — `.env` y `compose.yaml`; lo lee `deploy` y no lo puede modificar |
+| `/var/lib/sede/staging/` | **Creado** — donde `deploy` anota qué versión corre |
+| Imágenes en el registro | **Publicadas** — las tres, escaneadas sin hallazgos corregibles |
+| Certificado del origen | **No existe** — es el ÚNICO bloqueo que queda (§10) |
+
+> **La cadena de despliegue funciona de extremo a extremo.** Comprobado: trae las
+> tres imágenes, levanta la pila, ejecuta las migraciones y arranca los cinco
+> servicios. Falla en el último paso —el punto de entrada no puede cargar el
+> certificado— y **vuelve solo a la versión anterior**, que es justo lo que debe
+> hacer. Detecta el fallo en segundo lugar, en 90 s, con el motivo a la vista.
 
 ---
 
@@ -270,10 +277,12 @@ La lista de exclusión incluye la propia máquina y la dirección del administra
 
 **Depende de ti:**
 
-- [ ] Emitir el certificado del origen — **bloqueado**: `staging.santamarta.gov.co` está tras
-  Cloudflare, que redirige HTTP a HTTPS en el borde, así que el desafío ACME recibe un 522.
-  Hace falta un **token de API** para validar por DNS, un certificado de origen, o permiso
-  para poner el registro en «solo DNS» mientras se emite.
+- [ ] Emitir el certificado del origen — **es el único bloqueo que queda para desplegar**, y
+  depende de Cloudflare: `staging.santamarta.gov.co` está tras su borde, que redirige HTTP a
+  HTTPS, así que el desafío ACME recibe un 522. Hace falta un **token de API** para validar
+  por DNS, un certificado de origen, o permiso para poner el registro en «solo DNS» mientras
+  se emite. En cuanto exista el certificado en `/opt/sede/staging/certs/`, el despliegue que
+  ya funciona de extremo a extremo terminará en verde.
 - [ ] Decidir el dominio de producción.
 - [ ] Obtener el token de DigitalOcean para el cortafuegos del proveedor.
 - [ ] Verificar o borrar los dos secretos de terceros (§6).
@@ -295,13 +304,16 @@ La lista de exclusión incluye la propia máquina y la dirección del administra
 
 **Falta por hacer, y no depende de ti:**
 
-- [ ] **Publicar el entorno** en `/opt/sede/staging`: `.env` renderizado desde
-  `deploy/plantilla.env` y `compose.yaml`. El plan dice que la canalización lo renderiza en
-  cada despliegue, pero **ese mecanismo no está implementado**, y la llave de despliegue
-  sólo puede ejecutar un comando, así que no puede copiar archivos. **Pendiente de decisión:
-  por dónde viaja el entorno.**
-- [ ] Decidir y aplicar cómo recibe `desplegar.sh` el entorno, si por entrada estándar o por
-  un archivo colocado una vez por el administrador.
+- [x] **Publicar el entorno** en `/opt/sede/staging`: hecho con
+  `deploy/publicar-entorno.sh`, reproducible. Las integraciones sin credenciales se declaran
+  **apagadas** con `mock`, `TRUSTED_PROXIES` lleva los rangos oficiales de Cloudflare —nunca
+  `*`— y `FILESYSTEM_DISK` queda en `local` como apaño declarado mientras no haya depósito.
+- [ ] **Decidir por dónde viaja el entorno en cada despliegue.** Hoy es una publicación
+  aparte; el plan dice que la canalización lo renderiza, y ese mecanismo sigue sin
+  implementarse. Mientras no se decida, un cambio en la plantilla exige volver a publicar a
+  mano.
+- [ ] **Depósito de objetos.** Sin él, `FILESYSTEM_DISK=local`: los archivos viven en el
+  volumen del contenedor y no se comparten entre servicios.
 
 > **Nota sobre el guion de despliegue.** La restricción de la llave lo declara como comando
 > forzado **sin argumentos**, así que sshd los entrega en `SSH_ORIGINAL_COMMAND`. El guion no

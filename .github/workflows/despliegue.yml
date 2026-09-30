@@ -34,7 +34,8 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGEN_BASE: ${{ github.repository }}
+  # IMAGEN_BASE no se declara aquí: el registro exige nombres en minúsculas y la
+  # cuenta tiene mayúsculas. Se calcula en el primer paso de la construcción.
 
 jobs:
 
@@ -84,6 +85,20 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
+      - name: Calcular el nombre de la imagen
+        run: |
+          # El registro de contenedores de GitHub exige el nombre en MINÚSCULAS,
+          # y el de la cuenta tiene mayúsculas:
+          #
+          #   invalid tag "ghcr.io/SantanderAcuna/sede-nginx:...":
+          #   repository name must be lowercase
+          #
+          # Una expresión del flujo no sabe convertir a minúsculas, así que se
+          # calcula aquí y se publica para los pasos siguientes, que la leen como
+          # variable de entorno de la orden.
+          echo "IMAGEN_BASE=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+          echo "  imagen base: $(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+
       - name: Registro de contenedores
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
@@ -95,7 +110,7 @@ jobs:
         run: |
           docker build \
             --file ${{ matrix.dockerfile }} \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGEN_BASE }}-${{ matrix.nombre }}:${{ github.sha }} \
+            --tag ${{ env.REGISTRY }}/$IMAGEN_BASE-${{ matrix.nombre }}:${{ github.sha }} \
             .
 
       - name: Preparar el escáner
@@ -129,10 +144,10 @@ jobs:
             --ignore-unfixed \
             --no-progress \
             --format table \
-            ${{ env.REGISTRY }}/${{ env.IMAGEN_BASE }}-${{ matrix.nombre }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/$IMAGEN_BASE-${{ matrix.nombre }}:${{ github.sha }}
 
       - name: Publicar
-        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGEN_BASE }}-${{ matrix.nombre }}:${{ github.sha }}
+        run: docker push ${{ env.REGISTRY }}/$IMAGEN_BASE-${{ matrix.nombre }}:${{ github.sha }}
 
   # ---------------------------------------------------------------------------
   # Las etapas de despliegue se encienden por separado.

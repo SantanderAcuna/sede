@@ -1,0 +1,172 @@
+# Despliegue a DigitalOcean.
+#
+#   staging    ← rama staging
+#   produccion ← rama main
+#
+# Cada entorno se enciende por separado con una variable del repositorio, de modo
+# que uno pueda estar desplegando mientras el otro espera su dominio.
+#
+# El recorrido es: comprobar, construir, escanear, publicar y desplegar. Si algo
+# falla, el servidor vuelve solo a la versión anterior.
+
+name: Despliegue
+
+on:
+  push:
+    branches: [main, staging]
+  workflow_dispatch:
+    inputs:
+      entorno:
+        description: Entorno a desplegar
+        required: true
+        type: choice
+        options: [staging, produccion]
+
+concurrency:
+  # Un despliegue por entorno y de uno en uno: dos simultáneos sobre el mismo
+  # servidor se pisan al migrar.
+  group: despliegue-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGEN_BASE: ${{ github.repository }}
+
+jobs:
+
+  comprobar:
+    name: Comprobar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.5'
+          extensions: pdo_pgsql, pgsql, redis, intl, zip, gd, bcmath, exif, pcntl
+          coverage: none
+      - name: Instalar dependencias
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Preparar el entorno
+        working-directory: backend
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+      - name: Formato, análisis y pruebas
+        working-directory: backend
+        run: |
+          ./vendor/bin/pint --test
+          ./vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+          php artisan test
+
+  construir:
+    name: Construir y escanear
+    needs: [comprobar]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    strategy:
+      matrix:
+        include:
+          - nombre: app
+            dockerfile: docker/app/Dockerfile
+          - nombre: nginx
+            dockerfile: docker/nginx/Dockerfile
+          - nombre: sitio
+            dockerfile: docker/sitio/Dockerfile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Registro de contenedores
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construir
+        run: |
+          docker build \
+            --file ${{ matrix.dockerfile }} \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGEN_BASE }}-${{ matrix.nombre }}:${{ github.sha }} \
+            .
+
+      - name: Escanear
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGEN_BASE }}-${{ matrix.nombre }}:${{ github.sha }}
+          format: table
+          # Falla sólo con lo que ya se sabe cómo arreglar: no se publica una
+          # imagen con una vulnerabilidad corregible.
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Publicar
+        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGEN_BASE }}-${{ matrix.nombre }}:${{ github.sha }}
+
+  # ---------------------------------------------------------------------------
+  # Las etapas de despliegue se encienden por separado.
+  # ---------------------------------------------------------------------------
+  staging:
+    name: Desplegar en pruebas
+    needs: [construir]
+    if: |
+      (github.ref_name == 'staging' || inputs.entorno == 'staging')
+      && vars.SEDE_DESPLIEGUE_STAGING == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://${{ vars.SEDE_DOMINIO }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Desplegar
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USUARIO: ${{ secrets.DEPLOY_USER }}
+          PUERTO: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          # La llave del servidor está restringida a este único comando.
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -p "$PUERTO" "$USUARIO@$HOST" \
+            "desplegar.sh staging ${{ github.sha }}"
+
+  produccion:
+    name: Desplegar en producción
+    needs: [construir]
+    if: |
+      (github.ref_name == 'main' || inputs.entorno == 'produccion')
+      && vars.SEDE_DESPLIEGUE_PRODUCCION == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.SEDE_DOMINIO }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Desplegar
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USUARIO: ${{ secrets.DEPLOY_USER }}
+          PUERTO: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -p "$PUERTO" "$USUARIO@$HOST" \
+            "desplegar.sh produccion ${{ github.sha }}"

@@ -50,7 +50,7 @@
 | Guía de seguridad | `docs-security/` — 5 capítulos + 5 apéndices, ~55.553 palabras | lectura íntegra |
 | Implementación anterior | `/var/www/sede` — 47 commits, **descartada** | §1.2 |
 | Repositorio | `github.com/SantanderAcuna/sede` — privado, rama `master`, 3 ramas | `gh repo view` |
-| Droplet | `198.199.89.119` — Ubuntu 26.04, 4 GB, acceso `root` verificado; **nada escuchando en el puerto 80** | `curl` y `ssh` |
+| Droplet | Reemplazado durante la fase 0: el original (`198.199.89.119`, Ubuntu 26.04, 4 GB) se descartó y el aprovisionamiento se rehízo sobre `165.22.46.11` (Ubuntu 24.04.5, 4 vCPU / 8 GB) | `curl` y `ssh` |
 | Dominio de staging | `staging.santamarta.gov.co` — ya detrás de Cloudflare | DNS → `2606:4700:…` (rango Cloudflare) |
 | Sitio actual de la entidad | Drupal 7, Bootstrap 3.3.7, sin Kit gov.co | investigación §12 |
 
@@ -88,11 +88,11 @@ construye de nuevo, con los documentos como única fuente.
 | D-14 | Alcance de seguridad | Endurecimiento del SO, Cloudflare y copias de seguridad cifradas con simulacro |
 | D-15 | Fuera de alcance | Wazuh/IDS, Prometheus/Grafana, app móvil Flutter, sidecar de IA |
 | D-16 | Formato de la API | **Sobre plano** `{success, message, data, meta, errors}` con `application/json`. La regla R-24 se mantiene; JSON:API se descarta |
-| D-17 | Imágenes base | Docker Hardened Images (`dhi.io`), fijadas por resumen |
-| D-18 | Rutas del dominio | Sitio Nuxt en `/`, panel en `/panel`, API en `/api/v1` |
+| D-17 | Imágenes base | Imágenes oficiales **fijadas por resumen**, con endurecimiento por configuración (§21.J) |
+| D-18 | Rutas del dominio | Sitio Nuxt en `/`, panel en `/admin`, API en `/api/v1` |
 | D-19 | Dominio de staging | `staging.santamarta.gov.co` |
 | D-20 | Dominio de producción | **Sin decidir** (§21.A) |
-| D-21 | Droplet | Nuevo, `198.199.89.119` |
+| D-21 | Droplet | Nuevo, `165.22.46.11` (el primero, `198.199.89.119`, se descartó por capacidad) |
 | D-22 | Región y tamaño | `nyc3`, 2 vCPU / 8 GB / 160 GB NVMe |
 
 ### 1.4 Lo que este plan NO decide
@@ -232,8 +232,8 @@ Estos huecos se cierran en este plan, con la fuente oficial de cada tecnología 
                                 │ HTTPS 443
                                 ▼
         ┌───────────────────────────────────────────────────┐
-        │  Droplet nyc3 · 2 vCPU · 8 GB · 160 GB · Ubuntu   │
-        │  198.199.89.119                                   │
+        │  Droplet nyc3 · 4 vCPU · 8 GB · 154 GB · Ubuntu   │
+        │  165.22.46.11 · 2604:a880:800:14:0:3:96ab:d000    │
         │                                                   │
         │  ── PLANO DEL HOST ──────────────────────────     │
         │  DO Cloud Firewall → nftables → UFW → Fail2Ban    │
@@ -280,7 +280,7 @@ autoridad) y la obligación O-01 (dominio canónico único).
 | Ruta | Servicio | Tipo | Autenticación |
 |---|---|---|---|
 | `/` | `nuxt` | SSR de Node | Pública |
-| `/panel` | `nginx` (disco) | SPA estática | Sanctum, por ruta |
+| `/admin` | `nginx` (disco) | SPA estática | Sanctum, por ruta |
 | `/api/v1/*` | `app` | PHP-FPM | Sanctum, por ruta |
 | `/storage/*` | `app` | Archivos privados con URL firmada | Firma temporal |
 | `/health` | `app` | Sonda de vida | Sólo red interna |
@@ -317,8 +317,8 @@ móvil: una etiqueta puede reapuntarse y con ella cambiar todo el contenido de l
 | Docker Engine + Compose v2 | rama estable | repositorio oficial de Docker | No el paquete de Ubuntu |
 | nginx | **1.30.5** (rama *stable*) | `nginx:1.30.5-alpine` | Publicada el 15-sep-2026; corrige la CVE-2026-90439 |
 | Docker Engine | **29.8.1** | repositorio oficial | Verificado en el servidor; Compose **5.5.1** |
-| PHP | **8.5** | `dhi.io/php` (fpm) | Soportado por Laravel 13 (8.3–8.5) |
-| Composer | 2.x | `dhi.io/composer` | Sólo en la etapa de compilación |
+| PHP | **8.5** | `php:8.5-fpm-alpine` | Soportado por Laravel 13 (8.3–8.5) |
+| Composer | 2.x | `composer:2` | Sólo en la etapa de compilación |
 | Node | **24** (LTS) | `node:24-alpine` | Nuxt 4 exige `^22.19`, `^24.11` o superior |
 
 > **nginx no tiene LTS.** Tiene rama *stable* (menor par, hoy 1.30.x) y rama *mainline*
@@ -406,9 +406,7 @@ sede/
 │   ├── panel/            Dockerfile del panel (compilación de la SPA)
 │   ├── sitio/            Dockerfile del sitio (servidor SSR de Nuxt)
 │   ├── nginx/            Configuración del punto de entrada
-│   ├── postgres/         Configuración e inicialización
-│   ├── redis/            Configuración y ACL
-│   └── backup/           Imagen y scripts de copia de seguridad
+│   └── (postgres, redis y las copias se configuran en compose.yaml)
 ├── deploy/
 │   ├── droplet/          preparar.sh · certificado.sh · despliegue-remoto.sh
 │   └── plantilla.env     Plantilla del entorno, renderizada en cada despliegue
@@ -754,8 +752,8 @@ Una sola aplicación en `panel/` con **dos áreas** separadas por rol y por ruta
 
 | Área | Ruta | Para quién | Qué hace |
 |---|---|---|---|
-| Editorial y administración | `/panel/*` | Funcionarios | El CMS completo (§10) |
-| Autogestión | `/panel/mi-cuenta/*` | Ciudadanos | Mis radicados, notificaciones, pagos, documentos y datos |
+| Editorial y administración | `/admin/*` | Funcionarios | El CMS completo (§10) |
+| Autogestión | `/admin/mi-cuenta/*` | Ciudadanos | Mis radicados, notificaciones, pagos, documentos y datos |
 
 Ambas se sirven desde el mismo origen y comparten el cliente HTTP, el guardia de rutas y
 los componentes de interfaz. La separación es de autorización, no de origen.
@@ -1454,26 +1452,31 @@ precisamente para cerrarlas, y **la columna de requisitos es la lista de trabajo
 
 | Atributo | Estado verificado el 2026-09-30 |
 |---|---|
-| Identificador | `604812963` |
-| IP | `198.199.89.119` (IPv4) y `2604:a880:0400:d1::5:125a:a001` (IPv6, **ya asignada**) |
-| Hostname actual | `sede-electronica` |
-| Región | `nyc1` (Nueva York 1) |
-| Sistema operativo | **Ubuntu 26.04.1 LTS**, kernel 7.0 |
-| Tamaño actual | 2 vCPU · **4 GB** de memoria · 120 GB de disco |
-| Tamaño objetivo | 2 vCPU · **8 GB** de memoria · mismo disco (ampliación pendiente, tarea F0.0) |
-| Usuarios | Sólo `root`; falta crear `ops`, `deploy` y las cuentas de servicio |
-| Docker | **No instalado** |
-| Cortafuegos del host | Presente pero **inactivo** |
-| Intercambio | **Sin configurar** |
-| Actualizaciones pendientes | Ninguna |
-| Acceso | Llave Ed25519, sólo `root`, con autenticación por contraseña ya deshabilitada |
-| Doble pila | IPv4 e IPv6 — el requisito de aceptación de §11.7 ya se cumple en el droplet |
+| Identificador | `604962462` |
+| IP | `165.22.46.11` (IPv4) y `2604:a880:800:14:0:3:96ab:d000` (IPv6) |
+| Hostname | `sede-electronica-alcaldia` |
+| Región | `nyc3` (Nueva York 3) |
+| Sistema operativo | **Ubuntu 24.04.5 LTS**, kernel 6.8.0-142 |
+| Tamaño | 4 vCPU · **7,8 GB** de memoria · 154 GB de disco |
+| Usuarios | `ops` (administración, con `sudo`) y `deploy` (canalización, restringida a un comando) |
+| Docker | Instalado desde el repositorio oficial |
+| Cortafuegos del host | **Activo** — entrada denegada por defecto; 22 con límite de tasa, 80 y 443; guarda contra el bypass de Docker |
+| Intercambio | **2 GB** configurados |
+| Acceso | Llave Ed25519 de `ops`; **`root` por SSH cerrado**; autenticación por contraseña deshabilitada |
+| Doble pila | IPv4 e IPv6 |
 
-> **Nota de versión del sistema operativo.** La guía de seguridad está escrita para Ubuntu
-> 24.04 y el droplet corre 26.04. Cada valor por versión —versiones de OpenSSH, nftables,
-> AppArmor, auditd, nombres de paquete y orígenes de actualización— **se verifica contra el
-> sistema real antes de aplicarlo**, en lugar de copiarse del capítulo. Es la tarea F10.1,
-> adelantada a la fase 0 para el endurecimiento del host.
+> **Este droplet es el segundo.** El primero (`198.199.89.119`, 2 vCPU / 4 GB, Ubuntu 26.04)
+> se descartó durante la fase 0: se quedaba corto para la pila completa y arrastraba
+> divergencias de versión respecto a la guía. El aprovisionamiento se rehízo desde cero
+> sobre un droplet con más capacidad.
+
+> **Nota de versión del sistema operativo.** El droplet corre **Ubuntu 24.04.5 LTS**, la
+> misma versión para la que está escrita la guía, así que las divergencias de §14.0 no
+> aplican aquí. Aun así, cada valor por versión —versiones de OpenSSH, nftables, AppArmor,
+> auditd, nombres de paquete y orígenes de actualización— **se verifica contra el sistema
+> real antes de aplicarlo**, en lugar de copiarse del capítulo: el endurecimiento de SSH de
+> la guía, copiado tal cual, reducía la negociación a un único algoritmo clásico porque los
+> nombres híbridos post-cuánticos no existen en esta versión con ese nombre.
 
 **Por qué ese tamaño.** El capítulo 01 estima 4 workers de PHP, más nginx, Redis y los
 clientes de base de datos, en torno a 3,5 GB, y recomienda al menos 2 vCPU y 8 GB. A ello
@@ -1525,7 +1528,7 @@ no deja el cortafuegos huérfano.
 **Estado verificado el 2026-09-30.** `staging.santamarta.gov.co` ya resuelve a direcciones
 de Cloudflare (`104.21.62.188` y `172.67.138.96`) y presenta el certificado comodín de la
 zona, emitido por Google Trust Services y válido hasta el **16 de diciembre de 2026**. La
-conexión todavía no completa el saludo TLS porque el droplet `198.199.89.119` no tiene nada
+conexión todavía no completa el saludo TLS porque el droplet de origen no tiene nada
 escuchando en el puerto 80: **el borde está listo y el origen no**. Eso sitúa la emisión del
 certificado propio del origen (F0.11) y el primer despliegue (F0.15) como las tareas que
 convierten ese estado en una sede que responde.
@@ -1566,7 +1569,9 @@ seguridad no contempla, porque está escrita para 24.04. Verificadas en la máqu
 | Pieza | Versión real | Consecuencia |
 |---|---|---|
 | `sudo` | **`sudo-rs` 0.2.13** — la reescritura en Rust | **No soporta el subconjunto completo de `sudoers`**: `log_input`, `log_output` e `iolog_dir` son rechazados y un archivo inválido en `sudoers.d` **deja `sudo` inservible**. Las reglas se escriben con lo que sí soporta, y se valida con `visudo -c` antes de guardar |
-| Arranque de SSH | **`ssh.socket`** con activación por socket | El `sshd` de cada conexión **lee la configuración en el momento**, así que un cambio se aplica a la conexión siguiente sin recargar nada. Y la directiva `Port` **se ignora**: el puerto lo define la unidad de socket |
+| Arranque de SSH | **Demonio clásico** | Aunque `ssh.socket` esté habilitado, en la máquina el `sshd` corre como demonio (`-D [listener]`), así que **lee la configuración al arrancar y un cambio NO se aplica hasta recargar**. Verificado: tras editar los algoritmos de intercambio, el servidor seguía ofreciendo la lista anterior hasta ejecutar `systemctl reload ssh` |
+| Intercambio de claves | **Híbrido post-cuántico disponible** | OpenSSH 10.2 ofrece `mlkem768x25519-sha256` y `sntrup761x25519-sha512`. La lista del capítulo 01, escrita para OpenSSH 9.6, **no los incluía**: aplicarla sin revisar dejaba el servidor *peor* que su valor por defecto en esa dimensión. Ya están habilitados y verificados por negociación real |
+| Cliente | OpenSSH 10 no prefiere el post-cuántico por defecto | El aviso «connection is not using a post-quantum key exchange algorithm» lo emite el **cliente**, no el servidor. El servidor ya lo ofrece; que se negocie depende de que el cliente también lo prefiera |
 | Docker | **29.8.1**, Compose **5.5.1** | Muy por encima de lo que asumen los documentos; el demonio se configura por `daemon.json`, no por banderas del servicio |
 
 Otras versiones verificadas: `fail2ban` 1.1.0-9, `ufw` 0.36.2-9build1,
@@ -1669,19 +1674,41 @@ que publica. La respuesta del plan es de diseño, no de parcheo:
 ### 14.7 Fail2Ban
 
 Una **sola** configuración para todo el sistema. El capítulo 02, el apéndice A y el
-capítulo 05 definen tres incompatibles entre sí; se adopta una y se documenta:
+capítulo 05 definen tres incompatibles entre sí; se adopta una y se documenta en
+`/etc/fail2ban/jail.d/10-sede.local`, escrito por `preparar.sh`:
 
 | Jail | Umbral | Duración del bloqueo |
 |---|---|---|
-| `sshd` | 3 intentos en 10 minutos | 24 horas, incrementales |
-| `nginx-http-auth` | 5 en 10 minutos | 1 hora |
-| `nginx-badbots` | 2 | 48 horas |
-| `nginx-noscript` | 3 en 10 minutos | 24 horas |
-| `nginx-ddos` | 200 en 1 minuto | 1 hora |
-| `recidive` | 3 bloqueos en 1 día | 1 semana, en todos los puertos |
+| `sshd` | 5 intentos en 10 minutos | 1 hora, que se duplica con cada reincidencia |
+| `recidive` | 3 bloqueos en 1 día | 4 semanas, en todos los puertos |
 
-El incremento exponencial multiplica la duración por el número de reincidencias, con un
-tope de cuatro semanas. La IP del operador está en la lista de exclusión.
+El incremento exponencial multiplica la duración por la reincidencia, con un tope de cuatro
+semanas. **Quien ataca hace miles de intentos**, así que una hora ya lo frena; el umbral se
+separó del que castiga a quien teclea mal porque un administrador bloqueado no puede
+arreglar nada.
+
+> **Corregido tras un bloqueo real durante el aprovisionamiento.** Este apartado describía
+> 3 intentos y 24 horas, y `preparar.sh` **no configuraba Fail2Ban en absoluto**: quedaba con
+> los valores por defecto del paquete, que cambian con la versión y no incluyen ni la cárcel
+> de reincidentes ni lista de exclusión alguna. Un endurecimiento que se apoya en un valor
+> por defecto no es un endurecimiento.
+>
+> El fallo se descubrió de la peor manera: dos intentos de entrar como `root` —que ya está
+> cerrado y por tanto **siempre** fallan— activaron la cárcel y dejaron la administración sin
+> acceso por SSH. La propia protección se convirtió en el incidente, y recuperarse exigió la
+> consola del proveedor. La orden es
+> `fail2ban-client set sshd unbanip <dirección>`, y el guion la imprime al terminar.
+>
+> **La lista de exclusión se usa con cuidado.** Sólo incluye `127.0.0.1/8` y `::1` salvo que
+> se pase `IP_ADMIN=<dirección>`. Escribir de antemano la dirección del operador da una falsa
+> tranquilidad: una dirección doméstica cambia, y una exclusión obsoleta no protege de nada.
+
+> **Cárceles de nginx: no implementadas, a propósito.** Los umbrales que la guía propone para
+> `nginx-http-auth`, `nginx-badbots`, `nginx-noscript` y `nginx-ddos` no están puestos porque
+> en este diseño nginx corre **en un contenedor** y sus registros viven en un volumen: el
+> Fail2Ban del host no los ve. Ponerlos produciría cárceles activas que nunca encontrarían una
+> coincidencia, que es peor que no tenerlas, porque cuentan como protección prestada. Lo que
+> cubre ese hueco es el límite de peticiones por segundo de nginx, que sí corta en el borde.
 
 **Acción contra Cloudflare, corregida.** El capítulo 02 autentica con la clave de API
 global, que él mismo prohíbe, y apunta a un recurso de ámbito de usuario que no es
@@ -1709,7 +1736,7 @@ compatible con un token limitado a una zona. La acción del plan usa:
 | Servicio | Imagen | Usuario | Red | Puertos | Sonda |
 |---|---|---|---|---|---|
 | `nginx` | `nginx:1.30.5-alpine` | no root | `edge`, `backend` | **80, 443 (los únicos)** | `/health` |
-| `app` | `dhi.io/php` 8.5 FPM | no root (10001) | `backend`, `data` | — | `/ready` de la aplicación |
+| `app` | `php:8.5-fpm-alpine` | no root (10001) | `backend`, `data` | — | `/ready` de la aplicación |
 | `horizon` | misma que `app` | no root (10001) | `backend`, `data` | — | `horizon:status` |
 | `scheduler` | misma que `app` | no root (10001) | `backend`, `data` | — | proceso vivo |
 | `nuxt` | `node:24-alpine` | no root | `backend` | — | HTTP en su puerto interno |
@@ -2129,7 +2156,7 @@ Tamaño relativo: **S** (días), **M** (una o dos semanas), **L** (varias semana
 | F0.7 | Contrato semilla: sobre plano, cinco esquemas compartidos, primer recurso completo | M |
 | F0.8 | Simulador de Prism levantado y respondiendo | S |
 | F0.9 | `compose.yaml` y `compose.override.yaml` con las tres redes y todos los servicios | M |
-| F0.10 | Endurecimiento del host (§14) sobre el droplet `198.199.89.119` | L |
+| F0.10 | Endurecimiento del host (§14) sobre el droplet `165.22.46.11` | L |
 | F0.11 | Certificado emitido para `staging.santamarta.gov.co` y renovación automática | S |
 | F0.12 | Las cuatro canalizaciones escritas, con acciones fijadas por confirmación real | M |
 | F0.13 | Entornos `staging` y `production` recreados con sus secretos y aprobaciones | S |
@@ -2426,16 +2453,28 @@ seguridad deja el correo transaccional fuera de su alcance.
   la 5. Verificar la compatibilidad de `vue-tsc`, ESLint y Nuxt es la tarea **F0.3**, y su
   resultado decide. Fijarlo sin verificar es cómo se rompe una compilación a la semana.
 
-### J. Acceso al registro de imágenes endurecidas
+### J. Acceso al registro de imágenes endurecidas — **resuelta**
 
-El titular eligió imágenes endurecidas (D-17). **No está verificado** que el registro sea
-accesible desde la canalización ni que las extensiones de PHP que la aplicación necesita se
-puedan añadir sin perder la garantía.
+**Verificado el 2026-09-30: el registro rechaza el acceso anónimo.**
 
-- **Tarea F0.3, bloqueante:** verificar acceso, rutas de las etiquetas y disponibilidad de
-  las extensiones.
-- **Si falla:** imágenes oficiales fijadas por resumen, con el endurecimiento por
-  configuración (usuario sin privilegios, sólo lectura, sin capacidades, escaneo bloqueante).
+```
+docker pull dhi.io/php:8.5-fpm
+  → failed to authorize: failed to fetch anonymous token: 401 Unauthorized
+```
+
+Docker publica que esas imágenes son gratuitas, pero **exigen autenticarse con una cuenta de
+Docker Hub**, y no hay credenciales de registro ni en el servidor ni en la canalización.
+Las imágenes oficiales sí responden: `php`, `nginx`, `postgres`, `redis` y `node` devuelven
+`200`.
+
+**Decisión del titular: imágenes oficiales fijadas por resumen, con el endurecimiento por
+configuración** —usuario sin privilegios, sistema de archivos de sólo lectura, sin
+capacidades, sin escalada, bases fijadas por resumen y escaneo bloqueante en cada
+compilación—, que es además lo que Docker recomienda con independencia de la imagen base.
+
+Consecuencia: se elimina una dependencia externa del proceso de construcción y del de
+despliegue. La imagen endurecida deja de ser un requisito y pasa a ser una mejora posible
+para más adelante, si la entidad obtiene cuenta.
 
 ### K. Datos institucionales sin confirmar
 
@@ -2471,7 +2510,7 @@ puedan añadir sin perder la garantía.
 
 | Riesgo | Prob. | Impacto | Mitigación |
 |---|---|---|---|
-| El registro de imágenes endurecidas no es accesible | Media | Alto | Verificación bloqueante en F0.3, con alternativa de imágenes oficiales fijadas |
+| ~~El registro de imágenes endurecidas no es accesible~~ | — | — | **Resuelto en F0.3:** exige autenticación; se usan imágenes oficiales fijadas por resumen con endurecimiento por configuración |
 | Las credenciales de terceros no llegan a tiempo | Alta | Medio | Adaptadores `mock` y `sandbox`: el flujo es verificable sin ellas |
 | El dominio de producción se decide tarde | Media | Alto | Bloquea sólo la fase 11; el resto avanza sobre staging |
 | La entidad no confirma los datos del pie | Alta | Medio | Se publica sólo lo confirmado y se marca lo pendiente |

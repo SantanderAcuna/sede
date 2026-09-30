@@ -1,0 +1,89 @@
+# Actualizaciones de dependencias, propuestas por GitHub en forma de solicitud.
+#
+# Existe junto a la puerta de `ci.yml`, y por la misma razón: durante el
+# aprovisionamiento, el despliegue se bloqueó porque la imagen del sitio llevaba
+# siete vulnerabilidades ALTAS en dependencias npm —`brace-expansion`,
+# `ip-address`, `tar` y `undici`— que llevaban tiempo corregidas y que nadie
+# había actualizado, porque nada lo estaba mirando.
+#
+# La puerta las detecta; esto las corrige. Detectarlas sin corregirlas convierte
+# la puerta en un semáforo que siempre está en rojo, y un semáforo que siempre
+# está en rojo se ignora.
+#
+# Los grupos reúnen lo que se revisa junto y separan lo que se revisa aparte:
+# una actualización de la versión de Node no se revisa igual que un parche de una
+# biblioteca de utilidades.
+
+version: 2
+
+updates:
+  # --- Dependencias de JavaScript ---------------------------------------------
+  - package-ecosystem: npm
+    directory: /panel
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Los parches y las mejoras de versiones menores van juntos: revisarlos uno a
+      # uno gasta más atención de la que merecen, y la atención es el recurso que
+      # de verdad escasea en una revisión.
+      menores:
+        applies-to: version-updates
+        update-types: [minor, patch]
+    labels: [dependencias]
+
+  - package-ecosystem: npm
+    directory: /sitio
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      menores:
+        applies-to: version-updates
+        update-types: [minor, patch]
+    labels: [dependencias]
+
+  # --- Dependencias de PHP -----------------------------------------------------
+  - package-ecosystem: composer
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      menores:
+        applies-to: version-updates
+        update-types: [minor, patch]
+    labels: [dependencias]
+
+  # --- Imágenes base -----------------------------------------------------------
+  #
+  # Sin esto, la vigilancia de las imágenes base no existe: sus correcciones llegan
+  # como versiones nuevas de paquete, y nadie se entera hasta que el escáner
+  # bloquea una construcción. Así apareció `libexpat` 2.8.4-r0 con una
+  # vulnerabilidad ALTA.
+  - package-ecosystem: docker
+    directories:
+      - /docker/app
+      - /docker/nginx
+      - /docker/sitio
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencias]
+
+  # --- Las propias acciones del flujo ------------------------------------------
+  #
+  # Aquí importa más que en ningún otro sitio: una acción fijada por confirmación
+  # nunca se actualiza sola, que es justo lo que se quiere, pero también significa
+  # que sin esto se queda atrás para siempre.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencias]

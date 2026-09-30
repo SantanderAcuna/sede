@@ -1,0 +1,302 @@
+# Despliegue a DigitalOcean.
+#
+#   staging    ← rama staging
+#   produccion ← rama main
+#
+# Cada entorno se enciende por separado con una variable del repositorio, de modo
+# que uno pueda estar desplegando mientras el otro espera su dominio.
+#
+# El recorrido es: comprobar, construir, escanear, publicar y desplegar. Si algo
+# falla, el servidor vuelve solo a la versión anterior.
+
+name: Despliegue
+
+on:
+  push:
+    branches: [main, staging]
+  workflow_dispatch:
+    inputs:
+      entorno:
+        description: Entorno a desplegar
+        required: true
+        type: choice
+        options: [staging, produccion]
+
+concurrency:
+  # Un despliegue por entorno y de uno en uno: dos simultáneos sobre el mismo
+  # servidor se pisan al migrar.
+  group: despliegue-${{ github.ref_name }}
+  cancel-in-progress: false
+
+# Permisos mínimos arriba; `packages: write` se concede SÓLO al trabajo que
+# publica imágenes. Concederlo a todos —incluidos los que despliegan— da capacidad
+# de escritura en el registro a pasos que no la necesitan.
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  # IMAGEN_BASE no se declara aquí: el registro exige nombres en minúsculas y la
+  # cuenta tiene mayúsculas. Se calcula en el primer paso de la construcción.
+
+jobs:
+
+  comprobar:
+    name: Comprobar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.5'
+          extensions: pdo_pgsql, pgsql, redis, intl, zip, gd, bcmath, exif, pcntl
+          coverage: none
+      - name: Instalar dependencias
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Preparar el entorno
+        working-directory: backend
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+      - name: Formato, análisis y pruebas
+        working-directory: backend
+        run: |
+          ./vendor/bin/pint --test
+          ./vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+          php artisan test
+
+  # El panel va primero y en su propio trabajo, no como una entrada más de la
+  # matriz, porque la imagen de nginx lo COPIA: necesita que exista y esté
+  # publicada antes de empezar. En una matriz todos los trabajos corren a la vez,
+  # así que no habría forma de garantizar el orden.
+  panel:
+    name: Construir el panel
+    needs: [comprobar]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Calcular el nombre de la imagen
+        run: |
+          echo "IMAGEN_BASE=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Registro de contenedores
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Preparar el constructor con caché
+        run: docker buildx create --use --driver docker-container --name sede
+
+      - name: Construir el panel
+        run: |
+          docker buildx build \
+            --file docker/panel/Dockerfile \
+            --tag ${{ env.REGISTRY }}/$IMAGEN_BASE-panel:${{ github.sha }} \
+            --cache-from type=gha,scope=panel \
+            --cache-to type=gha,scope=panel,mode=max \
+            --load \
+            .
+
+      - name: Preparar el escáner
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.74.0
+
+      - name: Escanear el panel
+        run: |
+          # La imagen del panel sólo contiene archivos, así que lo que se escanea
+          # de verdad es su contenido: las dependencias que quedaron compiladas en
+          # el artefacto. Aun así se escanea, porque «sólo son archivos» es
+          # exactamente lo que se dice de casi todo lo que acaba publicado.
+          trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --format table \
+            ${{ env.REGISTRY }}/$IMAGEN_BASE-panel:${{ github.sha }}
+
+      - name: Publicar el panel
+        run: docker push ${{ env.REGISTRY }}/$IMAGEN_BASE-panel:${{ github.sha }}
+
+  construir:
+    name: Construir y escanear
+    needs: [comprobar, panel]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    # Sin límite, un paso colgado consume el máximo del ejecutor: seis horas de
+    # espera antes de que alguien se entere de que el despliegue no avanza.
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        include:
+          - nombre: app
+            dockerfile: docker/app/Dockerfile
+          - nombre: nginx
+            dockerfile: docker/nginx/Dockerfile
+          - nombre: sitio
+            dockerfile: docker/sitio/Dockerfile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Calcular el nombre de la imagen
+        run: |
+          # El registro de contenedores de GitHub exige el nombre en MINÚSCULAS,
+          # y el de la cuenta tiene mayúsculas:
+          #
+          #   invalid tag "ghcr.io/SantanderAcuna/sede-nginx:...":
+          #   repository name must be lowercase
+          #
+          # Una expresión del flujo no sabe convertir a minúsculas, así que se
+          # calcula aquí y se publica para los pasos siguientes, que la leen como
+          # variable de entorno de la orden.
+          echo "IMAGEN_BASE=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+          echo "  imagen base: $(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+
+      - name: Registro de contenedores
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Preparar el constructor con caché
+        run: |
+          # El constructor por defecto de buildx no admite la caché de GitHub
+          # Actions, y sin caché CADA construcción recompila las extensiones de PHP
+          # desde el código fuente: más de diez minutos por despliegue, en cada
+          # empuje. Una construcción lenta no es sólo una molestia: es una que
+          # falla por tiempo agotado, y un despliegue que no llega.
+          docker buildx create --use --driver docker-container --name sede
+
+      - name: Construir
+        run: |
+          # El punto de entrada COPIA el panel ya publicado, en lugar de
+          # compilarlo: así el artefacto que se sirve es exactamente el que se
+          # publicó, y no uno construido en paralelo que podría diferir.
+          CONTEXTO=""
+          if [ "${{ matrix.nombre }}" = "nginx" ]; then
+            CONTEXTO="--build-context panel=docker-image://${{ env.REGISTRY }}/$IMAGEN_BASE-panel:${{ github.sha }}"
+          fi
+
+          docker buildx build \
+            --file ${{ matrix.dockerfile }} \
+            --tag ${{ env.REGISTRY }}/$IMAGEN_BASE-${{ matrix.nombre }}:${{ github.sha }} \
+            --cache-from type=gha,scope=${{ matrix.nombre }} \
+            --cache-to type=gha,scope=${{ matrix.nombre }},mode=max \
+            $CONTEXTO \
+            --load \
+            .
+
+      - name: Preparar el escáner
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          # La versión del escáner se fija para que el mismo código dé siempre el
+          # mismo veredicto. Sin fijarla, una imagen que hoy pasa podría fallar
+          # mañana porque cambió el catálogo de vulnerabilidades, y el fallo
+          # parecería del código.
+          version: v0.74.0
+
+      - name: Escanear
+        run: |
+          # Se usa la orden de Trivy directamente, en lugar de `trivy-action`.
+          # Aquella acción, fijada por confirmación en este archivo, referencia a
+          # su vez OTRA acción por ETIQUETA (`aquasecurity/setup-trivy@v0.2.2`), y
+          # esa versión ya no existe: la construcción fallaba al resolverla, sin
+          # llegar a construir nada y cancelando las otras dos imágenes.
+          #
+          # Fijar por confirmación lo que uno escribe no basta si el salto
+          # intermedio lo elige otro: una etiqueta puede reapuntarse a código
+          # distinto sin que este archivo cambie. `setup-trivy` sí está fijada por
+          # confirmación, y sus propias dependencias también, así que la cadena
+          # entera queda determinada.
+          #
+          # Falla sólo con lo que ya se sabe cómo arreglar: no se publica una
+          # imagen con una vulnerabilidad corregible.
+          trivy image \
+            --exit-code 1 \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --no-progress \
+            --format table \
+            ${{ env.REGISTRY }}/$IMAGEN_BASE-${{ matrix.nombre }}:${{ github.sha }}
+
+      - name: Publicar
+        run: docker push ${{ env.REGISTRY }}/$IMAGEN_BASE-${{ matrix.nombre }}:${{ github.sha }}
+
+  # ---------------------------------------------------------------------------
+  # Las etapas de despliegue se encienden por separado.
+  # ---------------------------------------------------------------------------
+  staging:
+    name: Desplegar en pruebas
+    needs: [construir]
+    timeout-minutes: 20
+    if: |
+      (github.ref_name == 'staging' || inputs.entorno == 'staging')
+      && vars.SEDE_DESPLIEGUE_STAGING == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://${{ vars.SEDE_DOMINIO }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Desplegar
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USUARIO: ${{ secrets.DEPLOY_USER }}
+          PUERTO: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          # La llave del servidor está restringida a este único comando.
+          # `BatchMode` hace que un fallo de autenticación falle ENSEGUIDA en vez de
+          # quedarse esperando una contraseña que nadie va a teclear. Y
+          # `StrictHostKeyChecking=yes` convierte en error explícito lo que hoy
+          # depende del valor por defecto: el anfitrión tiene que estar en
+          # `known_hosts` y coincidir, sin preguntar.
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -p "$PUERTO" "$USUARIO@$HOST" \
+            "desplegar.sh staging ${{ github.sha }}"
+
+  produccion:
+    name: Desplegar en producción
+    needs: [construir]
+    timeout-minutes: 20
+    if: |
+      (github.ref_name == 'main' || inputs.entorno == 'produccion')
+      && vars.SEDE_DESPLIEGUE_PRODUCCION == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.SEDE_DOMINIO }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Desplegar
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USUARIO: ${{ secrets.DEPLOY_USER }}
+          PUERTO: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -p "$PUERTO" "$USUARIO@$HOST" \
+            "desplegar.sh produccion ${{ github.sha }}"

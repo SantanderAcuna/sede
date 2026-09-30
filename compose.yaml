@@ -1,0 +1,332 @@
+# Pila de producción de la Sede Electrónica.
+#
+# Tres reglas gobiernan este archivo:
+#
+#   1. Sólo el punto de entrada publica puertos. Ni la base, ni la caché, ni la
+#      aplicación, ni el servidor del sitio. El aislamiento no depende de dónde
+#      escucha un proceso, sino de que no exista un mapeo de puerto.
+#   2. Todo contenedor corre sin privilegios, con el sistema de archivos de sólo
+#      lectura y sin capacidades.
+#   3. Los secretos son obligatorios y se declaran con `:?`: sin ellos la pila no
+#      se resuelve, en lugar de arrancar a medias con un valor inventado.
+#
+# Dimensionado para un servidor de 8 GB. Comparte con el sistema anfitrión,
+# así que los límites suman menos que la memoria total: es lo que evita que un
+# contenedor desbocado se lleve por delante a los demás.
+
+name: sede
+
+x-comun-app: &comun-app
+  image: ${REGISTRY:-sede}/${APP_NAME:-sede}-app:${APP_VERSION:-dev}
+  build:
+    context: .
+    dockerfile: docker/app/Dockerfile
+  restart: unless-stopped
+  # La clave de la aplicación se exige aquí, junto a los demás secretos. Sin ella
+  # el contenedor arrancaría y fallaría en el primer cifrado, en lugar de no
+  # arrancar: un fallo tardío y sin nombre se descubre en producción.
+  environment:
+    APP_KEY: ${APP_KEY:?La clave de la aplicación es obligatoria}
+  env_file:
+    # El archivo se deja OPCIONAL a propósito. Los valores también pueden llegar
+    # por el entorno del proceso, que es como los inyecta la canalización. Exigir
+    # el archivo obligaba a que existiera .env aunque no hiciera falta, y por eso
+    # `docker compose config` fallaba en la canalización. Los secretos críticos
+    # siguen exigidos uno a uno con ":?" en cada servicio: un despliegue sin
+    # valores sigue fallando, y con un mensaje que dice cuál falta.
+    - path: .env
+      required: false
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+  networks: [backend, data]
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+    - /run:size=8m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+  volumes:
+    - almacenamiento-app:/app/storage
+    - cache-app:/app/bootstrap/cache
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Punto de entrada. El único que publica puertos.
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: ${REGISTRY:-sede}/${APP_NAME:-sede}-nginx:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      app:   { condition: service_healthy }
+      sitio: { condition: service_healthy }
+    networks: [edge, backend]
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      # Los certificados se montan en sólo lectura: el contenedor no debe poder
+      # modificarlos ni ver la clave de la autoridad.
+      - ${SEDE_CERTS_DIR:-./docker/nginx/certs}:/etc/nginx/certs:ro
+      - certbot-webroot:/var/www/certbot:ro
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=64m
+      - /var/run:size=8m
+      - /tmp:size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE, CHOWN, SETGID, SETUID]
+    # La memoria de un servidor web es pequeña: no acumula estado.
+    mem_limit: 256m
+    pids_limit: 256
+
+  # ---------------------------------------------------------------------------
+  # Aplicación: PHP-FPM. No publica nada; nginx le habla por la red interna.
+  # ---------------------------------------------------------------------------
+  app:
+    <<: *comun-app
+    mem_limit: 1.5g
+    pids_limit: 512
+    healthcheck:
+      test: ["CMD-SHELL", "SCRIPT_NAME=/health REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Colas. La misma imagen, otro proceso.
+  # ---------------------------------------------------------------------------
+  horizon:
+    <<: *comun-app
+    command: ["php", "artisan", "horizon"]
+    mem_limit: 512m
+    pids_limit: 256
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan horizon:status | grep -q running || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Tareas programadas. Una sola instancia: dos programadores ejecutarían cada
+  # tarea dos veces.
+  # ---------------------------------------------------------------------------
+  scheduler:
+    <<: *comun-app
+    command: ["php", "artisan", "schedule:work"]
+    mem_limit: 256m
+    pids_limit: 128
+    # La sonda se DESACTIVA, y no es un descuido: sin declararla, este servicio
+    # hereda la de la IMAGEN, que habla FastCGI contra PHP-FPM —un proceso que
+    # aquí no existe—, así que quedaba permanentemente «enfermo».
+    #
+    # Un servicio eternamente enfermo que además funciona es peor que uno
+    # caído: enseña a ignorar el aviso, y el día que algo esté de verdad mal
+    # nadie lo mirará. Aquí el proceso es único y en primer plano, así que su
+    # vida ES la señal de salud: si se cae, Docker lo reinicia.
+    healthcheck:
+      disable: true
+
+  # ---------------------------------------------------------------------------
+  # Sitio público, con renderizado en servidor.
+  # ---------------------------------------------------------------------------
+  sitio:
+    image: ${REGISTRY:-sede}/${APP_NAME:-sede}-sitio:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/sitio/Dockerfile
+    restart: unless-stopped
+    env_file:
+    # El archivo se deja OPCIONAL a propósito. Los valores también pueden llegar
+    # por el entorno del proceso, que es como los inyecta la canalización. Exigir
+    # el archivo obligaba a que existiera .env aunque no hiciera falta, y por eso
+    # `docker compose config` fallaba en la canalización. Los secretos críticos
+    # siguen exigidos uno a uno con ":?" en cada servicio: un despliegue sin
+    # valores sigue fallando, y con un mensaje que dice cuál falta.
+      - path: .env
+        required: false
+    depends_on:
+      app: { condition: service_healthy }
+    networks: [backend]
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 512m
+    pids_limit: 256
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # ---------------------------------------------------------------------------
+  # Base de datos. Sólo en la red de datos, que no es alcanzable desde fuera de
+  # la pila.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    # Los ajustes se pasan como parámetros EXPLÍCITOS, no en un archivo aparte.
+    # PostgreSQL no acepta `include_dir` por línea de órdenes —es una directiva
+    # del archivo de configuración, no un parámetro—, así que la alternativa era
+    # un `config_file` completo o un guion de inicialización que sólo corre la
+    # primera vez. Explícitos aquí se aplican SIEMPRE y se ven al leer el archivo,
+    # que es justo lo que no pasaba antes: los ajustes vivían en un archivo que la
+    # imagen oficial NUNCA leía, y parecían aplicados.
+    #
+    # Dimensionados al límite del contenedor (2 GB) y no a la memoria del
+    # servidor: un `shared_buffers` calculado sobre la memoria total es la forma
+    # clásica de que la base se coma la máquina.
+    command:
+      - postgres
+      - -c
+      - "shared_buffers=512MB"
+      - -c
+      - "effective_cache_size=1536MB"
+      - -c
+      - "work_mem=8MB"
+      - -c
+      - "maintenance_work_mem=128MB"
+      - -c
+      - "max_connections=100"
+      - -c
+      - "log_min_duration_statement=1000"
+      - -c
+      - "log_connections=on"
+      - -c
+      - "log_disconnections=on"
+      - -c
+      - "log_line_prefix='%m [%p] %u@%d '"
+      - -c
+      - "log_checkpoints=on"
+      - -c
+      - "log_lock_waits=on"
+      - -c
+      - "ssl=off"
+    restart: unless-stopped
+    networks: [data]
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-sede}
+      POSTGRES_USER: ${DB_USERNAME:-sede}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?La contraseña de la base es obligatoria}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      # PostgreSQL 18 cambió la convención: espera UN montaje en
+      # /var/lib/postgresql y coloca los datos en un subdirectorio por versión,
+      # para que `pg_upgrade --link` no tropiece con el límite del montaje.
+      # Montándolo donde se montaba antes, la imagen encuentra «unused
+      # mount/volume» y SE NIEGA A ARRANCAR: el mensaje lo explica, pero hay que
+      # leerlo entero para ver que no es un problema de datos.
+      - datos-postgres:/var/lib/postgresql
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    # FOWNER hace falta además de CHOWN: el punto de entrada AJUSTA
+    # permisos de archivos que ya existen, y sin esa capacidad avisa de
+    # «chmod: Operation not permitted» en cada arranque.
+    cap_add: [CHOWN, FOWNER, SETUID, SETGID, DAC_OVERRIDE]
+    mem_limit: 2g
+    pids_limit: 256
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-sede} -d ${DB_DATABASE:-sede}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Caché, sesiones y colas.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    restart: unless-stopped
+    networks: [data]
+    # La política de expulsión NO es `allkeys-lru`: expulsaría sesiones y
+    # trabajos en cola, que no se pueden reconstruir. Con `volatile-lru` sólo se
+    # expulsa lo que tiene tiempo de vida declarado, es decir, la caché.
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?La contraseña de la caché es obligatoria}
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 448mb
+      - --maxmemory-policy
+      - volatile-lru
+      - --save
+      - "900 1"
+    volumes:
+      - datos-redis:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID]
+    mem_limit: 512m
+    pids_limit: 128
+    healthcheck:
+      # La contraseña se interpola AL CONFIGURAR, no dentro del contenedor: el
+      # servicio no declara `REDIS_PASSWORD` en su entorno, así que
+      # `$${REDIS_PASSWORD}` quedaba VACÍO, `redis-cli ping` respondía NOAUTH y la
+      # sonda no podía pasar NUNCA. Un servicio permanentemente «enfermo» que
+      # además funciona es peor que uno caído: nadie mira el aviso.
+      test: ["CMD-SHELL", "REDISCLI_AUTH='${REDIS_PASSWORD:?La contraseña de la caché es obligatoria}' redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Copias de seguridad. Efímero: se levanta, copia y se va. No tiene puertos ni
+  # sonda porque no atiende peticiones.
+  # ---------------------------------------------------------------------------
+  copia:
+    <<: *comun-app
+    profiles: ["copias"]
+    command: ["php", "artisan", "backup:run", "--only-db"]
+    environment:
+      BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:?La frase de paso de las copias es obligatoria}
+    restart: "no"
+
+networks:
+  # Internet hasta nginx.
+  edge:
+    name: ${APP_NAME:-sede}-edge
+  # nginx hasta la aplicación y hasta el servidor del sitio.
+  backend:
+    name: ${APP_NAME:-sede}-backend
+    internal: false
+  # Base, caché y almacenamiento. Marcada interna: ningún servicio de datos es
+  # alcanzable desde fuera de la pila, aunque alguien publique un puerto por
+  # descuido.
+  data:
+    name: ${APP_NAME:-sede}-data
+    internal: true
+
+volumes:
+  # Estilo de bloque, no de flujo: el `:` de `${APP_NAME:-sede}` se lee como
+  # separador de clave dentro de una llave y rompe el archivo.
+  datos-postgres:
+    name: ${APP_NAME:-sede}-datos-postgres
+  datos-redis:
+    name: ${APP_NAME:-sede}-datos-redis
+  almacenamiento-app:
+    name: ${APP_NAME:-sede}-almacenamiento-app
+  cache-app:
+    name: ${APP_NAME:-sede}-cache-app
+  certbot-webroot:
+    name: ${APP_NAME:-sede}-certbot-webroot

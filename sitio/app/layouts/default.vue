@@ -19,28 +19,41 @@ import type { NivelMigaDePan } from '~/components/govco/MigaDePanGovco.vue'
 /**
  * El menú obligatorio de la Sede.
  *
- * No se inventa: sale de los criterios del expediente.
+ * Sale del **Anexo 2.1 — Guía de diseño gráfico para sedes electrónicas**, que
+ * el propio anexo declara «de obligatorio cumplimiento» por el artículo 14 del
+ * Decreto 2106 de 2019:
  *
- *  - **§4.1 del Anexo 2 de la Resolución 2893 de 2020**, que el propio anexo
- *    declara «de obligatorio cumplimiento», fija tres botones: **Transparencia y
- *    acceso a información pública**, **Servicios a la ciudadanía** y
- *    **Participa**. Añade que la autoridad puede poner más, y aquí se añaden dos
- *    —Inicio y Noticias—, que son secciones de la sede según el mismo anexo.
- *  - **§4.1.2.3** desdobla Participa en **seis subcategorías**, con estos nombres
- *    exactos. Faltaban: el menú sólo mostraba dos, y por eso no se veía lo que la
- *    norma pide.
- *  - **FUN-012** limita el menú a **siete opciones** principales y a **dos
- *    niveles**. Aquí hay cinco y un solo nivel de despliegue.
- *  - **FUN-013** obliga a que las tres secciones estén visibles.
- *
- * Las subcategorías de Participa apuntan a `/participa/<slug>`, que resuelve una
- * única página contra la lista de slugs válidos. Seis archivos casi idénticos
- * serían seis sitios donde equivocarse.
+ *  - **Mínimos obligatorios:** Transparencia y acceso información pública,
+ *    Atención y Servicios a la Ciudadanía y Participa.
+ *  - **«En total son 7 ítems de menú principales»**, y la autoridad puede añadir
+ *    más «conforme lo permitan las posibilidades de diseño y usabilidad». Aquí
+ *    se usan los siete: los tres obligatorios más Inicio, PQRSD, Normativa y
+ *    Noticias, que son páginas del propio anexo.
+ *  - **«Se recomienda que el MENÚ quede ESTÁTICO y se pueda notar cuál es el
+ *    ítem de menú en el que me encuentro.»** El despliegue no se abre solo al
+ *    pasar el ratón: se abre al pulsar, y el ítem activo se marca según la ruta.
+ *  - **Opción 2 (megamenú):** hasta **4 secciones internas** por ítem, con sus
+ *    subsecciones. Participa lleva las seis que fija el §4.1.2.3.
  */
 const menu: MenuPrincipal = [
   { etiqueta: 'Inicio', ruta: '/' },
-  { etiqueta: 'Transparencia y acceso a información pública', ruta: '/transparencia' },
-  { etiqueta: 'Servicios a la Ciudadanía', ruta: '/servicios' },
+  { etiqueta: 'Transparencia y acceso información pública', ruta: '/transparencia' },
+  {
+    etiqueta: 'Atención y Servicios a la Ciudadanía',
+    subsecciones: [
+      {
+        titulo: 'Atención y Servicios a la Ciudadanía',
+        enlaces: [
+          { etiqueta: 'Trámites y servicios', ruta: '/tramites' },
+          { etiqueta: 'Canales de atención', ruta: '/atencion' },
+          { etiqueta: 'Realizar una petición', ruta: '/realizar-una-peticion' },
+          { etiqueta: 'Seguimiento de una solicitud', ruta: '/seguimiento' },
+        ],
+      },
+    ],
+  },
+  { etiqueta: 'PQRSD', ruta: '/pqrsd' },
+  { etiqueta: 'Normativa', ruta: '/normativa' },
   { etiqueta: 'Noticias', ruta: '/noticias' },
   {
     etiqueta: 'Participa',

@@ -34,6 +34,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 ENV = RAIZ / ".accesos.local.env"
 PASS = RAIZ / "pass.md"
 VERIFICADOR = RAIZ / "deploy/droplet/verificar-contrasena.py"
+USUARIO_ADMIN = "ops"
 
 # Sólo se rellena con --ip, para corregir un registro que apunta a un servidor
 # que ya no existe. En el uso normal el destino sale siempre del registro.
@@ -123,6 +124,24 @@ def fijar_fila_pass(lineas: list[str], clave: str, *valores: str) -> bool:
     return False
 
 
+
+def fijar_contrasena_ops(lineas: list[str], valor: str) -> bool:
+    """La contraseña de ops no está en una tabla con columnas por entorno, sino en
+    un bloque de texto, así que no sirve `fijar_fila_pass`. Se sustituye la PRIMERA
+    línea «Contraseña : …», que es la de la sección de cuentas.
+
+    Que esto falte fue un defecto real: `--ops` actualizaba el archivo para la
+    máquina y dejaba el archivo para las personas con la contraseña ANTERIOR, es
+    decir, el registro legible decía algo que ya no era cierto. Es exactamente el
+    fallo que esta herramienta existe para evitar.
+    """
+    patron = re.compile(r"^Contraseña\s*:\s*\S+\s*$")
+    for i, linea in enumerate(lineas):
+        if patron.match(linea):
+            lineas[i] = f"Contraseña       : {valor}"
+            return True
+    return False
+
 def gh(*args: str, entrada: str | None = None, intentos: int = 4) -> None:
     """gh con reintentos: la API de GitHub devuelve 500 de forma transitoria, y un
     fallo a mitad deja GitHub y el registro desalineados."""
@@ -168,6 +187,13 @@ def resumen(clave: str, valor: str) -> str:
     return f"  {clave:<26} {len(valor):>3} caracteres, empieza por «{valor[:6]}…»"
 
 
+
+def valor_de(clave: str) -> str:
+    for linea in leer_env():
+        if linea.startswith(f"{clave}="):
+            return linea.split("=", 1)[1].strip()
+    sys.exit(f"ABORTADO: falta {clave} en .accesos.local.env.")
+
 def servidor_ip() -> str:
     """El destino sale del registro, no de una constante escrita aquí: una IP
     fija es exactamente cómo el registro acabó apuntando a un servidor muerto.
@@ -183,13 +209,42 @@ def servidor_ip() -> str:
     sys.exit("ABORTADO: no hay SERVIDOR_IP en .accesos.local.env. Usa --servidor --ip <dirección>.")
 
 
-def en_el_servidor(guion: str) -> subprocess.CompletedProcess[str]:
+def en_el_servidor(guion: str, privilegiado: bool = False) -> subprocess.CompletedProcess[str]:
+    """Ejecuta un guion en el servidor, como la cuenta de administración.
+
+    NUNCA como `root`: el acceso de `root` por SSH está cerrado, y darlo por
+    supuesto fue un defecto real de esta herramienta —seguía conectándose como
+    `root@`, la conexión fallaba y el fallo se veía como «no se pudo verificar»,
+    que apunta al sitio equivocado.
+
+    Si el guion necesita privilegios, se pasa por `sudo` con la contraseña de
+    administración. El guion viaja codificado y se ejecuta desde un archivo
+    temporal con permisos 600, así que ni el guion ni la contraseña aparecen en
+    el listado de procesos del servidor.
+    """
     destino = servidor_ip()
-    print(f"  servidor de destino: {destino}")
+    print(f"  servidor de destino: {destino} (como {USUARIO_ADMIN})")
+
+    if privilegiado:
+        import base64 as _b64
+        b64_guion = _b64.b64encode(guion.encode()).decode()
+        b64_pw = _b64.b64encode(valor_de("OPS_PASSWORD_INICIAL").encode()).decode()
+        guion = "\n".join([
+            "umask 077",
+            f"printf %s '{b64_guion}' | base64 -d > /tmp/sede-rotar.sh",
+            "chmod 600 /tmp/sede-rotar.sh",
+            f"PWSEC=$(printf %s '{b64_pw}' | base64 -d)",
+            "printf '%s\\n' \"$PWSEC\" | sudo -S -k -p '' bash /tmp/sede-rotar.sh",
+            "CODIGO=$?",
+            "rm -f /tmp/sede-rotar.sh",
+            "unset PWSEC",
+            "exit $CODIGO",
+        ])
+
     return subprocess.run(
         ["ssh", "-F", "/dev/null", "-i", str(Path.home() / ".ssh/id_ed25519"),
-         "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20",
-         f"root@{destino}", "bash -s"],
+         "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=25",
+         f"{USUARIO_ADMIN}@{destino}", "bash -s"],
         input=guion, capture_output=True, text=True,
     )
 
@@ -276,20 +331,39 @@ def rotar_ops() -> None:
         "rm -f /tmp/vc.py",
     ])
 
-    r = en_el_servidor(guion)
+    r = en_el_servidor(guion, privilegiado=True)
     salida = [l for l in r.stdout.splitlines() if l.strip() and not l.startswith("**")]
     print("Contraseña de ops en el servidor")
     for linea in salida:
         print(f"  {linea}")
 
     if "COINCIDE" not in r.stdout:
+        # Se muestra la salida de error de la conexión: sin ella, «no se pudo
+        # verificar» apunta al sitio equivocado y se busca el fallo en la
+        # comprobación cuando el problema estaba en la conexión.
+        detalle = (r.stderr or "").strip().splitlines()
+        if detalle:
+            print("  la conexión o el cambio fallaron:")
+            for linea in detalle[-4:]:
+                print(f"    {linea}")
         sys.exit("ABORTADO: la comprobación contra /etc/shadow no confirmó el cambio. NO se registra.")
 
-    lineas = leer_env()
-    fijar_env(lineas, "OPS_PASSWORD_INICIAL", nueva)
-    escribir_env(lineas)
+    # Los dos registros se actualizan antes de escribir ninguno: si uno falla, no
+    # se deja el otro a medias. Un registro a medias es peor que ninguno, porque
+    # se consulta y se cree.
+    lineas_env = leer_env()
+    fijar_env(lineas_env, "OPS_PASSWORD_INICIAL", nueva)
+
+    lineas_pass = leer_pass()
+    if not fijar_contrasena_ops(lineas_pass, nueva):
+        sys.exit("ABORTADO: no encontré la contraseña de ops en pass.md. NO se registra nada.")
+
+    escribir_env(lineas_env)
+    escribir_pass(lineas_pass)
+
     print(resumen("OPS_PASSWORD_INICIAL", nueva))
-    print("\n  La comprobación confirmó que el servidor y el registro coinciden.")
+    print("  pass.md                       actualizado")
+    print("\n  La comprobación confirmó que el servidor y los dos registros coinciden.")
 
 
 def actualizar_servidor() -> None:
@@ -332,7 +406,7 @@ def actualizar_servidor() -> None:
 
     print("\n  Falta DEPLOY_KNOWN_HOSTS: las claves de host cambiaron con el servidor.")
     print("  Se obtienen del propio droplet, no por ssh-keyscan (que el cortafuegos frena):")
-    print("    ssh root@<servidor> 'cat /etc/ssh/ssh_host_*_key.pub'")
+    print("    ssh ops@<servidor> 'sudo cat /etc/ssh/ssh_host_*_key.pub'")
 
 
 def main() -> None:

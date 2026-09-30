@@ -14,23 +14,75 @@
 #
 # Este es el ÚNICO comando que la llave de despliegue puede ejecutar.
 #
+# Se instala como `/usr/local/bin/desplegar.sh` y se invoca desde la canalización
+# así:
+#
+#   ssh -i <llave> deploy@<servidor> "desplegar.sh staging <confirmación>"
+#
+# Ojo con ese detalle: la restricción de la llave lo declara como comando forzado
+# **sin argumentos**, de modo que sshd ejecuta el guion vacío y entrega lo que
+# escribió el cliente en `SSH_ORIGINAL_COMMAND`. Por eso el guion lo lee más
+# abajo. Sin eso, se ejecutaría sin entorno ni versión y fallaría siempre.
+#
 set -euo pipefail
-
-ENTORNO="${1:?Falta el entorno: staging o produccion}"
-VERSION="${2:?Falta la versión (identificador del commit)}"
-VOLVER="${3:-}"
-
-BASE="/opt/sede/$ENTORNO"
-COMPOSE="docker compose -f $BASE/compose.yaml --env-file $BASE/.env"
-ESPERA="${SEDE_ESPERA_SEGUNDOS:-180}"
 
 rojo()  { printf '\033[31m%s\033[0m\n' "$*" >&2; }
 verde() { printf '\033[32m%s\033[0m\n' "$*"; }
 
+# ---------------------------------------------------------------------------
+# De dónde salen los argumentos
+#
+# La llave de despliegue entra con un comando FORZADO y SIN argumentos
+# (`command="/usr/local/bin/desplegar.sh"` en `authorized_keys`), así que sshd no
+# le pasa ninguno. Los entrega en `SSH_ORIGINAL_COMMAND`, tal cual los escribió
+# quien llama. Sin leerlos de ahí, este guion arrancaría sin entorno ni versión y
+# fallaría SIEMPRE, por mucho que el resto estuviera bien.
+# ---------------------------------------------------------------------------
+if [ "$#" -eq 0 ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
+  # División por espacios a propósito: así se reconstruyen los argumentos.
+  # shellcheck disable=SC2086
+  set -- $SSH_ORIGINAL_COMMAND
+
+  # Quien llama escribe el nombre del comando delante —«desplegar.sh staging …»—
+  # porque así se lee mejor en la canalización, así que hay que quitarlo. Se
+  # aceptan las dos formas para no depender de cómo lo escriba el cliente.
+  case "${1:-}" in
+    desplegar.sh|*/desplegar.sh) shift ;;
+  esac
+fi
+
+ENTORNO="${1:-}"
+VERSION="${2:-}"
+VOLVER="${3:-}"
+
+# Se validan como si vinieran de fuera, porque vienen de fuera: las escribe el
+# cliente y viajan por la red hasta aquí.
 case "$ENTORNO" in
   staging|produccion) ;;
-  *) rojo "Entorno no válido: $ENTORNO"; exit 1 ;;
+  "") rojo "Falta el entorno: staging o produccion"; exit 1 ;;
+  *)  rojo "Entorno no válido: '$ENTORNO'"; exit 1 ;;
 esac
+
+# La versión se usa como etiqueta de imagen y se escribe en un archivo, así que
+# sólo puede ser una confirmación en hexadecimal. Se rechaza cualquier otra cosa
+# —espacios, barras, puntos suspensivos— antes de que llegue a una orden.
+case "$VERSION" in
+  "") rojo "Falta la versión (identificador del commit)"; exit 1 ;;
+  *[!0-9a-f]*) rojo "La versión debe ser hexadecimal en minúsculas: '$VERSION'"; exit 1 ;;
+esac
+if [ "${#VERSION}" -lt 7 ] || [ "${#VERSION}" -gt 40 ]; then
+  rojo "La versión debe tener entre 7 y 40 caracteres, tiene ${#VERSION}"
+  exit 1
+fi
+
+case "$VOLVER" in
+  ""|--volver) ;;
+  *) rojo "Tercer argumento no válido: '$VOLVER'"; exit 1 ;;
+esac
+
+BASE="/opt/sede/$ENTORNO"
+COMPOSE="docker compose -f $BASE/compose.yaml --env-file $BASE/.env"
+ESPERA="${SEDE_ESPERA_SEGUNDOS:-180}"
 
 [ -f "$BASE/.env" ]     || { rojo "Falta $BASE/.env. ¿Se publicó el entorno?"; exit 1; }
 [ -f "$BASE/compose.yaml" ] || { rojo "Falta $BASE/compose.yaml"; exit 1; }

@@ -52,8 +52,18 @@ useHead({
 type GrupoCatalogo = 'tramites' | 'opa' | 'consultas'
 
 interface Grupo {
-  /** Nombre del grupo, con el que el Anexo lo nombra. */
+  /** Nombre completo del grupo, con el que el Anexo lo nombra. */
   nombre: string
+  /**
+   * Forma corta con la que el botón del grupo se rotula. Son las palabras que
+   * usa el propio Anexo al enumerar los tres grupos —«los Trámites, OPA's y
+   * Consultas de acceso a información pública»—, y el nombre completo sigue a la
+   * vista justo debajo, en el encabezado del grupo activo. Se rotula corto
+   * porque con los nombres largos los tres botones se parten en tres filas en un
+   * teléfono y empujan los resultados fuera de la pantalla, que es justo lo que
+   * el Anexo prohíbe.
+   */
+  nombreCorto: string
   /**
    * Qué publica el grupo. Es la frase del propio Anexo —«que la autoridad tenga
    * disponibles»— repartida entre los tres: no se define nada por cuenta propia,
@@ -107,14 +117,17 @@ type HuecoPaginacion =
 const GRUPOS: Record<GrupoCatalogo, Grupo> = {
   tramites: {
     nombre: 'Trámites',
+    nombreCorto: 'Trámites',
     descripcion: 'Trámites y servicios que la Entidad tiene disponibles.',
   },
   opa: {
     nombre: 'Otros Procedimientos Administrativos (OPA)',
+    nombreCorto: 'OPA',
     descripcion: 'Otros procedimientos administrativos que la Entidad tiene disponibles.',
   },
   consultas: {
     nombre: 'Consultas de acceso a información pública',
+    nombreCorto: 'Consultas',
     descripcion:
       'Consultas de acceso a información pública que la Entidad tiene disponibles.',
   },
@@ -242,26 +255,26 @@ const hayFiltros = computed(
  * a la vista. Va en una región `role="status"` para que el lector de pantalla
  * anuncie el recuento nuevo cuando el ciudadano busca o cambia de grupo, en vez
  * de dejarlo cambiar en silencio.
+ *
+ * Va en una línea y no en dos —el recuento arriba y el tramo visible debajo—
+ * porque cada línea de más por encima de la lista empuja el primer resultado
+ * fuera de la pantalla, que es lo que el Anexo prohíbe.
  */
 const resumenResultados = computed<string>(() => {
   const total = resultados.value.length
-  const cuenta = `${total} ${total === 1 ? 'resultado' : 'resultados'}`
   const clausulas: string[] = []
   if (terminoAplicado.value !== '') clausulas.push(`para «${terminoAplicado.value}»`)
   if (nombreCategoriaElegida.value !== '') {
     clausulas.push(`de la categoría «${nombreCategoriaElegida.value}»`)
   }
   const contexto = clausulas.length > 0 ? ` ${clausulas.join(' ')}` : ''
-  return `${cuenta}${contexto} en ${grupo.value.nombre}.`
-})
+  const cuenta = `${total} ${total === 1 ? 'resultado' : 'resultados'}`
 
-/** Qué tramo de los resultados se está viendo, cuando hay algo que ver. */
-const rangoVisible = computed<string>(() => {
-  const total = resultados.value.length
-  if (total === 0) return ''
+  if (total <= 1) return `${cuenta}${contexto} en ${grupo.value.nombre}.`
+
   const desde = (paginaActual.value - 1) * TAMANO_PAGINA + 1
   const hasta = Math.min(paginaActual.value * TAMANO_PAGINA, total)
-  return `Mostrando ${desde} a ${hasta} de ${total}.`
+  return `Mostrando ${desde} a ${hasta} de ${cuenta}${contexto} en ${grupo.value.nombre}.`
 })
 
 /**
@@ -368,9 +381,7 @@ function irAPagina(numero: number): void {
 <template>
   <div class="container py-5 catalogo-tramites">
     <h1>Trámites y servicios</h1>
-    <p class="lead mb-0">
-      Los trámites, OPA y consultas de acceso a información pública del Distrito de Santa Marta.
-    </p>
+    <p class="lead mb-0">Trámites, OPA y consultas de acceso a información pública.</p>
 
     <!--
       Selector de grupo. Son botones con `aria-pressed` y no un juego de pestañas
@@ -389,7 +400,7 @@ function irAPagina(numero: number): void {
         :aria-pressed="id === grupoActivo"
         @click="alElegirGrupo(id)"
       >
-        {{ GRUPOS[id].nombre }}
+        {{ GRUPOS[id].nombreCorto }}
       </button>
     </div>
 
@@ -447,7 +458,6 @@ function irAPagina(numero: number): void {
     <div class="barra-resumen mt-2">
       <div class="resumen" role="status">
         <p class="resumen-cuenta mb-0">{{ resumenResultados }}</p>
-        <p v-if="rangoVisible !== ''" class="resumen-rango mb-0">{{ rangoVisible }}</p>
       </div>
       <button
         v-if="hayFiltros"
@@ -597,8 +607,9 @@ function irAPagina(numero: number): void {
 }
 
 .descripcion-grupo {
-  /* Dentro del encabezado del grupo, así que hereda su tamaño y hay que
-     devolverlo al del cuerpo: el nombre del grupo manda, la descripción acompaña. */
+  /* Hermana del encabezado del grupo, no parte de él: se queda en el tamaño del
+     cuerpo y sólo acompaña al nombre. */
+  margin-left: 0.35rem;
   font-size: 1rem;
   font-weight: 400;
   color: var(--govcolor-matterhorn);
@@ -627,15 +638,7 @@ function irAPagina(numero: number): void {
 
 .resumen-cuenta {
   font-weight: 700;
-}
-
-.resumen-rango,
-.resumen-cuenta {
   color: var(--govcolor-matterhorn);
-}
-
-.resumen-rango {
-  font-size: 0.9375rem;
 }
 
 /* --- Resultados --------------------------------------------------------- */

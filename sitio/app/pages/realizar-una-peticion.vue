@@ -964,29 +964,21 @@ async function enviar(): Promise<void> {
 
 <style scoped>
 /*
-  Color de los enlaces de texto del contenido.
+  Los enlaces de esta página NO se pintan aquí.
 
-  Bootstrap entra en el sitio porque el Kit lo exige —`all.css` no trae ni una
-  clase de rejilla ni de botón—, y con él entra su azul de enlace `#0d6efd`, que
-  no es de la paleta gov.co. Sobre blanco da 4,50:1, justo en el límite del 4,5:1
-  de WCAG 2.1 AA, y sobre fondo teñido lo incumple: dentro del aviso amarillo
-  bajaba a 3,6:1 y dentro del aviso azul a 4,0:1, los dos como violación seria.
+  Bootstrap —que el sitio carga porque el Kit lo exige— trae su propio azul de
+  enlace, `#0d6efd`, y sobre el amarillo de los avisos bajaba a 3,6:1 y sobre el
+  azul claro de la política a 4,0:1: dos violaciones serias de contraste. El color
+  correcto lo fija la hoja compartida del sitio, `assets/css/sitio.css`, que
+  reapunta los enlaces al cobalto del Kit y deja fuera a los botones. Se deja
+  dicho aquí para que nadie vuelva a añadir una regla local que lo duplique.
 
-  Se corrige en cada página porque la corrección compartida vive en
-  `assets/css/sitio.css`, que esta tarea no puede tocar.
-
-  Se excluyen DOS familias de botones, y la segunda no es opcional:
-
-    · `.btn` — los botones de Bootstrap que ya usan las demás páginas.
-    · `.btn-govco` — los del Kit. El botón relleno del Kit escribe su etiqueta en
-      blanco sobre el azul cobalto y esa regla pesa menos que ésta; sin la
-      exclusión, el texto quedaba del mismo color que su fondo. Se detectó
-      midiendo el color calculado, no con axe: el texto del botón es un elemento
-      anónimo de una caja flexible y ahí el corrector no mira.
+  El botón de envío es un botón relleno del Kit: etiqueta blanca sobre cobalto.
+  Cualquier regla de enlace que no excluya `[class*="btn-"]` lo repinta del color
+  del fondo y la etiqueta desaparece. Es un fallo que el corrector automático no
+  ve, porque el texto del botón es un elemento anónimo de una caja flexible; se
+  comprueba midiendo el color calculado en cada verificación.
 */
-.container a:not(.btn):not(.btn-govco) {
-  color: var(--govcolor-cobalt, #0943b5);
-}
 
 /*
   Aviso de radicación. Mismos tokens y mismo criterio de contraste que el aviso de

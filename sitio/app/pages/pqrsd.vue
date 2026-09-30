@@ -238,33 +238,22 @@ const tipos: TipoDeSolicitud[] = [
 
 <style scoped>
 /*
-  Color de los enlaces de texto del contenido.
+  Los enlaces de esta página NO se pintan aquí.
 
-  El sitio carga Bootstrap porque el Kit lo exige —`all.css` no trae ni una clase
-  de rejilla ni de botón—, pero Bootstrap trae también su propio color de enlace,
-  el azul `#0d6efd`, que no pertenece a la paleta gov.co. Sobre blanco se queda en
-  4,50:1, justo en el límite del 4,5:1 que exige WCAG 2.1 AA, y sobre cualquier
-  fondo teñido lo incumple: dentro del aviso amarillo de esta página bajaba a
-  3,6:1, que axe detecta como violación seria.
+  Bootstrap —que el sitio carga porque el Kit lo exige— trae su propio azul de
+  enlace, `#0d6efd`, y sobre el amarillo de los avisos de esta página bajaba a
+  3,6:1: una violación seria de contraste. El color correcto lo fija la hoja
+  compartida del sitio, `assets/css/sitio.css`, que reapunta los enlaces al
+  cobalto del Kit y deja fuera a los botones. Se deja dicho aquí para que nadie
+  vuelva a añadir una regla local que lo duplique.
 
-  Se corrige aquí, en cada página, porque la corrección de verdad va en la hoja
-  compartida del sitio (`assets/css/sitio.css`), que va con las mismas reglas para
-  todas, y esta tarea no puede tocar otro archivo.
-
-  Se excluyen DOS familias de botones, y la segunda no es opcional:
-
-    · `.btn` — los botones de Bootstrap que ya usan las demás páginas.
-    · `.btn-govco` — los del Kit. El botón relleno del Kit escribe su etiqueta en
-      blanco sobre el azul cobalto, y esa regla pesa menos que ésta; sin la
-      exclusión, el texto quedaba del mismo color que su fondo y las seis
-      etiquetas de tipo de solicitud desaparecían. Se vio midiendo el color
-      calculado del botón, no con el corrector automático: axe no marcó esa
-      pérdida de contraste porque el texto del botón es un elemento anónimo de
-      una caja flexible, y ahí no lo mira.
+  Las fichas de tipo de solicitud usan el botón relleno del Kit, que escribe su
+  etiqueta en blanco sobre el cobalto. Cualquier regla de enlace que no excluya
+  `[class*="btn-"]` lo repinta del color del fondo y las seis etiquetas
+  desaparecen: es un fallo que el corrector automático no ve, porque el texto del
+  botón es un elemento anónimo de una caja flexible. Se vio midiendo el color
+  calculado, y se comprueba así en cada verificación.
 */
-.container a:not(.btn):not(.btn-govco) {
-  color: var(--govcolor-cobalt, #0943b5);
-}
 
 /*
   Aviso de radicación. Se usan los mismos tokens y el mismo criterio de contraste

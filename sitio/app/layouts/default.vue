@@ -14,37 +14,118 @@
  * enlace no puede quedar huérfano.
  */
 import type { MenuPrincipal } from '~/types/menu'
+import type { NivelMigaDePan } from '~/components/govco/MigaDePanGovco.vue'
 
 /**
- * Las tres secciones obligatorias de FUN-013, más el inicio.
+ * El menú obligatorio de la Sede.
  *
- * El menú no se inventa: sale de los criterios funcionales del expediente.
- * FUN-013 obliga a publicar **Transparencia y acceso a la información
- * pública**, **Servicios a la Ciudadanía** y **Participa**; FUN-026 y FUN-027
- * desdoblan Participa en **Noticias** y **Portales de programas transversales**.
+ * No se inventa: sale de los criterios del expediente.
  *
- * No se añaden subsecciones que el expediente no defina. Inventarlas aquí
- * obligaría después a deshacerlas, y mientras tanto anunciarían contenido que
- * no existe. FUN-012 limita el menú a siete opciones y a dos niveles: aquí hay
- * cuatro y un solo desplegable.
+ *  - **§4.1 del Anexo 2 de la Resolución 2893 de 2020**, que el propio anexo
+ *    declara «de obligatorio cumplimiento», fija tres botones: **Transparencia y
+ *    acceso a información pública**, **Servicios a la ciudadanía** y
+ *    **Participa**. Añade que la autoridad puede poner más, y aquí se añaden dos
+ *    —Inicio y Noticias—, que son secciones de la sede según el mismo anexo.
+ *  - **§4.1.2.3** desdobla Participa en **seis subcategorías**, con estos nombres
+ *    exactos. Faltaban: el menú sólo mostraba dos, y por eso no se veía lo que la
+ *    norma pide.
+ *  - **FUN-012** limita el menú a **siete opciones** principales y a **dos
+ *    niveles**. Aquí hay cinco y un solo nivel de despliegue.
+ *  - **FUN-013** obliga a que las tres secciones estén visibles.
+ *
+ * Las subcategorías de Participa apuntan a `/participa/<slug>`, que resuelve una
+ * única página contra la lista de slugs válidos. Seis archivos casi idénticos
+ * serían seis sitios donde equivocarse.
  */
 const menu: MenuPrincipal = [
   { etiqueta: 'Inicio', ruta: '/' },
-  { etiqueta: 'Transparencia', ruta: '/transparencia' },
+  { etiqueta: 'Transparencia y acceso a información pública', ruta: '/transparencia' },
   { etiqueta: 'Servicios a la Ciudadanía', ruta: '/servicios' },
+  { etiqueta: 'Noticias', ruta: '/noticias' },
   {
     etiqueta: 'Participa',
     subsecciones: [
       {
         titulo: 'Participa',
         enlaces: [
-          { etiqueta: 'Noticias', ruta: '/noticias' },
-          { etiqueta: 'Portales de programas transversales', ruta: '/portales' },
+          {
+            etiqueta:
+              'Participación para la identificación de problemas y diagnóstico de necesidades',
+            ruta: '/participa/identificacion-de-problemas',
+          },
+          {
+            etiqueta: 'Planeación y/o presupuesto participativo',
+            ruta: '/participa/presupuesto-participativo',
+          },
+          {
+            etiqueta:
+              'Participación y consulta ciudadana de proyectos, normas, políticas o programas',
+            ruta: '/participa/consulta-ciudadana',
+          },
+          { etiqueta: 'Colaboración e innovación abierta', ruta: '/participa/innovacion-abierta' },
+          { etiqueta: 'Rendición de cuentas', ruta: '/participa/rendicion-de-cuentas' },
+          { etiqueta: 'Control ciudadano', ruta: '/participa/control-ciudadano' },
         ],
       },
     ],
   },
 ]
+
+/**
+ * Recorrido de la miga de pan, derivado de la ruta.
+ *
+ * Se construye desde el propio menú en lugar de declararlo página a página: así
+ * el nombre que aparece en la miga y el que aparece en el menú no pueden
+ * divergir, y una página nueva hereda su miga sin que nadie tenga que acordarse
+ * de escribirla. CAG-11 la exige en todas las secciones salvo la portada, y
+ * derivarla es la única forma de que eso se cumpla por construcción.
+ */
+const ruta = useRoute()
+const enrutador = useRouter()
+
+/** El buscador general lleva siempre a la misma página de resultados. */
+function alBuscar(termino: string): void {
+  enrutador.push({ path: '/buscar', query: { q: termino } })
+}
+
+/** Todos los destinos del menú, en un solo nivel, para poder buscarlos. */
+const destinosDelMenu = menu.flatMap((item) => [
+  ...(item.ruta ? [{ ruta: item.ruta, etiqueta: item.etiqueta }] : []),
+  ...(item.subsecciones ?? []).flatMap((sub) => sub.enlaces),
+])
+
+/**
+ * El nombre de la sección a la que pertenece una ruta. Se busca el prefijo más
+ * largo que coincida, para que `/participa/control-ciudadano` use el nombre de
+ * esa subcategoría y no el de `/participa`, y se descarta el destino raíz para
+ * que `/` no se lea como prefijo de todo.
+ */
+function nombreDeLaSeccion(destino: string): string {
+  const candidatos = destinosDelMenu
+    .filter((d) => d.ruta !== '/' && (destino === d.ruta || destino.startsWith(`${d.ruta}/`)))
+    .sort((a, b) => b.ruta.length - a.ruta.length)
+  return candidatos[0]?.etiqueta ?? ''
+}
+
+const migaDePan = computed<NivelMigaDePan[]>(() => {
+  // En la portada no hay recorrido que mostrar.
+  if (ruta.path === '/') return []
+
+  const niveles: NivelMigaDePan[] = [{ etiqueta: 'Inicio', ruta: '/' }]
+
+  const segmentos = ruta.path.split('/').filter(Boolean)
+  segmentos.forEach((segmento, indice) => {
+    const destino = `/${segmentos.slice(0, indice + 1).join('/')}`
+    const delMenu = nombreDeLaSeccion(destino)
+    // Si el menú no lo conoce —una subcategoría, un detalle— se deriva del
+    // segmento, que es lo único que queda sin inventarse un nombre.
+    const etiqueta =
+      delMenu || (segmento.charAt(0).toUpperCase() + segmento.slice(1)).replace(/-/g, ' ')
+    niveles.push({ etiqueta, ruta: destino })
+  })
+
+  return niveles
+})
 </script>
 
 <template>
@@ -52,9 +133,24 @@ const menu: MenuPrincipal = [
     <BarraSuperior />
     <BarraAccesibilidad />
 
-    <CabeceraGovco destino-contenido="#contenido-principal" />
+    <!--
+      El buscador general de la Sede va EN LA CABECERA, dentro del hueco que el
+      propio componente reserva para él. Lo exige FUN-011 —«el encabezado debe
+      incluir el logo de la entidad enlazado a inicio, buscador general…»— y
+      además el Kit lo alinea a la derecha de la barra por su cuenta.
+
+      Antes sólo estaba en la portada, así que desde cualquier otra página no
+      había forma de buscar: había que volver al inicio primero.
+    -->
+    <CabeceraGovco destino-contenido="#contenido-principal">
+      <template #buscador>
+        <BuscadorGovco @buscar="alBuscar" />
+      </template>
+    </CabeceraGovco>
 
     <MenuNavegacionGovco :items="menu" etiqueta-accesible="Menú principal de la Sede Electrónica" />
+
+    <MigaDePanGovco :niveles="migaDePan" />
 
     <!--
       `tabindex="-1"` permite que el enlace de salto mueva el foco aquí. Sin él,

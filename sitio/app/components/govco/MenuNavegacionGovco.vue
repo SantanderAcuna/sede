@@ -442,7 +442,10 @@ function alTeclearDisparador(evento: KeyboardEvent, indice: number) {
   abrirSubmenu(indice)
 
   nextTick(() => {
-    const enlaces = enlacesDe(paneles.value[indice])
+    // `?? null`: un índice fuera del array devuelve `undefined`, y `enlacesDe`
+    // espera `HTMLElement | null`. Sin esto el tipo no cierra, y el fallo real
+    // —acceder a un panel que aún no se ha registrado— queda sin cubrir.
+    const enlaces = enlacesDe(paneles.value[indice] ?? null)
     enlaces[evento.key === 'ArrowDown' ? 0 : enlaces.length - 1]?.focus()
   })
 }

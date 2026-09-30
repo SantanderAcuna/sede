@@ -142,6 +142,13 @@ jobs:
       - name: Generar los tipos desde el contrato
         working-directory: sitio
         run: npx openapi-typescript ../contract/openapi.yaml -o types/openapi.d.ts --read-write-markers
+      # `nuxt build` NO comprueba tipos: transpila y sigue. Sin este paso, un
+      # error de tipos —un parámetro sin anotar, un `undefined` que se cuela—
+      # llega a producción sin que nada lo diga. El panel ya lo comprobaba; el
+      # sitio no lo hacía, y por eso se colaron dos.
+      - name: Comprobar tipos
+        working-directory: sitio
+        run: npm run typecheck
       - name: Compilar
         working-directory: sitio
         run: npm run build

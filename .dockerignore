@@ -1,0 +1,81 @@
+# Qué NO entra en el contexto de construcción.
+#
+# Faltaba, y su ausencia producía tres problemas a la vez:
+#
+#   1. SECRETOS DENTRO DE LA IMAGEN. `docker/app/Dockerfile` copia `backend/`
+#      entero en la etapa FINAL, así que `backend/.env` —con una `APP_KEY` real—
+#      quedaba horneado en la imagen que se publica en el registro. Un secreto en
+#      una capa de imagen no se borra: se distribuye.
+#   2. CONSTRUCCIONES QUE NO REPRODUCEN EL ARCHIVO DE BLOQUEO. `COPY sitio/ ./` y
+#      `COPY backend/ ./` copiaban también los `node_modules` y el `vendor` de la
+#      máquina de quien construye, SOBREESCRIBIENDO lo que `npm ci` y `composer
+#      install` acababan de instalar desde el archivo de bloqueo. La imagen
+#      escaneada no era la que el archivo de bloqueo describe, así que ni el
+#      escáner ni nadie podía saber qué se estaba publicando.
+#   3. CONTEXTOS DE 3,4 GB. Todo el repositorio viajaba al demonio en cada
+#      construcción, en cada empuje, para nada.
+#
+# `.gitignore` NO sirve para esto: son mecanismos distintos. Confundirlos es
+# exactamente lo que dejó `pass.md` publicado en el repositorio.
+
+# --- Control de versiones y metadatos ----------------------------------------
+**/.git
+.github
+**/.githooks
+.gitignore
+.gitattributes
+
+# --- Valores y secretos: nunca dentro de una imagen ---------------------------
+#
+# OJO CON LOS PATRONES. En `.dockerignore`, un patrón se compara con la ruta
+# relativa a la RAÍZ del contexto, así que `.env` casa sólo con el `.env` de la
+# raíz y NO con `backend/.env`. Escribirlo sin `**/` fue un error real: la imagen
+# de la aplicación seguía llevando dentro `backend/.env`, con su `APP_KEY`. Por eso
+# todos los patrones de valores llevan `**/`.
+**/.env
+**/.env.*
+**/*.local.env
+**/pass.md
+**/accesos.md
+**/accesos.local.md
+**/.claves/
+**/vendor-src/
+
+# --- Dependencias -------------------------------------------------------------
+# Las instala la construcción desde el archivo de bloqueo. Dejar entrar las de la
+# máquina de quien construye es lo que hacía que la imagen no coincidiera con él.
+**/node_modules
+**/vendor
+
+# --- Artefactos locales -------------------------------------------------------
+panel/dist
+sitio/.output
+sitio/.nuxt
+backend/public/build
+backend/bootstrap/cache/*.php
+backend/.phpunit.result.cache
+backend/.phpunit.cache
+
+# El contenido de los registros y de la caché no viaja; las carpetas las vuelve a
+# crear la construcción.
+backend/storage/logs/*
+backend/storage/framework/cache/data/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*.php
+backend/storage/app/private/*
+backend/storage/app/public/*
+
+# --- Pruebas y documentación --------------------------------------------------
+# No hacen falta para ejecutar, y el expediente normativo no tiene por qué viajar
+# en cada construcción.
+backend/tests
+docs/
+docs-security/
+plan.md
+Makefile
+
+# --- Herramientas de desarrollo -----------------------------------------------
+**/.vscode
+**/.idea
+**/*.log
+**/.DS_Store

@@ -182,6 +182,59 @@ jobs:
           echo "Sin DB_PASSWORD la pila no se resuelve, como debe."
 
   # ---------------------------------------------------------------------------
+  # Dependencias de terceros
+  #
+  # Esta puerta faltaba, y su ausencia explica por qué los fallos aparecían justo
+  # al desplegar: ninguna comprobación miraba las dependencias, así que la primera
+  # noticia de una vulnerabilidad publicada era la construcción bloqueada por el
+  # escáner de la imagen. Averiguarlo entonces es tarde y caro: hay que entender
+  # qué paquete es, de quién depende y actualizarlo con prisa.
+  #
+  # Aquí se revisan los ARCHIVOS DE BLOQUEO, sin instalar nada, así que corre en
+  # segundos. Una vulnerabilidad corregible se ve al proponer el cambio, no al
+  # intentar desplegarlo.
+  # ---------------------------------------------------------------------------
+  dependencias:
+    name: Dependencias
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Auditoría del panel y del sitio
+        run: |
+          fallos=0
+          for d in panel sitio; do
+            echo "--- $d ---"
+            if ! (cd "$d" && npm audit --audit-level=high); then
+              fallos=$((fallos + 1))
+            fi
+          done
+          if [ "$fallos" -ne 0 ]; then
+            echo "::error::Hay dependencias con vulnerabilidades altas o críticas corregibles."
+            echo "Se arreglan actualizando el archivo de bloqueo, no bajando el umbral."
+            exit 1
+          fi
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Auditoría del backend
+        working-directory: backend
+        run: |
+          # `composer audit` lee el archivo de bloqueo; no hace falta instalar.
+          if ! composer audit --no-interaction; then
+            echo "::error::Hay dependencias de PHP con vulnerabilidades conocidas."
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
   # Barrera contra credenciales
   #
   # La misma comprobación que corre antes de cada confirmación, aquí sobre todo

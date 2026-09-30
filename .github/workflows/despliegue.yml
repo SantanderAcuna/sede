@@ -67,9 +67,67 @@ jobs:
           ./vendor/bin/phpstan analyse --memory-limit=1G --no-progress
           php artisan test
 
+  # El panel va primero y en su propio trabajo, no como una entrada más de la
+  # matriz, porque la imagen de nginx lo COPIA: necesita que exista y esté
+  # publicada antes de empezar. En una matriz todos los trabajos corren a la vez,
+  # así que no habría forma de garantizar el orden.
+  panel:
+    name: Construir el panel
+    needs: [comprobar]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Calcular el nombre de la imagen
+        run: |
+          echo "IMAGEN_BASE=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Registro de contenedores
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Preparar el constructor con caché
+        run: docker buildx create --use --driver docker-container --name sede
+
+      - name: Construir el panel
+        run: |
+          docker buildx build \
+            --file docker/panel/Dockerfile \
+            --tag ${{ env.REGISTRY }}/$IMAGEN_BASE-panel:${{ github.sha }} \
+            --cache-from type=gha,scope=panel \
+            --cache-to type=gha,scope=panel,mode=max \
+            --load \
+            .
+
+      - name: Preparar el escáner
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.74.0
+
+      - name: Escanear el panel
+        run: |
+          # La imagen del panel sólo contiene archivos, así que lo que se escanea
+          # de verdad es su contenido: las dependencias que quedaron compiladas en
+          # el artefacto. Aun así se escanea, porque «sólo son archivos» es
+          # exactamente lo que se dice de casi todo lo que acaba publicado.
+          trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --format table \
+            ${{ env.REGISTRY }}/$IMAGEN_BASE-panel:${{ github.sha }}
+
+      - name: Publicar el panel
+        run: docker push ${{ env.REGISTRY }}/$IMAGEN_BASE-panel:${{ github.sha }}
+
   construir:
     name: Construir y escanear
-    needs: [comprobar]
+    needs: [comprobar, panel]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -122,11 +180,20 @@ jobs:
 
       - name: Construir
         run: |
+          # El punto de entrada COPIA el panel ya publicado, en lugar de
+          # compilarlo: así el artefacto que se sirve es exactamente el que se
+          # publicó, y no uno construido en paralelo que podría diferir.
+          CONTEXTO=""
+          if [ "${{ matrix.nombre }}" = "nginx" ]; then
+            CONTEXTO="--build-context panel=docker-image://${{ env.REGISTRY }}/$IMAGEN_BASE-panel:${{ github.sha }}"
+          fi
+
           docker buildx build \
             --file ${{ matrix.dockerfile }} \
             --tag ${{ env.REGISTRY }}/$IMAGEN_BASE-${{ matrix.nombre }}:${{ github.sha }} \
             --cache-from type=gha,scope=${{ matrix.nombre }} \
             --cache-to type=gha,scope=${{ matrix.nombre }},mode=max \
+            $CONTEXTO \
             --load \
             .
 

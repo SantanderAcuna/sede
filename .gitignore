@@ -78,3 +78,9 @@ id_ed25519*
 # Copia de referencia del Kit gov.co: se usa para extraer los activos que se
 # vendorizan en sitio/public/govco, pero no es parte del proyecto.
 /vendor-src/
+
+# --- Credenciales en claro: NUNCA al control de versiones ---
+# El repositorio es público. Un archivo con contraseñas empujado una sola vez
+# queda en el historial de forma permanente, aunque después se borre.
+/pass.md
+/accesos.local.md

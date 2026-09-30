@@ -81,6 +81,31 @@
 }
 
 /* ============================================================================
+   El color de la Entidad en la barra inferior del menú
+   ============================================================================
+
+   Es el segundo sitio donde el Anexo 2 manda aplicar el color asignado a la
+   autoridad. El Kit pinta esa barra con `--govcolor-tulip` (#E8A045, NARANJA) en
+   dos reglas:
+
+       .cabecera-govco .border-bottom-govco   { border-bottom: 4px solid … }
+       .cabecera-govco + .menu-govco.navbar   { border-bottom: 0.25rem solid … }
+
+   El token está declarado en `:root`, así que la redefinición que se hizo dentro
+   del pie NO lo alcanzaba: por eso la línea seguía saliendo naranja. Se redefine
+   aquí en el ámbito de la cabecera y el menú, que es donde se usa.
+
+   El valor es el **azul celeste A #00ADE7** de la paleta de la Entidad. Sobre el
+   filete no va texto, así que el requisito de contraste no aplica.
+   ============================================================================ */
+
+.cabecera-govco,
+.menu-govco,
+.barra-superior-govco {
+  --govcolor-tulip: #00ade7;
+}
+
+/* ============================================================================
    Paleta de la Alcaldía Distrital de Santa Marta en el pie
    ============================================================================
 

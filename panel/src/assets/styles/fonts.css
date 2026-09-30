@@ -1,0 +1,36 @@
+/*
+ * Tipografía institucional, autoalojada.
+ *
+ * Se sirve desde el propio origen a propósito: cargarla desde un tercero
+ * entregaría la IP de cada funcionario a un servicio externo, que en una
+ * entidad pública es una cesión de datos que no corresponde hacer.
+ *
+ * Fuente: Google Fonts, subset `latin`, sólo los glifos que usa el español
+ * (incluye á é í ó ú ñ ü ¿ ¡). Licencia SIL OFL 1.1 — ver fonts/LEEME.md.
+ *
+ * Son fuentes variables: un archivo por familia cubre todos los pesos.
+ */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/inter-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('../fonts/jetbrains-mono-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/montserrat-normal.woff2') format('woff2');
+}

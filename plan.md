@@ -117,7 +117,7 @@ hallazgos verificados que el plan resuelve. Cada uno se resuelve en la sección 
 | H-04 | **nginx** | La guía pide 1.29 mainline (`capitulo-03-parte-a.md:3`); el proyecto usaba 1.27 | Decidido: rama *stable* 1.30.5 (D-12) |
 | H-05 | **Redis** | Todos los documentos fijan Redis 7; la versión estable actual es 8.10 | Propuesta §21.B |
 | H-06 | **Docker** | `apendice-E.md:113` lo declara «opcional»; `capitulo-05.md` §6 y `deliverable.md:78` lo hacen obligatorio | Decidido: obligatorio (D-13) |
-| H-07 | **Tailwind** | `GUIA-MAESTRA-COMPLETA.md:497,1888` lo instala como stack oficial; el criterio bloqueante **CAG-33** exige Bootstrap 5.0.2 y los tokens `--govcolor-*`, y el Kit gov.co sería destruido por el preflight de Tailwind | Se aplica **CAG-33**: Bootstrap 5.0.2 del Kit, sin Tailwind. ADR pendiente (§21.C) |
+| H-07 | **Tailwind** | `GUIA-MAESTRA-COMPLETA.md:497,1888` lo instala como stack oficial; el criterio bloqueante **CAG-33** exige Bootstrap 5.0.2 y los tokens `--govcolor-*`, y el Kit gov.co sería destruido por el preflight de Tailwind | Resuelto por superficie (§21.C): el **sitio** aplica CAG-33 íntegro —Bootstrap 5.0.2 y tokens del Kit— y el **panel** usa Tailwind sobre tokens propios. El criterio se acota a la sede ciudadana, que es de donde nace |
 | H-08 | **CSS del Kit** | `GUIA-MAESTRA-COMPLETA.md` no menciona gov.co en 3.312 líneas; el expediente lo exige | Se aplica el expediente: Kit UI 9.2 vendorizado |
 | H-09 | **Normativa colombiana** | La guía de seguridad no contiene **ni una sola** referencia a Ley 527/1999, Ley 1581/2012, Decreto 1078/2015, MinTIC ni GESI: su banner legal cita RGPD, LOPDGDD y NIS2, y su zona horaria es `Europe/Madrid` | El plan combina ambos: el expediente aporta la norma, la guía aporta la técnica |
 
@@ -779,21 +779,29 @@ El titular pidió expresamente mantener las reglas de Vue 3 de la guía maestra.
 
 ```
 src/
+├── assets/
+│   ├── images/      Escudo institucional
+│   └── styles/      tokens.css (variables) · main.css (capas de Tailwind)
 ├── components/
-│   ├── govco/       Envoltorios del Kit UI 9.2 (§11.3)
-│   └── sede/        Componentes propios reutilizables
-├── composables/     Lógica reutilizable con estado
-├── layouts/         Disposiciones (público, panel, autenticación)
-├── router/          Rutas y guardias
-├── schemas/         Esquemas Zod espejo del contrato
-├── services/        Cliente HTTP y un servicio por recurso
-├── stores/          Pinia: sesión, preferencias, notificaciones
+│   ├── base/        BaseButton · BaseBadge · BaseModal · BaseTimeline ·
+│   │                DataTable · FormField · KpiCard · AppLogo ·
+│   │                AccessibilityBar
+│   ├── domain/      StatusBadge
+│   └── feedback/    CommandPalette · EmptyState · Skeleton ·
+│                    VistaEnConstruccion
+├── layouts/         AdminLayout (panel) · AuthLayout (acceso)
+├── plugins/         Registro de iconos FontAwesome, icono a icono
+├── router/          Rutas, metadatos de disposición y de módulo
+├── services/        Cliente HTTP (§8.4)
 ├── types/           Tipos generados desde el contrato
 └── views/
-    ├── admin/       Área editorial
-    ├── cuenta/      Área de autogestión
-    └── acceso/      Entrada, recuperación y segundo factor
+    ├── acceso/      Entrada, segundo factor, recuperación y errores
+    └── admin/       Inicio (tablero) y marcador de los módulos pendientes
 ```
+
+`schemas/` y `stores/` **todavía no existen**: llegan con el módulo de identidad y con los
+módulos editoriales, que son sus primeros consumidores. Se crean cuando haya algo que
+guardar, no antes.
 
 ### 8.4 Cliente HTTP
 
@@ -823,6 +831,55 @@ vuelve a verificar el mismo permiso**: la interfaz no es un control de seguridad
 El panel se sirve en `5190` y el sitio en `3000`; el proxy de desarrollo apunta a la API en
 `8010` y a Nuxt en `3000`. Los puertos internos de los contenedores **no se remapean**:
 el remapeo vive sólo en `compose.override.yaml`, que no se usa en producción.
+
+### 8.7 Sistema visual del panel
+
+El panel y el sitio **no comparten capa visual**, y es deliberado (§21.C). El sitio es la
+cara al ciudadano y se construye sobre el Kit gov.co con Bootstrap 5.0.2, como exige
+CAG-33; el panel es una herramienta interna y usa **Tailwind 3.4** sobre variables CSS
+propias.
+
+| Pieza | Dónde | Qué fija |
+|---|---|---|
+| Variables | `assets/styles/tokens.css` | Paleta, tipografía, sombras y radios |
+| Capas | `assets/styles/main.css` | `base`, `components`, `utilities`, y los modos de accesibilidad |
+| Correspondencia | `tailwind.config.js` | Cada clase Tailwind apunta a una variable; un solo sitio que cambiar |
+| Iconos | `plugins/fontawesome.ts` | Registro **icono a icono**, nunca la colección completa |
+
+**La paleta del panel no es la del Kit.** El diseño de partida rotulaba sus variables como
+«tokens GOV.CO oficiales», pero `--color-gov-blue: #3366CC` y la escala `slate` son la
+paleta por defecto de Tailwind, no los 21 tokens `--govcolor-*` del Kit
+(`--govcolor-cobalt: #0943B5`). Al estar el panel fuera del alcance de CAG-33, se conserva
+la paleta del diseño; el sitio público sigue con la del Kit.
+
+**Accesibilidad medida, no supuesta.** Sobre el artefacto construido y con `axe-core`, la
+puerta WCAG 2.1 AA da **0 violaciones graves**. El diseño entregado traía cuatro fallos de
+contraste que hubo que corregir antes de llegar ahí:
+
+| Dónde | Antes | Después |
+|---|---|---|
+| Atajo `⌘K` de la cabecera | 4,34:1 | `text-slate-600` sobre `bg-slate-100` |
+| Cifra de tendencia de `KpiCard` | 3,76:1 (`emerald-600`) | `emerald-700` |
+| Marcador de gráfica del tablero | 2,45:1 (`slate-400`) | `slate-600` |
+| Nota al pie de la entrada | 2,45:1 (`--color-text-soft`) | `--color-text-muted` |
+
+Además, `KpiCard` usaba `red-600` y `amber-600` sobre fondos tintados: se subieron a `-700`
+por el mismo motivo. La medición **sólo cubre las pantallas que hoy se renderizan**; los
+componentes sin consumidor (`BaseModal`, `BaseTimeline`, `EmptyState`, `Skeleton`,
+`StatusBadge`) quedan sin auditar hasta que alguna vista los use.
+
+**Tipografía autoalojada.** `tokens.css` declara `Montserrat`, `Inter` y `JetBrains Mono`.
+Las tres se sirven **desde el propio origen** (`assets/fonts/`, 124 KB para las tres, subset
+`latin`): pedirlas a un tercero entregaría la IP de cada funcionario a un servicio externo,
+que en una entidad pública es una cesión que no corresponde hacer. Son fuentes variables, así
+que un archivo por familia cubre todos los pesos. Procedencia, licencia SIL OFL 1.1 y huellas
+`sha256` quedan en `assets/fonts/LEEME.md`, y la verificación comprueba que **ninguna petición
+sale del origen**.
+
+**Módulos.** El menú declara 7 grupos y 19 entradas. Sólo el tablero tiene contenido real;
+las demás apuntan a `EnConstruccionView`, que toma el título de la ruta. El contrato
+`openapi.yaml` hoy modela únicamente `/entidad`, `/tramites` y `/tramites/{slug}`: los otros
+diecisiete módulos son **visión de producto, no alcance comprometido**, y así se muestran.
 
 ---
 
@@ -1082,8 +1139,8 @@ porque el ministerio lo verifica antes de aprobar la integración:
 
 > **El color propio de la entidad no puede usarse** en botones, texto, campos de formulario,
 > fondos ni etiquetas. La sede se viste con los tokens institucionales del Kit y con ninguno
-> más. Esto refuerza la decisión §21.C —sin Tailwind— y convierte la paleta en un criterio
-> verificable, no en una preferencia de diseño.
+> más. Esto refuerza la decisión §21.C —el **sitio**, sin Tailwind— y convierte la paleta en
+> un criterio verificable, no en una preferencia de diseño.
 
 Además, y como requisito de infraestructura poco habitual, la sede debe publicar
 **direcciones públicas IPv4 e IPv6 con resolución de nombres de doble pila**, y operar
@@ -2356,17 +2413,26 @@ propuesta, el motivo y la evidencia, para que la decisión sea informada.
 - **Impacto si se mantiene la 7:** ninguna funcionalidad cambia; se sale de la línea
   principal.
 
-### C. Bootstrap frente a Tailwind
+### C. Bootstrap frente a Tailwind — RESUELTO
 
-- **Propuesta:** **Bootstrap 5.0.2** y los tokens del Kit gov.co. Sin Tailwind.
-- **Motivo:** el criterio **CAG-33 es bloqueante** y exige construir sobre Bootstrap 5.0.2
-  y las variables `--govcolor-*`; además, el *preflight* de Tailwind y el *reset* de
-  Bootstrap se pisan entre sí y alterarían contrastes y espaciados ya validados.
-- **Conflicto con la guía maestra:** su §4.1 declara TailwindCSS v4 como stack oficial y su
-  §2.2 lo instala. La guía no menciona gov.co en ninguna de sus 3.312 líneas. Se propone
-  **enmendar la guía maestra** y registrar un ADR.
-- **Si se prefiere Tailwind:** habría que declarar CAG-33 como desviación y asumir el
-  riesgo de contraste en una sede cuya accesibilidad es un atributo legal.
+- **Resolución (ratificada por el titular):** **CAG-33 se acota al sitio público.** El sitio
+  ciudadano se construye sobre Bootstrap 5.0.2 y los tokens `--govcolor-*` del Kit gov.co,
+  como exige el criterio. El **panel de control** usa Tailwind 3.4 sobre sus propias
+  variables CSS (§8.7).
+- **Motivo:** CAG-33 nace del Kit de la *sede electrónica*, que es la superficie que ve el
+  ciudadano y donde la accesibilidad es un atributo legal. El panel es una herramienta
+  interna, de otro público y otro ciclo de vida. Aplicarle el Kit obligaba a reescribir el
+  diseño entregado para el panel sin ganar conformidad donde el criterio realmente mira.
+- **Lo que NO cambia:** el sitio público conserva íntegro el Kit UI 9.2 vendorizado, sus
+  tokens y su puerta de conformidad. La separación es de capa visual, no de origen ni de
+  sesión: ambos se sirven desde el mismo dominio (§3.2).
+- **Consecuencia asumida:** el producto queda con **dos sistemas visuales**. Es un coste real
+  de mantenimiento y se compensa con una regla dura: ninguna vista mezcla ambos. El panel no
+  importa el Kit y el sitio no importa Tailwind; un componente nuevo pertenece a uno u otro.
+- **Evidencia de contraste:** el riesgo que este apartado advertía —«asumir el riesgo de
+  contraste en una sede cuya accesibilidad es un atributo legal»— se midió sobre el panel ya
+  construido con `axe-core`. Aparecieron **cuatro fallos reales de WCAG 2.1 AA** en el diseño
+  entregado, ya corregidos (§8.7). El riesgo era real, no teórico.
 
 ### D. Criterios citados pero nunca definidos
 

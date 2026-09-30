@@ -108,27 +108,54 @@
 
    **Los contrastes están calculados, no elegidos a ojo:**
 
-     blanco sobre azul noche  #00568D   →  7,19:1  ✓ supera el 4,5:1 de AA
-     azul noche sobre blanco            →  7,19:1  ✓
-     blanco sobre azul celeste A #00ADE7 →  2,59:1  ✗ NO sirve para texto
+     texto negro sobre azul celeste A #00ADE7  →  8,12:1  ✓ supera AA
+     texto blanco sobre azul celeste A #00ADE7 →  2,59:1  ✗ NO sirve
+     azul noche #00568D sobre azul celeste     →  2,78:1  ✗ tampoco
 
-   Por eso el fondo oscuro del pie usa **azul noche** y no azul celeste: con
-   blanco encima, el celeste se queda en 2,59:1 e incumpliría WCAG 2.1 AA. El
-   azul celeste entra donde no lleva texto encima —las sombras decorativas y el
-   filete—, que es además su papel en el manual.
+   Por eso el pie va en el **azul celeste** de la Entidad con el **texto en
+   oscuro**: el celeste admite texto oscuro y no admite texto blanco, y el Kit lo
+   pinta blanco porque su fondo por defecto es azul oscuro.
    ============================================================================ */
 
 .pie-pagina-govco {
-  /* Fondo oscuro del pie y de la barra inferior: azul noche. */
-  --govcolor-cobalt: #00568d;
+  /* La banda inferior del pie, en el azul celeste de la Entidad. */
+  --govcolor-cobalt: #00ade7;
 
-  /* Las sombras decorativas, que el Kit pinta en naranja: azul celeste. */
-  --govcolor-tulip: #00ade7;
+  /* Las sombras decorativas, que el Kit pinta en naranja: azul noche, para que
+     el celeste del fondo se lea como tal y la sombra no compita con él. */
+  --govcolor-tulip: #00568d;
 
-  /* El filete de la primera sección: azul celeste claro, que es su tono
-     secundario y lo distingue del fondo sin competir con él. */
+  /* El filete de la primera sección: el tono secundario de la Entidad. */
   --govcolor-tropical-blue: #8ec6e3;
 }
+
+/*
+  **El texto del pie tiene que ser oscuro, y es una consecuencia del color, no un
+  gusto.** Sobre el azul celeste #00ADE7 estos son los contrastes reales:
+
+      texto NEGRO sobre #00ADE7   →  8,12:1  ✓ supera AA (4,5:1)
+      texto BLANCO sobre #00ADE7  →  2,59:1  ✗ incumpliría WCAG 2.1 AA
+      azul noche #00568D sobre #00ADE7 → 2,78:1 ✗ tampoco
+
+  O sea: el celeste admite texto oscuro y no admite texto blanco. El Kit pinta el
+  pie con texto blanco porque su fondo es azul oscuro; al cambiar el fondo al
+  celeste de la Entidad, el color del texto tiene que seguirlo o la sede
+  incumpliría el criterio CAG-28 y el O-11 de accesibilidad.
+
+  Se usa el azul noche de la propia paleta para el texto, que sobre el celeste se
+  queda corto, así que el texto va en negro —el máximo contraste posible sobre
+  este fondo— y el azul noche se reserva para los elementos decorativos.
+*/
+.pie-pagina-govco .second-section,
+.pie-pagina-govco .second-section * {
+  color: #000 !important;
+}
+
+/* El separador del Kit es blanco y sobre celeste desaparecería. */
+.pie-pagina-govco .second-section .separator {
+  border-left-color: #00568d !important;
+}
+
 
 
 /* ============================================================================

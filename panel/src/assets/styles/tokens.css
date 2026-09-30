@@ -1,0 +1,55 @@
+/* SGDI — Design tokens GOV.CO oficiales */
+:root {
+  --color-gov-blue:       #3366CC;
+  --color-gov-blue-dark:  #1A3E8F;
+  --color-gov-blue-light: #EBF0FA;
+  --color-gov-blue-50:    #F4F7FD;
+  --color-gov-blue-100:   #E0EAF8;
+  --color-gov-red:        #B22222;
+  --color-state-green:    #16A34A;
+  --color-state-yellow:   #F0AD4E;
+  --color-state-red:      #DC2626;
+  --color-state-blue:     #3366CC;
+  --color-state-gray:     #64748B;
+  --color-state-green-bg: #DCFCE7;
+  --color-state-yellow-bg:#FEF3C7;
+  --color-state-red-bg:   #FEE2E2;
+  --color-state-blue-bg:  #DBEAFE;
+  --color-state-gray-bg:  #F1F5F9;
+
+  --color-bg:           #F8FAFC;
+  --color-surface:      #FFFFFF;
+  --color-surface-alt:  #F1F5F9;
+  --color-border:       #E2E8F0;
+  --color-border-strong:#CBD5E1;
+  --color-text:         #0F172A;
+  --color-text-muted:   #475569;
+  --color-text-soft:    #94A3B8;
+
+  --font-heading: 'Montserrat', 'Inter', sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
+  --shadow-md: 0 2px 6px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
+  --shadow-lg: 0 8px 24px rgba(15,23,42,.12);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+
+[data-brand='caribe'] {
+  --color-gov-blue:      #0E7490;
+  --color-gov-blue-dark: #0C4A6E;
+  --color-gov-blue-light:#E0F2FE;
+  --color-gov-blue-50:   #F0F9FF;
+  --color-gov-blue-100:  #CFFAFE;
+}
+[data-brand='dorado'] {
+  --color-gov-blue:      #1A3E8F;
+  --color-gov-blue-dark: #0F2660;
+  --color-gov-blue-light:#FEF7E0;
+  --color-gov-blue-50:   #FFFBEB;
+  --color-gov-blue-100:  #FDE68A;
+}

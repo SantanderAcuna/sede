@@ -1,0 +1,112 @@
+/* La tipografía va primero: los `@font-face` tienen que estar declarados antes
+   de que nada pida esas familias. */
+@import './fonts.css';
+@import './tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #app { height: 100%; }
+  body {
+    font-family: var(--font-body);
+    background: var(--color-bg);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); letter-spacing: -0.01em; }
+  a { color: var(--color-gov-blue); }
+  *:focus-visible { outline: 2px solid var(--color-gov-blue); outline-offset: 2px; }
+}
+
+@layer components {
+  .govco-bar {
+    background: var(--color-gov-blue);
+    color: #fff;
+    font-size: 12px;
+  }
+}
+
+@media print { .no-print { display: none !important; } }
+
+/* ============================================================
+   Accesibilidad — clases toggled por AccessibilityBar.vue
+   ============================================================ */
+
+/* Alto contraste */
+html.a11y-contrast {
+  --color-bg:           #000000;
+  --color-surface:      #0a0a0a;
+  --color-surface-alt:  #111111;
+  --color-border:       #ffffff;
+  --color-border-strong:#ffffff;
+  --color-text:         #ffffff;
+  --color-text-muted:   #e0e0e0;
+  --color-text-soft:    #c0c0c0;
+  --color-gov-blue:     #ffff00;
+  --color-gov-blue-dark:#ffcc00;
+  --color-gov-blue-light:#1a1a00;
+  --color-gov-blue-50:  #0a0a00;
+  --color-gov-blue-100: #1a1a00;
+  filter: contrast(1.15);
+}
+/* Override Tailwind hardcoded utilities */
+html.a11y-contrast .bg-white          { background-color: #000000 !important; }
+html.a11y-contrast .bg-slate-50       { background-color: #000000 !important; }
+html.a11y-contrast .bg-slate-100      { background-color: #111111 !important; }
+html.a11y-contrast .bg-slate-200      { background-color: #222222 !important; }
+html.a11y-contrast .text-slate-900    { color: #ffffff   !important; }
+html.a11y-contrast .text-slate-800    { color: #ffffff   !important; }
+html.a11y-contrast .text-slate-700    { color: #e0e0e0   !important; }
+html.a11y-contrast .text-slate-600    { color: #c0c0c0   !important; }
+html.a11y-contrast .text-slate-500    { color: #aaaaaa   !important; }
+html.a11y-contrast .text-slate-400    { color: #888888   !important; }
+html.a11y-contrast .border-slate-200  { border-color: #ffffff !important; }
+html.a11y-contrast .border-slate-100  { border-color: #444444 !important; }
+html.a11y-contrast .ring-slate-200    { --tw-ring-color: #ffffff !important; }
+html.a11y-contrast .hover\:bg-slate-50:hover  { background-color: #1a1a00 !important; }
+html.a11y-contrast .hover\:bg-slate-100:hover { background-color: #222200 !important; }
+html.a11y-contrast a { color: #ffff00 !important; }
+html.a11y-contrast button:focus-visible,
+html.a11y-contrast a:focus-visible { outline-color: #ffff00 !important; }
+
+/* Modo oscuro */
+html.a11y-dark {
+  --color-bg:           #0f172a;
+  --color-surface:      #1e293b;
+  --color-surface-alt:  #334155;
+  --color-border:       #334155;
+  --color-border-strong:#475569;
+  --color-text:         #f1f5f9;
+  --color-text-muted:   #cbd5e1;
+  --color-text-soft:    #94a3b8;
+  --color-gov-blue:     #60a5fa;
+  --color-gov-blue-dark:#93c5fd;
+  --color-gov-blue-light:#1e3a5f;
+  --color-gov-blue-50:  #172035;
+  --color-gov-blue-100: #1e3a5f;
+}
+/* Override Tailwind hardcoded utilities que no usan CSS vars */
+html.a11y-dark .bg-white          { background-color: #1e293b !important; }
+html.a11y-dark .bg-slate-50       { background-color: #0f172a !important; }
+html.a11y-dark .bg-slate-100      { background-color: #1e293b !important; }
+html.a11y-dark .bg-slate-200      { background-color: #334155 !important; }
+html.a11y-dark .text-slate-900    { color: #f1f5f9   !important; }
+html.a11y-dark .text-slate-800    { color: #e2e8f0   !important; }
+html.a11y-dark .text-slate-700    { color: #cbd5e1   !important; }
+html.a11y-dark .text-slate-600    { color: #94a3b8   !important; }
+html.a11y-dark .text-slate-500    { color: #64748b   !important; }
+html.a11y-dark .text-slate-400    { color: #475569   !important; }
+html.a11y-dark .border-slate-200  { border-color: #334155 !important; }
+html.a11y-dark .border-slate-100  { border-color: #1e293b !important; }
+html.a11y-dark .ring-slate-200    { --tw-ring-color: #334155 !important; }
+html.a11y-dark .hover\:bg-slate-50:hover  { background-color: #1e3a5f !important; }
+html.a11y-dark .hover\:bg-slate-100:hover { background-color: #334155 !important; }
+
+/* Espaciado de texto */
+html.a11y-spacing,
+html.a11y-spacing body {
+  letter-spacing: 0.05em;
+  word-spacing:   0.1em;
+  line-height:    1.75;
+}

@@ -1,0 +1,271 @@
+openapi: 3.1.0
+
+info:
+  title: Sede Electrónica — Alcaldía Distrital de Santa Marta
+  version: 1.0.0
+  summary: API REST de la sede electrónica del Distrito Turístico, Cultural e Histórico de Santa Marta.
+  description: |
+    Fuente de verdad única del intercambio HTTP entre el backend y sus dos clientes:
+    el sitio público y el panel de administración.
+
+    # Convención de respuesta
+
+    Todas las respuestas usan un **sobre plano** con media type `application/json`:
+
+    ```json
+    { "success": true, "message": null, "data": { }, "errors": null }
+    ```
+
+    Las colecciones añaden `meta` con las siete claves del paginador y `links` con
+    cuatro. Los errores devuelven `success: false`, un `message` legible y, cuando
+    corresponde, un objeto `errors` con una entrada por campo.
+
+    El media type `application/vnd.api+json` **no se usa**.
+
+    # Convenciones de autoría
+
+    | Regla | Convención |
+    |---|---|
+    | Media type | `application/json` |
+    | `id` | Entero, nunca cadena |
+    | `type` | Plural en kebab-case, declarado con `const` |
+    | Campos autogenerados | Marcados `readOnly` y excluidos de las peticiones |
+    | Actualización | Verbo `PATCH`, nunca `PUT` |
+    | Paginación | `page` y `per_page`; `per_page` máximo 100 |
+    | Errores de validación | `errors` con clave por campo |
+  contact:
+    name: Equipo de la Sede Electrónica
+  license:
+    name: Uso institucional
+
+servers:
+  - url: https://staging.santamarta.gov.co/api/v1
+    description: Entorno de pruebas
+  - url: http://127.0.0.1:8010/api/v1
+    description: Desarrollo local
+
+tags:
+  - name: Entidad
+    description: Datos institucionales de la autoridad titular
+
+paths:
+  /entidad:
+    get:
+      tags: [Entidad]
+      operationId: obtenerEntidad
+      summary: Datos institucionales de la entidad
+      description: |
+        Alimenta la cabecera y el pie de página de la sede. El pie debe publicar los
+        ocho datos institucionales y enlazar las cinco políticas obligatorias.
+
+        Los campos que la entidad todavía no ha ratificado formalmente viajan en
+        `datos_por_confirmar` en lugar de publicarse como si estuvieran confirmados.
+      x-status: pending
+      x-criterios: [FUN-007, FUN-009, FUN-014, FUN-015, SEG-006, CAG-12]
+      responses:
+        '200':
+          description: Datos de la entidad
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EntidadItem'
+              examples:
+                completa:
+                  summary: Entidad con todos sus datos publicables
+                  value:
+                    success: true
+                    message: null
+                    data:
+                      id: 1
+                      type: entidad
+                      nombre: Alcaldía Distrital de Santa Marta
+                      sigla: D.T.C.H.
+                      nit: '891.780.009-4'
+                      direccion: Calle 14 No. 2-49, Palacio Municipal
+                      municipio: Santa Marta
+                      departamento: Magdalena
+                      pais: Colombia
+                      telefono: '(+57) 605 420 9600'
+                      linea_atencion: '(+57) 605 4351719'
+                      linea_gratuita: '018000 955 532'
+                      linea_anticorrupcion: '(+57) 605 4351719'
+                      correo_atencion: atencionalciudadano@santamarta.gov.co
+                      correo_notificaciones_judiciales: notificacionesalcaldiadistrital@santamarta.gov.co
+                      horario: Lunes a viernes de 8:00 a 12:00 y de 14:00 a 18:00
+                      codigo_postal: '470004'
+                      dominio: https://staging.santamarta.gov.co
+                      logo: /storage/entidad/escudo.svg
+                      redes:
+                        - red: facebook
+                          url: https://www.facebook.com/SantaMartaDTCH
+                      politicas:
+                        - slug: terminos-y-condiciones
+                          nombre: Términos y condiciones
+                          actualizada_en: '2026-09-30'
+                        - slug: seguridad-y-privacidad
+                          nombre: Seguridad y privacidad
+                          actualizada_en: '2026-09-30'
+                        - slug: tratamiento-de-datos
+                          nombre: Protección y tratamiento de datos personales
+                          actualizada_en: '2026-09-30'
+                        - slug: uso-de-cookies
+                          nombre: Uso de cookies
+                          actualizada_en: '2026-09-30'
+                        - slug: derechos-de-autor
+                          nombre: Derechos de autor y uso sobre los contenidos
+                          actualizada_en: '2026-09-30'
+                      datos_por_confirmar: []
+                    errors: null
+      security: []
+
+components:
+  securitySchemes:
+    cookieSesion:
+      type: apiKey
+      in: cookie
+      name: laravel_session
+      description: Sesión de la SPA con cookie `HttpOnly`. Es el mecanismo del panel.
+    portador:
+      type: http
+      scheme: bearer
+      description: Token de API, para clientes que no son un navegador.
+
+  responses:
+    NoEncontrado:
+      description: El recurso no existe
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiEnvelope' }
+          examples:
+            no_encontrado:
+              value:
+                success: false
+                message: El recurso no fue encontrado.
+                data: null
+                errors: null
+    ValidacionInvalida:
+      description: La petición no cumple el contrato
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiEnvelope' }
+          examples:
+            validacion:
+              value:
+                success: false
+                message: Error de validación.
+                data: null
+                errors:
+                  per_page:
+                    - El campo per_page no puede ser mayor que 100.
+
+  schemas:
+    # ------------------------------------------------------------------
+    # Esquemas compartidos. Son cinco y no se duplican por recurso.
+    # ------------------------------------------------------------------
+    ApiEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        message: { type: [string, 'null'] }
+        data: { type: [object, 'null'] }
+        errors: { type: [object, 'null'] }
+
+    PaginatedEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          required: [meta, links]
+          properties:
+            data: { type: array }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+            links: { $ref: '#/components/schemas/CollectionLinks' }
+
+    PageMeta:
+      type: object
+      required: [current_page, from, last_page, path, per_page, to, total]
+      properties:
+        current_page: { type: integer, minimum: 1 }
+        from: { type: [integer, 'null'], minimum: 1 }
+        last_page: { type: integer, minimum: 1 }
+        path: { type: string }
+        per_page: { type: integer, minimum: 1 }
+        to: { type: [integer, 'null'], minimum: 1 }
+        total: { type: integer, minimum: 0 }
+
+    CollectionLinks:
+      type: object
+      required: [first, last, prev, next]
+      properties:
+        first: { type: [string, 'null'] }
+        last: { type: [string, 'null'] }
+        prev: { type: [string, 'null'] }
+        next: { type: [string, 'null'] }
+
+    ApiError:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        errors: { type: [object, 'null'] }
+
+    # ------------------------------------------------------------------
+    # Entidad — dato único, alimenta la cabecera y el pie
+    # ------------------------------------------------------------------
+    EntidadItem:
+      type: object
+      required: [id, type, nombre]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: entidad }
+        nombre: { type: string }
+        sigla: { type: [string, 'null'] }
+        nit: { type: [string, 'null'] }
+        direccion: { type: [string, 'null'] }
+        municipio: { type: [string, 'null'] }
+        departamento: { type: [string, 'null'] }
+        pais: { type: [string, 'null'] }
+        telefono: { type: [string, 'null'] }
+        linea_atencion: { type: [string, 'null'] }
+        linea_gratuita: { type: [string, 'null'] }
+        linea_anticorrupcion: { type: [string, 'null'] }
+        correo_atencion: { type: [string, 'null'], format: email }
+        correo_notificaciones_judiciales: { type: [string, 'null'], format: email }
+        horario: { type: [string, 'null'] }
+        codigo_postal: { type: [string, 'null'] }
+        dominio: { type: [string, 'null'] }
+        logo: { type: [string, 'null'] }
+        redes:
+          type: array
+          items: { $ref: '#/components/schemas/EntidadRed' }
+        politicas:
+          type: array
+          description: Las cinco políticas obligatorias que el pie debe enlazar.
+          items: { $ref: '#/components/schemas/EntidadPolitica' }
+        datos_por_confirmar:
+          type: array
+          description: |
+            Campos que la entidad todavía no ha ratificado formalmente. Se publican
+            como pendientes en lugar de inventarse.
+          items: { type: string }
+
+    EntidadRed:
+      type: object
+      required: [red, url]
+      properties:
+        red: { type: string, enum: [facebook, instagram, x, youtube, linkedin] }
+        url: { type: string }
+
+    EntidadPolitica:
+      type: object
+      required: [slug, nombre]
+      properties:
+        slug: { type: string }
+        nombre: { type: string }
+        actualizada_en: { type: [string, 'null'], format: date, readOnly: true }

@@ -1,0 +1,38 @@
+# Conjunto de reglas de Redocly para el contrato de la sede.
+#
+# `redocly lint` es una puerta: falla con errores, no con avisos. Los avisos se revisan
+# y se corrigen durante la construcción; los errores bloquean el cambio.
+
+extends:
+  - recommended
+
+rules:
+  # --- Lo que se exige como error: rompe el contrato o el cliente ---
+  operation-summary: error
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-4xx-response: error
+  no-ambiguous-paths: error
+  path-params: error
+  no-invalid-media-type-examples: error
+  no-invalid-parameter-examples: error
+  no-invalid-schema-examples: error
+  no-unresolved-refs: error
+  struct: error
+  spec: error
+
+  # --- Avisos durante la construcción ---
+  # El contrato declara los esquemas compartidos y los de cada recurso antes de que
+  # existan todas sus operaciones. Es deliberado: el contrato va por delante del
+  # código. Esta regla pasa a error cuando el contrato esté completo.
+  no-unused-components: warn
+
+  # Los códigos del expediente los fija el proyecto, no el estilo de la herramienta.
+  operation-description: warn
+  tag-description: warn
+  info-license: off
+  no-server-example.com: off
+
+  # La convención del proyecto usa extensiones propias: `x-status` y `x-criterios`.
+  # Documentadas en contract/README.md y verificadas por la prueba de deriva.
+  no-custom-tags: off

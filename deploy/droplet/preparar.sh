@@ -22,7 +22,6 @@ BASE=/opt/sede
 
 rojo()   { printf '\033[31m%s\033[0m\n' "$*"; }
 verde()    { printf '\033[32m%s\033[0m\n' "$*"; }
-amarillo() { printf '\033[33m%s\033[0m\n' "$*"; }
 aviso()  { printf '\033[33m%s\033[0m\n' "$*"; }
 paso()   { printf '\n\033[1m%s\033[0m\n' "$*"; }
 
@@ -86,7 +85,19 @@ if [ -n "${PASSWORD_ADMIN:-}" ]; then
   chage -M 90 -m 1 -W 14 "$USUARIO_ADMIN"
   verde "  contraseña de $USUARIO_ADMIN asignada"
 else
-  aviso "  PASSWORD_ADMIN sin definir: la cuenta no tendrá contraseña y no podrá elevar"
+  # No basta con mirar si la variable está definida: lo que importa es si la
+  # cuenta puede elevar HOY. Avisar sin comprobarlo produce avisos falsos, y un
+  # aviso falso entrena a ignorar justo el aviso que no se puede ignorar.
+  case "$(passwd -S "$USUARIO_ADMIN" 2>/dev/null | awk '{print $2}')" in
+    P) verde "  $USUARIO_ADMIN ya tiene contraseña utilizable (no se toca)" ;;
+    *) rojo  "  $USUARIO_ADMIN NO tiene contraseña utilizable: no podría elevar."
+       rojo  "  Asígnala antes de cerrar el acceso de root, por ejemplo:"
+       rojo  "    PASSWORD_ADMIN='...' $(basename "$0")"
+       if [ "${SEGUIR_SIN_PASSWORD:-0}" != "1" ]; then
+         rojo  "  Si vas a asignarla después, repite con SEGUIR_SIN_PASSWORD=1."
+         exit 1
+       fi ;;
+  esac
 fi
 
 if [ -n "$LLAVE_ADMIN" ] && [ -f "$LLAVE_ADMIN" ]; then
@@ -362,7 +373,7 @@ filtrar() {
       # El aviso va a stderr A PROPÓSITO: filtrar() se invoca dentro de "$( )",
       # así que cualquier cosa escrita en stdout se colaría dentro de la lista
       # de algoritmos y produciría una directiva corrupta.
-      amarillo "  se omite $a: esta versión de OpenSSH no lo ofrece" >&2
+      aviso "  se omite $a: esta versión de OpenSSH no lo ofrece" >&2
     fi
   done
   # tr -cd: la lista sólo puede contener caracteres válidos de un nombre de
@@ -375,7 +386,7 @@ MACS="$(filtrar mac hmac-sha2-512-etm@openssh.com hmac-sha2-256-etm@openssh.com 
 # Se sanea a caracteres seguros: este valor sólo alimenta un COMENTARIO, y no
 # puede permitirse que un salto de línea o un "|" tumbe el endurecimiento entero
 # rompiendo la orden sed de más abajo.
-VERSION_OPENSSH="$(ssh -V 2>&1 | head -1 | cut -d, -f1 | tr -cd 'A-Za-z0-9._-')"
+VERSION_OPENSSH="$(ssh -V 2>&1 | head -1 | cut -d, -f1 | tr -cd 'A-Za-z0-9._+ -')"
 
 # El heredoc va ENTRECOMILLADO y los valores dinámicos entran por marcadores
 # sustituidos después. Un heredoc SIN comillas expande los acentos graves como

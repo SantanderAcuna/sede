@@ -168,6 +168,21 @@ for i in $(seq 1 "$ESPERADO"); do
     $COMPOSE ps --format 'table {{.Service}}\t{{.Status}}' | sed 's/^/  /'
     exit 0
   fi
+  # Si el punto de entrada está en bucle de reinicio, esperar los 180 segundos no
+  # sirve de nada: no va a responder. Se detecta y se informa YA, con su motivo.
+  #
+  # El despliegue tardaba cuatro minutos en fallar por un certificado que no
+  # existe, cuando la causa se sabe en veinte segundos. Un fallo lento no es sólo
+  # tiempo perdido: es tiempo durante el cual quien mira no sabe si el despliegue
+  # avanza o está atascado.
+  if $COMPOSE ps --status restarting --services 2>/dev/null | grep -qx nginx \
+     || $COMPOSE ps --status exited --services 2>/dev/null | grep -qx nginx; then
+    echo
+    rojo "El punto de entrada no arranca. Últimos registros:"
+    $COMPOSE logs --tail=15 nginx 2>&1 | sed 's/^/  /' >&2
+    volver_atras || true
+    exit 1
+  fi
   echo -n "."
   sleep 5
 done

@@ -228,8 +228,12 @@ jobs:
       - name: Auditoría del backend
         working-directory: backend
         run: |
-          # `composer audit` lee el archivo de bloqueo; no hace falta instalar.
-          if ! composer audit --no-interaction; then
+          # `--locked` es imprescindible y no es un detalle: sin él, Composer
+          # busca los paquetes INSTALADOS y aquí no hay ninguno, así que responde
+          # «No installed packages found» y falla. Con `--locked` audita el
+          # archivo de bloqueo, que es lo que se quiere y además no necesita
+          # instalar nada.
+          if ! composer audit --locked --no-interaction; then
             echo "::error::Hay dependencias de PHP con vulnerabilidades conocidas."
             exit 1
           fi

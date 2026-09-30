@@ -155,11 +155,20 @@ una máquina que ya no existe.
 **Cada entorno tiene su propio juego de credenciales.** Compartir la contraseña de la base
 entre `staging` y `production` haría que un incidente en pruebas alcanzara producción.
 
-### Archivo local de valores
+### Archivos locales con valores
 
-Los valores que yo genere se dejan en un archivo **ignorado por el control de versiones**,
-con permisos `600`, y **nunca** dentro del repositorio. Ese archivo es un puente, no un
-destino: su contenido se traslada al gestor de la entidad y después se borra.
+Este documento **no contiene valores**: es el registro versionado, y el repositorio es
+público. Los valores viven en dos archivos locales, ambos ignorados por el control de
+versiones y con permisos `600`:
+
+| Archivo | Para qué | Formato |
+|---|---|---|
+| `pass.md` | Consulta humana: credenciales organizadas y explicadas | Markdown |
+| `.accesos.local.env` | Consumo por programas y traslado al gestor de secretos | `CLAVE=valor` |
+
+**Son un puente, no un destino.** Su contenido se traslada al gestor de la entidad y
+después se destruyen con `shred -u`, que sobrescribe antes de borrar: un `rm` deja el
+contenido recuperable en el disco.
 
 ---
 

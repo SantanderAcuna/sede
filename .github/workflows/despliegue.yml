@@ -98,16 +98,38 @@ jobs:
             --tag ${{ env.REGISTRY }}/${{ env.IMAGEN_BASE }}-${{ matrix.nombre }}:${{ github.sha }} \
             .
 
-      - name: Escanear
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+      - name: Preparar el escáner
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGEN_BASE }}-${{ matrix.nombre }}:${{ github.sha }}
-          format: table
+          # La versión del escáner se fija para que el mismo código dé siempre el
+          # mismo veredicto. Sin fijarla, una imagen que hoy pasa podría fallar
+          # mañana porque cambió el catálogo de vulnerabilidades, y el fallo
+          # parecería del código.
+          version: v0.74.0
+
+      - name: Escanear
+        run: |
+          # Se usa la orden de Trivy directamente, en lugar de `trivy-action`.
+          # Aquella acción, fijada por confirmación en este archivo, referencia a
+          # su vez OTRA acción por ETIQUETA (`aquasecurity/setup-trivy@v0.2.2`), y
+          # esa versión ya no existe: la construcción fallaba al resolverla, sin
+          # llegar a construir nada y cancelando las otras dos imágenes.
+          #
+          # Fijar por confirmación lo que uno escribe no basta si el salto
+          # intermedio lo elige otro: una etiqueta puede reapuntarse a código
+          # distinto sin que este archivo cambie. `setup-trivy` sí está fijada por
+          # confirmación, y sus propias dependencias también, así que la cadena
+          # entera queda determinada.
+          #
           # Falla sólo con lo que ya se sabe cómo arreglar: no se publica una
           # imagen con una vulnerabilidad corregible.
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
+          trivy image \
+            --exit-code 1 \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --no-progress \
+            --format table \
+            ${{ env.REGISTRY }}/${{ env.IMAGEN_BASE }}-${{ matrix.nombre }}:${{ github.sha }}
 
       - name: Publicar
         run: docker push ${{ env.REGISTRY }}/${{ env.IMAGEN_BASE }}-${{ matrix.nombre }}:${{ github.sha }}

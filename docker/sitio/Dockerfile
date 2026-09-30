@@ -47,6 +47,21 @@ RUN apk --no-cache upgrade \
     && apk add --no-cache ca-certificates tzdata curl \
     && rm -rf /var/cache/apk/*
 
+# npm y corepack NO viajan en la imagen de ejecución.
+#
+# Este contenedor arranca con `node .output/server/index.mjs`: no instala nada ni
+# compila nada. Y sin embargo npm arrastraba SIETE vulnerabilidades de severidad
+# ALTA en sus propias dependencias internas —`brace-expansion`, `ip-address` y
+# `undici`—, que se publicaban con la imagen y bloqueaban el despliegue.
+#
+# No era deriva de las dependencias del proyecto: `app/node_modules` salía
+# limpio. Era una HERRAMIENTA DE CONSTRUCCIÓN dentro de una imagen de EJECUCIÓN.
+# Actualizar npm lo habría tapado hasta la siguiente vulnerabilidad; quitarlo
+# elimina la superficie entera, y de paso la imagen encoge.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+    && rm -rf /usr/local/lib/node_modules/corepack /usr/local/bin/corepack \
+    && rm -f /usr/local/bin/yarn /usr/local/bin/yarnpkg /usr/local/bin/pnpm /usr/local/bin/pnpx
+
 RUN addgroup -g 10001 -S sede \
     && adduser -u 10001 -S sede -G sede
 

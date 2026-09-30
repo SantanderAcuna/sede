@@ -31,7 +31,20 @@ RUN npm prune --omit=dev
 # ---------------------------------------------------------------------------
 FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS final
 
-RUN apk add --no-cache ca-certificates tzdata curl \
+# Los paquetes de la imagen base se actualizan en la construcción.
+#
+# La base está fijada por resumen, así que no cambia sola — pero las correcciones
+# de Alpine llegan como versiones nuevas de paquete, no como una imagen nueva. Sin
+# esto, la imagen arrastraba `libexpat` 2.8.4-r0 con una vulnerabilidad ALTA ya
+# corregida en 2.8.5-r0, y la publicación se detenía con razón.
+#
+# Actualizar aquí renuncia a que dos construcciones del mismo código den bytes
+# idénticos. Se acepta a cambio de no publicar una imagen vulnerable, y lo que lo
+# hace admisible es que la comprobación no es una promesa: el escáner corre en
+# cada construcción y falla si queda algo corregible de severidad alta o crítica.
+# Es decir, la falta de reproducibilidad la vigila una puerta, no la confianza.
+RUN apk --no-cache upgrade \
+    && apk add --no-cache ca-certificates tzdata curl \
     && rm -rf /var/cache/apk/*
 
 RUN addgroup -g 10001 -S sede \

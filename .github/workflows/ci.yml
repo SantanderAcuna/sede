@@ -1,0 +1,214 @@
+# Integración continua.
+#
+# La puerta que corre en cada cambio. Ninguna comprobación se salta y todas
+# fallan el trabajo: una puerta que avisa pero no impide es decoración.
+#
+# Las acciones están fijadas por CONFIRMACIÓN y no por etiqueta: una etiqueta
+# puede reapuntarse a otro código, y con ella cambia lo que se ejecuta en cada
+# cambio sin que nadie toque este archivo.
+
+name: Integración continua
+
+on:
+  push:
+    branches: [main, staging, develop]
+  pull_request:
+    branches: [main, staging, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: integracion-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PHP_VERSION: '8.5'
+  NODE_VERSION: '24'
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # El contrato es la fuente de verdad: si se rompe, lo demás no importa.
+  # ---------------------------------------------------------------------------
+  contrato:
+    name: Contrato
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: panel/package-lock.json
+      - name: Validar el contrato
+        working-directory: panel
+        run: |
+          npm ci --ignore-scripts
+          npx --yes @redocly/cli@2.55.0 lint ../contract/openapi.yaml
+
+  # ---------------------------------------------------------------------------
+  # Backend
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+        env:
+          POSTGRES_DB: sede_pruebas
+          POSTGRES_USER: sede
+          POSTGRES_PASSWORD: prueba
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sede" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: sede_pruebas
+      DB_USERNAME: sede
+      DB_PASSWORD: prueba
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: pdo_pgsql, pgsql, redis, intl, zip, gd, bcmath, exif, pcntl
+          coverage: none
+      - name: Instalar dependencias
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Preparar el entorno
+        working-directory: backend
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+      - name: Formato
+        working-directory: backend
+        run: ./vendor/bin/pint --test
+      - name: Análisis estático
+        working-directory: backend
+        run: ./vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+      - name: Pruebas
+        working-directory: backend
+        run: php artisan test
+
+  # ---------------------------------------------------------------------------
+  # Panel
+  # ---------------------------------------------------------------------------
+  panel:
+    name: Panel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: panel/package-lock.json
+      - name: Instalar
+        working-directory: panel
+        run: npm ci --ignore-scripts
+      - name: Generar los tipos desde el contrato
+        working-directory: panel
+        run: npx openapi-typescript ../contract/openapi.yaml -o src/types/openapi.d.ts --read-write-markers
+      - name: Comprobar tipos y compilar
+        working-directory: panel
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Sitio
+  # ---------------------------------------------------------------------------
+  sitio:
+    name: Sitio
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: sitio/package-lock.json
+      - name: Instalar
+        working-directory: sitio
+        run: npm ci --ignore-scripts
+      - name: Generar los tipos desde el contrato
+        working-directory: sitio
+        run: npx openapi-typescript ../contract/openapi.yaml -o types/openapi.d.ts --read-write-markers
+      - name: Compilar
+        working-directory: sitio
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Pila de contenedores
+  # ---------------------------------------------------------------------------
+  pila:
+    name: Pila
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: La pila se resuelve
+        env:
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          DB_PASSWORD: prueba
+          REDIS_PASSWORD: prueba
+          BACKUP_PASSPHRASE: prueba
+          S3_ACCESS_KEY: prueba
+          S3_SECRET_KEY: prueba
+        run: docker compose config --quiet
+
+  # ---------------------------------------------------------------------------
+  # Barrera contra credenciales
+  #
+  # La misma comprobación que corre antes de cada confirmación, aquí sobre todo
+  # el contenido del cambio. Existe porque la exclusión por sí sola ya falló una
+  # vez: un archivo con doce contraseñas llegó al índice.
+  # ---------------------------------------------------------------------------
+  credenciales:
+    name: Credenciales
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Ningún archivo con credenciales
+        run: |
+          prohibidos='(^|/)(pass\.md|accesos\.local\.md|\.accesos\.local\.env|\.env)$|^\.claves/|\.(pem|p12|pfx|key)$'
+          hallados=$(git ls-files | grep -E "$prohibidos" | grep -v '\.example$' || true)
+          if [ -n "$hallados" ]; then
+            echo "Archivos con credenciales versionados:"
+            echo "$hallados"
+            exit 1
+          fi
+          echo "Ninguno."
+      - name: Ninguna clave privada en el contenido
+        run: |
+          if git grep -nIE 'BEGIN [A-Z ]*PRIVATE KEY' -- . ':!*.md' ; then
+            echo "Hay una clave privada en el repositorio."
+            exit 1
+          fi
+          echo "Ninguna."
+
+  # ---------------------------------------------------------------------------
+  # Lo que TODAVÍA NO se comprueba
+  #
+  # Se declara en lugar de callarse. Un listado de puertas que no existen da la
+  # misma falsa tranquilidad que una puerta que no comprueba nada.
+  #
+  #   · Conformidad de diseño y accesibilidad sobre navegador real
+  #   · Recorrido completo del ciudadano
+  #   · Verificación de infraestructura, puertos y privilegios
+  #   · Análisis de vulnerabilidades de dependencias y de código
+  #   · Fijación de las bases por resumen
+  #   · Generación de la matriz de trazabilidad
+  #
+  # Llegan con los módulos que los alimentan. Hasta entonces, este archivo dice
+  # la verdad sobre lo que comprueba.
+  # ---------------------------------------------------------------------------

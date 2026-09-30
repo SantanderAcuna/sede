@@ -1,0 +1,494 @@
+openapi: 3.1.0
+
+info:
+  title: Sede Electrónica — Alcaldía Distrital de Santa Marta
+  version: 1.0.0
+  summary: API REST de la sede electrónica del Distrito Turístico, Cultural e Histórico de Santa Marta.
+  description: |
+    Fuente de verdad única del intercambio HTTP entre el backend y sus dos clientes:
+    el sitio público y el panel de administración.
+
+    # Convención de respuesta
+
+    Todas las respuestas usan un **sobre plano** con media type `application/json`:
+
+    ```json
+    { "success": true, "message": null, "data": { }, "errors": null }
+    ```
+
+    Las colecciones añaden `meta` con las siete claves del paginador y `links` con
+    cuatro. Los errores devuelven `success: false`, un `message` legible y, cuando
+    corresponde, un objeto `errors` con una entrada por campo.
+
+    El media type `application/vnd.api+json` **no se usa**.
+
+    # Convenciones de autoría
+
+    | Regla | Convención |
+    |---|---|
+    | Media type | `application/json` |
+    | `id` | Entero, nunca cadena |
+    | `type` | Plural en kebab-case, declarado con `const` |
+    | Campos autogenerados | Marcados `readOnly` y excluidos de las peticiones |
+    | Actualización | Verbo `PATCH`, nunca `PUT` |
+    | Paginación | `page` y `per_page`; `per_page` máximo 100 |
+    | Errores de validación | `errors` con clave por campo |
+  contact:
+    name: Equipo de la Sede Electrónica
+  license:
+    name: Uso institucional
+
+servers:
+  - url: https://staging.santamarta.gov.co/api/v1
+    description: Entorno de pruebas
+  - url: http://127.0.0.1:8010/api/v1
+    description: Desarrollo local
+
+tags:
+  - name: Entidad
+    description: Datos institucionales de la autoridad titular
+  - name: Trámites
+    description: Catálogo de trámites y servicios
+
+paths:
+  /entidad:
+    get:
+      tags: [Entidad]
+      operationId: obtenerEntidad
+      summary: Datos institucionales de la entidad
+      description: |
+        Alimenta la cabecera y el pie de página de la sede. El pie debe publicar los
+        ocho datos institucionales y enlazar las cinco políticas obligatorias.
+
+        Los campos que la entidad todavía no ha ratificado formalmente viajan en
+        `datos_por_confirmar` en lugar de publicarse como si estuvieran confirmados.
+      x-status: pending
+      x-criterios: [FUN-007, FUN-009, FUN-014, FUN-015, SEG-006, CAG-12]
+      responses:
+        '200':
+          description: Datos de la entidad
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EntidadItem'
+              examples:
+                completa:
+                  summary: Entidad con todos sus datos publicables
+                  value:
+                    success: true
+                    message: null
+                    data:
+                      id: 1
+                      type: entidad
+                      nombre: Alcaldía Distrital de Santa Marta
+                      sigla: D.T.C.H.
+                      nit: '891.780.009-4'
+                      direccion: Calle 14 No. 2-49, Palacio Municipal
+                      municipio: Santa Marta
+                      departamento: Magdalena
+                      pais: Colombia
+                      telefono: '(+57) 605 420 9600'
+                      linea_atencion: '(+57) 605 4351719'
+                      linea_gratuita: '018000 955 532'
+                      linea_anticorrupcion: '(+57) 605 4351719'
+                      correo_atencion: atencionalciudadano@santamarta.gov.co
+                      correo_notificaciones_judiciales: notificacionesalcaldiadistrital@santamarta.gov.co
+                      horario: Lunes a viernes de 8:00 a 12:00 y de 14:00 a 18:00
+                      codigo_postal: '470004'
+                      dominio: https://staging.santamarta.gov.co
+                      logo: /storage/entidad/escudo.svg
+                      redes:
+                        - red: facebook
+                          url: https://www.facebook.com/SantaMartaDTCH
+                      politicas:
+                        - slug: terminos-y-condiciones
+                          nombre: Términos y condiciones
+                          actualizada_en: '2026-09-30'
+                        - slug: seguridad-y-privacidad
+                          nombre: Seguridad y privacidad
+                          actualizada_en: '2026-09-30'
+                        - slug: tratamiento-de-datos
+                          nombre: Protección y tratamiento de datos personales
+                          actualizada_en: '2026-09-30'
+                        - slug: uso-de-cookies
+                          nombre: Uso de cookies
+                          actualizada_en: '2026-09-30'
+                        - slug: derechos-de-autor
+                          nombre: Derechos de autor y uso sobre los contenidos
+                          actualizada_en: '2026-09-30'
+                      datos_por_confirmar: []
+                    errors: null
+      security: []
+
+  /tramites:
+    get:
+      tags: [Trámites]
+      operationId: listarTramites
+      summary: Catálogo de trámites y servicios
+      description: |
+        Devuelve los trámites **publicados**. Un trámite sin alguno de sus seis
+        atributos obligatorios no se publica, de modo que lo que devuelve esta
+        operación siempre está completo.
+      x-status: pending
+      x-criterios: [FUN-001, FUN-021, FUN-022, RN-01]
+      parameters:
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+        - name: categoria
+          in: query
+          required: false
+          description: Slug de la categoría por la que filtrar
+          schema: { type: string, maxLength: 120 }
+        - name: buscar
+          in: query
+          required: false
+          description: Texto a buscar en el nombre y la descripción
+          schema: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: Colección paginada de trámites
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/TramiteItem' }
+              examples:
+                paginada:
+                  summary: Primera página de trámites
+                  value:
+                    success: true
+                    message: null
+                    data:
+                      - id: 1
+                        type: tramites
+                        slug: certificado-de-residencia
+                        nombre: Certificado de residencia
+                        resumen: Acredita el domicilio del solicitante en el Distrito.
+                        modalidad: en_linea
+                        tiene_costo: gratuito
+                        tiempo_solucion_dias: 5
+                        canal_inicio: propio
+                        url_inicio: /tramites/certificado-de-residencia/iniciar
+                        consulta_estado: /seguimiento
+                        categoria:
+                          slug: certificados
+                          nombre: Certificados
+                    meta:
+                      current_page: 1
+                      from: 1
+                      last_page: 3
+                      path: https://staging.santamarta.gov.co/api/v1/tramites
+                      per_page: 15
+                      to: 1
+                      total: 31
+                    links:
+                      first: https://staging.santamarta.gov.co/api/v1/tramites?page=1
+                      last: https://staging.santamarta.gov.co/api/v1/tramites?page=3
+                      prev: null
+                      next: https://staging.santamarta.gov.co/api/v1/tramites?page=2
+                    errors: null
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security: []
+
+  /tramites/{slug}:
+    get:
+      tags: [Trámites]
+      operationId: obtenerTramite
+      summary: Ficha completa de un trámite
+      description: |
+        La ficha declara siempre sus seis atributos obligatorios: modalidad,
+        costo, tiempo de solución, canal de inicio, mecanismo de consulta del
+        estado y documentos o requisitos.
+      x-status: pending
+      x-criterios: [FUN-021, FUN-023, FUN-024, CAG-20]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, maxLength: 160 }
+      responses:
+        '200':
+          description: Ficha del trámite con sus seis atributos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data: { $ref: '#/components/schemas/TramiteItem' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security: []
+
+components:
+  securitySchemes:
+    cookieSesion:
+      type: apiKey
+      in: cookie
+      name: laravel_session
+      description: Sesión de la SPA con cookie `HttpOnly`. Es el mecanismo del panel.
+    portador:
+      type: http
+      scheme: bearer
+      description: Token de API, para clientes que no son un navegador.
+
+  parameters:
+    Pagina:
+      name: page
+      in: query
+      required: false
+      description: Número de página, empezando en 1
+      schema: { type: integer, minimum: 1, default: 1 }
+    PorPagina:
+      name: per_page
+      in: query
+      required: false
+      description: Elementos por página. Por encima de 100 la respuesta es 422.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 15 }
+
+  responses:
+    NoEncontrado:
+      description: El recurso no existe
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiEnvelope' }
+          examples:
+            no_encontrado:
+              value:
+                success: false
+                message: El recurso no fue encontrado.
+                data: null
+                errors: null
+    ValidacionInvalida:
+      description: La petición no cumple el contrato
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiEnvelope' }
+          examples:
+            validacion:
+              value:
+                success: false
+                message: Error de validación.
+                data: null
+                errors:
+                  per_page:
+                    - El campo per_page no puede ser mayor que 100.
+
+  schemas:
+    # ------------------------------------------------------------------
+    # Esquemas compartidos. Son cinco y no se duplican por recurso.
+    # ------------------------------------------------------------------
+    ApiEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        message: { type: [string, 'null'] }
+        data: { type: [object, 'null'] }
+        errors: { type: [object, 'null'] }
+
+    PaginatedEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          required: [meta, links]
+          properties:
+            data: { type: array }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+            links: { $ref: '#/components/schemas/CollectionLinks' }
+
+    PageMeta:
+      type: object
+      required: [current_page, from, last_page, path, per_page, to, total]
+      properties:
+        current_page: { type: integer, minimum: 1 }
+        from: { type: [integer, 'null'], minimum: 1 }
+        last_page: { type: integer, minimum: 1 }
+        path: { type: string }
+        per_page: { type: integer, minimum: 1 }
+        to: { type: [integer, 'null'], minimum: 1 }
+        total: { type: integer, minimum: 0 }
+
+    CollectionLinks:
+      type: object
+      required: [first, last, prev, next]
+      properties:
+        first: { type: [string, 'null'] }
+        last: { type: [string, 'null'] }
+        prev: { type: [string, 'null'] }
+        next: { type: [string, 'null'] }
+
+    ApiError:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        errors: { type: [object, 'null'] }
+
+    # ------------------------------------------------------------------
+    # Entidad — dato único, alimenta la cabecera y el pie
+    # ------------------------------------------------------------------
+    EntidadItem:
+      type: object
+      required: [id, type, nombre]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: entidad }
+        nombre: { type: string }
+        sigla: { type: [string, 'null'] }
+        nit: { type: [string, 'null'] }
+        direccion: { type: [string, 'null'] }
+        municipio: { type: [string, 'null'] }
+        departamento: { type: [string, 'null'] }
+        pais: { type: [string, 'null'] }
+        telefono: { type: [string, 'null'] }
+        linea_atencion: { type: [string, 'null'] }
+        linea_gratuita: { type: [string, 'null'] }
+        linea_anticorrupcion: { type: [string, 'null'] }
+        correo_atencion: { type: [string, 'null'], format: email }
+        correo_notificaciones_judiciales: { type: [string, 'null'], format: email }
+        horario: { type: [string, 'null'] }
+        codigo_postal: { type: [string, 'null'] }
+        dominio: { type: [string, 'null'] }
+        logo: { type: [string, 'null'] }
+        redes:
+          type: array
+          items: { $ref: '#/components/schemas/EntidadRed' }
+        politicas:
+          type: array
+          description: Las cinco políticas obligatorias que el pie debe enlazar.
+          items: { $ref: '#/components/schemas/EntidadPolitica' }
+        datos_por_confirmar:
+          type: array
+          description: |
+            Campos que la entidad todavía no ha ratificado formalmente. Se publican
+            como pendientes en lugar de inventarse.
+          items: { type: string }
+
+    EntidadRed:
+      type: object
+      required: [red, url]
+      properties:
+        red: { type: string, enum: [facebook, instagram, x, youtube, linkedin] }
+        url: { type: string }
+
+    EntidadPolitica:
+      type: object
+      required: [slug, nombre]
+      properties:
+        slug: { type: string }
+        nombre: { type: string }
+        actualizada_en: { type: [string, 'null'], format: date, readOnly: true }
+
+    # ------------------------------------------------------------------
+    # Trámites
+    # ------------------------------------------------------------------
+    TramiteItem:
+      type: object
+      required:
+        - id
+        - type
+        - slug
+        - nombre
+        - modalidad
+        - tiene_costo
+        - tiempo_solucion_dias
+        - canal_inicio
+      description: |
+        Los seis atributos obligatorios de un trámite son `modalidad`,
+        `tiene_costo`, `tiempo_solucion_dias`, `canal_inicio`, `consulta_estado`
+        y `requisitos`. Sin ellos el trámite no se publica, de modo que los campos
+        marcados como requeridos siempre viajan.
+      properties:
+        id: { type: integer }
+        type: { type: string, const: tramites }
+        slug: { type: string }
+        nombre: { type: string }
+        resumen: { type: [string, 'null'] }
+        modalidad:
+          type: string
+          enum: [en_linea, parcialmente_en_linea, presencial]
+        tiene_costo:
+          type: string
+          enum: [gratuito, con_costo]
+        costo:
+          type: [string, 'null']
+          description: Importe en formato decimal. Lo fija el catálogo, nunca la petición.
+        tiempo_solucion_dias: { type: integer, minimum: 0 }
+        canal_inicio:
+          type: string
+          enum: [propio, portal_nacional]
+        url_inicio: { type: [string, 'null'] }
+        consulta_estado: { type: [string, 'null'] }
+        requisitos:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteRequisito' }
+        documentos:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteDocumento' }
+        categoria: { $ref: '#/components/schemas/TramiteCategoria' }
+        pasos:
+          type: array
+          items: { $ref: '#/components/schemas/TramitePaso' }
+        publicado_en: { type: [string, 'null'], format: date-time, readOnly: true }
+        actualizado_en: { type: [string, 'null'], format: date-time, readOnly: true }
+
+    TramiteCategoria:
+      type: object
+      required: [slug, nombre]
+      properties:
+        slug: { type: string }
+        nombre: { type: string }
+
+    TramiteRequisito:
+      type: object
+      required: [descripcion]
+      properties:
+        descripcion: { type: string }
+        obligatorio: { type: boolean, default: true }
+
+    TramiteDocumento:
+      type: object
+      required: [nombre]
+      properties:
+        nombre: { type: string }
+        url: { type: [string, 'null'] }
+        formato: { type: [string, 'null'] }
+
+    TramitePaso:
+      type: object
+      required: [orden, titulo]
+      properties:
+        orden: { type: integer, minimum: 1 }
+        titulo: { type: string }
+        descripcion: { type: [string, 'null'] }
+
+    TramiteInput:
+      type: object
+      required: [nombre, modalidad, tiene_costo, tiempo_solucion_dias, canal_inicio]
+      properties:
+        nombre: { type: string, maxLength: 200 }
+        slug: { type: string, maxLength: 160 }
+        resumen: { type: [string, 'null'], maxLength: 500 }
+        modalidad: { type: string, enum: [en_linea, parcialmente_en_linea, presencial] }
+        tiene_costo: { type: string, enum: [gratuito, con_costo] }
+        costo: { type: [string, 'null'], maxLength: 30 }
+        tiempo_solucion_dias: { type: integer, minimum: 0 }
+        canal_inicio: { type: string, enum: [propio, portal_nacional] }
+        url_inicio: { type: [string, 'null'], maxLength: 500 }
+        consulta_estado: { type: [string, 'null'], maxLength: 500 }
+        categoria_slug: { type: [string, 'null'], maxLength: 120 }

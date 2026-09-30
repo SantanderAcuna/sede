@@ -88,7 +88,7 @@ construye de nuevo, con los documentos como única fuente.
 | D-14 | Alcance de seguridad | Endurecimiento del SO, Cloudflare y copias de seguridad cifradas con simulacro |
 | D-15 | Fuera de alcance | Wazuh/IDS, Prometheus/Grafana, app móvil Flutter, sidecar de IA |
 | D-16 | Formato de la API | **Sobre plano** `{success, message, data, meta, errors}` con `application/json`. La regla R-24 se mantiene; JSON:API se descarta |
-| D-17 | Imágenes base | Docker Hardened Images (`dhi.io`), fijadas por resumen |
+| D-17 | Imágenes base | Imágenes oficiales **fijadas por resumen**, con endurecimiento por configuración (§21.J) |
 | D-18 | Rutas del dominio | Sitio Nuxt en `/`, panel en `/panel`, API en `/api/v1` |
 | D-19 | Dominio de staging | `staging.santamarta.gov.co` |
 | D-20 | Dominio de producción | **Sin decidir** (§21.A) |
@@ -317,8 +317,8 @@ móvil: una etiqueta puede reapuntarse y con ella cambiar todo el contenido de l
 | Docker Engine + Compose v2 | rama estable | repositorio oficial de Docker | No el paquete de Ubuntu |
 | nginx | **1.30.5** (rama *stable*) | `nginx:1.30.5-alpine` | Publicada el 15-sep-2026; corrige la CVE-2026-90439 |
 | Docker Engine | **29.8.1** | repositorio oficial | Verificado en el servidor; Compose **5.5.1** |
-| PHP | **8.5** | `dhi.io/php` (fpm) | Soportado por Laravel 13 (8.3–8.5) |
-| Composer | 2.x | `dhi.io/composer` | Sólo en la etapa de compilación |
+| PHP | **8.5** | `php:8.5-fpm-alpine` | Soportado por Laravel 13 (8.3–8.5) |
+| Composer | 2.x | `composer:2` | Sólo en la etapa de compilación |
 | Node | **24** (LTS) | `node:24-alpine` | Nuxt 4 exige `^22.19`, `^24.11` o superior |
 
 > **nginx no tiene LTS.** Tiene rama *stable* (menor par, hoy 1.30.x) y rama *mainline*
@@ -1566,7 +1566,9 @@ seguridad no contempla, porque está escrita para 24.04. Verificadas en la máqu
 | Pieza | Versión real | Consecuencia |
 |---|---|---|
 | `sudo` | **`sudo-rs` 0.2.13** — la reescritura en Rust | **No soporta el subconjunto completo de `sudoers`**: `log_input`, `log_output` e `iolog_dir` son rechazados y un archivo inválido en `sudoers.d` **deja `sudo` inservible**. Las reglas se escriben con lo que sí soporta, y se valida con `visudo -c` antes de guardar |
-| Arranque de SSH | **`ssh.socket`** con activación por socket | El `sshd` de cada conexión **lee la configuración en el momento**, así que un cambio se aplica a la conexión siguiente sin recargar nada. Y la directiva `Port` **se ignora**: el puerto lo define la unidad de socket |
+| Arranque de SSH | **Demonio clásico** | Aunque `ssh.socket` esté habilitado, en la máquina el `sshd` corre como demonio (`-D [listener]`), así que **lee la configuración al arrancar y un cambio NO se aplica hasta recargar**. Verificado: tras editar los algoritmos de intercambio, el servidor seguía ofreciendo la lista anterior hasta ejecutar `systemctl reload ssh` |
+| Intercambio de claves | **Híbrido post-cuántico disponible** | OpenSSH 10.2 ofrece `mlkem768x25519-sha256` y `sntrup761x25519-sha512`. La lista del capítulo 01, escrita para OpenSSH 9.6, **no los incluía**: aplicarla sin revisar dejaba el servidor *peor* que su valor por defecto en esa dimensión. Ya están habilitados y verificados por negociación real |
+| Cliente | OpenSSH 10 no prefiere el post-cuántico por defecto | El aviso «connection is not using a post-quantum key exchange algorithm» lo emite el **cliente**, no el servidor. El servidor ya lo ofrece; que se negocie depende de que el cliente también lo prefiera |
 | Docker | **29.8.1**, Compose **5.5.1** | Muy por encima de lo que asumen los documentos; el demonio se configura por `daemon.json`, no por banderas del servicio |
 
 Otras versiones verificadas: `fail2ban` 1.1.0-9, `ufw` 0.36.2-9build1,
@@ -1709,7 +1711,7 @@ compatible con un token limitado a una zona. La acción del plan usa:
 | Servicio | Imagen | Usuario | Red | Puertos | Sonda |
 |---|---|---|---|---|---|
 | `nginx` | `nginx:1.30.5-alpine` | no root | `edge`, `backend` | **80, 443 (los únicos)** | `/health` |
-| `app` | `dhi.io/php` 8.5 FPM | no root (10001) | `backend`, `data` | — | `/ready` de la aplicación |
+| `app` | `php:8.5-fpm-alpine` | no root (10001) | `backend`, `data` | — | `/ready` de la aplicación |
 | `horizon` | misma que `app` | no root (10001) | `backend`, `data` | — | `horizon:status` |
 | `scheduler` | misma que `app` | no root (10001) | `backend`, `data` | — | proceso vivo |
 | `nuxt` | `node:24-alpine` | no root | `backend` | — | HTTP en su puerto interno |
@@ -2426,16 +2428,28 @@ seguridad deja el correo transaccional fuera de su alcance.
   la 5. Verificar la compatibilidad de `vue-tsc`, ESLint y Nuxt es la tarea **F0.3**, y su
   resultado decide. Fijarlo sin verificar es cómo se rompe una compilación a la semana.
 
-### J. Acceso al registro de imágenes endurecidas
+### J. Acceso al registro de imágenes endurecidas — **resuelta**
 
-El titular eligió imágenes endurecidas (D-17). **No está verificado** que el registro sea
-accesible desde la canalización ni que las extensiones de PHP que la aplicación necesita se
-puedan añadir sin perder la garantía.
+**Verificado el 2026-09-30: el registro rechaza el acceso anónimo.**
 
-- **Tarea F0.3, bloqueante:** verificar acceso, rutas de las etiquetas y disponibilidad de
-  las extensiones.
-- **Si falla:** imágenes oficiales fijadas por resumen, con el endurecimiento por
-  configuración (usuario sin privilegios, sólo lectura, sin capacidades, escaneo bloqueante).
+```
+docker pull dhi.io/php:8.5-fpm
+  → failed to authorize: failed to fetch anonymous token: 401 Unauthorized
+```
+
+Docker publica que esas imágenes son gratuitas, pero **exigen autenticarse con una cuenta de
+Docker Hub**, y no hay credenciales de registro ni en el servidor ni en la canalización.
+Las imágenes oficiales sí responden: `php`, `nginx`, `postgres`, `redis` y `node` devuelven
+`200`.
+
+**Decisión del titular: imágenes oficiales fijadas por resumen, con el endurecimiento por
+configuración** —usuario sin privilegios, sistema de archivos de sólo lectura, sin
+capacidades, sin escalada, bases fijadas por resumen y escaneo bloqueante en cada
+compilación—, que es además lo que Docker recomienda con independencia de la imagen base.
+
+Consecuencia: se elimina una dependencia externa del proceso de construcción y del de
+despliegue. La imagen endurecida deja de ser un requisito y pasa a ser una mejora posible
+para más adelante, si la entidad obtiene cuenta.
 
 ### K. Datos institucionales sin confirmar
 
@@ -2471,7 +2485,7 @@ puedan añadir sin perder la garantía.
 
 | Riesgo | Prob. | Impacto | Mitigación |
 |---|---|---|---|
-| El registro de imágenes endurecidas no es accesible | Media | Alto | Verificación bloqueante en F0.3, con alternativa de imágenes oficiales fijadas |
+| ~~El registro de imágenes endurecidas no es accesible~~ | — | — | **Resuelto en F0.3:** exige autenticación; se usan imágenes oficiales fijadas por resumen con endurecimiento por configuración |
 | Las credenciales de terceros no llegan a tiempo | Alta | Medio | Adaptadores `mock` y `sandbox`: el flujo es verificable sin ellas |
 | El dominio de producción se decide tarde | Media | Alto | Bloquea sólo la fase 11; el resto avanza sobre staging |
 | La entidad no confirma los datos del pie | Alta | Medio | Se publica sólo lo confirmado y se marca lo pendiente |

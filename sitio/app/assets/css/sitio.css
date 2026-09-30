@@ -191,15 +191,30 @@
    pinta blanco porque su fondo por defecto es azul oscuro.
    ============================================================================ */
 
-.pie-pagina-govco {
-  /* La banda inferior del pie, en el azul celeste de la Entidad. */
+/*
+  El azul celeste va SÓLO en la banda inferior, no en todo el pie.
+
+  Redefinir `--govcolor-cobalt` en `.pie-pagina-govco` entero fue un error que la
+  auditoría detectó: los enlaces de políticas de la primera sección —que tiene
+  fondo BLANCO— heredan ese token para su color de texto, y el celeste sobre
+  blanco da **2,58:1**, muy por debajo del 4,5:1 de AA. El token se acota a la
+  banda que de verdad lleva el color.
+*/
+.pie-pagina-govco .second-section {
   --govcolor-cobalt: #00ade7;
+}
 
-  /* Las sombras decorativas, que el Kit pinta en naranja: azul noche, para que
-     el celeste del fondo se lea como tal y la sombra no compita con él. */
+/* Los enlaces de la primera sección van sobre blanco: azul noche, que da 7,19:1
+   y sigue siendo un azul de la paleta de la Entidad. */
+.pie-pagina-govco .first-section a {
+  color: #00568d !important;
+}
+
+/* Las sombras decorativas del pie, que el Kit pinta en naranja: azul noche, para
+   que el celeste del fondo se lea como tal y la sombra no compita con él. Y el
+   filete de la primera sección en el tono secundario de la Entidad. */
+.pie-pagina-govco .first-section {
   --govcolor-tulip: #00568d;
-
-  /* El filete de la primera sección: el tono secundario de la Entidad. */
   --govcolor-tropical-blue: #8ec6e3;
 }
 

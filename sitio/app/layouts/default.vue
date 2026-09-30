@@ -159,6 +159,20 @@ const migaDePan = computed<NivelMigaDePan[]>(() => {
       <template #buscador>
         <BuscadorGovco @buscar="alBuscar" />
       </template>
+
+      <!--
+        «Iniciar Sesión» en la cabecera, como la dibuja el Anexo 2.1 en su
+        página 6.
+
+        **Lleva a la entrada que ya existe**, la del panel, en `/admin/acceso`.
+        No se inventa una pantalla de acceso de ciudadano que no está construida:
+        un botón que abre un formulario que no autentica es peor que no tenerlo,
+        porque el ciudadano cree haber iniciado sesión. Cuando exista el módulo de
+        identidad ciudadana, este enlace apuntará a su entrada.
+      -->
+      <template #acciones>
+        <a class="enlace-sesion" href="/admin/acceso">Iniciar sesión</a>
+      </template>
     </CabeceraGovco>
 
     <MenuNavegacionGovco :items="menu" etiqueta-accesible="Menú principal de la Sede Electrónica" />
@@ -181,6 +195,32 @@ const migaDePan = computed<NivelMigaDePan[]>(() => {
 </template>
 
 <style scoped>
+/*
+  El enlace de sesión de la cabecera. Se estiliza aquí y no se le pone una clase
+  del Kit porque el Kit no trae un botón de sesión para la cabecera: el suyo vive
+  en el módulo de inicio de sesión, que es otra pantalla. Se resuelve con el azul
+  cobalto del Kit y un área de pulsación de 44 px de alto, que es el mínimo táctil
+  que fija el propio Kit (CAG-23).
+*/
+.enlace-sesion {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 0.125rem solid var(--govcolor-cobalt, #0943b5);
+  border-radius: 1.5rem;
+  color: var(--govcolor-cobalt, #0943b5);
+  font-family: 'Nunito_Sans-SemiBold', system-ui, sans-serif;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.enlace-sesion:hover {
+  background-color: var(--govcolor-solitude, #e5ecf8);
+}
+
 .disposicion-sitio {
   display: flex;
   flex-direction: column;

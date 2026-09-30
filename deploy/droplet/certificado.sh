@@ -35,6 +35,20 @@ CORREO="${3:?Falta el correo de contacto que exige la autoridad certificadora}"
 BASE="/opt/sede/$ENTORNO"
 CERTS="$BASE/certs"
 
+# ---------------------------------------------------------------------------
+# ATENCIÓN: NO uses `certbot show_account` para comprobar el contacto.
+#
+# En certbot 2.9 esa orden consulta la cuenta enviando `contact: []`, y el
+# servidor APLICA ese vacío: la comprobación BORRA lo que acabas de grabar. Pasó
+# exactamente así —se fijó el contacto, se comprobó, y la comprobación lo dejó
+# vacío—. La forma de verificar es leer la respuesta del propio `update_account`
+# en /var/log/letsencrypt/letsencrypt.log: un 200 con el correo dentro.
+# ---------------------------------------------------------------------------
+#
+# El contacto de la cuenta ACME es jose.acuna@santamarta.gov.co. Ahí llegan los
+# avisos de caducidad de Let's Encrypt, que son la red de seguridad por si la
+# renovación automática dejara de funcionar sin que nadie lo note.
+#
 # El token vive aquí, con permisos 600, porque certbot lo necesita PARA RENOVAR
 # sola todos los meses. Si la renovación fallara, el certificado caducaría sin que
 # nadie lo note hasta que el navegador avise al ciudadano.

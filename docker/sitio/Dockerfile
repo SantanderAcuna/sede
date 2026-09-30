@@ -9,7 +9,7 @@
 # ---------------------------------------------------------------------------
 # Etapa 1 — compilación
 # ---------------------------------------------------------------------------
-FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS construccion
+FROM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS construccion
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ RUN npm prune --omit=dev
 # ---------------------------------------------------------------------------
 # Etapa 2 — imagen final
 # ---------------------------------------------------------------------------
-FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS final
+FROM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS final
 
 # Los paquetes de la imagen base se actualizan en la construcción.
 #

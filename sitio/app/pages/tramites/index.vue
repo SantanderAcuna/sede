@@ -16,13 +16,15 @@
  * —título, selector de grupo, filtros y contador— sea deliberadamente compacto.
  *
  * **Por qué el catálogo está vacío.** No es un olvido ni un hueco de maqueta: la
- * Entidad todavía no ha entregado sus trámites, el CMS no está hecho y el
- * contrato (`contract/openapi.yaml`, `GET /tramites`) devuelve hoy una colección
- * vacía. Un trámite inventado no es relleno: es un procedimiento con requisitos,
- * costo y plazo que nadie ha aprobado, y el ciudadano decide sobre esa
- * información como si fuera oficial. Inventarlo en una sede electrónica es
- * publicar información oficial falsa. Por eso aquí se publica **la interfaz
- * completa con su estado vacío honesto**, y no una galería de ejemplo.
+ * Entidad todavía no ha entregado sus trámites y el sistema de gestión de
+ * contenidos no está hecho. El contrato ya define `GET /tramites`
+ * (`contract/openapi.yaml`) y el backend todavía no lo sirve, así que hoy no hay
+ * ningún catálogo que consultar. Un trámite inventado no es relleno: es un
+ * procedimiento con requisitos, costo y plazo que nadie ha aprobado, y el
+ * ciudadano decide sobre esa información como si fuera oficial. Inventarlo en una
+ * sede electrónica es publicar información oficial falsa. Por eso aquí se publica
+ * **la interfaz completa con su estado vacío honesto**, y no una galería de
+ * ejemplo.
  *
  * El filtro, el buscador, el contador y la paginación **funcionan de verdad**
  * sobre la lista: en cuanto la lista tenga elementos, todo lo demás ya trabaja.
@@ -567,10 +569,10 @@ function irAPagina(numero: number): void {
 /*
   Selector de grupo. Se dibuja como los botones del Kit —píldora con borde de
   2 px y radio de 1,563rem, el mismo de `.btn-govco`— y no con las pestañas de
-  Bootstrap: las de Bootstrap fijan el azul #0d6efd en duro y su geometría de
-  bordes pegados se rompe cuando las tres etiquetas largas tienen que partirse
-  en varias líneas a 320 px. Además, al ser controles de filtro y no pestañas,
-  un botón es lo que corresponde.
+  Bootstrap: las de Bootstrap fijan el azul #0d6efd en duro, que no es el
+  cobalto del Kit, y su geometría de bordes pegados se rompe en cuanto una
+  etiqueta se parte en dos líneas, que es lo que pasa a 320 px. Además, al ser
+  controles de filtro y no pestañas, un botón es lo que corresponde.
 */
 .selector-grupos {
   display: flex;
@@ -580,10 +582,10 @@ function irAPagina(numero: number): void {
 
 .pestana-grupo {
   padding: 0.688rem 1rem;
-  border: 0.125rem solid var(--govcolor-cobalt);
+  border: 0.125rem solid var(--govcolor-cobalt, #0943b5);
   border-radius: 1.563rem;
-  background-color: var(--govcolor-white);
-  color: var(--govcolor-cobalt);
+  background-color: var(--govcolor-white, #ffffff);
+  color: var(--govcolor-cobalt, #0943b5);
   font: inherit;
   line-height: 1rem;
   text-align: left;
@@ -596,13 +598,13 @@ function irAPagina(numero: number): void {
 /* El grupo activo se marca por color y por contraste invertido, no sólo por
    color: el relleno cambia junto con el texto. */
 .pestana-grupo-activa {
-  background-color: var(--govcolor-cobalt);
-  color: var(--govcolor-white);
+  background-color: var(--govcolor-cobalt, #0943b5);
+  color: var(--govcolor-white, #ffffff);
   font-weight: 700;
 }
 
 .pestana-grupo:focus-visible {
-  outline: 3px solid var(--govcolor-cobalt);
+  outline: 3px solid var(--govcolor-cobalt, #0943b5);
   outline-offset: 2px;
 }
 
@@ -612,13 +614,13 @@ function irAPagina(numero: number): void {
   margin-left: 0.35rem;
   font-size: 1rem;
   font-weight: 400;
-  color: var(--govcolor-matterhorn);
+  color: var(--govcolor-matterhorn, #4c4c4c);
 }
 
-/* Enlaces de la página en el cobalto del Kit, que sobre blanco da 8,46:1. */
-.catalogo-tramites a {
-  color: var(--govcolor-cobalt);
-}
+/* El color de los enlaces y el foco de los campos los fija la hoja del sitio
+   (`app/assets/css/sitio.css`), no esta página: un enlace nuevo hereda el
+   cobalto del Kit sin que nadie tenga que escribirlo. Aquí sólo va lo propio de
+   esta vista. */
 
 /* Botones del catálogo («Trámite en línea», «Limpiar los filtros»). */
 .btn-catalogo {
@@ -638,7 +640,7 @@ function irAPagina(numero: number): void {
 
 .resumen-cuenta {
   font-weight: 700;
-  color: var(--govcolor-matterhorn);
+  color: var(--govcolor-matterhorn, #4c4c4c);
 }
 
 /* --- Resultados --------------------------------------------------------- */
@@ -658,11 +660,11 @@ function irAPagina(numero: number): void {
 */
 .resultado {
   padding: 0.875rem 0;
-  border-top: 1px solid var(--govcolor-silver);
+  border-top: 1px solid var(--govcolor-silver, #b9b9b9);
 }
 
 .resultado:last-child {
-  border-bottom: 1px solid var(--govcolor-silver);
+  border-bottom: 1px solid var(--govcolor-silver, #b9b9b9);
 }
 
 .resultado-nombre {
@@ -670,7 +672,7 @@ function irAPagina(numero: number): void {
 }
 
 .resultado-descripcion {
-  color: var(--govcolor-matterhorn);
+  color: var(--govcolor-matterhorn, #4c4c4c);
 }
 
 .resultado-meta {
@@ -683,13 +685,13 @@ function irAPagina(numero: number): void {
 
 .etiqueta-categoria {
   padding: 0.125rem 0.625rem;
-  border: 1px solid var(--govcolor-cobalt);
+  border: 1px solid var(--govcolor-cobalt, #0943b5);
   border-radius: 1rem;
-  color: var(--govcolor-cobalt);
+  color: var(--govcolor-cobalt, #0943b5);
 }
 
 .origen-enlace {
-  color: var(--govcolor-matterhorn);
+  color: var(--govcolor-matterhorn, #4c4c4c);
 }
 
 /* --- Estados vacíos ----------------------------------------------------- */
@@ -702,13 +704,13 @@ function irAPagina(numero: number): void {
 */
 .estado-vacio {
   padding: 1rem 1.25rem;
-  border-left: 0.25rem solid var(--govcolor-silver);
-  background-color: var(--govcolor-white-smoke);
+  border-left: 0.25rem solid var(--govcolor-silver, #b9b9b9);
+  background-color: var(--govcolor-white-smoke, #f4f4f4);
 }
 
 .estado-vacio-publicacion {
-  border-left-color: var(--govcolor-golden-brown);
-  background-color: var(--govcolor-vis-vis);
+  border-left-color: var(--govcolor-golden-brown, #9d7700);
+  background-color: var(--govcolor-vis-vis, #fee697);
 }
 
 .estado-vacio-titulo {
@@ -726,17 +728,17 @@ function irAPagina(numero: number): void {
 
 /* Bootstrap fija el azul #0d6efd en duro; el Kit y la Entidad usan el cobalto. */
 .paginacion-catalogo .page-link {
-  color: var(--govcolor-cobalt);
+  color: var(--govcolor-cobalt, #0943b5);
 }
 
 .paginacion-catalogo .page-item.active .page-link {
-  background-color: var(--govcolor-cobalt);
-  border-color: var(--govcolor-cobalt);
-  color: var(--govcolor-white);
+  background-color: var(--govcolor-cobalt, #0943b5);
+  border-color: var(--govcolor-cobalt, #0943b5);
+  color: var(--govcolor-white, #ffffff);
 }
 
 .paginacion-catalogo .page-link:focus-visible {
-  outline: 3px solid var(--govcolor-cobalt);
+  outline: 3px solid var(--govcolor-cobalt, #0943b5);
   outline-offset: 2px;
 }
 
@@ -756,6 +758,18 @@ function irAPagina(numero: number): void {
 
   /* El desplegable de categorías mide 38 px de alto con el relleno del Kit. */
   .catalogo-tramites .form-select {
+    min-height: 2.75rem;
+  }
+
+  /*
+    El nombre es el enlace principal de cada fila —el que lleva a la ficha en
+    GOV.CO— y como enlace de texto mide 27 px de alto. En móvil se le da el
+    blanco de pulsación de CAG-23 sin cambiar lo que se ve: el texto queda
+    centrado dentro de los 44 px.
+  */
+  .resultado-enlace {
+    display: flex;
+    align-items: center;
     min-height: 2.75rem;
   }
 }

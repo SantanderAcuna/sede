@@ -375,3 +375,40 @@ a:not(.btn):not([class*="btn-"]):hover {
   background-color: var(--govcolor-cobalt, #0943b5);
   border-color: var(--govcolor-cobalt, #0943b5);
 }
+
+/* ============================================================================
+   Área de pulsación mínima de 44 × 44 px (CAG-23)
+   ============================================================================
+
+   El Kit fija 44 px como mínimo táctil —lo dice en su página 7 para el logotipo
+   de la barra superior y en la 30 para la paginación móvil— pero no lo cumple en
+   sus propios componentes pequeños. Medido a 360 px:
+
+     botón de limpiar del buscador   28 × 36 px
+     botón de buscar del buscador    34 × 36 px
+     campo del buscador              38 px de alto
+     enlaces de políticas del pie    20 a 42 px de alto
+
+   El buscador está en la cabecera, así que el defecto alcanza **todas las
+   páginas**. Se corrige aquí y no en cada vista, que es donde se usa.
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .govco-search-basic .btn-clean-basic-govco,
+  .govco-search-basic .btn-search-basic-govco {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .govco-search-basic .container-govco,
+  .govco-search-basic .input-search-basic-govco {
+    min-height: 2.75rem;
+  }
+
+  .pie-pagina-govco .link-btn-govco,
+  .pie-pagina-govco .end-links-container a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+}

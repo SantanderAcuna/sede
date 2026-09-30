@@ -4,6 +4,15 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  // La ruta bajo la que se sirve el panel. NO es cosmético: sin declararla, Vite
+  // emite las direcciones de sus activos desde la RAÍZ (`/assets/…`) mientras el
+  // punto de entrada los publica bajo el prefijo. El navegador pedía
+  // `/assets/index-*.js`, caía en el sitio público y recibía una página HTML con
+  // `content-type: text/html` y `nosniff`; el navegador se negaba a ejecutarla y
+  // el panel quedaba EN BLANCO mientras todas las respuestas eran 200. Un fallo
+  // que no protesta en ninguna parte.
+  base: '/admin/',
+
   plugins: [vue()],
 
   resolve: {

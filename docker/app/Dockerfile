@@ -134,6 +134,29 @@ COPY docker/app/php.ini /usr/local/etc/php/conf.d/99-sede.ini
 COPY --from=vendor /app/vendor ./vendor
 COPY backend/ ./
 
+# El CARGADOR AUTOMÁTICO se genera aquí, con el código ya copiado, y se COMPRUEBA
+# ejecutando la aplicación.
+#
+# La etapa de dependencias instala con `--no-autoloader`, que es deliberado: el
+# cargador debe generarse cuando el código está presente, para que el mapa de
+# clases incluya lo que de verdad se va a ejecutar. Pero nadie lo generaba en la
+# etapa final, así que la imagen quedaba SIN cargador automático:
+#
+#     PHP Fatal error: Failed opening required '/app/vendor/autoload.php'
+#
+# Y eso no se notaba antes de desplegar: la imagen se construía, se escaneaba y se
+# publicaba sin problema. Una imagen que no arranca pasaba todas las puertas menos
+# la única que importa. Por eso, además de generarlo, se ejecuta la aplicación: si
+# no arranca, la construcción falla AQUÍ, y no en el servidor con el despliegue a
+# medias.
+COPY --from=composer:2@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac \
+     /usr/bin/composer /usr/bin/composer
+
+RUN composer dump-autoload --optimize --classmap-authoritative --no-scripts \
+    && php artisan package:discover --ansi \
+    && php artisan --version \
+    && rm -f /usr/bin/composer
+
 RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R sede:sede storage bootstrap/cache \
     && chmod -R a+rX /app

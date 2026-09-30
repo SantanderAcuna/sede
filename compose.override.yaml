@@ -1,0 +1,51 @@
+# Sólo para desarrollo. NO se usa en producción y el despliegue no lo lee.
+#
+# Lo que hace: exponer la pila en el anfitrión para poder trabajar, montar el
+# código para que los cambios se vean sin reconstruir, y añadir un servidor de
+# correo de mentira para no enviar nada real desde una máquina de desarrollo.
+
+services:
+
+  nginx:
+    # Se remapan los puertos porque el 80 y el 443 del anfitrión pueden estar
+    # ocupados. Los puertos INTERNOS de los contenedores no cambian.
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      # La SPA servida desde disco, montada en vivo.
+      - ./panel/dist:/usr/share/nginx/panel:ro
+
+  app:
+    build:
+      target: final
+    read_only: false
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  # Las colas y el programador no arrancan por defecto en desarrollo: se
+  # levantan sólo cuando se trabaja con ellas.
+  horizon:
+    profiles: ["colas"]
+
+  scheduler:
+    profiles: ["colas"]
+
+  # Correo de mentira. Todo lo que la sede envíe se puede leer aquí y no sale
+  # de la máquina.
+  correo:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    networks: [backend]
+    ports:
+      - "1025:1025"
+      - "8025:8025"

@@ -45,8 +45,9 @@ id_ed25519*
 /sitio/.data/
 
 # --- Contrato: artefactos generados ---
-/panel/src/types/api.d.ts
-/sitio/types/api.d.ts
+# Los tipos del contrato son artefactos generados: se producen con `make tipos`.
+/panel/src/types/openapi.d.ts
+/sitio/types/openapi.d.ts
 
 # --- Pila de contenedores ---
 /docker/nginx/certs/

@@ -1566,7 +1566,9 @@ seguridad no contempla, porque está escrita para 24.04. Verificadas en la máqu
 | Pieza | Versión real | Consecuencia |
 |---|---|---|
 | `sudo` | **`sudo-rs` 0.2.13** — la reescritura en Rust | **No soporta el subconjunto completo de `sudoers`**: `log_input`, `log_output` e `iolog_dir` son rechazados y un archivo inválido en `sudoers.d` **deja `sudo` inservible**. Las reglas se escriben con lo que sí soporta, y se valida con `visudo -c` antes de guardar |
-| Arranque de SSH | **`ssh.socket`** con activación por socket | El `sshd` de cada conexión **lee la configuración en el momento**, así que un cambio se aplica a la conexión siguiente sin recargar nada. Y la directiva `Port` **se ignora**: el puerto lo define la unidad de socket |
+| Arranque de SSH | **Demonio clásico** | Aunque `ssh.socket` esté habilitado, en la máquina el `sshd` corre como demonio (`-D [listener]`), así que **lee la configuración al arrancar y un cambio NO se aplica hasta recargar**. Verificado: tras editar los algoritmos de intercambio, el servidor seguía ofreciendo la lista anterior hasta ejecutar `systemctl reload ssh` |
+| Intercambio de claves | **Híbrido post-cuántico disponible** | OpenSSH 10.2 ofrece `mlkem768x25519-sha256` y `sntrup761x25519-sha512`. La lista del capítulo 01, escrita para OpenSSH 9.6, **no los incluía**: aplicarla sin revisar dejaba el servidor *peor* que su valor por defecto en esa dimensión. Ya están habilitados y verificados por negociación real |
+| Cliente | OpenSSH 10 no prefiere el post-cuántico por defecto | El aviso «connection is not using a post-quantum key exchange algorithm» lo emite el **cliente**, no el servidor. El servidor ya lo ofrece; que se negocie depende de que el cliente también lo prefiera |
 | Docker | **29.8.1**, Compose **5.5.1** | Muy por encima de lo que asumen los documentos; el demonio se configura por `daemon.json`, no por banderas del servicio |
 
 Otras versiones verificadas: `fail2ban` 1.1.0-9, `ufw` 0.36.2-9build1,

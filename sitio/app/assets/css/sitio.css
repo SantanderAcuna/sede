@@ -81,6 +81,55 @@
 }
 
 /* ============================================================================
+   Los logos del pie, asociados y alineados a la izquierda
+   ============================================================================
+
+   El Kit UI 9.2 lo pide así, en su página 11, con estas palabras:
+
+     «Recuerda incluir la información de la entidad, el logo de la autoridad
+      correspondiente, el logo de GOV.CO, el logo de la marca país Colombia - CO
+      (asociados y alineados a la izquierda) y, cuando aplique, el logo de
+      "Colombia, potencia de la vida".»
+
+   Su propio CSS no lo cumple: en escritorio pone `.logo-container` en
+   `position: absolute; right: 3.125rem`, de modo que el logo de la autoridad
+   queda arriba a la **derecha**, separado de GOV.CO y de Colombia-CO, que sí van
+   a la izquierda en la banda inferior. Los tres tienen que quedar juntos y a la
+   izquierda.
+
+   En móvil el Kit ya lo hace bien —`position: initial; align-items: start`—, así
+   que aquí se aplica **la disposición que el Kit usa en móvil también en
+   escritorio**: el bloque de logos entra en el flujo, al principio, alineado a la
+   izquierda y pegado a la información de la entidad. Así los tres quedan
+   asociados y en el mismo lado.
+   ============================================================================ */
+
+.pie-pagina-govco .logo-container {
+  position: static;
+  align-items: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.875rem;
+}
+
+/* El separador entre logos vuelve a mostrarse: con los tres en fila, separa. */
+.pie-pagina-govco .logo-container .separator {
+  display: inline-block;
+  border-left: 0.063rem solid var(--govcolor-black);
+  height: 3rem;
+  margin: 0 1rem;
+}
+
+/* La banda inferior ya va a la izquierda; se refuerza para que los tres logos
+   compartan el mismo eje que el resto del contenido. */
+.pie-pagina-govco .second-section {
+  justify-content: flex-start;
+  padding-left: 1.25rem;
+}
+
+
+/* ============================================================================
    El color de la Entidad en la barra inferior del menú
    ============================================================================
 

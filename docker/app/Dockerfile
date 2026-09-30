@@ -29,16 +29,52 @@ FROM php:8.5-fpm-alpine@sha256:fa01fb1645cd0fc566a5f146b099adace33b906571f972f71
 # hace admisible es que la comprobación no es una promesa: el escáner corre en
 # cada construcción y falla si queda algo corregible de severidad alta o crítica.
 # Es decir, la falta de reproducibilidad la vigila una puerta, no la confianza.
+# `opcache` NO aparece en la lista de extensiones, y esa ausencia es deliberada.
+# La imagen base de PHP ya lo trae compilado y habilitado —aparece en `php -m`
+# como «Zend OPcache»—, así que pedirlo otra vez intenta construir como módulo
+# COMPARTIDO algo que ya está enlazado de forma estática: no se genera
+# `modules/*.so` y la construcción muere con «cp: can't stat 'modules/*'», un
+# mensaje que habla de copiar y no dice nada del motivo real.
+#
+# Costó encontrarlo. Se aisló instalando extensión por extensión:
+#   OK pdo_pgsql · OK pgsql · OK intl · FALLA opcache · OK zip · OK gd · OK bcmath · OK exif · OK pcntl
+# Las bibliotecas de EJECUCIÓN se instalan DESPUÉS de retirar las de compilación,
+# y no es un detalle: `apk del .construccion` se lleva consigo `libzip`, `libpq`,
+# `icu-libs`, `freetype`, `libpng` y `libjpeg-turbo`, que es de lo que dependen los
+# módulos ya compilados. Sin reponerlas, `zip`, `intl`, `gd` y `pdo_pgsql` no
+# cargan — y el síntoma aparece en otro sitio, como un error de Composer.
 RUN apk --no-cache upgrade \
     && apk add --no-cache --virtual .construccion \
         $PHPIZE_DEPS postgresql-dev icu-dev libzip-dev libpng-dev freetype-dev jpeg-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
-        pdo_pgsql pgsql intl opcache zip gd bcmath exif pcntl \
+        pdo_pgsql pgsql intl zip gd bcmath exif pcntl \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del .construccion \
+    && apk add --no-cache libpq icu-libs libzip freetype libpng libjpeg-turbo \
     && rm -rf /tmp/pear /var/cache/apk/*
+
+# Las extensiones se COMPRUEBAN, no se dan por hechas.
+#
+# `apk del .construccion` retira los paquetes de compilación, y con ellos se lleva
+# las bibliotecas COMPARTIDAS que los módulos ya compilados necesitan en
+# ejecución. Quedaban sin cargar cinco extensiones —`pdo_pgsql`, `pgsql`, `intl`,
+# `zip` y `gd`—, es decir, la imagen no habría podido ni conectarse a PostgreSQL.
+#
+# Y no se notaba aquí: aparecía mucho después, como un error de Composer que decía
+# que faltaba `ext-zip` y hablaba de actualizar el archivo de bloqueo, que no era
+# el problema. Fallar en el sitio donde está la causa es la mitad de arreglarlo.
+RUN faltan=""; \
+    for m in pdo_pgsql pgsql intl zip gd bcmath exif pcntl redis; do \
+      php -m | grep -qix "$m" || faltan="$faltan $m"; \
+    done; \
+    if [ -n "$faltan" ]; then \
+      echo "Estas extensiones no cargan:$faltan"; \
+      echo "Suele faltar su biblioteca de ejecución tras retirar las de compilación."; \
+      exit 1; \
+    fi; \
+    echo "Las nueve extensiones cargan."
 
 # Lo único que hace falta en ejecución. `fcgi` aporta el cliente con el que la
 # sonda de salud habla con PHP-FPM, que no entiende HTTP.

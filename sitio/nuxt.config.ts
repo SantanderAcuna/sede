@@ -26,6 +26,17 @@ export default defineNuxtConfig({
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       ],
+      link: [
+        // El Kit gov.co, vendorizado en `public/govco/` (§9.4). Se sirve desde
+        // nuestro dominio en lugar de desde el CDN del Ministerio: la capa visual
+        // es un atributo de disponibilidad, y depender de un tercero para que la
+        // sede se vea bien no es aceptable.
+        //
+        // El `script.js` del Kit NO se carga, y es deliberado: se autoinicializa
+        // sobre selectores que en nuestras páginas no existen y llena la consola
+        // de errores. Lo que haga falta se carga en la vista que lo use.
+        { rel: 'stylesheet', href: '/govco/all.css' },
+      ],
     },
   },
 

@@ -43,9 +43,25 @@ FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b533
 # hace admisible es que la comprobación no es una promesa: el escáner corre en
 # cada construcción y falla si queda algo corregible de severidad alta o crítica.
 # Es decir, la falta de reproducibilidad la vigila una puerta, no la confianza.
-RUN apk --no-cache upgrade \
-    && apk add --no-cache ca-certificates tzdata curl \
-    && rm -rf /var/cache/apk/*
+# Los paquetes se instalan CON REINTENTOS, y no es una precaución teórica: la
+# construcción se cayó una vez con «TLS: unspecified error» al buscar el índice de
+# Alpine. Un fallo transitorio de la red del ejecutor NO debe bloquear un
+# despliegue: el código estaba bien y el despliegue no llegó por un parpadeo de la
+# red. Reintentar con espera creciente cuesta unos segundos cuando pasa, y evita
+# una hora de diagnóstico equivocado cuando pasa.
+RUN set -eu; \
+    reintentar() { \
+      n=0; \
+      until "$@"; do \
+        n=$((n + 1)); \
+        if [ "$n" -ge 5 ]; then echo "Se agotaron los reintentos: $*"; return 1; fi; \
+        echo "Fallo transitorio; reintento $n de 5 en $((n * 5))s: $*"; \
+        sleep $((n * 5)); \
+      done; \
+    }; \
+    reintentar apk --no-cache upgrade; \
+    reintentar apk add --no-cache ca-certificates tzdata curl; \
+    rm -rf /var/cache/apk/*
 
 # npm y corepack NO viajan en la imagen de ejecución.
 #

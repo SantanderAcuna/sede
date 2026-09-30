@@ -163,6 +163,23 @@ jobs:
           S3_ACCESS_KEY: prueba
           S3_SECRET_KEY: prueba
         run: docker compose config --quiet
+      - name: La pila exige los secretos de verdad
+        env:
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          REDIS_PASSWORD: prueba
+          BACKUP_PASSPHRASE: prueba
+        run: |
+          # Comprobación NEGATIVA. La puerta anterior demuestra que la pila se
+          # resuelve cuando están los secretos, pero no que deje de resolverse
+          # cuando faltan. Sin esto, borrar un ":?" de compose.yaml dejaría esta
+          # puerta en verde y el fallo aparecería en un despliegue real.
+          #
+          # Aquí falta DB_PASSWORD a propósito.
+          if docker compose config --quiet 2>/dev/null; then
+            echo "La pila se resolvió SIN DB_PASSWORD: la exigencia no funciona."
+            exit 1
+          fi
+          echo "Sin DB_PASSWORD la pila no se resuelve, como debe."
 
   # ---------------------------------------------------------------------------
   # Barrera contra credenciales

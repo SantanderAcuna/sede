@@ -22,7 +22,20 @@ x-comun-app: &comun-app
     context: .
     dockerfile: docker/app/Dockerfile
   restart: unless-stopped
-  env_file: [.env]
+  # La clave de la aplicación se exige aquí, junto a los demás secretos. Sin ella
+  # el contenedor arrancaría y fallaría en el primer cifrado, en lugar de no
+  # arrancar: un fallo tardío y sin nombre se descubre en producción.
+  environment:
+    APP_KEY: ${APP_KEY:?La clave de la aplicación es obligatoria}
+  env_file:
+    # El archivo se deja OPCIONAL a propósito. Los valores también pueden llegar
+    # por el entorno del proceso, que es como los inyecta la canalización. Exigir
+    # el archivo obligaba a que existiera .env aunque no hiciera falta, y por eso
+    # `docker compose config` fallaba en la canalización. Los secretos críticos
+    # siguen exigidos uno a uno con ":?" en cada servicio: un despliegue sin
+    # valores sigue fallando, y con un mensaje que dice cuál falta.
+    - path: .env
+      required: false
   depends_on:
     postgres: { condition: service_healthy }
     redis: { condition: service_healthy }
@@ -122,7 +135,15 @@ services:
       context: .
       dockerfile: docker/sitio/Dockerfile
     restart: unless-stopped
-    env_file: [.env]
+    env_file:
+    # El archivo se deja OPCIONAL a propósito. Los valores también pueden llegar
+    # por el entorno del proceso, que es como los inyecta la canalización. Exigir
+    # el archivo obligaba a que existiera .env aunque no hiciera falta, y por eso
+    # `docker compose config` fallaba en la canalización. Los secretos críticos
+    # siguen exigidos uno a uno con ":?" en cada servicio: un despliegue sin
+    # valores sigue fallando, y con un mensaje que dice cuál falta.
+      - path: .env
+        required: false
     depends_on:
       app: { condition: service_healthy }
     networks: [backend]

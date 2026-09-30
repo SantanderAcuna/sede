@@ -8,8 +8,11 @@
 #
 #   .env                        el entorno renderizado desde deploy/plantilla.env
 #   compose.yaml                la definición de la pila
-#   docker/postgres/conf.d/      la configuración del gestor de datos
 #   certs/                       donde vive el certificado del origen
+#
+# Los ajustes de PostgreSQL viajan DENTRO de compose.yaml, como parámetros
+# explícitos del servicio. Antes vivían en un archivo aparte montado en un
+# directorio que la imagen oficial no lee: parecía configurado y no lo estaba.
 #
 # POR QUÉ EXISTE ESTE GUION. El plan dice que «la canalización renderiza la
 # plantilla en cada despliegue», pero ese mecanismo no estaba implementado: la
@@ -165,10 +168,8 @@ trap 'rm -f "$RENDERIZADO"; rm -rf "$PAQUETE"' EXIT
 cp "$RENDERIZADO" "$PAQUETE/sede.env"
 cp "$RAIZ/compose.yaml" "$PAQUETE/compose.yaml"
 tar -czf "$PAQUETE/entorno.tar.gz" -C "$PAQUETE" sede.env compose.yaml
-tar -czf "$PAQUETE/postgres.tar.gz" -C "$RAIZ" docker/postgres/conf.d
 
 B64_ENV="$(base64 -w0 "$PAQUETE/entorno.tar.gz")"
-B64_PG="$(base64 -w0 "$PAQUETE/postgres.tar.gz")"
 CONTRASENA="$(valor OPS_PASSWORD_INICIAL)"
 B64_PW="$(printf '%s' "$CONTRASENA" | base64 -w0)"
 
@@ -181,10 +182,7 @@ printf '%s\n' "$PWSEC" | sudo -S -k -p '' bash -c '
   install -d -m 750 "$DESTINO"
   rm -rf /tmp/sede-entorno && install -d -m 700 /tmp/sede-entorno
   printf %s "@@ENV@@" | base64 -d > /tmp/sede-entorno/entorno.tar.gz
-  printf %s "@@PG@@"  | base64 -d > /tmp/sede-entorno/postgres.tar.gz
-  tar -xzf /tmp/sede-entorno/entorno.tar.gz -C "$DESTINO"
-  install -d -m 755 "$DESTINO/docker/postgres"
-  tar -xzf /tmp/sede-entorno/postgres.tar.gz -C "$DESTINO/docker/postgres" --strip-components=2
+    tar -xzf /tmp/sede-entorno/entorno.tar.gz -C "$DESTINO"
   install -d -m 750 "$DESTINO/certs"
   mv "$DESTINO/sede.env" "$DESTINO/.env"
 
@@ -214,7 +212,6 @@ GUION=${GUION//@@PW@@/$B64_PW}
 GUION=${GUION//@@DESTINO@@/$DESTINO}
 GUION=${GUION//@@ENTORNO@@/$ENTORNO}
 GUION=${GUION//@@ENV@@/$B64_ENV}
-GUION=${GUION//@@PG@@/$B64_PG}
 
 printf '%s\n' "$GUION" | timeout 180 ssh -F /dev/null -i "$HOME/.ssh/id_ed25519" \
   -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=25 \

@@ -1,0 +1,81 @@
+/*
+ * Hoja de estilos propia del sitio.
+ *
+ * El grueso de la capa visual es el Kit gov.co (`public/govco/all.css`), que se
+ * carga aparte. Aquí va sólo lo que el Kit no resuelve.
+ */
+
+/* ============================================================================
+   Modo de alto contraste
+   ============================================================================
+
+   El Kit trae un botón de contraste que alterna la clase `contrast-govco`, pero
+   sus DOS únicas reglas en `all.css` apuntan a `.accesibility-example`, la caja
+   de demostración de su propia documentación. En una página real no cambia
+   nada: el botón es un stub.
+
+   Este es el modo de verdad. Los valores no son gusto: fondo negro con texto
+   blanco da 21:1 —el máximo posible— y el amarillo sobre negro ronda 15:1, muy
+   por encima del 4,5:1 que exige WCAG 2.1 AA y del 7:1 que pide AAA para texto
+   normal. Se neutralizan los fondos de color del Kit porque son justo lo que
+   impide que el contraste suba.
+   ============================================================================ */
+
+.contraste-govco,
+.contraste-govco body {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+/* Los colores del Kit se fuerzan a la paleta de alto contraste. */
+.contraste-govco *:not(svg):not(path) {
+  background-color: transparent !important;
+  color: #fff !important;
+  border-color: #fff !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* Se devuelve el fondo negro a los contenedores que el Kit pintaba de color,
+   para que ningún bloque quede blanco sobre blanco. */
+.contraste-govco body,
+.contraste-govco .card,
+.contraste-govco .modal-content,
+.contraste-govco .dropdown-menu {
+  background-color: #000 !important;
+}
+
+/* Enlaces y botones en amarillo: distingue lo pulsable del texto de lectura,
+   que es la convención de alto contraste y no depende del color solo, porque
+   además se subrayan. */
+.contraste-govco a,
+.contraste-govco button,
+.contraste-govco a *,
+.contraste-govco button * {
+  color: #ffff00 !important;
+}
+
+.contraste-govco a {
+  text-decoration: underline !important;
+}
+
+/* El foco tiene que verse sobre negro; el del Kit es azul oscuro y se perdería. */
+.contraste-govco :focus-visible,
+.contraste-govco a:focus-visible,
+.contraste-govco button:focus-visible {
+  outline: 3px solid #ffff00 !important;
+  outline-offset: 2px !important;
+}
+
+/* Las imágenes son contenido, no decoración: no se invierten, pero se les da un
+   borde para que no se fundan con el fondo negro. */
+.contraste-govco img {
+  border: 1px solid #fff !important;
+}
+
+/* El estado deshabilitado debe seguir leyéndose como deshabilitado. */
+.contraste-govco [disabled],
+.contraste-govco :disabled {
+  color: #808080 !important;
+  opacity: 1 !important;
+}

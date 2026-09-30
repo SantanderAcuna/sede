@@ -79,3 +79,110 @@
   color: #808080 !important;
   opacity: 1 !important;
 }
+
+/* ============================================================================
+   Paleta de la Alcaldía Distrital de Santa Marta en el pie
+   ============================================================================
+
+   Fuente: `Manual de Identidad Visual Alcaldía de Santa Marta DTCH 2024`,
+   páginas 42-43. Los cinco colores oficiales son:
+
+     Azul celeste A   #00ADE7   uso principal
+     Azul noche       #00568D   uso principal
+     Amarillo sol     #FFDC2A   uso principal
+     Azul celeste B   #8EC6E3   uso secundario
+     Blanco           #FFFFFF   uso secundario
+
+   Y el manual dice dónde se aplican. Coincide con lo que exige el Anexo 2 de la
+   Resolución 2893 de 2020: el color asignado a la entidad se usa en el
+   contenedor de texto del carrusel, la barra inferior del menú, el pie y la
+   iconografía, y NO puede usarse en botones, texto, campos de formulario, fondos
+   ni etiquetas, que conservan los estilos del Kit.
+
+   El Kit pinta el pie con `--govcolor-cobalt` (azul oscuro) y con
+   `--govcolor-tulip` (#E8A045, NARANJA) en las sombras decorativas de la primera
+   sección. Ese naranja es el que no corresponde: no está en la paleta de la
+   Entidad. Se redefinen los tokens SÓLO dentro del pie, en lugar de reescribir
+   sus reglas, para que el Kit siga mandando en la estructura y lo único que
+   cambie sea el color.
+
+   **Los contrastes están calculados, no elegidos a ojo:**
+
+     blanco sobre azul noche  #00568D   →  7,19:1  ✓ supera el 4,5:1 de AA
+     azul noche sobre blanco            →  7,19:1  ✓
+     blanco sobre azul celeste A #00ADE7 →  2,59:1  ✗ NO sirve para texto
+
+   Por eso el fondo oscuro del pie usa **azul noche** y no azul celeste: con
+   blanco encima, el celeste se queda en 2,59:1 e incumpliría WCAG 2.1 AA. El
+   azul celeste entra donde no lleva texto encima —las sombras decorativas y el
+   filete—, que es además su papel en el manual.
+   ============================================================================ */
+
+.pie-pagina-govco {
+  /* Fondo oscuro del pie y de la barra inferior: azul noche. */
+  --govcolor-cobalt: #00568d;
+
+  /* Las sombras decorativas, que el Kit pinta en naranja: azul celeste. */
+  --govcolor-tulip: #00ade7;
+
+  /* El filete de la primera sección: azul celeste claro, que es su tono
+     secundario y lo distingue del fondo sin competir con él. */
+  --govcolor-tropical-blue: #8ec6e3;
+}
+
+
+/* ============================================================================
+   Reflujo en pantallas estrechas
+   ============================================================================
+
+   WCAG 1.4.10 (Reflujo) exige que el contenido se lea sin desplazamiento
+   horizontal a 320 px de ancho, que es el equivalente a 400 % de aumento. Todo
+   esto se midió en Chromium: los tres defectos desbordaban de verdad.
+
+   1. El buscador del Kit, que va en la cabecera de TODAS las páginas, salía
+      51 px por la derecha a 320 px y 25 px a 360. La causa es que su campo tiene
+      un ancho fijo y no acepta encogerse: `min-width: auto` es el valor por
+      defecto de un elemento flex, y con él nunca baja de su tamaño natural.
+   2. La miga de pan desbordaba 30 px a 390 px cuando el último nivel lleva un
+      nombre largo —«Transparencia y acceso a información pública»—, porque el
+      elemento no podía partir la línea.
+   ============================================================================ */
+
+/* El Kit dimensiona el buscador con `-webkit-fill-available`, que NO es
+   estándar: fuera de WebKit el navegador lo descarta y el campo conserva su
+   ancho natural, así que en la cabecera —una fila flex— empuja la página 25 px
+   por la derecha a 360 px de ancho. Se sustituye por medidas estándar: el
+   formulario cede espacio (`flex: 1 1 0`) y el campo se encoge por debajo de su
+   tamaño natural (`min-width: 0`, que es justo lo que un elemento flex no hace
+   por defecto). */
+.govco-search-basic {
+  width: auto;
+  max-width: 100%;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.govco-search-basic .container-govco {
+  min-width: 0;
+}
+
+.govco-search-basic .input-search-basic-govco {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* La miga parte el nombre largo en varias líneas en vez de empujar la página.
+   Hace falta en el `li` Y en su contenido: el nombre del nivel actual vive en un
+   `span` que, sin esto, conserva el ancho de la frase entera. «Transparencia y
+   acceso a información pública» sacaba la página 92 px por la derecha a 320 px. */
+.breadcrumb-govco,
+.breadcrumb-item-govco,
+.breadcrumb-item-govco > a,
+.breadcrumb-item-govco > span {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+

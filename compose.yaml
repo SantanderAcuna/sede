@@ -125,6 +125,16 @@ services:
     command: ["php", "artisan", "schedule:work"]
     mem_limit: 256m
     pids_limit: 128
+    # La sonda se DESACTIVA, y no es un descuido: sin declararla, este servicio
+    # hereda la de la IMAGEN, que habla FastCGI contra PHP-FPM —un proceso que
+    # aquí no existe—, así que quedaba permanentemente «enfermo».
+    #
+    # Un servicio eternamente enfermo que además funciona es peor que uno
+    # caído: enseña a ignorar el aviso, y el día que algo esté de verdad mal
+    # nadie lo mirará. Aquí el proceso es único y en primer plano, así que su
+    # vida ES la señal de salud: si se cae, Docker lo reinicia.
+    healthcheck:
+      disable: true
 
   # ---------------------------------------------------------------------------
   # Sitio público, con renderizado en servidor.

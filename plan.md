@@ -50,7 +50,7 @@
 | Guía de seguridad | `docs-security/` — 5 capítulos + 5 apéndices, ~55.553 palabras | lectura íntegra |
 | Implementación anterior | `/var/www/sede` — 47 commits, **descartada** | §1.2 |
 | Repositorio | `github.com/SantanderAcuna/sede` — privado, rama `master`, 3 ramas | `gh repo view` |
-| Droplet | `198.199.89.119` — Ubuntu 26.04, 4 GB, acceso `root` verificado; **nada escuchando en el puerto 80** | `curl` y `ssh` |
+| Droplet | Reemplazado durante la fase 0: el original (`198.199.89.119`, Ubuntu 26.04, 4 GB) se descartó y el aprovisionamiento se rehízo sobre `165.22.46.11` (Ubuntu 24.04.5, 4 vCPU / 8 GB) | `curl` y `ssh` |
 | Dominio de staging | `staging.santamarta.gov.co` — ya detrás de Cloudflare | DNS → `2606:4700:…` (rango Cloudflare) |
 | Sitio actual de la entidad | Drupal 7, Bootstrap 3.3.7, sin Kit gov.co | investigación §12 |
 
@@ -92,7 +92,7 @@ construye de nuevo, con los documentos como única fuente.
 | D-18 | Rutas del dominio | Sitio Nuxt en `/`, panel en `/panel`, API en `/api/v1` |
 | D-19 | Dominio de staging | `staging.santamarta.gov.co` |
 | D-20 | Dominio de producción | **Sin decidir** (§21.A) |
-| D-21 | Droplet | Nuevo, `198.199.89.119` |
+| D-21 | Droplet | Nuevo, `165.22.46.11` (el primero, `198.199.89.119`, se descartó por capacidad) |
 | D-22 | Región y tamaño | `nyc3`, 2 vCPU / 8 GB / 160 GB NVMe |
 
 ### 1.4 Lo que este plan NO decide
@@ -232,8 +232,8 @@ Estos huecos se cierran en este plan, con la fuente oficial de cada tecnología 
                                 │ HTTPS 443
                                 ▼
         ┌───────────────────────────────────────────────────┐
-        │  Droplet nyc3 · 2 vCPU · 8 GB · 160 GB · Ubuntu   │
-        │  198.199.89.119                                   │
+        │  Droplet nyc3 · 4 vCPU · 8 GB · 154 GB · Ubuntu   │
+        │  165.22.46.11 · 2604:a880:800:14:0:3:96ab:d000    │
         │                                                   │
         │  ── PLANO DEL HOST ──────────────────────────     │
         │  DO Cloud Firewall → nftables → UFW → Fail2Ban    │
@@ -1454,26 +1454,31 @@ precisamente para cerrarlas, y **la columna de requisitos es la lista de trabajo
 
 | Atributo | Estado verificado el 2026-09-30 |
 |---|---|
-| Identificador | `604812963` |
-| IP | `198.199.89.119` (IPv4) y `2604:a880:0400:d1::5:125a:a001` (IPv6, **ya asignada**) |
-| Hostname actual | `sede-electronica` |
-| Región | `nyc1` (Nueva York 1) |
-| Sistema operativo | **Ubuntu 26.04.1 LTS**, kernel 7.0 |
-| Tamaño actual | 2 vCPU · **4 GB** de memoria · 120 GB de disco |
-| Tamaño objetivo | 2 vCPU · **8 GB** de memoria · mismo disco (ampliación pendiente, tarea F0.0) |
-| Usuarios | Sólo `root`; falta crear `ops`, `deploy` y las cuentas de servicio |
-| Docker | **No instalado** |
-| Cortafuegos del host | Presente pero **inactivo** |
-| Intercambio | **Sin configurar** |
-| Actualizaciones pendientes | Ninguna |
-| Acceso | Llave Ed25519, sólo `root`, con autenticación por contraseña ya deshabilitada |
-| Doble pila | IPv4 e IPv6 — el requisito de aceptación de §11.7 ya se cumple en el droplet |
+| Identificador | `604962462` |
+| IP | `165.22.46.11` (IPv4) y `2604:a880:800:14:0:3:96ab:d000` (IPv6) |
+| Hostname | `sede-electronica-alcaldia` |
+| Región | `nyc3` (Nueva York 3) |
+| Sistema operativo | **Ubuntu 24.04.5 LTS**, kernel 6.8.0-142 |
+| Tamaño | 4 vCPU · **7,8 GB** de memoria · 154 GB de disco |
+| Usuarios | `ops` (administración, con `sudo`) y `deploy` (canalización, restringida a un comando) |
+| Docker | Instalado desde el repositorio oficial |
+| Cortafuegos del host | **Activo** — entrada denegada por defecto; 22 con límite de tasa, 80 y 443; guarda contra el bypass de Docker |
+| Intercambio | **2 GB** configurados |
+| Acceso | Llave Ed25519 de `ops`; **`root` por SSH cerrado**; autenticación por contraseña deshabilitada |
+| Doble pila | IPv4 e IPv6 |
 
-> **Nota de versión del sistema operativo.** La guía de seguridad está escrita para Ubuntu
-> 24.04 y el droplet corre 26.04. Cada valor por versión —versiones de OpenSSH, nftables,
-> AppArmor, auditd, nombres de paquete y orígenes de actualización— **se verifica contra el
-> sistema real antes de aplicarlo**, en lugar de copiarse del capítulo. Es la tarea F10.1,
-> adelantada a la fase 0 para el endurecimiento del host.
+> **Este droplet es el segundo.** El primero (`198.199.89.119`, 2 vCPU / 4 GB, Ubuntu 26.04)
+> se descartó durante la fase 0: se quedaba corto para la pila completa y arrastraba
+> divergencias de versión respecto a la guía. El aprovisionamiento se rehízo desde cero
+> sobre un droplet con más capacidad.
+
+> **Nota de versión del sistema operativo.** El droplet corre **Ubuntu 24.04.5 LTS**, la
+> misma versión para la que está escrita la guía, así que las divergencias de §14.0 no
+> aplican aquí. Aun así, cada valor por versión —versiones de OpenSSH, nftables, AppArmor,
+> auditd, nombres de paquete y orígenes de actualización— **se verifica contra el sistema
+> real antes de aplicarlo**, en lugar de copiarse del capítulo: el endurecimiento de SSH de
+> la guía, copiado tal cual, reducía la negociación a un único algoritmo clásico porque los
+> nombres híbridos post-cuánticos no existen en esta versión con ese nombre.
 
 **Por qué ese tamaño.** El capítulo 01 estima 4 workers de PHP, más nginx, Redis y los
 clientes de base de datos, en torno a 3,5 GB, y recomienda al menos 2 vCPU y 8 GB. A ello
@@ -1525,7 +1530,7 @@ no deja el cortafuegos huérfano.
 **Estado verificado el 2026-09-30.** `staging.santamarta.gov.co` ya resuelve a direcciones
 de Cloudflare (`104.21.62.188` y `172.67.138.96`) y presenta el certificado comodín de la
 zona, emitido por Google Trust Services y válido hasta el **16 de diciembre de 2026**. La
-conexión todavía no completa el saludo TLS porque el droplet `198.199.89.119` no tiene nada
+conexión todavía no completa el saludo TLS porque el droplet de origen no tiene nada
 escuchando en el puerto 80: **el borde está listo y el origen no**. Eso sitúa la emisión del
 certificado propio del origen (F0.11) y el primer despliegue (F0.15) como las tareas que
 convierten ese estado en una sede que responde.
@@ -2131,7 +2136,7 @@ Tamaño relativo: **S** (días), **M** (una o dos semanas), **L** (varias semana
 | F0.7 | Contrato semilla: sobre plano, cinco esquemas compartidos, primer recurso completo | M |
 | F0.8 | Simulador de Prism levantado y respondiendo | S |
 | F0.9 | `compose.yaml` y `compose.override.yaml` con las tres redes y todos los servicios | M |
-| F0.10 | Endurecimiento del host (§14) sobre el droplet `198.199.89.119` | L |
+| F0.10 | Endurecimiento del host (§14) sobre el droplet `165.22.46.11` | L |
 | F0.11 | Certificado emitido para `staging.santamarta.gov.co` y renovación automática | S |
 | F0.12 | Las cuatro canalizaciones escritas, con acciones fijadas por confirmación real | M |
 | F0.13 | Entornos `staging` y `production` recreados con sus secretos y aprobaciones | S |

@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# Barrera contra el empuje accidental de credenciales.
+#
+# El repositorio es público: un archivo con contraseñas empujado una sola vez
+# queda en el historial de forma permanente. Esta barrera revisa lo que se va a
+# confirmar ANTES de que entre, que es el único momento en que todavía se puede
+# evitar sin reescribir historia.
+#
+# Se activa una vez por clon:
+#     git config core.hooksPath .githooks
+#
+set -euo pipefail
+
+ROJO=$'\033[31m'; VERDE=$'\033[32m'; AMARILLO=$'\033[33m'; FIN=$'\033[0m'
+
+# --- 1. Archivos que nunca deben confirmarse ---------------------------------
+# Una sola expresión, para no lanzar un proceso por archivo y patrón.
+ARCHIVOS_PROHIBIDOS='(^|/)(pass\.md|accesos\.local\.md|\.accesos\.local\.env|\.env)$|^\.claves/|\.(pem|p12|pfx|key)$|(id_ed25519|id_rsa|_ed25519|_rsa)$'
+
+sospechosos=$(git diff --cached --name-only --diff-filter=ACMR | grep -E "$ARCHIVOS_PROHIBIDOS" || true)
+
+if [ -n "$sospechosos" ]; then
+  echo "${ROJO}✗ Confirmación cancelada: hay archivos con credenciales.${FIN}"
+  printf '%s\n' "$sospechosos" | sed 's/^/    /'
+  echo
+  echo "Quítalos del índice con «git rm --cached <archivo>» y añádelos a .gitignore."
+  echo "Si es un falso positivo, usa «git commit --no-verify» y explica por qué."
+  exit 1
+fi
+
+# --- 2. Patrones de secreto en las líneas AÑADIDAS ---------------------------
+# Una sola pasada sobre el contenido añadido: se excluyen las líneas de contexto
+# y las cabeceras del propio diff.
+PATRONES='BEGIN [A-Z ]*PRIVATE KEY|hooks\.slack\.com/services/[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{16}|gh[pors]_[A-Za-z0-9]{30,}|xox[baprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{30,}'
+
+hallazgos=$(git diff --cached -U0 --diff-filter=ACMR \
+  | grep -E '^\+' \
+  | grep -v '^+++' \
+  | grep -nE "$PATRONES" \
+  | cut -c1-140 || true)
+
+if [ -n "$hallazgos" ]; then
+  echo "${AMARILLO}⚠ Confirmación cancelada: hay líneas con pinta de secreto.${FIN}"
+  printf '%s\n' "$hallazgos" | sed 's/^/    /'
+  echo
+  echo "Si son marcadores de posición, conviértelos en algo que no parezca una"
+  echo "credencial viva, como se hizo con la URL de ejemplo de Slack."
+  echo "Si es un falso positivo, usa «git commit --no-verify»."
+  exit 1
+fi
+
+echo "${VERDE}✓ Sin credenciales en lo que se va a confirmar.${FIN}"

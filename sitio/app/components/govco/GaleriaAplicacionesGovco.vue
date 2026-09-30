@@ -118,6 +118,18 @@ function registrarItem(elemento: Element | ComponentPublicInstance | null, indic
   items.value[indice] = elemento instanceof HTMLElement ? elemento : null
 }
 
+/**
+ * Enlaza la referencia de cada ítem con su índice.
+ *
+ * La función se declara aquí y no en la plantilla porque la plantilla no infiere
+ * el tipo del parámetro y TypeScript lo marca como `any` implícito —que en este
+ * proyecto está prohibido—. Devuelta así, el tipo viaja con la función.
+ */
+function registrarItemEn(indice: number) {
+  return (elemento: Element | ComponentPublicInstance | null): void =>
+    registrarItem(elemento, indice)
+}
+
 function etiquetaItem(aplicacion: AplicacionGaleria): 'a' | 'button' {
   return aplicacion.enlace !== undefined && !aplicacion.deshabilitada ? 'a' : 'button'
 }
@@ -258,7 +270,7 @@ onBeforeUnmount(() => document.removeEventListener('click', alPulsarFuera))
               >
                 <component
                   :is="etiquetaItem(aplicacion)"
-                  :ref="(elemento) => registrarItem(elemento, indice)"
+                  :ref="registrarItemEn(indice)"
                   v-bind="atributosItem(aplicacion)"
                   class="dropdown-item dropdown-item-govco"
                   :class="{ 'active-select': activaId === aplicacion.id, disabled: aplicacion.deshabilitada }"

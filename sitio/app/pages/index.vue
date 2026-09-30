@@ -34,8 +34,6 @@ useHead({
   ],
 })
 
-const enrutador = useRouter()
-
 /**
  * Las diapositivas describen las secciones que de verdad existen y enlazan a
  * ellas. La imagen es la de relleno del Kit, y así se declara en el `alt`: quien
@@ -90,10 +88,6 @@ const secciones = [
     enlace: '/participa',
   },
 ]
-
-function alBuscar(termino: string) {
-  enrutador.push({ path: '/buscar', query: { q: termino } })
-}
 </script>
 
 <template>
@@ -104,9 +98,14 @@ function alBuscar(termino: string) {
       14 del Decreto Ley 2106 de 2019.
     </p>
 
-    <BuscadorGovco class="mb-5" @buscar="alBuscar" />
+    <!--
+      Aquí había un segundo buscador, y se retira: el general vive en la
+      cabecera (FUN-011) y ya está en todas las páginas, incluida ésta. Dos
+      campos de búsqueda idénticos en la misma pantalla no son una función de
+      más, son una duda para quien los usa.
+    -->
 
-    <CarruselGovco :diapositivas="diapositivas" />
+    <CarruselGovco :diapositivas="diapositivas" class="mt-4" />
 
     <h2 class="mt-5 mb-4">Secciones de la Sede</h2>
 

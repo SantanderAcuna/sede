@@ -201,13 +201,26 @@ const props = withDefaults(defineProps<Props>(), {
   // Mientras no existan las páginas, todas apuntan al contenido principal: un
   // destino real y anunciado, en lugar de cinco rutas inventadas que devolverían
   // 404 desde el pie de una sede electrónica.
+  // Las cinco políticas obligatorias de SEG-006 y el mapa del sitio ya tienen
+  // destino propio, así que apuntan a él. Mientras no lo tuvieron apuntaban al
+  // ancla del contenido, con un aviso visible: era preferible un destino real y
+  // anunciado que cinco rutas inventadas devolviendo 404 desde el pie.
+  //
+  // Al dejar de empezar por «#», `enlacesPendientes` deja de cumplirse y el
+  // aviso desaparece solo, sin que haya que tocar nada más.
   enlacesPie: () => [
-    { texto: 'Términos y condiciones de uso', a: '#contenido' },
-    { texto: 'Seguridad y privacidad', a: '#contenido' },
-    { texto: 'Protección y tratamiento de datos personales', a: '#contenido' },
-    { texto: 'Uso de cookies', a: '#contenido' },
-    { texto: 'Derechos de autor y uso sobre contenidos', a: '#contenido' },
-    { texto: 'Mapa del sitio', a: '#contenido' },
+    { texto: 'Términos y condiciones de uso', a: '/politicas/terminos-y-condiciones-de-uso' },
+    { texto: 'Seguridad y privacidad', a: '/politicas/seguridad-y-privacidad' },
+    {
+      texto: 'Protección y tratamiento de datos personales',
+      a: '/politicas/proteccion-y-tratamiento-de-datos-personales',
+    },
+    { texto: 'Uso de cookies', a: '/politicas/uso-de-cookies' },
+    {
+      texto: 'Derechos de autor y uso sobre contenidos',
+      a: '/politicas/derechos-de-autor-y-uso-sobre-contenidos',
+    },
+    { texto: 'Mapa del sitio', a: '/mapa-del-sitio' },
   ],
   avisoEnlacesPendientes:
     'Las políticas de uso y tratamiento de datos están en preparación: se publicarán aquí con su documento y su acto administrativo de adopción.',

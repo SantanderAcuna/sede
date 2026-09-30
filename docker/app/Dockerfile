@@ -43,17 +43,33 @@ FROM php:8.5-fpm-alpine@sha256:fa01fb1645cd0fc566a5f146b099adace33b906571f972f71
 # `icu-libs`, `freetype`, `libpng` y `libjpeg-turbo`, que es de lo que dependen los
 # módulos ya compilados. Sin reponerlas, `zip`, `intl`, `gd` y `pdo_pgsql` no
 # cargan — y el síntoma aparece en otro sitio, como un error de Composer.
-RUN apk --no-cache upgrade \
-    && apk add --no-cache --virtual .construccion \
-        $PHPIZE_DEPS postgresql-dev icu-dev libzip-dev libpng-dev freetype-dev jpeg-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" \
-        pdo_pgsql pgsql intl zip gd bcmath exif pcntl \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apk del .construccion \
-    && apk add --no-cache libpq icu-libs libzip freetype libpng libjpeg-turbo \
-    && rm -rf /tmp/pear /var/cache/apk/*
+# Los paquetes se instalan CON REINTENTOS, y no es una precaución teórica: la
+# construcción se cayó una vez con «TLS: unspecified error» al buscar el índice de
+# Alpine. Un fallo transitorio de la red del ejecutor NO debe bloquear un
+# despliegue: el código estaba bien y el despliegue no llegó por un parpadeo de la
+# red. Reintentar con espera creciente cuesta unos segundos cuando pasa, y evita
+# una hora de diagnóstico equivocado cuando pasa.
+RUN set -eu; \
+    reintentar() { \
+      n=0; \
+      until "$@"; do \
+        n=$((n + 1)); \
+        if [ "$n" -ge 5 ]; then echo "Se agotaron los reintentos: $*"; return 1; fi; \
+        echo "Fallo transitorio; reintento $n de 5 en $((n * 5))s: $*"; \
+        sleep $((n * 5)); \
+      done; \
+    }; \
+    reintentar apk --no-cache upgrade; \
+    reintentar apk add --no-cache --virtual .construccion \
+        $PHPIZE_DEPS postgresql-dev icu-dev libzip-dev libpng-dev freetype-dev jpeg-dev; \
+    docker-php-ext-configure gd --with-freetype --with-jpeg; \
+    docker-php-ext-install -j"$(nproc)" \
+        pdo_pgsql pgsql intl zip gd bcmath exif pcntl; \
+    pecl install redis; \
+    docker-php-ext-enable redis; \
+    apk del .construccion; \
+    reintentar apk add --no-cache libpq icu-libs libzip freetype libpng libjpeg-turbo; \
+    rm -rf /tmp/pear /var/cache/apk/*
 
 # Las extensiones se COMPRUEBAN, no se dan por hechas.
 #

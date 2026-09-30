@@ -179,10 +179,11 @@ useHead({ title: 'Canales de atención y sedes · Sede Electrónica' })
 <style scoped>
 /*
   Desborde en pantalla estrecha, medido y no supuesto. Una dirección de correo es
-  una cadena larga sin ningún espacio donde partirse, y el Anexo 2 exige publicar
-  la de notificaciones judiciales, que a 15 px mide unos 380 px: a 320 px de
-  pantalla se sale de la columna y arrastra toda la página a desplazamiento
-  horizontal, que es lo que prohíbe WCAG 1.4.10.
+  una cadena larga sin ningún espacio donde partirse. La de notificaciones
+  judiciales —uno de los datos de contacto que la Entidad está obligada a
+  publicar— mide unos 380 px a 15 px de cuerpo: a 320 px de pantalla se sale de la
+  columna y arrastra toda la página a desplazamiento horizontal, que es lo que
+  prohíbe WCAG 1.4.10.
 
   Hacen falta las dos reglas, no una:
 

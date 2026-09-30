@@ -81,17 +81,30 @@ case "$VOLVER" in
 esac
 
 BASE="/opt/sede/$ENTORNO"
+
+# El ESTADO del despliegue (qué versión corre y cuál había antes) vive en
+# /var/lib, NO junto a la configuración. No es un detalle de orden: la carpeta de
+# configuración la escribe la administración y la cuenta de despliegue no debe
+# poder tocarla. Escribiendo ahí, una llave de despliegue comprometida podría
+# reescribir el entorno que ejecuta; con el estado aparte, sólo puede anotar qué
+# versión intentó.
+ESTADO="/var/lib/sede/$ENTORNO"
 COMPOSE="docker compose -f $BASE/compose.yaml --env-file $BASE/.env"
 ESPERA="${SEDE_ESPERA_SEGUNDOS:-180}"
 
 [ -f "$BASE/.env" ]     || { rojo "Falta $BASE/.env. ¿Se publicó el entorno?"; exit 1; }
 [ -f "$BASE/compose.yaml" ] || { rojo "Falta $BASE/compose.yaml"; exit 1; }
+# El estado se exige explícitamente y con un mensaje que dice DE DÓNDE sale, en
+# lugar de dejar que falle al escribir con «Permission denied», que apunta a los
+# permisos y no a que falta el directorio.
+[ -d "$ESTADO" ] || { rojo "Falta $ESTADO. Lo crea deploy/publicar-entorno.sh."; exit 1; }
+[ -w "$ESTADO" ] || { rojo "$ESTADO no se puede escribir."; exit 1; }
 
 cd "$BASE"
 
 # --- Versión anterior ---------------------------------------------------------
-if [ -f "$BASE/version" ]; then
-  ANTERIOR="$(cat "$BASE/version")"
+if [ -f "$ESTADO/version" ]; then
+  ANTERIOR="$(cat "$ESTADO/version")"
 else
   ANTERIOR=""
 fi
@@ -99,8 +112,8 @@ fi
 # Se apunta la versión nueva ANTES de intentarlo: si el despliegue muere a mitad,
 # queda registrado qué se estaba intentando.
 if [ "$VOLVER" != "--volver" ]; then
-  printf '%s' "$VERSION" > "$BASE/version"
-  [ -n "$ANTERIOR" ] && printf '%s' "$ANTERIOR" > "$BASE/version.anterior"
+  printf '%s' "$VERSION" > "$ESTADO/version"
+  [ -n "$ANTERIOR" ] && printf '%s' "$ANTERIOR" > "$ESTADO/version.anterior"
 fi
 
 export APP_VERSION="$VERSION"
@@ -111,7 +124,7 @@ volver_atras() {
     return 1
   fi
   rojo "Volviendo a la versión $ANTERIOR…"
-  printf '%s' "$ANTERIOR" > "$BASE/version"
+  printf '%s' "$ANTERIOR" > "$ESTADO/version"
   export APP_VERSION="$ANTERIOR"
   $COMPOSE pull -q || true
   $COMPOSE up -d --remove-orphans

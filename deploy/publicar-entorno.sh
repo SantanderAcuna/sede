@@ -198,6 +198,11 @@ printf '%s\n' "$PWSEC" | sudo -S -k -p '' bash -c '
   chown root:deploy "$DESTINO/.env" && chmod 640 "$DESTINO/.env"
   chown root:deploy "$DESTINO/compose.yaml" && chmod 644 "$DESTINO/compose.yaml"
   chown -R root:deploy "$DESTINO/docker" && chmod -R a+rX "$DESTINO/docker"
+
+  # El ESTADO lo escribe la cuenta de despliegue, así que vive en /var/lib y le
+  # pertenece. Separarlo de la configuración es lo que permite que esa cuenta
+  # pueda anotar qué versión corre sin poder reescribir el entorno que ejecuta.
+  install -d -m 750 -o deploy -g deploy "/var/lib/sede/@@ENTORNO@@"
   rm -rf /tmp/sede-entorno
   echo "    publicado en $DESTINO"
   ls -la "$DESTINO" | sed "s/^/      /"
@@ -207,6 +212,7 @@ EOS
 )
 GUION=${GUION//@@PW@@/$B64_PW}
 GUION=${GUION//@@DESTINO@@/$DESTINO}
+GUION=${GUION//@@ENTORNO@@/$ENTORNO}
 GUION=${GUION//@@ENV@@/$B64_ENV}
 GUION=${GUION//@@PG@@/$B64_PG}
 

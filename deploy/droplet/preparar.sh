@@ -112,8 +112,26 @@ paso "7. Guarda contra el bypass de Docker"
 # expuesto.
 cat > /usr/local/sbin/sede-reglas-docker.sh <<'REGLAS'
 #!/bin/bash
+#
+# Reglas de la cadena DOCKER-USER.
+#
+# Docker escribe sus propias reglas y se salta UFW. Esta cadena es el único
+# punto donde se puede intervenir antes de que actúen.
+#
+# El orden importa, y la primera regla es la que más cuesta descubrir:
+#
+#  1. Las RESPUESTAS que vuelven de Internet entran por `eth0` y van al
+#     contenedor. Sin esta excepción el contenedor puede enviar pero nunca
+#     recibe la respuesta: parece que no tiene salida a Internet, y sí la tiene.
+#     El síntoma engaña porque la resolución de nombres sigue funcionando —la
+#     atiende el propio Docker— y todo lo demás falla.
+#  2. Lo que debe llegar de fuera a los servicios publicados.
+#  3. Todo lo demás que entre por `eth0` hacia un contenedor se descarta: así un
+#     puerto publicado por descuido no queda expuesto.
 set -euo pipefail
+
 iptables -F DOCKER-USER
+iptables -A DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
 iptables -A DOCKER-USER -i eth0 -p tcp --dport 80  -j RETURN
 iptables -A DOCKER-USER -i eth0 -p tcp --dport 443 -j RETURN
 iptables -A DOCKER-USER -i eth0 -j DROP

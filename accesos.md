@@ -27,18 +27,18 @@
 | Nombre | Para qué | Dónde vive | Custodia | Estado |
 |---|---|---|---|---|
 | Llave SSH personal | Administrar el droplet | `~/.ssh/id_ed25519` y agente del llavero | Titular | **Existe** — huella `SHA256:v5E0mAsz851iLBKnn1uTPf78f9EqJeCh50Z7U6rsFxE`, comentario `santanderjose19@gmail.com`, **con frase de paso** |
-| Acceso al droplet | Entrar como administrador | `/root/.ssh/authorized_keys` de `198.199.89.119` | Titular | **Existe** — es la única llave autorizada |
+| Acceso al droplet | Entrar como administrador | `/home/ops/.ssh/authorized_keys` de `165.22.46.11` | Titular | **Existe** — la administración entra como `ops`; **`root` por SSH está cerrado** |
 | Cuenta de GitHub | Repositorio y canalizaciones | Sesión de `gh` en esta máquina | Titular | **Existe** — cuenta `SantanderAcuna`, permisos de **administración** sobre el repositorio |
 | Repositorio | Código y automatización | `github.com/SantanderAcuna/sede` | Titular | **Existe** — **público**, rama por defecto `master` |
 | Llave SSH de despliegue | Que la canalización despliegue | `.claves/deploy_ed25519` (ignorada) y secreto de GitHub | Canalización | **Existe** — huella `SHA256:/T+kJDhzAUsICDCf0dxi3yCwqlDL+tY2jdP809KezOI`, sin frase de paso, **restringida a un solo comando** |
-| Cuenta `ops` | Administración del servidor | Servidor, con `sudo` | Titular | **Existe** — contraseña inicial en el archivo local; **cámbiala en el primer ingreso** |
+| Cuenta `ops` | Administración del servidor | Servidor, con `sudo` | Titular | **Existe** — contraseña **registrada y verificada** contra `/etc/shadow`; el servidor la pide en cada elevación |
 | Cuenta `deploy` | Canalización | Servidor, sin contraseña utilizable | Canalización | **Existe** — sólo puede ejecutar `/usr/local/bin/desplegar.sh` |
 
 ### Sobre la llave personal
 
-Entra como `root` hoy. Cuando se cierre el acceso de `root` (§14.1 del plan), **la misma
-llave entrará como `ops`**: la llave no cambia, cambia la cuenta. El `root` por SSH queda
-deshabilitado y sólo se usa la consola del proveedor para emergencias.
+Entra como `ops`. El acceso de `root` por SSH **ya está cerrado** (`PermitRootLogin no`,
+verificado), así que `root` sólo se alcanza elevando con `sudo` y la contraseña de `ops`, o
+por la consola del proveedor para emergencias.
 
 Tiene frase de paso y la desbloquea el agente del llavero. Eso **es correcto para una
 persona** y **no sirve para una máquina**: ningún ejecutor de GitHub puede teclear esa
@@ -54,7 +54,7 @@ Todos los genera la canalización, salvo los dos primeros.
 |---|---|---|---|
 | Llave SSH de despliegue | Que la canalización entre al servidor | Secreto de repositorio | **Hecho** — restringida a un único comando |
 | `DEPLOY_KNOWN_HOSTS` | Que el despliegue no acepte cualquier anfitrión | Secreto de repositorio | **Hecho** — las dos claves de host del servidor actual |
-| `DEPLOY_HOST` | Destino del despliegue | Secreto de repositorio | **Hecho** — `198.199.89.119` |
+| `DEPLOY_HOST` | Destino del despliegue | Secreto de repositorio | **Hecho** — `165.22.46.11` |
 | `DEPLOY_USER` | Cuenta de despliegue | Secreto de repositorio | **Hecho** — `deploy` |
 | `DEPLOY_PORT` | Puerto SSH | Secreto de repositorio | **Hecho** — se eliminó la variable duplicada |
 | `APP_KEY` | Cifrado de la aplicación | Secreto por entorno | **Hecho** — uno distinto por entorno |
@@ -193,11 +193,11 @@ trámite.
 
 | Aspecto | Estado |
 |---|---|
-| Servidor | `198.199.89.119` (IPv4) · `2604:a880:0400:d1::5:125a:a001` (IPv6) |
-| Identificador | `604812963` · región `nyc1` · Ubuntu 26.04.1 LTS |
+| Servidor | `165.22.46.11` (IPv4) · `2604:a880:800:14:0:3:96ab:d000` (IPv6) |
+| Identificador | `604962462` · región `nyc3` · Ubuntu 24.04.5 LTS · 4 vCPU / 8 GB |
 | Cuentas | `ops` (administración, con `sudo`) y `deploy` (canalización) — **creadas** |
 | Llaves autorizadas | La personal para `ops`; la de despliegue para `deploy`, restringida a un comando |
-| Acceso de `root` por SSH | **Todavía habilitado** (`prohibit-password`); se cierra al final del aprovisionamiento |
+| Acceso de `root` por SSH | **CERRADO** (`no`), confirmado tras verificar que `ops` entra y eleva |
 | Autenticación por contraseña | Deshabilitada |
 | Cortafuegos del host | **Activo** — entrada denegada por defecto; 22 con límite de tasa, 80 y 443. Con guarda contra el bypass de Docker |
 | Fail2Ban | **Activo** — jails `sshd` y `recidive`; ya ha bloqueado un atacante |

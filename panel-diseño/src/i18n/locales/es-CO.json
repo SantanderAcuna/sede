@@ -1,0 +1,84 @@
+{
+  "app": {
+    "name": "SGDI",
+    "fullName": "Sistema de Gestión Distrital Inteligente",
+    "entity": "Alcaldía Distrital de Santa Marta"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "pqrsd": "PQRSD",
+    "tramites": "Trámites",
+    "citas": "Citas y Turnos",
+    "notificaciones": "Notificaciones",
+    "sede": "Sede Electrónica",
+    "carpeta": "Carpeta Ciudadana",
+    "autenticacion": "Autenticación Digital",
+    "cms": "CMS",
+    "portal": "Portal Ciudadano",
+    "transparencia": "Transparencia",
+    "gestionDocumental": "Gestión Documental",
+    "sigmi": "Interoperabilidad SIGMI",
+    "integraciones": "Conectores externos",
+    "usuarios": "Usuarios y Roles",
+    "auditoria": "Auditoría",
+    "reportes": "Reportes",
+    "asignacion": "Motor de asignación",
+    "configuracion": "Configuración"
+  },
+  "common": {
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "create": "Crear",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "loading": "Cargando…",
+    "noResults": "Sin resultados",
+    "error": "Ocurrió un error",
+    "retry": "Reintentar",
+    "export": "Exportar",
+    "actions": "Acciones",
+    "status": "Estado",
+    "yes": "Sí",
+    "no": "No"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "username": "Usuario o cédula",
+    "password": "Contraseña",
+    "mfa": {
+      "title": "Verificación en dos pasos",
+      "subtitle": "Ingresa el código de 6 dígitos de tu app autenticadora",
+      "code": "Código MFA"
+    }
+  },
+  "pqrsd": {
+    "title": "PQRSD",
+    "subtitle": "Peticiones, Quejas, Reclamos, Sugerencias y Denuncias",
+    "fields": {
+      "radicado": "Radicado",
+      "tipo": "Tipo",
+      "asunto": "Asunto",
+      "ciudadano": "Ciudadano",
+      "dependencia": "Dependencia",
+      "estado": "Estado",
+      "diasRestantes": "Días restantes",
+      "vencimiento": "Vencimiento"
+    },
+    "estados": {
+      "recibida": "Recibida",
+      "asignada": "Asignada",
+      "en-tramite": "En trámite",
+      "respondida": "Respondida",
+      "cerrada": "Cerrada",
+      "vencida": "Vencida"
+    }
+  }
+}

@@ -18,6 +18,7 @@ set -euo pipefail
 USUARIO_ADMIN="${USUARIO_ADMIN:-ops}"
 USUARIO_DESPLIEGUE="${USUARIO_DESPLIEGUE:-deploy}"
 LLAVE_ADMIN="${LLAVE_ADMIN:-}"          # ruta a la llave PÚBLICA del titular
+IP_ADMIN="${IP_ADMIN:-}"                # dirección del administrador, para la lista blanca de fail2ban
 BASE=/opt/sede
 
 rojo()   { printf '\033[31m%s\033[0m\n' "$*"; }
@@ -134,7 +135,100 @@ ufw logging medium >/dev/null
 ufw --force enable >/dev/null
 verde "  $(ufw status | head -1)"
 
-paso "7. Guarda contra el bypass de Docker"
+paso "7. Fail2Ban"
+
+# El guion instalaba fail2ban pero NO lo configuraba, así que quedaba con los
+# valores por defecto de Ubuntu. Un endurecimiento que se apoya en un valor por
+# defecto no es un endurecimiento: cambia con la versión del paquete, y nadie se
+# entera. Aquí se fija, y se deja por escrito.
+#
+# Lo que se corrige, y por qué importa:
+#
+#   · Sin lista blanca, un error de tecleo del administrador basta para dejarlo
+#     fuera. Pasó durante el aprovisionamiento: dos intentos contra `root`, que
+#     ya está cerrado y por tanto siempre fallan, activaron la cárcel y dejaron
+#     la administración sin acceso por SSH. La propia protección se convirtió en
+#     el incidente, y recuperarse exige la consola del proveedor.
+#   · Un `bantime` de un día castiga igual al que teclea mal y al que ataca. El
+#     que ataca hace miles de intentos, así que le basta con una hora para
+#     quedar frenado; el que teclea mal no debería perder la mañana.
+#   · Faltaba la cárcel de reincidentes, que es la que encarece insistir.
+# La dirección del administrador se valida antes de escribirla: si se colara algo
+# que no es una dirección, la lista blanca dejaría de significar lo que dice.
+if [ -n "$IP_ADMIN" ]; then
+  case "$IP_ADMIN" in
+    *[!0-9a-fA-F:./]*) rojo "  IP_ADMIN no parece una dirección: '$IP_ADMIN'"; exit 1 ;;
+  esac
+fi
+
+install -d -m 755 /etc/fail2ban/jail.d
+# El heredoc va ENTRECOMILLADO y la dirección entra por un marcador sustituido
+# después. Un heredoc sin comillas expande los acentos graves como sustitución de
+# órdenes: en el comentario de la cárcel `sshd` había dos palabras entre acentos
+# graves y bash intentó ejecutarlas, dejando el comentario mutilado en el archivo.
+cat > /etc/fail2ban/jail.d/10-sede.local <<'F2B'
+[DEFAULT]
+# La lista blanca siempre incluye la propia máquina. La dirección del
+# administrador se añade sólo si se pasa IP_ADMIN: una dirección doméstica
+# cambia, y una lista blanca obsoleta no protege de nada mientras da la falsa
+# impresión de que sí.
+ignoreip = 127.0.0.1/8 ::1 %%IP_ADMIN%%
+
+# Cada ban dura el doble que el anterior. Insistir sale caro, y el que se
+# equivoca una vez no paga por el que ataca.
+bantime.increment = true
+bantime.factor = 2
+bantime.maxtime = 4w
+
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+
+# Se registra en su propio archivo: la cárcel de reincidentes lo necesita, y
+# mezclarlo con el registro del sistema hace que la rotación se lleve por delante
+# el rastro que hace falta para banear al que insiste.
+logtarget = /var/log/fail2ban.log
+
+[sshd]
+enabled = true
+port    = ssh
+backend = systemd
+# `normal` y no `aggressive`: el segundo cuenta como fallo cosas que también
+# produce un cliente legítimo, y un falso positivo aquí echa a quien administra.
+mode    = normal
+
+[recidive]
+enabled  = true
+logpath  = /var/log/fail2ban.log
+banaction = %(banaction_allports)s
+bantime  = 4w
+findtime = 1d
+maxretry = 3
+F2B
+sed -i "s|%%IP_ADMIN%%|$IP_ADMIN|" /etc/fail2ban/jail.d/10-sede.local
+if grep -q '%%IP_ADMIN%%' /etc/fail2ban/jail.d/10-sede.local; then
+  rojo "  quedó un marcador sin sustituir — se retira el archivo"
+  rm -f /etc/fail2ban/jail.d/10-sede.local
+  exit 1
+fi
+chmod 644 /etc/fail2ban/jail.d/10-sede.local
+
+# fail2ban no arranca si la configuración tiene un error, así que se comprueba
+# antes de reiniciar: dejar el servicio caído por una errata deja el servidor
+# sin la protección y sin nadie mirando.
+if fail2ban-client -t >/dev/null 2>&1; then
+  systemctl enable fail2ban >/dev/null 2>&1
+  systemctl restart fail2ban
+  verde "  cárceles sshd y recidive activas; ban inicial de 1 h que se duplica"
+  [ -n "$IP_ADMIN" ] && verde "  lista blanca incluye $IP_ADMIN" || aviso "  sin lista blanca: pasa IP_ADMIN=<tu dirección> para añadirla"
+else
+  rojo "  la configuración de fail2ban NO es válida — se retira"
+  rm -f /etc/fail2ban/jail.d/10-sede.local
+  systemctl enable --now fail2ban >/dev/null 2>&1 || true
+  exit 1
+fi
+
+paso "8. Guarda contra el bypass de Docker"
 cat > /usr/local/sbin/sede-reglas-docker.sh <<'REGLAS'
 #!/bin/bash
 #
@@ -182,7 +276,7 @@ systemctl enable --now sede-reglas-docker.service >/dev/null 2>&1
 /usr/local/sbin/sede-reglas-docker.sh
 verde "  aplicadas y persistentes"
 
-paso "8. Intercambio"
+paso "9. Intercambio"
 if [ ! -f /swapfile ]; then
   fallocate -l 2G /swapfile
   chmod 600 /swapfile
@@ -194,7 +288,7 @@ swapon /swapfile 2>/dev/null || true
 sysctl -w vm.swappiness=10 >/dev/null
 verde "  $(swapon --show=SIZE --noheadings | xargs)"
 
-paso "9. Actualizaciones automáticas"
+paso "10. Actualizaciones automáticas"
 cat > /etc/apt/apt.conf.d/51-sede-unattended <<'APT'
 Unattended-Upgrade::Allowed-Origins {
     "${distro_id}:${distro_codename}";
@@ -212,7 +306,7 @@ APT
 systemctl enable --now unattended-upgrades >/dev/null 2>&1
 verde "  activas"
 
-paso "10. Registro del sistema"
+paso "11. Registro del sistema"
 install -d -m 755 /etc/systemd/journald.conf.d
 cat > /etc/systemd/journald.conf.d/99-sede.conf <<'JOURNAL'
 [Journal]
@@ -230,7 +324,7 @@ JOURNAL
 systemctl restart systemd-journald
 verde "  persistente, 2 GB, retención de 30 días"
 
-paso "11. Auditoría del sistema"
+paso "12. Auditoría del sistema"
 cat > /etc/audit/rules.d/sede.rules <<'RULES'
 -D
 -b 8192
@@ -261,7 +355,7 @@ augenrules --load >/dev/null 2>&1 || true
 systemctl enable --now auditd >/dev/null 2>&1
 verde "  $(auditctl -l 2>/dev/null | wc -l) reglas cargadas"
 
-paso "12. Política de contraseñas"
+paso "13. Política de contraseñas"
 cat > /etc/security/pwquality.conf <<'PWQ'
 # Longitud 15: el capítulo 01 de la guía fija 14, el expediente recomienda 15 y
 # el mínimo legal es 8. Quince satisface a los tres.
@@ -291,7 +385,7 @@ PY
 fi
 verde "  mínimo 15, 4 clases, historial de 5"
 
-paso "13. Integridad de archivos"
+paso "14. Integridad de archivos"
 install -d -m 755 /etc/aide/aide.conf.d
 cat > /etc/aide/aide.conf.d/99-sede.conf <<'AIDE'
 !/var/log
@@ -318,7 +412,7 @@ if [ ! -f /var/lib/aide/aide.db ]; then
   nohup sh -c 'aideinit -y -f >/dev/null 2>&1 && mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db' >/dev/null 2>&1 &
 fi
 
-paso "14. Antivirus"
+paso "15. Antivirus"
 if [ ! -s /var/lib/clamav/daily.cvd ] && [ ! -s /var/lib/clamav/daily.cld ]; then
   aviso "  descargando firmas (tarda unos minutos, en segundo plano)"
   nohup freshclam --quiet >/dev/null 2>&1 &
@@ -348,7 +442,7 @@ chmod 644 /etc/cron.d/sede-antivirus
 systemctl enable --now clamav-freshclam >/dev/null 2>&1
 verde "  análisis diario a las 03:40, sin demonio"
 
-paso "15. Endurecimiento de SSH"
+paso "16. Endurecimiento de SSH"
 
 # Los conjuntos de algoritmos NO se copian de la guía: se verifican contra lo que
 # ESTA versión soporta de verdad. Una lista escrita para otra versión puede dejar
@@ -454,7 +548,7 @@ else
   exit 1
 fi
 
-paso "16. Directorios del despliegue"
+paso "17. Directorios del despliegue"
 install -d -m 755 "$BASE"
 
 verde ""
@@ -484,3 +578,8 @@ echo "  · Cerrar el acceso de root, DESPUÉS de verificar que $USUARIO_ADMIN en
 echo "  · Copiar la llave pública de despliegue y restringirla al guion de despliegue."
 echo "  · Emitir el certificado antes del primer despliegue."
 echo "  · Reiniciar si el sistema lo pide."
+echo
+echo "Si una cárcel te deja fuera, la orden de recuperación es:"
+echo "  fail2ban-client set sshd unbanip <tu-dirección>"
+echo "Desde fuera del servidor hace falta la consola del proveedor."
+echo "Si NO pasaste IP_ADMIN, añade tu dirección a ignoreip y reinicia fail2ban."

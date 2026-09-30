@@ -16,7 +16,21 @@ export default defineNuxtConfig({
 
   modules: ['@pinia/nuxt'],
 
-  css: [],
+  // Los componentes se usan por su nombre, sin el prefijo de la carpeta.
+  //
+  // Nuxt antepone por defecto el nombre del directorio, así que
+  // `components/govco/CabeceraGovco.vue` se invocaría como
+  // `<GovcoCabeceraGovco />`: un tartamudeo, porque el nombre del propio archivo
+  // ya dice a qué familia pertenece. Con `pathPrefix: false` queda
+  // `<CabeceraGovco />`, que es como se lee en las plantillas.
+  components: [{ path: '~/components', pathPrefix: false }],
+
+  css: [
+    // Lo propio del sitio. El grueso de la capa visual es el Kit gov.co, que se
+    // enlaza desde `app.head` por ser un archivo servido tal cual; aquí va sólo
+    // lo que el Kit no resuelve, como el modo de alto contraste.
+    '~/assets/css/sitio.css',
+  ],
 
   app: {
     head: {
@@ -27,6 +41,25 @@ export default defineNuxtConfig({
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       ],
       link: [
+        // Bootstrap 5.0.2, y VA PRIMERO.
+        //
+        // No es opcional ni un extra: el `all.css` del Kit NO contiene ni una
+        // sola clase de Bootstrap —ni `container`, ni `row`, ni `col-*`, ni los
+        // espaciados, ni `btn`—. Es una capa que EXIGE Bootstrap cargado aparte,
+        // como hacen sus propios ejemplos. Sin él la página sale sin rejilla, sin
+        // márgenes y sin botones: sólo los colores del Kit, que es exactamente el
+        // aspecto que tenía el sitio.
+        //
+        // El criterio CAG-33 es bloqueante y pide construir sobre Bootstrap 5.0.2.
+        // Va antes que el Kit para que el Kit, que extiende esas clases, gane en
+        // los empates; al revés, Bootstrap pisaría los estilos de gov.co.
+        //
+        // Se sirve desde nuestro dominio, como el Kit: la capa visual no debe
+        // depender de que un tercero esté disponible. La copia es la del CDN
+        // oficial y su integridad se comprobó contra el `sha384` que publican los
+        // ejemplos del propio Kit.
+        { rel: 'stylesheet', href: '/govco/bootstrap.min.css' },
+
         // El Kit gov.co, vendorizado en `public/govco/` (§9.4). Se sirve desde
         // nuestro dominio en lugar de desde el CDN del Ministerio: la capa visual
         // es un atributo de disponibilidad, y depender de un tercero para que la
@@ -36,6 +69,17 @@ export default defineNuxtConfig({
         // sobre selectores que en nuestras páginas no existen y llena la consola
         // de errores. Lo que haga falta se carga en la vista que lo use.
         { rel: 'stylesheet', href: '/govco/all.css' },
+
+        // El icono de la entidad: el escudo sobre el azul institucional del Kit.
+        //
+        // Se declaran varios formatos porque cada plataforma usa el suyo —el
+        // navegador el .ico, iOS el apple-touch-icon, Android el manifiesto— y
+        // sin declararlos cada una muestra el suyo por defecto: hasta ahora la
+        // pestaña lucía el marcador verde de Nuxt, que no es de nadie.
+        { rel: 'icon', href: '/favicon.ico', sizes: '32x32' },
+        { rel: 'icon', href: '/icono-192.png', type: 'image/png', sizes: '192x192' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+        { rel: 'manifest', href: '/site.webmanifest' },
       ],
     },
   },

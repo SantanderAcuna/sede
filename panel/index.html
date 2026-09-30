@@ -2,7 +2,14 @@
 <html lang="es-CO">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- El icono de la entidad: el escudo sobre el azul institucional.
+         Las rutas son relativas a propósito: el panel se sirve bajo `/admin/`,
+         así que una ruta absoluta `/favicon.ico` apuntaría a la raíz del sitio
+         público y la pestaña mostraría el icono equivocado. -->
+    <link rel="icon" href="./favicon.ico" sizes="32x32" />
+    <link rel="icon" href="./icono-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="manifest" href="./site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#3366CC" />
     <meta name="robots" content="noindex, nofollow" />

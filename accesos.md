@@ -60,7 +60,8 @@ persona** y **no sirve para una máquina**: ningún ejecutor de GitHub puede tec
 | `REDIS_PASSWORD` | Caché y colas | Secreto por entorno | **Hecho y ROTADO** — uno distinto por entorno |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | Almacenamiento de objetos | Secreto por entorno | **Hecho y ROTADO** |
 | `BACKUP_PASSPHRASE` | Cifrado de las copias | Secreto por entorno | **Hecho y ROTADO** — falta la copia en custodia externa |
-| `CLOUDFLARE_API_TOKEN` | Purga de caché en el borde | Secreto por entorno | **Por obtener** — requiere acceso a Cloudflare |
+| `CLOUDFLARE_API_TOKEN` | Validar por DNS la emisión del certificado | `/root/.secrets/cloudflare.ini` en el servidor (600) | **Hecho** — token acotado a la zona `santamarta.gov.co`, con `Zone:DNS:Edit` |
+| Contacto de la cuenta ACME | Avisos de caducidad de Let's Encrypt | Cuenta ACME en el servidor | **Hecho** — `jose.acuna@santamarta.gov.co` |
 
 > **Por qué dice ROTADO.** Los seis secretos de cada entorno quedaron publicados en el
 > repositorio el 2026-09-30 (§5) y se rotaron el mismo día. Los valores que pudieran haber
@@ -263,7 +264,7 @@ La lista de exclusión incluye la propia máquina y la dirección del administra
 | `/opt/sede/staging/` | **Publicado** — `.env` y `compose.yaml`; lo lee `deploy` y no lo puede modificar |
 | `/var/lib/sede/staging/` | **Creado** — donde `deploy` anota qué versión corre |
 | Imágenes en el registro | **Publicadas** — las tres, escaneadas sin hallazgos corregibles |
-| Certificado del origen | **No existe** — es el ÚNICO bloqueo que queda (§10) |
+| Certificado del origen | **Emitido** — Let's Encrypt, válido hasta el 29 de diciembre de 2026, con renovación automática |
 
 > **La cadena de despliegue funciona de extremo a extremo.** Comprobado: trae las
 > tres imágenes, levanta la pila, ejecuta las migraciones y arranca los cinco
@@ -277,12 +278,15 @@ La lista de exclusión incluye la propia máquina y la dirección del administra
 
 **Depende de ti:**
 
-- [ ] Emitir el certificado del origen — **es el único bloqueo que queda para desplegar**, y
-  depende de Cloudflare: `staging.santamarta.gov.co` está tras su borde, que redirige HTTP a
-  HTTPS, así que el desafío ACME recibe un 522. Hace falta un **token de API** para validar
-  por DNS, un certificado de origen, o permiso para poner el registro en «solo DNS» mientras
-  se emite. En cuanto exista el certificado en `/opt/sede/staging/certs/`, el despliegue que
-  ya funciona de extremo a extremo terminará en verde.
+- [x] **Emitir el certificado del origen** — hecho validando **por DNS**, que es lo único
+  que funciona con Cloudflare delante: su borde redirige HTTP a HTTPS (comprobado: `301`)
+  antes de que la petición llegue al origen, así que el desafío por HTTP recibe un `521` y el
+  círculo no se cierra por esa vía. Renovación automática activada.
+
+> **Trampa encontrada al verificar el contacto de la cuenta.** `certbot show_account` consulta
+> la cuenta enviando `contact: []` y **el servidor aplica ese vacío**: la comprobación BORRA
+> el contacto que se acaba de grabar. Ocurrió literalmente así. Para verificarlo hay que leer
+> la respuesta del propio `update_account` en `/var/log/letsencrypt/letsencrypt.log`.
 - [ ] Decidir el dominio de producción.
 - [ ] Obtener el token de DigitalOcean para el cortafuegos del proveedor.
 - [ ] Verificar o borrar los dos secretos de terceros (§6).

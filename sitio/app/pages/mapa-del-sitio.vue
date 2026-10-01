@@ -38,10 +38,7 @@ const grupos: Grupo[] = [
       {
         texto: 'Transparencia y acceso a la información pública',
         ruta: '/transparencia',
-        // Publicada de verdad desde que la sección tiene sus nueve categorías y
-        // 333 documentos. Estaba marcada como no publicada cuando era un stub, y
-        // dejarlo así haría que el propio mapa del sitio mintiera sobre el sitio.
-        publicada: true,
+        publicada: false,
       },
       { texto: 'Servicios a la Ciudadanía', ruta: '/servicios', publicada: false },
       { texto: 'Participa', ruta: '/participa', publicada: false },

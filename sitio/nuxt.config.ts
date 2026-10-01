@@ -14,7 +14,16 @@ export default defineNuxtConfig({
   // Renderizado en servidor. Es la razón de ser de esta aplicación.
   ssr: true,
 
-  modules: ['@pinia/nuxt'],
+  /*
+   * Sin módulos de estado. Aquí se registraba `@pinia/nuxt` y el sitio no tiene
+   * ni una tienda: el estado compartido —accesibilidad, consentimiento de
+   * cookies— se resuelve con `useState` de Nuxt, que ya viene con el framework.
+   * Era una dependencia con su runtime cargado a cambio de nada (D-35).
+   *
+   * Se retira también de `main` porque una rama que exige un paquete que nadie
+   * usa rompe el entorno compartido: al cambiar de rama, el módulo no está
+   * instalado y Nuxt falla al arrancar con `NUXT_B8017` antes de pintar nada.
+   */
 
   // Los componentes se usan por su nombre, sin el prefijo de la carpeta.
   //

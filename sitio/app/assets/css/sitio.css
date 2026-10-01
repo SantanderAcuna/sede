@@ -412,3 +412,54 @@ a:not(.btn):not([class*="btn-"]):hover {
     min-height: 2.75rem;
   }
 }
+
+/*
+  Los controles que faltaban para CAG-23.
+
+  La medición a 360 px dejó tres que no cubría la regla anterior: el logotipo de
+  la barra superior (71 × 40), los desplegables y campos (38 de alto) y las
+  casillas (16 × 16). El Kit cita expresamente el **logotipo de la barra
+  superior** en su página 7 al fijar los 44 px, así que su propio componente lo
+  incumple.
+
+  Los enlaces de texto dentro de una frase NO se tocan: el criterio habla de
+  punteros —objetivos que se pulsan— y WCAG exime explícitamente el texto
+  corrido. Aplicarles 44 px rompería la maquetación de cualquier párrafo con un
+  enlace dentro, que es justo lo contrario de lo que busca la norma.
+*/
+.enlace-logotipo-govco {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.form-control,
+.form-select {
+  min-height: 2.75rem;
+}
+
+/* La casilla necesita área de pulsación, no tamaño de cuadro: agrandar el cuadro
+   la deformaría y rompería la alineación con su etiqueta. */
+.form-check-input {
+  min-width: 1.25rem;
+  min-height: 1.25rem;
+}
+
+.form-check {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+/*
+  Los botones de contorno, a 44 px de alto.
+
+  Quedaban en 38. El criterio CAG-23 es del Kit y habla de objetivos que se
+  pulsan; un botón lo es, así que se le da la altura mínima. Las **casillas** no
+  se tocan: su cuadro mide 20 px a propósito —agrandarlo lo deformaría y
+  desalinearía su etiqueta— y su área de pulsación es la del `.form-check` que lo
+  envuelve, que sí llega a 44 px y es lo que el criterio mide en la práctica.
+*/
+.btn {
+  min-height: 2.75rem;
+}

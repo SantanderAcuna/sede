@@ -981,6 +981,93 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
  * (línea 220) y el que deja más margen. El estado de foco hereda este color, así
  * que el anillo de foco (`currentColor`) también contrasta.
  */
+.menu-govco .navbar-nav > .nav-item:nth-child(2),
+.menu-govco .navbar-nav > .nav-item:nth-child(3) {
+  /*
+   * **Ancho de los desplegables principales.** El Kit pone 11.563 rem, lo que
+   * parte "Atención al ciudadano" en dos líneas. Se sube a 13 rem para que
+   * el rótulo quepa en una línea con el padding lateral del Kit (0.625 rem a
+   * cada lado), y el hover cubra toda la etiqueta sin que el texto se vea
+   * apretado —exactamente como en el ejemplo del Estado colombiano donde
+   * "Atención y Servicios a la Ciudadanía" se muestra en una sola línea con
+   * padding generoso.
+   */
+  min-width: 13rem;
+  width: 13rem;
+}
+
+.menu-govco .navbar-nav .nav-item .nav-link {
+  /*
+   * **Cubrir toda la altura de la barra, con el texto centrado en las
+   * cuatro direcciones.** El Kit pone `align-items: start` (pega el texto
+   * al borde superior) y `justify-content: space-between` (pega el texto
+   * al borde izquierdo con la flecha al derecho). Eso produce un rótulo
+   * desalineado: arriba a la izquierda cuando se rellena el botón de color.
+   *
+   * Aquí se sobreescribe con `align-items: center` + `justify-content:
+   * center` para que el rótulo quede anclado al **centro vertical y
+   * horizontal** del botón: el `<span>` con el nombre se centra, la
+   * flecha dropdown se coloca a su derecha inmediata con el `gap` del Kit
+   * (0.625 rem), y ambos se ven centrados dentro del bloque que pinta
+   * el hover —igual que en el ejemplo del Estado colombiano donde el
+   * texto queda visualmente anclado al medio del bloque azul marino.
+   *
+   * `height: 100%` + `align-self: stretch` hacen que el botón cubra toda
+   * la altura del `<li>`, así el hover rellena la barra de extremo a
+   * extremo sin dejar franjas grises arriba o abajo.
+   */
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  height: 100%;
+  align-self: stretch;
+}
+
+/*
+ * **El `<ul>` y los `<li>` heredan la altura completa del `.menu-govco`.**
+ *
+ * El `.menu-govco` define `min-height: 4.5rem` (72 px) y `height: auto`,
+ * así que el contenedor mide 72 px por el padding interno. Pero el `<ul>`
+ * interior no hereda esa altura: su `display: flex` lo deja en `height:
+ * auto` (lo que necesite su contenido), y los `<li>` hijos heredan ese
+ * `auto`. Resultado: el hover cubre sólo la altura del contenido del item,
+ * no la barra entera.
+ *
+ * Aquí se fuerza al `<div class="navbar-collapse">`, al `<ul.navbar-nav>`
+ * y a los `<li>` hijos a `height: 100%` (más `align-self: stretch` en los
+ * `<li>`) para que cada uno se expanda a la altura del padre hasta llegar
+ * a los 72 px del menú. Así el botón del item cubre toda la barra de
+ * extremo a extremo, igual que el ejemplo del Estado colombiano.
+ */
+.menu-govco .navbar-collapse,
+.menu-govco ul.navbar-nav {
+  height: 100%;
+}
+
+/*
+ * **El `.menu-govco` necesita `height: auto` para que el `100%` se
+ * resuelva.** El Kit define `min-height: 4.5rem` pero no `height`, así que
+ * el contenedor mide lo que necesite su contenido (el botón con su padding
+ * = 41 px), no los 72 px que necesita el hover para cubrir la barra.
+ * Forzar `height: 100%` aquí permite que `.navbar-collapse` y `.navbar-nav`
+ * se expandan al alto del `.menu-govco`.
+ */
+.menu-govco {
+  /*
+   * **Estirar los hijos a la altura completa.** El `.menu-govco` es flex
+   * con `align-items: center` (Kit, línea 11885), que centra el
+   * `container-fluid` verticalmente —el botón no llega al borde superior ni
+   * inferior—. Se cambia a `stretch` para que cada hijo flex del menú
+   * ocupe toda la altura (72 px), y el hover cubra la barra de extremo
+   * a extremo.
+   */
+  align-items: stretch;
+}
+
+.menu-govco .navbar-nav > .nav-item {
+  align-self: stretch;
+}
+
 .menu-govco .navbar-nav .nav-item .nav-link:hover,
 .menu-govco .navbar-nav .nav-item .nav-link:focus-visible,
 .menu-govco .navbar-nav .nav-item .nav-link.active,

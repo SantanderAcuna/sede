@@ -81,6 +81,55 @@
 }
 
 /* ============================================================================
+   Los logos del pie, asociados y alineados a la izquierda
+   ============================================================================
+
+   El Kit UI 9.2 lo pide así, en su página 11, con estas palabras:
+
+     «Recuerda incluir la información de la entidad, el logo de la autoridad
+      correspondiente, el logo de GOV.CO, el logo de la marca país Colombia - CO
+      (asociados y alineados a la izquierda) y, cuando aplique, el logo de
+      "Colombia, potencia de la vida".»
+
+   Su propio CSS no lo cumple: en escritorio pone `.logo-container` en
+   `position: absolute; right: 3.125rem`, de modo que el logo de la autoridad
+   queda arriba a la **derecha**, separado de GOV.CO y de Colombia-CO, que sí van
+   a la izquierda en la banda inferior. Los tres tienen que quedar juntos y a la
+   izquierda.
+
+   En móvil el Kit ya lo hace bien —`position: initial; align-items: start`—, así
+   que aquí se aplica **la disposición que el Kit usa en móvil también en
+   escritorio**: el bloque de logos entra en el flujo, al principio, alineado a la
+   izquierda y pegado a la información de la entidad. Así los tres quedan
+   asociados y en el mismo lado.
+   ============================================================================ */
+
+.pie-pagina-govco .logo-container {
+  position: static;
+  align-items: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.875rem;
+}
+
+/* El separador entre logos vuelve a mostrarse: con los tres en fila, separa. */
+.pie-pagina-govco .logo-container .separator {
+  display: inline-block;
+  border-left: 0.063rem solid var(--govcolor-black);
+  height: 3rem;
+  margin: 0 1rem;
+}
+
+/* La banda inferior ya va a la izquierda; se refuerza para que los tres logos
+   compartan el mismo eje que el resto del contenido. */
+.pie-pagina-govco .second-section {
+  justify-content: flex-start;
+  padding-left: 1.25rem;
+}
+
+
+/* ============================================================================
    El color de la Entidad en la barra inferior del menú
    ============================================================================
 
@@ -142,15 +191,30 @@
    pinta blanco porque su fondo por defecto es azul oscuro.
    ============================================================================ */
 
-.pie-pagina-govco {
-  /* La banda inferior del pie, en el azul celeste de la Entidad. */
+/*
+  El azul celeste va SÓLO en la banda inferior, no en todo el pie.
+
+  Redefinir `--govcolor-cobalt` en `.pie-pagina-govco` entero fue un error que la
+  auditoría detectó: los enlaces de políticas de la primera sección —que tiene
+  fondo BLANCO— heredan ese token para su color de texto, y el celeste sobre
+  blanco da **2,58:1**, muy por debajo del 4,5:1 de AA. El token se acota a la
+  banda que de verdad lleva el color.
+*/
+.pie-pagina-govco .second-section {
   --govcolor-cobalt: #00ade7;
+}
 
-  /* Las sombras decorativas, que el Kit pinta en naranja: azul noche, para que
-     el celeste del fondo se lea como tal y la sombra no compita con él. */
+/* Los enlaces de la primera sección van sobre blanco: azul noche, que da 7,19:1
+   y sigue siendo un azul de la paleta de la Entidad. */
+.pie-pagina-govco .first-section a {
+  color: #00568d !important;
+}
+
+/* Las sombras decorativas del pie, que el Kit pinta en naranja: azul noche, para
+   que el celeste del fondo se lea como tal y la sombra no compita con él. Y el
+   filete de la primera sección en el tono secundario de la Entidad. */
+.pie-pagina-govco .first-section {
   --govcolor-tulip: #00568d;
-
-  /* El filete de la primera sección: el tono secundario de la Entidad. */
   --govcolor-tropical-blue: #8ec6e3;
 }
 
@@ -182,6 +246,37 @@
 }
 
 
+
+/* ============================================================================
+   El color de los enlaces, del Kit y no de Bootstrap
+   ============================================================================
+
+   Bootstrap pinta los enlaces con su azul por defecto, #0D6EFD. Sobre blanco da
+   **exactamente 4,50:1**: justo en el límite de AA, sin margen. En cuanto el
+   fondo se tiñe —el amarillo suave del Kit, un aviso, una tarjeta— baja por
+   debajo y **incumple**. Se midió: sobre el amarillo #FEE697 daba **3,63:1**.
+
+   El Kit tiene su propio azul, el cobalto #0943B5, que da **8,46:1 sobre blanco**
+   y sigue pasando holgado sobre los fondos teñidos del propio Kit (7,69:1 sobre
+   el gris del aviso). Es además el color que el Kit manda usar, así que se
+   aplica a todos los enlaces del sitio.
+
+   Se hace aquí y no página a página para que no dependa de que cada vista se
+   acuerde: un enlace nuevo hereda el color correcto sin que nadie lo escriba.
+   ============================================================================ */
+
+a:not(.btn):not([class*="btn-"]) {
+  color: var(--govcolor-cobalt, #0943b5);
+}
+
+a:not(.btn):not([class*="btn-"]):hover {
+  color: var(--govcolor-havelock-lue, #4672c8);
+}
+
+/* Los enlaces dentro de la banda celeste del pie van en oscuro, como su texto. */
+.pie-pagina-govco .second-section a {
+  color: #000;
+}
 
 /* ============================================================================
    Reflujo en pantallas estrechas
@@ -238,3 +333,133 @@
   white-space: normal;
 }
 
+
+/*
+  Los botones de contorno heredan el azul de Bootstrap, que sobre blanco da
+  exactamente 4,50:1 —el límite— y no deja margen. El Kit no trae
+  `.btn-outline-primary`, así que se reapunta al cobalto del Kit (8,46:1),
+  incluidos sus estados, para que el botón no cambie de color al pasar el ratón.
+*/
+.btn-outline-primary {
+  --bs-btn-color: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-border-color: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-hover-border-color: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-active-bg: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-active-border-color: var(--govcolor-cobalt, #0943b5);
+  --bs-btn-focus-shadow-rgb: 9, 67, 181;
+}
+
+/*
+  Los controles de formulario, con el foco del Kit.
+
+  **El Kit UI 9.2 no trae clases de formulario.** No define `form-control`,
+  `form-select` ni `form-check`: sólo `.entradas-de-texto-govco`, que está atada a
+  su propio marcado y no sirve para los campos de cualquier formulario. Así que
+  los controles vienen de Bootstrap, y Bootstrap pinta el foco con SU azul
+  (#86b7fe y rgba(13,110,253,.25)), ajeno a gov.co.
+
+  Se reapunta al cobalto del Kit, para que el foco de un campo se vea igual que el
+  de un botón. Sin esto, la sede tendría dos azules distintos: el institucional en
+  los enlaces y el de Bootstrap en los formularios.
+*/
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: var(--govcolor-cobalt, #0943b5);
+  box-shadow: 0 0 0 0.25rem rgba(9, 67, 181, 0.25);
+}
+
+.form-check-input:checked {
+  background-color: var(--govcolor-cobalt, #0943b5);
+  border-color: var(--govcolor-cobalt, #0943b5);
+}
+
+/* ============================================================================
+   Área de pulsación mínima de 44 × 44 px (CAG-23)
+   ============================================================================
+
+   El Kit fija 44 px como mínimo táctil —lo dice en su página 7 para el logotipo
+   de la barra superior y en la 30 para la paginación móvil— pero no lo cumple en
+   sus propios componentes pequeños. Medido a 360 px:
+
+     botón de limpiar del buscador   28 × 36 px
+     botón de buscar del buscador    34 × 36 px
+     campo del buscador              38 px de alto
+     enlaces de políticas del pie    20 a 42 px de alto
+
+   El buscador está en la cabecera, así que el defecto alcanza **todas las
+   páginas**. Se corrige aquí y no en cada vista, que es donde se usa.
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .govco-search-basic .btn-clean-basic-govco,
+  .govco-search-basic .btn-search-basic-govco {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .govco-search-basic .container-govco,
+  .govco-search-basic .input-search-basic-govco {
+    min-height: 2.75rem;
+  }
+
+  .pie-pagina-govco .link-btn-govco,
+  .pie-pagina-govco .end-links-container a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+}
+
+/*
+  Los controles que faltaban para CAG-23.
+
+  La medición a 360 px dejó tres que no cubría la regla anterior: el logotipo de
+  la barra superior (71 × 40), los desplegables y campos (38 de alto) y las
+  casillas (16 × 16). El Kit cita expresamente el **logotipo de la barra
+  superior** en su página 7 al fijar los 44 px, así que su propio componente lo
+  incumple.
+
+  Los enlaces de texto dentro de una frase NO se tocan: el criterio habla de
+  punteros —objetivos que se pulsan— y WCAG exime explícitamente el texto
+  corrido. Aplicarles 44 px rompería la maquetación de cualquier párrafo con un
+  enlace dentro, que es justo lo contrario de lo que busca la norma.
+*/
+.enlace-logotipo-govco {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.form-control,
+.form-select {
+  min-height: 2.75rem;
+}
+
+/* La casilla necesita área de pulsación, no tamaño de cuadro: agrandar el cuadro
+   la deformaría y rompería la alineación con su etiqueta. */
+.form-check-input {
+  min-width: 1.25rem;
+  min-height: 1.25rem;
+}
+
+.form-check {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+/*
+  Los botones de contorno, a 44 px de alto.
+
+  Quedaban en 38. El criterio CAG-23 es del Kit y habla de objetivos que se
+  pulsan; un botón lo es, así que se le da la altura mínima. Las **casillas** no
+  se tocan: su cuadro mide 20 px a propósito —agrandarlo lo deformaría y
+  desalinearía su etiqueta— y su área de pulsación es la del `.form-check` que lo
+  envuelve, que sí llega a 44 px y es lo que el criterio mide en la práctica.
+*/
+.btn {
+  min-height: 2.75rem;
+}

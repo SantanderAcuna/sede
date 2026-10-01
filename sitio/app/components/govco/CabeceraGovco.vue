@@ -83,6 +83,18 @@ const {
         <!-- Hueco del buscador. Va entre los logotipos porque el Kit lo alinea a
              la derecha de la barra con `justify-content: space-between`. -->
         <slot name="buscador" />
+
+        <!--
+          Hueco para las acciones de la cabecera. Lo pide el Anexo 2.1, página 6,
+          que dibuja la cabecera de la sede con el logotipo de la autoridad, el
+          buscador **y el enlace «Iniciar Sesión»**. Va aquí, después del
+          buscador, porque así queda a la derecha de la barra, que es donde el
+          propio anexo lo sitúa en su maqueta.
+
+          Se expone como hueco y no se cablea dentro porque la cabecera no sabe
+          —ni debe— qué hace el enlace: quien la usa decide a dónde lleva.
+        -->
+        <slot name="acciones" />
       </div>
     </div>
 

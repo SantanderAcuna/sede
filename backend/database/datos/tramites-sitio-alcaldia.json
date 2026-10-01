@@ -1,0 +1,612 @@
+{
+  "_origen": {
+    "fuente": "Sitio del Distrito — «Trámites y servicios»",
+    "url": "https://www.santamarta.gov.co/tramites-y-servicios",
+    "obtenido_en": "2026-09-30",
+    "catalogo": "Las 118 entradas que el sitio del Distrito publica en su sección de trámites y servicios, con el código T al que enlaza cada una y el nombre con el que la rotula.",
+    "nota": "Copia congelada de la recolección hecha en investigacion/raw/tramites.json. Ese directorio no se versiona (.gitignore:69), así que el informe de conciliación necesita su propia copia: sin ella ni la integración continua ni un despliegue nuevo podrían conciliar nada.",
+    "no_se_siembra": "Esta lista NO es fuente de siembra. La fuente ratificada es el SUIT, y esta copia existe únicamente para que el informe pueda enumerar en qué discrepan los dos catálogos. Qué trámites tiene la Alcaldía es una decisión de la Entidad y no del programa.",
+    "duplicados": [
+      "T28597",
+      "T65978",
+      "T65981",
+      "T65989",
+      "T65992",
+      "T66057",
+      "T66256",
+      "T69149"
+    ]
+  },
+  "entradas": [
+    {
+      "codigo": "T41140",
+      "nombre": "Préstamo de parques y/o escenarios deportivos para realización de espectáculos de las artes escénicas",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41140"
+    },
+    {
+      "codigo": "T33046",
+      "nombre": "Registro de la publicidad exterior visual",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T33046"
+    },
+    {
+      "codigo": "T28962",
+      "nombre": "Inscripción de la Propiedad Horizontal",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28962"
+    },
+    {
+      "codigo": "T28964",
+      "nombre": "Inscripción y/o cambio de Representante Legal y/o Revisor Fiscal de Propiedad Horizontal",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28964"
+    },
+    {
+      "codigo": "T65684",
+      "nombre": "Duplicado de la licencia de tránsito de un vehículo automotor",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65684"
+    },
+    {
+      "codigo": "T65678",
+      "nombre": "Duplicado de placas de un vehículo automotor",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65678"
+    },
+    {
+      "codigo": "T65676",
+      "nombre": "Matrícula de vehículos automotores",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65676"
+    },
+    {
+      "codigo": "T41370",
+      "nombre": "Blindaje de un vehículo automotor",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41370"
+    },
+    {
+      "codigo": "T41257",
+      "nombre": "Cambio de carrocería de un vehículo automotor",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41257"
+    },
+    {
+      "codigo": "T14088",
+      "nombre": "Certificado de libertad y tradición de un vehículo automotor",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T14088"
+    },
+    {
+      "codigo": "T40952",
+      "nombre": "Inscripción de limitación o gravamen a la propiedad de un vehículo automotor",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T40952"
+    },
+    {
+      "codigo": "T66256",
+      "nombre": "Certificado de residencia",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66256"
+    },
+    {
+      "codigo": "T65962",
+      "nombre": "Supervisión delegado de sorteos y concursos",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65962"
+    },
+    {
+      "codigo": "T40900",
+      "nombre": "Autorización para la operación de juegos de suerte y azar en la modalidad de rifas",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T40900"
+    },
+    {
+      "codigo": "T40683",
+      "nombre": "Autorización para la operación de juegos de suerte y azar en la modalidad de promocionales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T40683"
+    },
+    {
+      "codigo": "T40740",
+      "nombre": "Auxilio para gastos de sepelio",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T40740"
+    },
+    {
+      "codigo": "T40866",
+      "nombre": "Concepto de excepción de juegos de suerte y azar en la modalidad de promocionales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T40866"
+    },
+    {
+      "codigo": "T40869",
+      "nombre": "Concepto de excepción de juegos de suerte y azar en la modalidad de rifas",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T40869"
+    },
+    {
+      "codigo": "T65963",
+      "nombre": "Concepto previo favorable para la realización de juegos de suerte y azar localizados",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65963"
+    },
+    {
+      "codigo": "T65960",
+      "nombre": "Derechos de explotación de juegos de suerte y azar en la modalidad de rifa",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65960"
+    },
+    {
+      "codigo": "T40674",
+      "nombre": "Devolución de elementos retenidos por ocupación ilegal del espacio público",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T40674"
+    },
+    {
+      "codigo": "T66139",
+      "nombre": "Esterilización canina y felina",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66139"
+    },
+    {
+      "codigo": "T66171",
+      "nombre": "Impuesto de espectáculos públicos",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66171"
+    },
+    {
+      "codigo": "T41351",
+      "nombre": "Licencia de exhumación de cadáveres",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41351"
+    },
+    {
+      "codigo": "T41360",
+      "nombre": "Permiso para demostraciones públicas de pólvora, artículos pirotécnicos o fuegos artificiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41360"
+    },
+    {
+      "codigo": "T41309",
+      "nombre": "Permiso para espectáculos públicos de las artes escénicas en escenarios no habilitados",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41309"
+    },
+    {
+      "codigo": "T41356",
+      "nombre": "Prórroga de sorteo de rifas",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41356"
+    },
+    {
+      "codigo": "T66133",
+      "nombre": "Registro de ejemplares caninos de manejo especial",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66133"
+    },
+    {
+      "codigo": "T65979",
+      "nombre": "Registro de extinción de la propiedad horizontal",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65979"
+    },
+    {
+      "codigo": "T65992",
+      "nombre": "Certificado de estratificación socioeconómica",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65992"
+    },
+    {
+      "codigo": "T41362",
+      "nombre": "Concepto de uso del suelo",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41362"
+    },
+    {
+      "codigo": "T66058",
+      "nombre": "Consulta preliminar para la formulación de planes de regularización",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66058"
+    },
+    {
+      "codigo": "T28597",
+      "nombre": "Copia certificada de planos",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28597"
+    },
+    {
+      "codigo": "T66070",
+      "nombre": "Determinantes para el ajuste de un plan parcial",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66070"
+    },
+    {
+      "codigo": "T66059",
+      "nombre": "Formulación y radicación del proyecto del plan parcial",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66059"
+    },
+    {
+      "codigo": "T66055",
+      "nombre": "Incorporación y entrega de las áreas de cesión a favor del municipio",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66055"
+    },
+    {
+      "codigo": "T65981",
+      "nombre": "Legalización urbanística de asentamientos humanos",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65981"
+    },
+    {
+      "codigo": "T65975",
+      "nombre": "Licencia de intervención del espacio público",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65975"
+    },
+    {
+      "codigo": "T65974",
+      "nombre": "Licencia de ocupación del espacio público para la localización de equipamiento",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65974"
+    },
+    {
+      "codigo": "T65978",
+      "nombre": "Modificación de plano urbanístico",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65978"
+    },
+    {
+      "codigo": "T14089",
+      "nombre": "Radicación de documentos para adelantar actividades de construcción y enajenación de inmuebles destinados a vivienda",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T14089"
+    },
+    {
+      "codigo": "T65973",
+      "nombre": "Registro de actividades relacionadas con enajacion de inmueble destinados a vivienda",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65973"
+    },
+    {
+      "codigo": "T28610",
+      "nombre": "Ajuste de Cotas y Áreas",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28610"
+    },
+    {
+      "codigo": "T66057",
+      "nombre": "Ajuste de un plan parcial adoptado",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66057"
+    },
+    {
+      "codigo": "T28614",
+      "nombre": "Aprobación de piscinas",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28614"
+    },
+    {
+      "codigo": "T65977",
+      "nombre": "Autorización de Ocupación de Inmuebles",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65977"
+    },
+    {
+      "codigo": "T13787",
+      "nombre": "Retiro de un hogar de la base de datos del sistema de identificación y clasificación de potenciales beneficiarios de programas sociales -SISBEN",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T13787"
+    },
+    {
+      "codigo": "T6139",
+      "nombre": "Actualización información en la base de datos del sistema de identificación y clasificación de potenciales beneficiario de programas sociales - SISBEN",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T6139"
+    },
+    {
+      "codigo": "T6113",
+      "nombre": "Encuesta del sistema de identificación y clasificación de potenciales beneficiarios de programas sociales - SISBEN",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T6113"
+    },
+    {
+      "codigo": "T6126",
+      "nombre": "Retiro de personas de la base de datos del sistema de identificación y clasificación de potenciales beneficiarios de programas sociales - SISBEN",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T6126"
+    },
+    {
+      "codigo": "T65981",
+      "nombre": "Legalización de Asentamientos Humanos (Legalización de Barrios)",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65981"
+    },
+    {
+      "codigo": "T65993",
+      "nombre": "Nomenclatura de barrio",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65993"
+    },
+    {
+      "codigo": "T65992",
+      "nombre": "Certificado de estratificación socioeconómica",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65992"
+    },
+    {
+      "codigo": "T66057",
+      "nombre": "Ajuste de un plan parcial adoptado",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66057"
+    },
+    {
+      "codigo": "T65978",
+      "nombre": "Modificación del plano urbanístico",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65978"
+    },
+    {
+      "codigo": "T28597",
+      "nombre": "Copia certificada de planos",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28597"
+    },
+    {
+      "codigo": "T65989",
+      "nombre": "Autorización sanitaria para la concesión de aguas para el consumo humano",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65989"
+    },
+    {
+      "codigo": "T69149",
+      "nombre": "Seguro por muerte a beneficiarios de docentes oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T69149"
+    },
+    {
+      "codigo": "T28726",
+      "nombre": "Sustitución pensional para docentes oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28726"
+    },
+    {
+      "codigo": "T73294",
+      "nombre": "Ampliación del servicio educativo",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T73294"
+    },
+    {
+      "codigo": "T41040",
+      "nombre": "Ascenso o reubicación de nivel salarial en el escalafón docente oficial",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41040"
+    },
+    {
+      "codigo": "T28736",
+      "nombre": "Auxilio funerario por fallecimiento de un docente pensionado",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28736"
+    },
+    {
+      "codigo": "T73295",
+      "nombre": "Cambio de nombre o razón social de un establecimiento educativo privado",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T73295"
+    },
+    {
+      "codigo": "T41403",
+      "nombre": "Cambio de propietario de un establecimiento educativo",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41403"
+    },
+    {
+      "codigo": "T73297",
+      "nombre": "Cambio de sede de un establecimiento educativo",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T73297"
+    },
+    {
+      "codigo": "T28632",
+      "nombre": "Cesantía definitiva para docentes oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28632"
+    },
+    {
+      "codigo": "T28596",
+      "nombre": "Cesantías definitivas a beneficiarios de un docente fallecido",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28596"
+    },
+    {
+      "codigo": "T28732",
+      "nombre": "Cesantías parciales para docentes oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28732"
+    },
+    {
+      "codigo": "T69222",
+      "nombre": "Cierre temporal o definitivo de programas de educación para el trabajo y el desarrollo humano",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T69222"
+    },
+    {
+      "codigo": "T73293",
+      "nombre": "Clasificación en el régimen de educación a un establecimiento educativo privado",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T73293"
+    },
+    {
+      "codigo": "T69232",
+      "nombre": "Clausura de un establecimiento educativo",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T69232"
+    },
+    {
+      "codigo": "T73296",
+      "nombre": "Concesión de reconocimiento de un establecimiento educativo oficial",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T73296"
+    },
+    {
+      "codigo": "T73498",
+      "nombre": "Fusión o conversión de establecimientos educativos oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T73498"
+    },
+    {
+      "codigo": "T67700",
+      "nombre": "Licencia de funcionamiento de instituciones educativas que ofrezcan programas de educación formal de adultos",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T67700"
+    },
+    {
+      "codigo": "T41311",
+      "nombre": "Licencia de funcionamiento para establecimientos educativos promovidos por particulares para prestar el servicio publico educativo en los niveles de preescolar, básica y media",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41311"
+    },
+    {
+      "codigo": "T41310",
+      "nombre": "Licencia de funcionamiento para las instituciones promovidas por particulares que ofrezcan el servicio educativo para el trabajo y el desarrollo humano",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41310"
+    },
+    {
+      "codigo": "T28612",
+      "nombre": "Pensión de jubilación para docentes oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28612"
+    },
+    {
+      "codigo": "T28611",
+      "nombre": "Pensión de jubilación por aportes",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28611"
+    },
+    {
+      "codigo": "T69151",
+      "nombre": "Pensión de retiro de invalidez para docentes oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T69151"
+    },
+    {
+      "codigo": "T28641",
+      "nombre": "Pensión de retiro por vejez para docentes oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28641"
+    },
+    {
+      "codigo": "T28640",
+      "nombre": "Pensión post-mortem para beneficiarios de docentes oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28640"
+    },
+    {
+      "codigo": "T69149",
+      "nombre": "Seguro por muerte a beneficiarios de docentes oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T69149"
+    },
+    {
+      "codigo": "T41173",
+      "nombre": "Registro de firmas de rectores, directores y secretario(a)s de establecimientos educativos",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41173"
+    },
+    {
+      "codigo": "T41366",
+      "nombre": "Registro o renovación de programas de las instituciones promovidas por particulares que ofrezcan el servicio educativo para el trabajo y el desarrollo",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41366"
+    },
+    {
+      "codigo": "T40800",
+      "nombre": "Reliquidación pensional para docentes oficiales",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T40800"
+    },
+    {
+      "codigo": "T66181",
+      "nombre": "Certificado de paz y salvo",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66181"
+    },
+    {
+      "codigo": "T66178",
+      "nombre": "Devolución y/o compensación de pagos en exceso y pagos de lo no debido por conceptos no tributarios",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66178"
+    },
+    {
+      "codigo": "T2676",
+      "nombre": "Exención del impuesto de espectáculos públicos",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T2676"
+    },
+    {
+      "codigo": "T2636",
+      "nombre": "Exención del impuesto predial unificado",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T2636"
+    },
+    {
+      "codigo": "T10962",
+      "nombre": "Apertura, registro y/o reemplazo de libros de las organizaciones comunales de primero y segundo grado",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T10962"
+    },
+    {
+      "codigo": "T40839",
+      "nombre": "Ascenso en el escalafón nacional docente",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T40839"
+    },
+    {
+      "codigo": "T6079",
+      "nombre": "Cancelación del registro de contribuyentes del impuesto de industria y comercio",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T6079"
+    },
+    {
+      "codigo": "T66107",
+      "nombre": "Corrección de errores e inconsistencias en declaraciones y recibos de pago",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66107"
+    },
+    {
+      "codigo": "T2651",
+      "nombre": "Exención del impuesto de industria y comercio",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T2651"
+    },
+    {
+      "codigo": "T66105",
+      "nombre": "Facilidades de pago para los deudores de obligaciones no tributarias",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66105"
+    },
+    {
+      "codigo": "T6084",
+      "nombre": "Facilidades de pago para los deudores de obligaciones tributarias",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T6084"
+    },
+    {
+      "codigo": "T2674",
+      "nombre": "Impuesto de industria y comercio y su complementario de avisos y tableros",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T2674"
+    },
+    {
+      "codigo": "T2621",
+      "nombre": "Impuesto predial unificado",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T2621"
+    },
+    {
+      "codigo": "T10912",
+      "nombre": "Inscripción de dignatarios de las organizaciones comunales de primero y segundo grado",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T10912"
+    },
+    {
+      "codigo": "T10936",
+      "nombre": "Inscripción o reforma de estatutos de las organizaciones comunales de primero y segundo grado",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T10936"
+    },
+    {
+      "codigo": "T6071",
+      "nombre": "Modificación en el registro de contribuyentes del impuesto de industria y comercio",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T6071"
+    },
+    {
+      "codigo": "T40684",
+      "nombre": "Permiso para espectáculos públicos diferentes a las artes escénicas",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T40684"
+    },
+    {
+      "codigo": "T6082",
+      "nombre": "Registro de contribuyentes del impuesto de industria y comercio",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T6082"
+    },
+    {
+      "codigo": "T65989",
+      "nombre": "Autorización sanitaria para la concesión de aguas para el consumo humano",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T65989"
+    },
+    {
+      "codigo": "T28661",
+      "nombre": "Traslado de cadáveres",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28661"
+    },
+    {
+      "codigo": "T28666",
+      "nombre": "Vacunación antirrábica de caninos y felinos",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28666"
+    },
+    {
+      "codigo": "T66452",
+      "nombre": "Apertura de los centros de estética y similares",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66452"
+    },
+    {
+      "codigo": "T28648",
+      "nombre": "Solicitud Concepto Sanitario",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28648"
+    },
+    {
+      "codigo": "T66456",
+      "nombre": "Licencia de inhumación de cadáveres",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66456"
+    },
+    {
+      "codigo": "T41353",
+      "nombre": "Licencia para la cremación de cadáveres",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T41353"
+    },
+    {
+      "codigo": "T87545",
+      "nombre": "Cambio de propietario",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T87545"
+    },
+    {
+      "codigo": "T87945",
+      "nombre": "Inscripción de mejora por construcciones o edificaciones en predio ajeno",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T87945"
+    },
+    {
+      "codigo": "T87635",
+      "nombre": "Auto estimación de avalúo",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T87635"
+    },
+    {
+      "codigo": "T87636",
+      "nombre": "Revisión de avalúo",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T87636"
+    },
+    {
+      "codigo": "T87648",
+      "nombre": "Certificado catastral",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T87648"
+    },
+    {
+      "codigo": "T28650",
+      "nombre": "Reconocimiento deportivo a clubes deportivos, clubes promotores y clubes pertenecientes a entidades no deportivas",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28650"
+    },
+    {
+      "codigo": "T28651",
+      "nombre": "Renovación del reconocimiento deportivo a clubes deportivos, clubes promotores y clubes pertenecientes a entidades no deportivas",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T28651"
+    },
+    {
+      "codigo": "T66256",
+      "nombre": "Certificado de residencia",
+      "url": "https://www.gov.co/ficha-tramites-y-servicios/T66256"
+    }
+  ]
+}

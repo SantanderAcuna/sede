@@ -28,6 +28,12 @@ const codigo = ref('')
       required
     />
 
-    <BaseButton type="submit" block size="lg">Verificar e ingresar</BaseButton>
+    <BaseButton type="submit" block size="lg" disabled>Verificar e ingresar</BaseButton>
+
+    <!-- Igual que en la entrada: sin módulo de identidad no hay verificación, y
+         el botón no puede aparentar que la hace. -->
+    <p class="text-xs text-center text-ink-muted">
+      Previsualización: la verificación todavía no está conectada.
+    </p>
   </form>
 </template>

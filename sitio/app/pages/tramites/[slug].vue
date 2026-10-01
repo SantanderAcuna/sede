@@ -42,6 +42,7 @@
  * acordaron de ponerlo.
  */
 import type { components } from '~~/types/openapi'
+import { useMetadatosComparticion } from '~/composables/useMetadatosComparticion'
 
 // ---------------------------------------------------------------------------
 // Modelo
@@ -328,6 +329,17 @@ const procedencia = computed(() => tramite.value?.procedencia ?? null)
 
 const nombreFicha = computed<string>(() => tramite.value?.nombre ?? 'Trámite')
 
+/*
+ * La vista previa de un trámite compartido tiene que decir **de qué trámite se
+ * trata**, no «Trámites y servicios» (D-29). El título sale de la ficha ya
+ * cargada; la descripción, de su resumen, que es texto del contrato y no una
+ * frase escrita para la ocasión.
+ */
+useMetadatosComparticion({
+  titulo: () => `${nombreFicha.value} · Trámites y servicios`,
+  descripcion: () => tramite.value?.resumen ?? undefined,
+})
+
 useHead({
   title: () => `${nombreFicha.value} · Trámites y servicios · Sede Electrónica`,
   meta: [
@@ -410,7 +422,7 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
             dónde lleva: quien lo pulsa sale de la Sede y tiene derecho a saberlo
             antes.
           -->
-          <p class="origen-ficha mb-4">
+          <p class="mb-4">
             <a :href="tramite.url_ficha_gov_co" class="enlace-externo">
               Ficha oficial de este trámite en GOV.CO
             </a>

@@ -33,6 +33,13 @@ onBeforeUnmount(() => window.removeEventListener('scroll', alDesplazar))
 </script>
 
 <template>
+  <!--
+    Vive fuera de `.contenido-filtrable` —lo monta así la disposición—, porque
+    los modos de contraste «colores invertidos» y «escala de grises» aplican un
+    `filter` a ese envoltorio y un `filter` convierte a su elemento en bloque
+    contenedor de los descendientes con `position: fixed`: dentro, este botón
+    dejaría de estar anclado a la ventana y bajaría con el documento.
+  -->
   <div v-show="visible" class="posicion-volver-arriba">
     <button type="button" class="volver-arriba-govco" aria-label="Volver arriba" @click="subir">
       <span class="govco-expand_circle_up" aria-hidden="true" />

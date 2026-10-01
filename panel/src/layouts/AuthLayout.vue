@@ -13,10 +13,16 @@ import AppLogo from '@/components/base/AppLogo.vue';
         <p class="text-white/90 text-lg max-w-md">
           Administración eficiente, transparente y centrada en el ciudadano. Cumplimiento GOV.CO, Decreto 620 y MIPG.
         </p>
+        <!--
+          Se retiró la etiqueta de doble factor: el panel no tiene MFA —ni
+          autenticación— todavía, y anunciarlo en la misma pantalla de acceso que
+          D-04 señaló era repetir la afirmación falsa en otro sitio. Las otras
+          dos etiquetas se conservan: describen la referencia de diseño del Kit
+          y el nivel al que aspira la interfaz, no un estado de seguridad.
+        -->
         <div class="flex flex-wrap gap-2 pt-2">
           <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white/10 ring-1 ring-white/20">GOV.CO</span>
           <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white/10 ring-1 ring-white/20">WCAG 2.1 AA</span>
-          <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white/10 ring-1 ring-white/20">MFA TOTP</span>
         </div>
       </div>
 

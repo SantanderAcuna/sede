@@ -55,9 +55,9 @@ const etiquetaAccesible = computed(() => {
             enlace, porque un enlace a la página en la que ya se está no lleva a
             ninguna parte y confunde a quien navega con teclado.
           -->
-          <a v-if="nivel.ruta && indice < niveles.length - 1" :href="nivel.ruta">
+          <NuxtLink v-if="nivel.ruta && indice < niveles.length - 1" :to="nivel.ruta">
             {{ nivel.etiqueta }}
-          </a>
+          </NuxtLink>
           <span v-else aria-current="page">{{ nivel.etiqueta }}</span>
         </li>
       </ul>

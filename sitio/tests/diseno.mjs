@@ -669,7 +669,8 @@ try {
       const visibles = [...formulario.querySelectorAll('input, select, textarea')].filter(
         (campo) =>
           campo.getBoundingClientRect().width > 0 &&
-          !['hidden', 'submit', 'button', 'radio', 'checkbox'].includes(campo.type ?? ''),
+          // Los `file` quedan fuera: `autocomplete` no aplica a un campo de archivos.
+          !['hidden', 'submit', 'button', 'radio', 'checkbox', 'file'].includes(campo.type ?? ''),
       )
       const sinAutocomplete = visibles.filter((campo) => !campo.hasAttribute('autocomplete'))
       // El estado deshabilitado se mide sobre un control real creado al efecto:
@@ -687,6 +688,33 @@ try {
     return {
       ok: r.visibles > 0 && r.sinAutocomplete === 0 && legible,
       detalle: `${r.visibles} campos visibles · ${r.sinAutocomplete} sin autocomplete · deshabilitado: opacidad ${r.estadoDeshabilitado.opacidad}, fondo ${r.estadoDeshabilitado.fondo}`,
+    }
+  })
+
+  // ── RN-B1-010 + RF-B1-033 · Sin restricciones técnicas en los adjuntos ────
+  await comprobar('RN-B1-010', 'El campo de adjuntos no impone restricciones técnicas', async () => {
+    await portada.goto(`${base}/realizar-una-peticion`, { waitUntil: 'networkidle' })
+    const r = await portada.evaluate(() => {
+      const campo = document.querySelector('#adjuntos')
+      if (!campo) return null
+      return {
+        tipo: campo.type,
+        multiple: campo.multiple,
+        accept: campo.getAttribute('accept'),
+        maxlength: campo.getAttribute('maxlength'),
+        ayuda: (document.querySelector('#ayuda-adjuntos')?.textContent ?? '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 80),
+      }
+    })
+    if (!r) return { ok: false, detalle: 'no se encontró el campo de adjuntos (#adjuntos)' }
+    // RN-B1-010 prohíbe limitar formatos, tamaños y cantidad: si alguien añade
+    // `accept` o un tope, esta comprobación falla.
+    const ok = r.tipo === 'file' && r.multiple === true && r.accept === null && r.maxlength === null
+    return {
+      ok,
+      detalle: `type=${r.tipo} · multiple=${r.multiple} · accept=${r.accept ?? 'ninguno'} · maxlength=${r.maxlength ?? 'ninguno'}`,
     }
   })
 

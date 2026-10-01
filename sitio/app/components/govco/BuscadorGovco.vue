@@ -109,6 +109,7 @@ function alSalirFoco(evento: FocusEvent): void {
         v-model="termino"
         class="input-search-basic-govco"
         type="text"
+        autocomplete="off"
         :placeholder="placeholder"
         @keydown.esc.prevent="alPulsarTecla"
       >

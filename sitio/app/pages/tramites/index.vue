@@ -337,6 +337,33 @@ const cargando = computed<boolean>(() => status.value === 'pending' || status.va
 const fallo = computed<boolean>(() => status.value === 'error')
 
 /**
+ * Aviso de carga prolongada (CAG-29).
+ *
+ * El criterio pide que, si la operación supera los diez segundos, se informe del
+ * progreso. Un catálogo que se queda en «Cargando…» indefinidamente deja a quien
+ * lo mira sin saber si el sistema está trabajando o se ha caído, y a los diez
+ * segundos ya hay motivo para decirlo.
+ */
+const SEGUNDOS_ANTES_DE_AVISAR = 10
+const tardaDemasiado = ref(false)
+let temporizadorAviso: ReturnType<typeof setTimeout> | undefined
+
+watch(
+  cargando,
+  (estaCargando) => {
+    clearTimeout(temporizadorAviso)
+    tardaDemasiado.value = false
+    if (!estaCargando) return
+    temporizadorAviso = setTimeout(() => {
+      tardaDemasiado.value = true
+    }, SEGUNDOS_ANTES_DE_AVISAR * 1000)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => clearTimeout(temporizadorAviso))
+
+/**
  * Sin respuesta buena no hay páginas que ofrecer. La paginación se sigue
  * dibujando —el Anexo la pide como parte del mecanismo de acceso— pero con los
  * dos extremos apagados, en vez de invitar a pulsar sobre un catálogo que no se
@@ -616,7 +643,7 @@ function reintentar(): void {
       estuviera dentro, quien navega por encabezados oiría «Trámites. Trámites y
       servicios que la Entidad tiene disponibles» cada vez que pasa por él.
     -->
-    <div class="grupo-encabezado mt-3">
+    <div class="mt-3">
       <h2 class="h5 d-inline mb-0">{{ grupo.nombre }}</h2>
       <span class="descripcion-grupo">{{ grupo.descripcion }}</span>
     </div>
@@ -659,7 +686,7 @@ function reintentar(): void {
       región viva: dentro, cada recuento nuevo lo volvería a anunciar.
     -->
     <div class="barra-resumen mt-2">
-      <div class="resumen" role="status">
+      <div role="status">
         <p class="resumen-cuenta mb-0">{{ resumenResultados }}</p>
       </div>
       <button
@@ -680,7 +707,13 @@ function reintentar(): void {
       vez de disfrazarse de vacío, y sólo con una respuesta buena y sin elementos
       se habla de vacío.
     -->
-    <p v-if="cargando" class="estado-vacio mt-2">Cargando el catálogo…</p>
+    <p v-if="cargando" class="estado-vacio mt-2" role="status">
+      Cargando el catálogo…
+      <span v-if="tardaDemasiado" class="aviso-carga-larga">
+        La consulta está tardando más de lo habitual. Seguimos esperando la respuesta del
+        servicio; si no llega, podrá intentarlo de nuevo.
+      </span>
+    </p>
 
     <!--
       Que la API no conteste no es que no haya trámites. Se dice lo que ha pasado
@@ -737,7 +770,7 @@ function reintentar(): void {
           faculta, que es lo que el SUIT no declara por atributo y lo que la Sede
           sí puede sostener.
         -->
-        <NuxtLink class="enlace-ficha d-block mb-2" :to="`/tramites/${elemento.slug}`">
+        <NuxtLink class="d-block mb-2" :to="`/tramites/${elemento.slug}`">
           Ver la ficha completa<span class="solo-lectores">: {{ elemento.nombre }}</span>
         </NuxtLink>
 
@@ -1059,3 +1092,13 @@ function reintentar(): void {
   white-space: nowrap;
 }
 </style>
+
+/*
+  El aviso de carga prolongada (CAG-29). Se separa en su propia línea para que se
+  lea como una aclaración y no se confunda con el texto de carga.
+*/
+.aviso-carga-larga {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--govcolor-matterhorn, #4c4c4c);
+}

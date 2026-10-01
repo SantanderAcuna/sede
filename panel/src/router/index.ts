@@ -11,11 +11,22 @@
  * El permiso se declara en la ruta, pero **el backend vuelve a comprobarlo**:
  * la interfaz no es un control de seguridad.
  *
+ * Las tres reglas de arriba se aplican de verdad en `beforeEach`, contra el
+ * almacén de sesión (`src/stores/sesion.ts`). Ese almacén hoy siempre está
+ * vacío —el módulo de identidad no existe—, así que la consecuencia real y
+ * buscada es que **sin sesión no se entra al panel** y la entrada explica que
+ * la autenticación todavía no está implementada. Se prefiere una guardia que
+ * bloquea a una guardia decorativa: dejar pasar «para la demo» convertiría el
+ * panel en una superficie abierta que finge estar protegida.
+ *
  * Los módulos del diseño que aún no tienen implementación comparten una única
  * vista de marcador y se declaran aquí con su título. Así el menú está completo
  * y ningún enlace queda muerto, sin dieciocho archivos casi idénticos.
  */
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+
+import { PERMISO_POR_RUTA } from '@/config/permisos'
+import { useSesionStore } from '@/stores/sesion'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -31,7 +42,10 @@ declare module 'vue-router' {
   }
 }
 
-const TITULO_BASE = 'Panel · Sede Electrónica de Santa Marta'
+// Un solo nombre de producto en el panel (D-47): el mismo que publica
+// `index.html` y el mismo que dibuja `AppLogo`. La pestaña no cambia de nombre
+// al navegar, sólo le antepone el título del módulo.
+const TITULO_BASE = 'SGDI · Alcaldía Distrital de Santa Marta'
 
 /** Módulos del panel. Comparten marcador hasta que cada uno se implemente. */
 const MODULOS: Array<{ ruta: string; nombre: string; titulo: string; subtitulo: string }> = [
@@ -64,14 +78,21 @@ const rutas: RouteRecordRaw[] = [
         path: '',
         name: 'panel.inicio',
         component: () => import('@/views/admin/InicioView.vue'),
-        meta: { requiereSesion: true, permiso: 'panel-administrative', titulo: 'Dashboard' },
+        // El permiso sale del mapa compartido y no de una cadena suelta: la
+        // misma entrada alimenta el menú lateral, así que no pueden divergir.
+        meta: { requiereSesion: true, permiso: PERMISO_POR_RUTA['/'], titulo: 'Dashboard' },
       },
       ...MODULOS.map(
         (modulo): RouteRecordRaw => ({
           path: modulo.ruta,
           name: modulo.nombre,
           component: () => import('@/views/admin/EnConstruccionView.vue'),
-          meta: { requiereSesion: true, titulo: modulo.titulo, subtitulo: modulo.subtitulo },
+          meta: {
+            requiereSesion: true,
+            permiso: PERMISO_POR_RUTA[`/${modulo.ruta}`],
+            titulo: modulo.titulo,
+            subtitulo: modulo.subtitulo,
+          },
         }),
       ),
     ],
@@ -98,7 +119,10 @@ const rutas: RouteRecordRaw[] = [
     path: '/sin-permiso',
     name: 'sin-permiso',
     component: () => import('@/views/acceso/SinPermisoView.vue'),
-    meta: { layout: 'blank', titulo: 'Sin permiso' },
+    // Pide sesión: decirle «no tiene permiso» a quien ni siquiera ha entrado
+    // confunde más que ayudar. Sin sesión se va a la entrada, como en el resto
+    // del panel; con sesión pero sin el permiso del módulo, sí se explica aquí.
+    meta: { requiereSesion: true, layout: 'blank', titulo: 'Sin permiso' },
   },
   {
     path: '/:ruta(.*)*',
@@ -114,6 +138,33 @@ const enrutador = createRouter({
   history: createWebHistory('/admin'),
   routes: rutas,
   scrollBehavior: () => ({ top: 0 }),
+})
+
+/**
+ * Guardias de navegación.
+ *
+ * Aplican los tres metadatos que las rutas ya declaraban y que hasta ahora no
+ * leía nadie. El orden importa: primero la sesión (no se entra al panel sin
+ * ella), después el permiso (con sesión, pero sin el permiso del módulo se
+ * explica la situación en `sin-permiso`), y por último `soloInvitados` (quien
+ * ya entró no vuelve a la pantalla de acceso).
+ */
+enrutador.beforeEach((destino) => {
+  const sesion = useSesionStore()
+
+  if (destino.meta.requiereSesion && !sesion.iniciada) {
+    return { name: 'acceso.entrar' }
+  }
+
+  if (destino.meta.permiso && !sesion.tienePermiso(destino.meta.permiso)) {
+    return { name: 'sin-permiso' }
+  }
+
+  if (destino.meta.soloInvitados && sesion.iniciada) {
+    return { name: 'panel.inicio' }
+  }
+
+  return true
 })
 
 enrutador.afterEach((destino) => {

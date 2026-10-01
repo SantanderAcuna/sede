@@ -336,6 +336,111 @@ const refAvisoDeEnvio = ref<HTMLElement | null>(null)
 /** Si ya se intentó enviar y el aviso de que no se radica nada está a la vista. */
 const intentoDeEnvio = ref(false)
 
+/* ==========================================================================
+   Pasos del formulario (RF-B2-077, CAG-20, Sección 3:360)
+   ==========================================================================
+
+   RF-B2-077 (Must) pide que un proceso largo se subdivida en **pasos numerados**
+   y su criterio de aceptación describe exactamente esto: «Paso 1 de 5» con los
+   pasos pendientes identificables. CAG-20 añade la línea de avance y permite
+   **saltar los pasos libremente**, que es la opción elegida aquí: bloquear un
+   paso sin poder mirarlo obliga a rellenarlo a ciegas.
+
+   El formulario ya tenía tres bloques con sentido propio —solicitud, datos del
+   solicitante y autorización—, así que los pasos no se inventan: se hacen
+   visibles. Cada paso se valida antes de dejar avanzar, para no enviar a nadie al
+   final con campos vacíos detrás.
+*/
+interface PasoDelFormulario {
+  /** Nombre del paso, tal y como lo lee quien lo usa. */
+  nombre: string
+  /** Campos que se comprueban antes de dejar salir de este paso. */
+  campos: readonly Campo[]
+}
+
+const PASOS: readonly PasoDelFormulario[] = [
+  { nombre: 'Solicitud', campos: ['tipoSolicitud', 'descripcion'] },
+  {
+    nombre: 'Datos del solicitante',
+    campos: [
+      'tipoPersona',
+      'razonSocial',
+      'primerNombre',
+      'primerApellido',
+      'tipoDocumento',
+      'numeroDocumento',
+      'correo',
+      'confirmacionCorreo',
+    ],
+  },
+  { nombre: 'Autorización y envío', campos: ['autorizacion'] },
+]
+
+const totalPasos = PASOS.length
+const pasoActual = ref(0)
+
+/**
+ * Un paso está completo cuando sus campos son válidos, **no** cuando queda a la
+ * izquierda del actual. La diferencia importa desde que CAG-20 permite saltar
+ * libremente: saltar al último paso no convierte en completados los anteriores, y
+ * decir lo contrario sería mentir en la línea de avance.
+ */
+const validacion = computed<Partial<Record<Campo, string>>>(() => validar())
+
+function pasoCompleto(indice: number): boolean {
+  const campos = PASOS[indice]?.campos ?? []
+  return campos.every((campo) => !validacion.value[campo])
+}
+const pasoVigente = computed<PasoDelFormulario | undefined>(() => PASOS[pasoActual.value])
+/** Destino del foco al cambiar de paso: sin él, el teclado se queda perdido. */
+const refLineaDePasos = ref<HTMLElement | null>(null)
+
+function irAPaso(indice: number): void {
+  if (indice < 0 || indice >= totalPasos) return
+  pasoActual.value = indice
+  void nextTick(() => refLineaDePasos.value?.focus())
+}
+
+/** Salta a un paso concreto desde la línea de avance (CAG-20 lo permite). */
+function saltarAPaso(indice: number): void {
+  irAPaso(indice)
+}
+
+/**
+ * Avanza sólo si el paso actual está completo. Si no lo está, se muestran los
+ * errores y el foco va al primer campo marcado, igual que al enviar: el paso no
+ * se cierra «a medias» ni se deja avanzar en silencio.
+ */
+function avanzar(): void {
+  const delPaso = new Set<Campo>(PASOS[pasoActual.value]?.campos ?? [])
+  const todos = validar()
+
+  /*
+   * Sólo se marcan los fallos **del paso que se está rellenando**. Marcar los de
+   * los pasos siguientes —que están ocultos— haría que aparecieran ya en rojo al
+   * llegar a ellos, antes de que nadie los haya tocado.
+   */
+  errores.value = Object.fromEntries(
+    Object.entries(todos).filter(([campo]) => delPaso.has(campo as Campo)),
+  ) as Partial<Record<Campo, string>>
+
+  const falla = Object.keys(errores.value).length > 0
+
+  if (falla) {
+    intentoDeEnvio.value = false
+    void nextTick(() => {
+      refFormulario.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+    })
+    return
+  }
+
+  irAPaso(pasoActual.value + 1)
+}
+
+function retroceder(): void {
+  irAPaso(pasoActual.value - 1)
+}
+
 /**
  * Al cambiar de modalidad se descartan los errores acumulados: los campos que se
  * ocultan ya no se pueden corregir, y dejar vivo el error de un campo que el
@@ -361,6 +466,21 @@ async function enviar(): Promise<void> {
 
   if (Object.keys(errores.value).length > 0) {
     intentoDeEnvio.value = false
+
+    /*
+      Si el primer fallo está en un paso **anterior** —cosa posible porque CAG-20
+      permite saltar libremente— hay que llevar a la persona a ese paso antes de
+      enfocar. Los campos marcados están ocultos (`display: none`), el foco no se
+      puede poner en un elemento que no se ve, y el botón de enviar parecería no
+      hacer nada. Lo cazó la comprobación de la puerta, no el typecheck.
+    */
+    const pasoConFallo = PASOS.findIndex((paso) =>
+      paso.campos.some((campo) => errores.value[campo] !== undefined),
+    )
+    if (pasoConFallo >= 0 && pasoConFallo !== pasoActual.value) {
+      pasoActual.value = pasoConFallo
+    }
+
     await nextTick()
     /*
       El foco va al primer control marcado como inválido. Sin esto, quien navega
@@ -410,8 +530,70 @@ async function enviar(): Promise<void> {
       </p>
     </div>
 
-    <form ref="refFormulario" class="formulario-pqrsd" novalidate @submit.prevent="enviar">
-      <h2 class="h3 mt-5">Solicitud</h2>
+    <form
+      ref="refFormulario"
+      class="formulario-pqrsd"
+      novalidate
+      aria-describedby="leyenda-obligatorios"
+      @submit.prevent="enviar"
+    >
+      <!--
+        Línea de avance (CAG-20) con el patrón «Paso N de M» que fija
+        `Sección 3:360`. Los pasos son botones —se puede saltar a cualquiera— y
+        cada uno dice en texto si está completado, es el actual o está pendiente:
+        el estado no se transmite sólo con color.
+      -->
+      <nav
+        ref="refLineaDePasos"
+        class="pasos-formulario"
+        tabindex="-1"
+        :aria-label="`Paso ${pasoActual + 1} de ${totalPasos}: ${pasoVigente?.nombre ?? ''}`"
+      >
+        <p class="pasos-encabezado">
+          <strong>Paso {{ pasoActual + 1 }} de {{ totalPasos }}:</strong>
+          {{ pasoVigente?.nombre }}
+        </p>
+        <ol class="pasos-lista">
+          <li v-for="(paso, indice) in PASOS" :key="paso.nombre">
+            <button
+              type="button"
+              class="paso"
+              :class="{
+                'paso-actual': indice === pasoActual,
+                'paso-hecho': indice !== pasoActual && pasoCompleto(indice),
+              }"
+              :aria-current="indice === pasoActual ? 'step' : undefined"
+              @click="saltarAPaso(indice)"
+            >
+              <span class="paso-numero" aria-hidden="true">{{ indice + 1 }}</span>
+              <span class="paso-nombre">{{ paso.nombre }}</span>
+              <span class="paso-estado">
+                {{
+                  indice === pasoActual
+                    ? 'actual'
+                    : pasoCompleto(indice)
+                      ? 'completado'
+                      : 'pendiente'
+                }}
+              </span>
+            </button>
+          </li>
+        </ol>
+      </nav>
+
+      <div v-show="pasoActual === 0" class="paso-contenido">
+        <h2 class="h3 mt-4">Solicitud</h2>
+
+      <!--
+        CAG-16: la leyenda que explica el asterisco, **antes** del primer campo.
+        Sin ella, el asterisco es un símbolo que cada quien interpreta como puede.
+        Los asteriscos van con `aria-hidden` porque quien usa lector de pantalla
+        ya oye «obligatorio»: el campo lleva el atributo `required`, así que el
+        símbolo es para quien ve, y repetirlo sería ruido.
+      -->
+      <p id="leyenda-obligatorios" class="leyenda-obligatorios">
+        Los campos marcados con <span class="asterisco" aria-hidden="true">*</span> son obligatorios.
+      </p>
 
       <div class="row">
         <div class="col-lg-8">
@@ -422,6 +604,7 @@ async function enviar(): Promise<void> {
 
             <select
               id="tipoSolicitud"
+                autocomplete="off"
               v-model="datos.tipoSolicitud"
               class="form-select"
               required
@@ -463,6 +646,7 @@ async function enviar(): Promise<void> {
 
             <textarea
               id="descripcion"
+                autocomplete="off"
               v-model="datos.descripcion"
               class="form-control"
               rows="6"
@@ -535,8 +719,15 @@ async function enviar(): Promise<void> {
         </p>
       </div>
 
-      <!-- ================= Datos del solicitante ================= -->
-      <h2 class="h3 mt-5">Datos del solicitante</h2>
+        <p class="pasos-navegacion">
+          <button type="button" class="btn-govco fill-btn-govco" @click="avanzar">
+            Continuar a «Datos del solicitante»
+          </button>
+        </p>
+      </div>
+
+      <div v-show="pasoActual === 1" class="paso-contenido">
+        <h2 class="h3 mt-4">Datos del solicitante</h2>
 
       <div class="row">
         <div class="col-lg-10">
@@ -544,10 +735,14 @@ async function enviar(): Promise<void> {
             A continuación completa tus datos para darte respuesta a tu solicitud
           </p>
 
-          <p class="leyenda-obligatorios">
-            <strong>Los campos en asterisco (*) son obligatorios</strong>. Los demás son
-            opcionales.
-          </p>
+          <!--
+            La leyenda de obligatorios está al principio del formulario, no aquí:
+            los dos primeros campos ya son obligatorios y quien rellenaba el
+            formulario se encontraba el asterisco antes que su explicación
+            (CAG-16). Aquí se recuerda sólo lo que aporta algo nuevo: que lo no
+            marcado es opcional.
+          -->
+          <p class="leyenda-obligatorios">Los campos sin asterisco son opcionales.</p>
         </div>
       </div>
 
@@ -561,6 +756,7 @@ async function enviar(): Promise<void> {
 
             <select
               id="tipoPersona"
+                autocomplete="off"
               v-model="datos.tipoPersona"
               class="form-select"
               required
@@ -704,6 +900,7 @@ async function enviar(): Promise<void> {
 
               <select
                 id="tipoDocumento"
+                  autocomplete="off"
                 v-model="datos.tipoDocumento"
                 class="form-select"
                 required
@@ -737,6 +934,7 @@ async function enviar(): Promise<void> {
 
               <input
                 id="numeroDocumento"
+                  autocomplete="off"
                 v-model="datos.numeroDocumento"
                 class="form-control"
                 type="text"
@@ -862,11 +1060,25 @@ async function enviar(): Promise<void> {
         </div>
       </div>
 
+        <p class="pasos-navegacion">
+          <button type="button" class="btn-govco outline-btn-govco" @click="retroceder">
+            Volver a «Solicitud»
+          </button>
+          <button type="button" class="btn-govco fill-btn-govco" @click="avanzar">
+            Continuar a «Autorización y envío»
+          </button>
+        </p>
+      </div>
+
+      <div v-show="pasoActual === 2" class="paso-contenido">
+        <h2 class="h3 mt-4">Autorización y envío</h2>
+
       <!-- Autorización del tratamiento de datos -->
       <div v-if="esPersonal" class="mb-4">
         <div class="form-check">
           <input
             id="autorizacion"
+            autocomplete="off"
             v-model="datos.autorizacion"
             class="form-check-input"
             type="checkbox"
@@ -907,7 +1119,10 @@ async function enviar(): Promise<void> {
         Recuerde: al pulsar este botón <strong>no se radica ninguna solicitud</strong>.
       </p>
 
-      <p class="mb-0">
+      <p class="pasos-navegacion">
+        <button type="button" class="btn-govco outline-btn-govco" @click="retroceder">
+          Volver a «Datos del solicitante»
+        </button>
         <button
           class="btn-govco fill-btn-govco boton-enviar"
           type="submit"
@@ -916,6 +1131,7 @@ async function enviar(): Promise<void> {
           Enviar la solicitud
         </button>
       </p>
+      </div>
     </form>
 
     <!--
@@ -1095,3 +1311,85 @@ button.btn-govco.boton-enviar {
   padding-right: 1.5rem;
 }
 </style>
+
+/* ==========================================================================
+   Línea de avance del formulario (RF-B2-077, CAG-20, Sección 3:360)
+   ==========================================================================
+
+   Los pasos son botones, no una barra decorativa: CAG-20 permite saltar entre
+   ellos y saltar es lo que deja consultar un paso antes de rellenarlo. El estado
+   de cada uno —actual, completado, pendiente— se dice **en texto**, no sólo con
+   color, porque el color no lo lee todo el mundo.
+
+   Contrastes medidos sobre su fondo: cobalto sobre Solitude 7,13:1 (paso actual),
+   Havelock Lue sobre blanco 4,67:1 (completado), Matterhorn sobre blanco 8,59:1
+   (pendiente). Los tres pasan el 4,5:1 de texto normal y el 3:1 del indicador de
+   foco.
+*/
+.pasos-formulario {
+  margin: 1.5rem 0 0;
+}
+
+.pasos-encabezado {
+  margin-bottom: 0.75rem;
+  font-size: 1.0625rem;
+}
+
+.pasos-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-left: 0;
+  margin-bottom: 1.5rem;
+  list-style: none;
+}
+
+.paso {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.875rem;
+  border: 0.125rem solid var(--govcolor-silver, #cccccc);
+  border-radius: 1.5rem;
+  background-color: var(--govcolor-white, #ffffff);
+  color: var(--govcolor-matterhorn, #4c4c4c);
+  font-family: 'Nunito_Sans-Regular', system-ui, sans-serif;
+  font-size: 0.9375rem;
+  text-align: left;
+}
+
+.paso-numero {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0.125rem solid currentColor;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.paso-estado {
+  font-size: 0.8125rem;
+  text-decoration: underline;
+}
+
+.paso-hecho {
+  border-color: var(--govcolor-havelock-lue, #4672c8);
+  color: var(--govcolor-havelock-lue, #4672c8);
+}
+
+.paso-actual {
+  border-color: var(--govcolor-cobalt, #0943b5);
+  background-color: var(--govcolor-solitude, #e5ecf8);
+  color: var(--govcolor-cobalt, #0943b5);
+  font-family: 'Nunito_Sans-Bold', system-ui, sans-serif;
+}
+
+.pasos-navegacion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0;
+}

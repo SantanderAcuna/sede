@@ -218,8 +218,16 @@ const tipos: TipoDeSolicitud[] = [
           sanitaria, no los base. Publicarlos habría sido un error con
           consecuencias para el ciudadano.
         -->
-        <div class="table-responsive">
-          <table class="tabla-govco">
+        <!--
+          `tabla-govco` va en el **contenedor** y no en la tabla: el Kit estiliza
+          por descendencia (`.tabla-govco table`, las filas alternas, el
+          encabezado fijo) y con la clase puesta en el `<table>` ninguna de esas
+          reglas se aplicaba. El contenedor del Kit ya trae `overflow: auto`, de
+          modo que hace también el trabajo que aquí hacía el `table-responsive`
+          de Bootstrap.
+        -->
+        <div class="tabla-govco">
+          <table>
             <caption class="text2-govco">
               Términos para resolver las peticiones, según el artículo 14 del Código
               de Procedimiento Administrativo y de lo Contencioso Administrativo

@@ -1,61 +1,56 @@
 # Auditoría del diseño de la Sede Electrónica
 
 **Titular:** Alcaldía Distrital de Santa Marta · NIT 891.780.009-4
-**Objeto:** contrastar lo construido (`sitio/`, `panel/`, `backend/`, `contract/`) contra la línea
-base de requisitos (corpus de elicitación, `docs/`, Kit UI gov.co 9.2 y `vendor-src/`) y medir la
-trazabilidad.
-**Naturaleza:** auditoría de diseño y de ingeniería de requisitos. Señala qué falta o está mal; no
-reescribe nada.
-**Edición:** segunda. Sustituye a la de 1 117 líneas. Añade `panel/`, el cruce con `vendor-src/` y
-`docs/`, la matriz de trazabilidad y el andamiaje de requisitos. La sección 0 detalla qué corrige de
-la anterior.
+**Objeto:** el diseño construido —`sitio/` (portal público, Nuxt 4) y `panel/` (superficie
+administrativa, Vue 3 + Tailwind)— contrastado contra la línea base de requisitos
+(`sede-electronica-doc/`, corpus de elicitación), el expediente normativo (`docs/`), el Kit UI
+GOV.CO v9.2 (`vendor-src/layout-govco-v5/` y `sitio/public/govco/`) y el contrato
+(`contract/openapi.yaml`).
+**Naturaleza:** auditoría de diseño y de ingeniería de requisitos. **Señala lo que falta y lo que
+está mal; no reescribe nada.** Cada afirmación lleva evidencia `fichero:línea` verificada.
+**Edición:** tercera. Sustituye a la segunda (2 365 líneas, en el historial de Git:
+`git show d728457:auditoria-sede.md`). La sección 0 detalla qué cambia.
 
 ---
 
-## 0. Qué añade esta edición y qué corrige de la anterior
+## 0. Qué cambia esta edición y por qué
 
-### 0.1 Lo que la edición anterior no cubrió
+### 0.1 La línea base cambió de sitio
 
-| Materia | Edición anterior | Esta edición |
+La segunda edición abría con «el corpus de requisitos no está en el repositorio». **Hoy sí está**:
+`sede-electronica-doc/` contiene los 12 módulos de elicitación, 7 consolidados globales y el
+paquete de base de datos. Eso permite algo que antes no se podía hacer: **contrastar requisito
+contra código, uno por uno, con el identificador del propio corpus**. Es lo que hace la sección 4.
+
+La segunda edición auditaba, además, `backend/` y `contract/` como objetos propios. Esta edición
+los usa **sólo como fuente** para juzgar el diseño: cuando el contrato declara un recurso que la
+interfaz no consume, eso es un hallazgo de diseño; cómo esté implementado el controlador, no.
+
+### 0.2 Hallazgos nuevos que esta edición establece por primera vez
+
+| # | Hallazgo | Sección |
 |---|---|---|
-| `panel/` | Declarado fuera de alcance («son objetos de otras auditorías») | **Cubierto por completo**: 34 ficheros de `panel/src/`, `package.json`, `vite.config.ts`, `tailwind.config.js` |
-| `vendor-src/` | No se cruzó: se midió el Kit contra su PDF, no contra su código | **Cruzado**: los 26 ficheros de `examples/`, los 15 `.js` y los 47 `.css` de `src/` contra los 11 componentes del sitio |
-| `docs/` | Sólo `Sección 2` (tabla de componentes) y `docs/transparencia.md` | **Cruzado entero**: las seis secciones, los 15 ADR, `trazabilidad.md`, `transparencia.md` |
-| Trazabilidad | No había matriz | Sección 4: matriz requisito → fuente → criterio → estado → brecha para las 12 secciones |
-| Cobertura | Cualitativa («0 construidas, 8 parciales…») | Sección 6: con las cuentas hechas y el denominador declarado |
+| 1 | **La matriz de trazabilidad del proyecto acredita artefactos que no existen** (`frontend/tests/*.mjs`, `views/publico/*.vue`, `GET /menus/{ubicacion}`). Su «122 de 140 (87 %)» no es verificable. | D-06, §3.3 |
+| 2 | **Las puertas `make diseno`, `make accesibilidad`, `make unidad`, `make imagenes` y `make respaldo` apuntan a ficheros inexistentes.** `make comprobar` no puede terminar en verde. | D-06 |
+| 3 | **`make tipos` escribe un fichero que nadie importa** (`sitio/types/api.d.ts` frente a `~~/types/openapi`). | D-29 |
+| 4 | **El panel no tiene guardias de navegación**, aunque declara `requiereSesion`, `permiso` y `soloInvitados` en cada ruta. | D-04 |
+| 5 | **El panel publica cifras inventadas** (287 PQRSD, 94 % de ITA, «Sistema operativo», «Sesión activa») exactamente donde RF-B1-078 las prohíbe. | D-05 |
+| 6 | **ADR-0015 ha caducado**: declara «la sede no publica tablas» y `pqrsd.vue:222` publica una. CAG-24 vuelve a aplicar. | D-20 |
+| 7 | **La barra de accesibilidad no persiste la preferencia** pese a que ADR-0012 la compromete a `localStorage`, y **no existe el enlace al Centro de Relevo** que RF-B1-044 exige. | D-11 |
+| 8 | **El buscador existe y no busca** —ni índice, ni sugerencias, ni resultados—; la propia página lo admite. | D-03 |
+| 9 | **No existe banner de cookies ni aviso de salida a sitio externo**, los dos RF Must que la segunda edición ya señalaba: siguen sin construirse. | D-01, D-02 |
+| 10 | **El expediente cita mal los ítems de los PDF oficiales** (Sección 5 entera desplazada; Sección 4 con los pares 3↔4 y 7↔8 invertidos) pese a declararse reproducción textual. | C-09 |
+| 11 | **ADR-0015 omite CAG-06 apoyándose en «castellano únicamente», pero FUN-010 y la GUIA Maestra exigen «enlaces de traducción» en la barra superior.** | C-08 |
+| 12 | **ADR-0015 declara «no aplica» cinco criterios cuyos componentes §2.5 del propio expediente marca como obligatorios** en Trámites, Detalle y Notificaciones. | C-06 |
+| 13 | **No hay Declaración de Conformidad de Accesibilidad publicada** con los 12 elementos del Anexo 1 num. 9.3 de la Resolución 1519. `/accesibilidad` declara la norma y el canal, y dice expresamente que no acredita conformidad. | D-23 |
 
-### 0.2 Hallazgos de la edición anterior que **ya no son ciertos** y no se repiten
+### 0.3 Hallazgos de la segunda edición que se confirmaron íntegros
 
-Se comprobó uno por uno. Repetirlos habría sido auditar un repositorio que ya no existe.
-
-1. **B-06, B-07 y B-08 citan `sitio/app/types/transparencia.ts` en trece lugares.** Ese fichero **no
-   existe**: `sitio/app/types/` contiene hoy un único fichero, `menu.ts` (1 462 bytes). El directorio
-   `sitio/app/pages/transparencia/` tampoco existe. La premisa central de B-08 —«el contenido de
-   Transparencia es una constante de TypeScript»— es hoy **falsa**.
-2. **`m-01` es falso.** Decía que `sitemap.xml.ts:48` declara dos direcciones en la misma línea. La
-   línea 48 es `{ ruta: '/seguimiento', … }`. La lista está bien formateada.
-3. **El matiz de B-05** («la búsqueda *de la sección* de Transparencia sí está construida, con
-   `buscarEnSeccion`») describe código borrado. Hoy no hay buscador de sección.
-4. **G-13 recomendaba** que el sitemap enumerara las fichas «como ya hace con las nueve categorías
-   de Transparencia» importándolas de `~/types/transparencia-indice`. Ese import **ya no existe**
-   (verificado: cero coincidencias en `sitio/`). La recomendación se mantiene; su justificación, no.
-5. **G-08 enumeraba cuatro stubs.** Hoy son **cinco**: `/transparencia` se sumó a `/servicios`,
-   `/portales`, `/noticias` y `/seguimiento`.
-6. **El recuento de «25 defectos medidos» del Kit se queda corto.** La medición reproducible da
-   **239 defectos** (§9.4). El Kit sigue siendo el insumo peor construido del proyecto; la cifra
-   anterior subestimaba el problema.
-7. **La afirmación «el Kit tiene 24 ejemplos canónicos» es imprecisa.** `examples/` tiene **26
-   ficheros `.html`**, de los cuales **3 son plantillas vacías** de 13 líneas (`all.html`,
-   `general/example.html`, `integration/example.html`) que enlazan `../src/govco.css`, un fichero
-   que **no existe**. Los ejemplos reales son **23**.
-
-### 0.3 Hallazgos de la edición anterior que **sí se confirmaron**
-
-B-01 (cookies), B-02 (captcha), B-03 (radicación), B-04 (políticas), B-05 (buscador), G-01 (sin
-pruebas de accesibilidad), G-02 (componentes del Kit ausentes), G-06 (sitio externo), G-10 (citas),
-G-12 (sin Policies), M-04 (carrusel con `autoplay: true`), M-06 (sin selector de idioma), M-09
-(dependencias declaradas y no usadas). Todos se volvieron a comprobar con `grep` sobre el árbol
-actual y siguen siendo ciertos en los términos exactos en que se reformulan aquí.
+Se volvieron a comprobar uno por uno con `grep` y lectura directa sobre el árbol actual:
+B-01 (cookies), B-02 (captcha), M-04 (carrusel con `autoplay: true`), G-01 (sin pruebas de
+accesibilidad), G-02 (componentes del Kit ausentes), G-06 (dependencias declaradas y no usadas),
+G-12 (sin `Policies`). Todos siguen siendo ciertos y se reformulan aquí con su identificador del
+corpus.
 
 ---
 
@@ -63,2303 +58,2340 @@ actual y siguen siendo ciertos en los términos exactos en que se reformulan aqu
 
 ### 1.1 Qué se auditó
 
-| Objeto | Cómo se miró |
-|---|---|
-| `sitio/` — Nuxt 4, 21 páginas, 11 componentes, 1 composable | lectura completa de `layouts/default.vue`, `nuxt.config.ts`, `package.json`, `assets/css/sitio.css`, `server/routes/sitemap.xml.ts`, los 11 componentes de `components/govco/`, `app/types/menu.ts`, `public/govco/`; lectura de las páginas con contenido (trámites, PQRSD, normativa, atención, políticas, participa, mapa del sitio, buscar, verificar) |
-| `panel/` — Vue 3 + TypeScript + Tailwind, SPA | **los 34 ficheros de `panel/src/`**, `package.json`, `vite.config.ts`, `tailwind.config.js`, `postcss.config.js`, `README.md`, `index.html` |
-| `backend/` — Laravel 13 | `routes/api.php`, `composer.json`, `app/Models/` (3 modelos), `app/Policies/` (vacío), `config/` |
-| `contract/` | `openapi.yaml` (931 líneas): las 3 operaciones, los esquemas, `security` y `securitySchemes` |
-| Corpus de elicitación | `README.md`, los 12 módulos, `_global/matriz-trazabilidad.md`, `_global/auditoria-cobertura.md`, `_bd/` |
-| `docs/` | las seis secciones, `docs/adr/README.md` (15 ADR), `docs/trazabilidad.md`, `docs/transparencia.md` |
-| `vendor-src/layout-govco-v5/` | los 26 `.html` de `examples/`, los 15 `.js` y los `.css` de `src/`, `all.css` (12 287 líneas) |
-| Kit UI gov.co 9.2 | **el PDF** (`docs/65142f4c-…-kit-ui-9-2.pdf`), extraído con `pdftotext` para leer de primera mano el catálogo de componentes, la tabla de tipografía y las especificaciones por componente |
-| Puertas de calidad | `.github/workflows/ci.yml` |
+| Superficie | Ficheros | Líneas | Cobertura |
+|---|---|---|---|
+| `sitio/` (portal público) | 20 páginas, 12 componentes, 1 composable, 1 layout, 1 ruta de servidor, 2 hojas de estilo, `nuxt.config.ts` | 9 545 | **100 %** |
+| `panel/` (superficie administrativa) | 22 componentes y vistas, 1 router, 1 layout, 1 cliente HTTP, 3 hojas de estilo, 4 ficheros de configuración | 2 887 | **100 %** |
+| Línea base de requisitos | `sede-electronica-doc/` — 54 ficheros, 2,1 MB; **303 filas de requisito (156 RF · 53 RNF · 94 RN), 368 identificadores** | 12 386 | Catálogo completo de los módulos 01, 07, 08, 12 y de los tres ficheros globales |
+| Expediente normativo | `docs/` — Secciones 1-6, 15 ADR, `trazabilidad.md`, `transparencia.md`, los 3 PDF de criterios de aceptación | ~7 000 | Criterios verificables de diseño, accesibilidad e implementación; los 34 CAG; las 32 casillas de §2.6 |
+| Kit UI GOV.CO | `vendor-src/layout-govco-v5/` + la copia vendorizada en `sitio/public/govco/` | — | Componentes usados, ausentes y clases canónicas |
 
 ### 1.2 Cómo se cruzaron las cinco fuentes
 
-- **`panel/` ↔ `sitio/` ↔ `backend/` ↔ `contract/`**: `grep` de uso real por fichero, para
-  distinguir lo declarado de lo cableado (importaciones, guardas, llamadas HTTP).
-- **`sitio/` ↔ `vendor-src/`**: extracción de las clases `*-govco` del ejemplo canónico de cada
-  componente y comparación con las del componente Vue. **Aviso de método:** las comparaciones por
-  texto dan **falsos positivos** cuando el componente enlaza clases dinámicamente (`:class`). Se
-  comprobó cada divergencia una por una; las que aquí se afirman están verificadas contra el
-  `all.css` real, no sólo contra el ejemplo.
-- **`sitio/` ↔ Kit UI 9.2 (PDF)**: lectura del PDF como fuente primaria, no de resúmenes. De ahí
-  salen la tabla de tipografía (§5.3 y GR-12) y las especificaciones de la barra superior (§GR-13).
-- **Corpus ↔ `docs/` ↔ construido**: cada requisito del corpus se buscó en el código; cada criterio
-  de `docs/` se buscó en su artefacto de evidencia declarado.
+```
+sede-electronica-doc/  ──┐
+ (qué se exige, RF/RNF/RN)│
+                          ├──►  matriz de cumplimiento  ──►  registro de hallazgos
+docs/ (cómo se acepta) ───┤      (sección 4)                 (sección 5)
+vendor-src/ (cómo se ve) ─┤
+sitio/ + panel/ (qué hay) ┘
+contract/openapi.yaml ────┘   (qué se puede alimentar de datos)
+```
 
-### 1.3 Qué quedó fuera
+La regla de decisión es única: **un requisito se marca «cumple» sólo si existe un artefacto
+concreto, en una línea concreta, que satisfaga su criterio de aceptación**; si el criterio exige
+medición en navegador y no hay instrumento, se marca «no verificable» en lugar de suponerlo.
 
-- **No se ejecutó ninguna aplicación.** No se levantó Nuxt, ni Vite, ni Laravel, ni PostgreSQL. Todo
-  lo afirmado sobre lo construido sale de leer el código. **No hay medición en navegador**: ni de
-  contraste, ni de reflujo a 320 px, ni de área táctil. Los contrastes y las áreas que se citan son
-  **los que el propio código declara haber medido**, y se citan como tales.
-- **No se auditó la infraestructura**: `docker/`, `deploy/`, `compose.yaml`, `docs-security/` y el
-  aprovisionamiento del servidor. Se consultó `docker/nginx/conf.d/default.conf` una sola vez, para
-  resolver a qué sirve `/admin` (GR-05); nada más.
-- **No se auditó `plan.md`** (144 327 bytes) como fuente de requisitos. Se usó sólo para localizar
-  decisiones ya registradas.
-- **No se leyó `_bd/05-diagramas-trazabilidad.md`** (3 322 líneas) más allá de su cabecera: es un
-  catálogo de diagramas y la matriz de `_global/` ya cubre la trazabilidad.
-- **No se verificó el contenido de los PDF y PPTX de `docs/`** salvo el del Kit UI, que sí se
-  extrajo. Los demás se citan por lo que los `.md` dicen de ellos.
+### 1.3 Universo auditado y denominadores declarados
 
-### 1.4 Lo que no se pudo verificar
+No todos los requisitos del corpus son auditables contra el diseño. Se declara el denominador
+para que las cifras de la sección 2 puedan recalcularse:
 
-1. **Si el entorno de `staging` tiene el catálogo cargado.** La afirmación de que el catálogo está
-   vacío porque la ingesta es un comando que el despliegue no ejecuta procede de una sesión
-   anterior. **No la he comprobado** y no figura como hallazgo; aparece como riesgo abierto en §8.
-2. **La exactitud del contenido institucional** de los datos de la Entidad (dirección, teléfonos,
-   correos). Se comprobó su **estructura y su duplicación**, no su verdad contra el sitio oficial.
-3. **Las casillas «Requerido, mínimamente, en:» del Kit UI.** El PDF las dibuja como casillas
-   gráficas. La extracción de texto conserva **las etiquetas marcadas**, que es lo que se cita en la
-   sección 5.2 (GR-14 y GR-17), pero no puedo garantizar que el orden extraído corresponda uno a uno con la casilla
-   marcada de cada componente. Donde la duda importa, se dice.
-4. **El texto literal del Anexo 2 y del Anexo 2.1 de la Resolución 2893 de 2020.** Se trabajó con
-   `research/gov/anexos/anexo2_1.txt` y con las citas que hacen el corpus y `docs/`.
-5. **Qué contiene `docs/*.pdf`**: «Criterios de aceptación de diseño / funcionalidad / seguridad».
-   Los `.md` los citan como fuente normativa (FUN-001…006, SEG-001…012) pero son PDF escaneados.
-   Las citas de esos criterios son las que transcriben los `.md`.
+- **Denominador RF = 152.** Los 119 RF de los módulos de diseño (01 → 44, 07 → 37, 08 → 23,
+  12 → 15) más **33 RF de otros módulos con efecto directo en la interfaz** (02, 03, 04, 06, 09,
+  11 y los deltas con consecuencia visual). Los RF de integración pura (10), infraestructura e
+  interoperabilidad no entran: no tienen criterio verificable en la capa de presentación.
+- **Denominador RNF = 31.** Los RNF de los cuatro módulos de diseño (01 → 6, 07 → 9, 08 → 10,
+  12 → 6).
+- **Denominador RN = 94.** Se auditan como **restricciones de diseño** sólo las que imponen una
+  forma a la interfaz (`RN-01-D02` tope de menú, `RN-01-D03` lista blanca, `RN-07-D02` captcha
+  accesible, `RN-TX-D01` calendario único). El resto son reglas de proceso y de dato sin huella
+  verificable en el diseño.
 
-### 1.5 Convenciones
+### 1.4 Qué quedó fuera, y por qué
 
-- `[HECHO]` — leído en el fichero citado, con `read`/`grep`/`ls`.
-- `[DEDUCCIÓN]` — conclusión mía, no un hecho leído.
-- `[SIN VERIFICAR]` — dato de una sesión anterior, no recomprobado.
-- Cada archivo se cita como `ruta:línea`. Las líneas son las del árbol en el momento de la
-  auditoría (rama `docs/auditoria-sede`, árbol limpio).
-- **Severidad.** *Bloqueante*: su ausencia impide cumplir un requisito legal de obligado
-  cumplimiento, impide prestar el servicio que define la sede, o impide demostrar el cumplimiento.
-  *Grave*: incumple un requisito declarado, degrada el servicio o hace que el sistema afirme algo
-  que no es cierto. *Medio*: incumple un requisito de prioridad baja, duplica trabajo o deja deuda
-  declarada sin cerrar. *Menor*: defecto puntual sin efecto funcional.
+| Materia | Motivo |
+|---|---|
+| Implementación del backend, migraciones, esquema | Otra auditoría. Aquí sólo se usa el contrato como fuente de lo que la interfaz podría consumir. |
+| Diseño de la base de datos (`sede-electronica-doc/_bd/`, ~149 tablas) | Es diseño de datos, no de sede electrónica. Se cita cuando explica un hueco de la interfaz (p. ej. la ausencia de expediente explica `/seguimiento`). |
+| Seguridad de infraestructura (TLS, cabeceras, puertos, WAF) | Sección 4 del expediente; no es superficie de diseño. Excepción: los RF de seguridad con huella en la interfaz (captcha, login, control de acceso) entran. |
+| Rendimiento medido, accesibilidad medida, contraste medido | Sin navegador en ejecución esta auditoría **no puede** medirlos. Se marca ⛔ en lugar de inventarlos. |
+
+### 1.5 Límites: lo que esta auditoría no puede afirmar
+
+Se declaran para que no se lean como cumplimientos lo que son ausencias de prueba:
+
+1. **No se ejecutó ningún navegador, rastreador ni auditor automático.** Ningún hallazgo se apoya
+   en una medición en vivo; todos se apoyan en lectura de código y en búsqueda reproducible.
+2. **Los criterios que exigen medición** (contraste efectivo, reflujo a 320 px, FCP, posición en
+   Google, validez W3C, navegación con NVDA/JAWS/VoiceOver, SUS) se marcan ⛔ **no verificable**,
+   no «cumple».
+3. **Lo que el código documenta no se da por cierto.** Varios comentarios del proyecto afirman
+   mediciones (contrastes de 8,46:1, desbordes de 7 px, «medido y no supuesto»). Se citan como
+   *alegaciones del autor*; cuando contradicen al código, se dice (D-45).
+4. **No se audita la corrección jurídica del contenido.** Se audita si el diseño permite publicar
+   lo que la norma exige, no si el texto publicado es jurídicamente exacto.
+
+### 1.6 Convenciones
+
+| Estado | Significado |
+|---|---|
+| ✅ **CUMPLE** | Existe artefacto concreto que satisface el criterio, con evidencia `fichero:línea`. |
+| 🟡 **PARCIAL** | Una parte del criterio se satisface y otra no; se dice cuál. |
+| ❌ **NO CUMPLE** | No existe artefacto que lo satisfaga, o existe uno que lo contradice. |
+| ⛔ **NO VERIFICABLE** | El criterio exige medición o acto humano y no hay instrumento en el repositorio. |
+| ➖ **NO APLICA / DIFERIDO** | Justificado con la fuente de la decisión (no se usa para esconder incumplimientos). |
+
+Gravedad: 🔴 **bloqueante** (incumple un Must de rango legal, o afirma al ciudadano algo falso) ·
+🟠 **grave** (incumple un Must funcional o de accesibilidad) · 🟡 **medio** (incumple un Should, o
+degrada la verificabilidad) · ⚪ **menor** (pulido).
 
 ---
 
 ## 2. Veredicto
 
-**La sede está construida como escaparate y no como sede: publica con un rigor poco común —123
-fichas de trámite completas, identidad institucional correcta, accesibilidad trabajada a mano,
-procedencia de los datos declarada— pero no puede recibir una sola solicitud, no puede publicar un
-solo documento sin desplegar código, y la capa administrativa que debía resolver eso (`panel/`) es
-una maqueta sin autenticación, sin datos y sin una línea de conexión con la API; y, por encima de
-todo, el proyecto certifica un 87 % de cumplimiento con una matriz de trazabilidad que apunta a 41
-operaciones y a vistas que no existen.**
+**El armazón del sitio público es de calidad profesional alta y está por delante de su propia
+documentación; el resto del producto no está construido, y la documentación de conformidad
+afirma que sí lo está.**
 
-Lo construido es mejor de lo que su cobertura sugiere. Lo que falta no es acabado: es la mitad
-operativa de la sede, y el instrumento para saber cuánto falta.
+En una frase: **se auditó un esqueleto excelente al que le faltan los órganos, y un expediente de
+aceptación que se declara cumplido con pruebas que no existen.**
+
+Lo que sostiene el veredicto, con las cifras:
+
+| Medición | Resultado |
+|---|---|
+| RF auditados | **152** |
+| ✅ Cumplen | **32** (21 %) |
+| 🟡 Parciales | **32** (21 %) |
+| ❌ No cumplen | **68** (45 %) |
+| ⛔ No verificables | **8** (5 %) |
+| ➖ No aplican o diferidos | **12** (8 %) |
+| **Cumple o cumple parcialmente** | **64 de 152 (42 %)** |
+| RNF auditados | **31** — ✅ 5 · 🟡 7 · ❌ 8 · ⛔ 8 · ➖ 3 |
+| Módulo 12 (CMS y administración) | **0 de 15 RF**; el panel son 18 marcadores sobre 19 rutas |
+| Hallazgos | **52** — 🔴 6 · 🟠 17 · 🟡 20 · ⚪ 9 |
+| Puertas de calidad que hoy pueden pasar | **0 de 8** (`make comprobar` no termina) |
+
+**Dónde está lo bueno, y es real:** la carcasa (barra superior, cabecera, menú de 7 ítems con
+megamenú navegable por teclado, miga de pan derivada de la ruta, pie con datos completos, volver
+arriba, salto al contenido), el carrusel reescrito sin solapar controles, el modo de alto contraste
+propio —porque el del Kit es un stub—, el reflujo medido a 320 px, y una disciplina de honestidad
+editorial poco común: **el sitio prefiere no publicar antes que publicar relleno**. Eso último es
+la razón por la que 68 RF aparecen como «no cumple» sin que ello signifique chapuza: significa
+que falta contenido, contrato y CMS, y que el equipo se negó a fingirlos.
+
+**Dónde está lo grave:** en las cuatro cosas que un ciudadano usa de verdad —**buscar** (D-03),
+**consentir cookies** (D-01), **salir a un sitio externo avisado** (D-02) y **autenticarse**
+(D-04)— y en que el sistema de control del proyecto (trazabilidad, puertas, ADR) **ya no describe
+el repositorio**: acredita conformidad con pruebas de un árbol de carpetas que no existe (D-06).
+Un expediente que miente sobre su propio cumplimiento es un riesgo mayor que una sección vacía,
+porque la sección vacía se ve.
 
 ---
 
-## 3. La línea base de requisitos: estado y reconciliación
+## 3. Reconciliación de la línea base
 
-Antes de auditar conviene saber **contra qué** se audita. Esta sección es la que hace posible todas
-las demás, y es también donde está el problema más consecuente del proyecto.
+Antes de juzgar el diseño hay que decidir **qué documento manda**. Hoy conviven cuatro capas con
+jerarquías distintas y contradicciones entre ellas; sin esta reconciliación, cualquier hallazgo es
+discutible.
 
-### 3.1 El corpus de requisitos no está en el repositorio
+### 3.1 Qué es cada capa, y cuál prevalece
 
-**[HECHO]** El corpus que el encargo cita como `@sede-electronica-doc/` **no existe dentro del
-workspace**. Vive en `/var/www/portal-smr-main/sede-electronica-doc/` (55 ficheros `.md`, 20 098
-líneas), fuera del control de versiones. El `README.md` del proyecto lo declara como decisión: los
-documentos primarios «no se versionan: pesan 84 MB, son documentos de terceros y su contenido está
-transcrito en el expediente markdown de `docs/`» (`README.md:131-134`).
+| Capa | Qué es | Autoridad | Estado |
+|---|---|---|---|
+| `sede-electronica-doc/` | Corpus de elicitación: 156 RF, 53 RNF, 94 RN con criterio G/W/T y cita de fuente normativa | **Línea base de requisitos** | Vigente. Es la capa con la que se audita en la sección 4. |
+| `docs/` | Expediente normativo y de aceptación: Secciones 1-6, 34 CAG, 15 ADR, matriz de trazabilidad | **Línea base de aceptación** | Vigente en los criterios; **caducado en sus evidencias** (§3.3). |
+| `vendor-src/layout-govco-v5/` + `sitio/public/govco/` | Kit UI GOV.CO v9.2 (rama `v5`) | **Fuente de verdad gráfica** | Vigente. ADR-0002 corrige la URL que el expediente cita. |
+| `contract/openapi.yaml` | Contrato de la API | **Fuente única del intercambio** | Vigente pero **cubre 3 recursos**: `/entidad`, `/tramites`, `/tramites/{slug}`. |
 
-**[HECHO]** Pero el corpus **no está transcrito en `docs/`**. `docs/trazabilidad.md:169-183` y las
-secciones 1-6 son un expediente **distinto**: 140 criterios con códigos propios (`CAG-`, `FUN-`,
-`SEG-`, `O-`, `INT-`, `ACC-`), mientras el corpus usa `RF-Bn-nnn`, `RNF-`, `RN-`, `HU-`, `UC-` (691
-ítems declarados). **Son dos líneas base de requisitos, con identificadores distintos, que no se
-referencian entre sí y viven en sitios distintos del disco.**
+### 3.2 El módulo 01 está duplicado byte a byte
 
-**[DEDUCCIÓN]** La consecuencia práctica es que la Entidad no tiene *una* línea base: tiene dos, y
-ninguna de las dos está versionada junto al código. Cualquier afirmación de cumplimiento se apoya en
-una de las dos sin poder cruzar con la otra. Esto no es un defecto del diseño de la interfaz; es el
-defecto de fondo, y explica por qué la trazabilidad del proyecto (§3.4) puede estar rota sin que
-nadie lo note.
+`sede-electronica-doc/01-estructura-identidad/sede.md` y
+`sede-electronica-doc/01-estructura-identidad/estructura-identidad.md` **son el mismo fichero**:
+24 779 bytes cada uno, contenido idéntico byte a byte. Dos nombres para el mismo documento invitan
+a que se edite uno y se audite el otro. **Acción:** conservar uno y eliminar el otro, o sustituirlo
+por un enlace.
 
-### 3.2 Reconciliación de identificadores: las cuentas
+### 3.3 La matriz de trazabilidad del proyecto no traza
 
-Medido con `grep -ohE` sobre los 55 `.md` del corpus. «Citados» = el identificador aparece en algún
-documento. «Definidos» = el identificador encabeza una fila de tabla en uno de los 12 módulos.
+`docs/trazabilidad.md` (232 líneas) se declara «documento generado» por `npm run trazabilidad` y
+acredita **122 de 140 criterios (87 %)**. Se comprobó cada ruta de evidencia que cita:
 
-| Tipo | Declarado por el corpus (`README.md:134-139`) | Identificadores citados | Definidos como fila | **Citados sin enunciado** |
+| Evidencia citada por la matriz | ¿Existe? |
+|---|---|
+| `frontend/tests/conformidad-diseno.mjs`, `conformidad-shell.mjs`, `accesibilidad.mjs`, `flujo-pqrsd.mjs` | **No.** El repositorio no tiene `frontend/`; tiene `sitio/` y `panel/`. Y ninguno de los dos tiene `tests/`. |
+| `views/publico/InicioView.vue`, `views/publico/TransparenciaView.vue`, `layouts/LayoutPublico.vue`, `components/govco/MenuNavegacion.vue`, `SaltarAlContenido.vue`, `MigaDePan.vue`, `CabeceraEntidad.vue` | **No.** Son rutas de una SPA `frontend/src/`, no del Nuxt `sitio/app/`. |
+| `backend/tests/Feature/Sede/ConformidadSedeTest.php`, `backend/tests/Feature/Api/CatalogoApiTest.php` | **No.** `backend/tests/Feature/Sede/` sólo contiene `.gitkeep`; el único test de API es `Api/V1/TramiteTest.php`. |
+| `scripts/verificar-imagenes.mjs`, `scripts/verificar-infra.mjs` | **No.** No existe `scripts/`. |
+| `GET /menus/{ubicacion}`, `GET /sedes` | **No.** El contrato declara tres rutas y ninguna es ésas. |
+| `npm run trazabilidad`, `make trazabilidad`, `frontend/tests/captura-diseno.mjs` | **No.** Ni el script ni el objetivo existen en el `Makefile`. |
+
+**Consecuencia:** los 34 CAG, ACC-002 y buena parte de FUN-00x figuran como «cubierto por pruebas
+o interfaz» con pruebas que no existen en este repositorio. La cifra del 87 % no es falsa por
+error de cálculo: es **no verificable**, y en un expediente de aceptación eso equivale a una
+afirmación sin respaldo. **Acción:** regenerar la matriz contra el árbol real o retirarla del
+expediente mientras no lo describa (D-06).
+
+### 3.4 Cómo leer los identificadores del corpus
+
+El corpus asigna **hasta tres identificadores al mismo requisito** (series `B1/B2/B3`, por bundle
+de origen). Por eso una fila se titula `RF-B1-003 / RF-B2-007 / RF-B3-072`: son el mismo requisito
+visto en tres extracciones. La convención es intencional y está documentada en el `README.md` del
+corpus.
+
+**Pero 17 identificadores colisionan de verdad** —el mismo ID con enunciados distintos en módulos
+distintos— y esa colisión es un defecto, no una convención. Las más dañinas para el diseño:
+
+| ID | Enunciado A | Enunciado B | Riesgo |
+|---|---|---|---|
+| `RNF-B1-014` | WCAG 2.1 AA, 52 criterios (`07:94`) | Sincronización con la Hora Legal Colombiana (`12:61`) | **Grave**: dos dominios incompatibles bajo el mismo ID. Una puerta de accesibilidad que cite `RNF-B1-014` podría estar acreditando la hora legal. |
+| `RF-B1-076` | Encabezados semánticos y logo a inicio (`08:46`) | CMS con roles y log de auditoría (`12:19`) | Grave: el mismo ID gobierna el `<h1>` y el CMS. |
+| `RF-B1-082` | Textos de enlace + vínculos visitados (`07:66`) | Sólo vínculos visitados (`08:21`) | Medio. |
+| `RF-B3-040` | Doble pila IPv4/IPv6 (`01:86`) | Confirmación antes de envío sensible (`07:65`) | Medio. |
+| `RF-B3-045`, `RF-B3-046` | Identidad visual del Kit (`01:23`) | Subtítulos y LSC (`07:28`) / UTF-8 (`07:31`) | Medio. |
+| `RF-B1-047`, `RF-B1-048` | Enunciados distintos bajo el mismo ID **dentro del mismo fichero** (`07:37-38`, `07:49-51`) | — | Medio. |
+| `RF-B3-143` | Formularios con validación (`08:33`) | HTML/CSS válido W3C (`08:45`) | Medio. |
+| `RN-B2-029` | Kit obligatorio en trámites (`01:122`) | HTML/CSS válido W3C (`08:86`, con la anotación espuria «(fase2)» dentro de la celda del ID) | Medio. |
+
+Además, `RN-B2-029 (fase2)` y `RN-B3-037 (apoyo)` llevan anotaciones **dentro de la celda del
+identificador**, y `RNF-07-D01` / `RNF-08-D01` aparecen bajo el encabezado de tabla de los RF
+(`ID propuesto | Enunciado | Procedencia | Criterio | MoSCoW`) en vez del de los RNF
+(`ID | Categoría | Umbral | Procedencia`). **Acción:** congelar los identificadores antes de
+usarlos en puertas automáticas; hoy una puerta que cite `RNF-B1-014` no se sabe qué acredita.
+
+### 3.5 Un requisito interno contradictorio que el diseño tuvo que resolver solo
+
+`RF-B1-001` (Must) exige la barra superior «con logo enlazado… **y opción de traducción a la
+derecha**». `RF-B3-055` (Could) dice que el botón de idioma se **difiere**. El corpus nunca
+resolvió la contradicción; el diseño la resolvió por su cuenta, omitiendo el botón
+(`BarraSuperior.vue:8-11`) y dejando la justificación en un comentario. Es la decisión correcta,
+pero hoy descansa en un ADR que se apoya en otra fuente (C-08) y no en el corpus.
+
+---
+
+## 4. Matriz de cumplimiento, requisito por requisito
+
+**Cómo leerla.** Una fila por requisito del corpus, con su estado (✅ 🟡 ❌ ⛔ ➖), la evidencia
+—`fichero:línea`— y, cuando no cumple, **qué falta exactamente**. Las referencias `D-nn` llevan al
+hallazgo correspondiente de la sección 5, donde está el detalle y la corrección propuesta.
+
+### 4.1 Módulo 01 — Estructura e identidad GOV.CO (44 RF)
+
+| ID | Requisito | Prio | Estado | Evidencia / qué falta |
 |---|---|---|---|---|
-| RF | 353 | 325 | 201 | **124** |
-| RNF | 120 | 92 | 60 | **32** |
-| RN | 93 | 87 | 62 | **25** |
-| HU | 73 | 68 | 52 | **16** |
-| UC | 52 | 52 | 34 | **18** |
-| **Total** | **691** | **624** | **409** | **215** |
+| RF-B1-001 | Top bar GOV.CO con logo enlazado, en todas las páginas | Must | ✅ | `BarraSuperior.vue:16-23`, montada en `layouts/default.vue:155`. La «opción de traducción» que enuncia este RF está diferida por RF-B3-055 (ver C-22). |
+| RF-B1-002 | Footer con los 13 elementos de identidad y contacto | Must | ✅ | `PiePaginaGovco.vue:150-199` y `:281-358`: autoridad, dirección, CP, horario, conmutador +57, línea gratuita 018000, anticorrupción, dos correos, redes, mapa, políticas. **Pero los datos están incrustados**, no vienen del contrato (D-18). |
+| RF-B2-006 | Teléfonos con +57 salvo 018000/019000 | Must | ✅ | `PiePaginaGovco.vue:157,162` frente a `:158`. |
+| RF-B1-043 | Logo de la Alcaldía arriba a la izquierda, enlazado a inicio | Must | ✅ | `CabeceraGovco.vue:79-81` (`NuxtLink to="/"`), altura 48 px / 40 px en móvil (`:163-173`). |
+| RF-B1-098 | Identidad visual del Kit: Nunito Sans + Verdana, Cobalt `#0943B5` | Must | 🟡 | **El sitio cumple** (Kit vendorizado, `nuxt.config.ts:71`); **el panel no**: `tokens.css:2-3` declara `--color-gov-blue: #3366CC` y `fonts.css` carga Inter, Montserrat y JetBrains Mono (D-14). |
+| RF-B3-055 | Botón de idioma persistente | Could | ➖ | Diferido por decisión #16 del corpus (`01:24`); el diseño lo omite a propósito (`BarraSuperior.vue:8-11`). Falta la decisión sobre lenguas étnicas (D-35). |
+| RF-B3-061 | Botón «Volver arriba» en páginas largas | Should | ✅ | `VolverArriba.vue:14-40`; aparece al 75 % de la altura (`:19`) y respeta `prefers-reduced-motion` (`:23-24`). |
+| RF-B1-003 | Menú con los 4 ítems obligatorios en orden, máx. 7, máx. 2 niveles, `aria-label` | Must | ✅ | `layouts/default.vue:46-94` (Inicio → Transparencia → Atención y Servicios → Participa → PQRSD → Normativa → Noticias = 7); `MenuNavegacionGovco.vue:556` (`aria-label`). El tope se recorta *en el cliente* (D-31). |
+| RF-B1-004 | Menú responsive en hamburguesa por debajo de 768 px | Must | ✅ | `MenuNavegacionGovco.vue:565-577` y `:786-789`. |
+| RF-B1-005 | Buscador interno visible en la cabecera de todas las páginas | Must | 🟡 | Está en todas las páginas (`layouts/default.vue:167-170`), pero **no busca**: `buscar.vue:44-49` reconoce que no hay índice (D-03). Tampoco hay buscador dentro de Transparencia (RF de Sección 5 §5.3.1 nº 6 del PDF). |
+| RF-B1-006 | Autocompletado ≤10 sugerencias, tolerancia a errores, resultados con metadatos | Must/Should | ❌ | `BuscadorGovco.vue:5-8` documenta la omisión del buscador predictivo; no hay endpoint en el contrato (D-03). |
+| RF-B1-010 | Mapa del sitio autoactualizado + `sitemap.xml` | Must | 🟡 | Los dos existen (`mapa-del-sitio.vue:33-115`, `sitemap.xml.ts:35-70`) pero **ninguno se deriva de la navegación**: son tres listas paralelas escritas a mano (D-23). |
+| RF-B2-038 | Migas de pan en todas las páginas internas, no en la portada | Must | ✅ | `layouts/default.vue:132-150` y `MigaDePanGovco.vue:35,44-65`; `aria-current="page"` en el último nivel (`:61`). |
+| RF-B2-041 | Cero vínculos rotos | Must | ⛔ | Sin rastreador (`W3C Link Checker`) no se puede acreditar. Nota: los seis stubs responden 200 con aviso, no 404, así que no son «rotos»; las políticas del pie sí apuntan a rutas reales (`PiePaginaGovco.vue:211-234`). |
+| RF-B1-011 | Módulo de noticias en la portada (imagen 4:3 o 16:9, título ≤150, descripción ≤200, fecha, orden inverso) | Must | ❌ | La portada publica carrusel de secciones y tres tarjetas, **no noticias** (`index.vue:43-90`); `/noticias` es un aviso de «en preparación» (D-07). |
+| RF-B1-042 | Carrusel con indicadores, Play/Stop, flechas y **pausa por defecto** | Must | 🟡 | Controles e indicadores ✅ (`CarruselGovco.vue:240-300`); **arranca reproduciendo** (`:98` y `:200`), contra «pausa por defecto» (D-12). |
+| RF-B1-007 | 404 personalizada con ≥3 opciones de navegación | Must | 🟡 | 404 real y con estado correcto (`error.vue:25,39-45`, `[...ruta].vue:20-26`); ofrece **una** salida explícita (`error.vue:54-56`): el menú y el buscador del layout cuentan como vías, pero faltan las «secciones populares» (D-09). |
+| RF-B1-071 | Aviso de salida a sitio externo con confirmación | Must/Should | ❌ | No existe. Los enlaces externos abren en pestaña nueva sin aviso: `BarraSuperior.vue:17-22`, `PiePaginaGovco.vue:321-332` (D-02). |
+| RF-B1-008 | Banner de cookies con aceptar/rechazar/configurar y revocación | Must | ❌ | No existe ninguna implementación (D-01). |
+| RF-B1-009 | Publicar las cinco políticas, descargables en formato abierto | Must | ❌ | Las cinco rutas existen y **no publican documento**: aviso de «en preparación» (`politicas/[slug].vue:104-117`) (D-10). |
+| RF-B2-008 | Términos y condiciones con 6 componentes mínimos | Must | ❌ | Sólo el propósito declarado (`politicas/[slug].vue:33-37`). |
+| RF-B2-009 | Política de privacidad conforme Ley 1581/2012 y 1712/2014 | Must | ❌ | Sólo el propósito (`:43-47`). |
+| RF-B2-010 | Política de derechos de autor | Must | ❌ | Sólo el propósito (`:53-57`). |
+| RF-B2-084 | Componentes del Kit UI y lectura «Área de Servicio antes del Trámite» | Must | 🟡 | Grilla y componentes base ✅; el «área de servicio» del Kit no existe en el sitio (D-27). |
+| RF-B3-060 | Grilla Bootstrap 5.0, 12 columnas, 6 breakpoints, espaciado ≥24 px | Must | ✅ | `nuxt.config.ts:61` carga Bootstrap 5.0.2 antes del Kit, con la justificación de por qué es imprescindible. |
+| RF-B3-062 | Acordeón con `aria-expanded`, sin apertura al foco | Must | ❌ | No implementado (D-27). Lo exige además §2.5 para Trámites y Detalle (C-06). |
+| RF-B3-063 | Alerta modal con cierre por ESC y clic exterior | Must | ❌ | No implementado en el sitio (D-27). **Y es la pieza que RF-B1-071 necesita**, así que «CAG-21 no aplica» (ADR-0015 §3) es falso mientras RF-B1-071 siga siendo Must (C-06). |
+| RF-B3-064 | Toast con tiempo de lectura suficiente | Must | ❌ | No implementado (D-27). |
+| RF-B3-066 | Botones con estados y `aria-label` | Must | ✅ | Kit `btn-govco`/`fill-btn-govco` más `.btn-outline-primary` reapuntado al cobalto (`sitio.css:343-352`). |
+| RF-B3-068 | Galería de aplicaciones navegable con Enter/Esc | Should | ❌ | El componente **existe y nunca se instancia**: `GaleriaAplicacionesGovco.vue` (354 líneas) no aparece en ninguna página (D-27). |
+| RF-B3-070 | Indicador de carga; aviso si el proceso supera 10 s | Must | 🟡 | Hay estado de carga en el catálogo (`tramites/index.vue`), pero no hay aviso de progreso a los 10 s (D-27). |
+| RF-B3-075 | Paginación con `aria-current` y ≥44 px en móvil | Must | 🟡 | `tramites/index.vue:782-805` con `aria-current`; el área táctil de 44 px se resuelve globalmente (`sitio.css:396-414`), sin verificación móvil (⛔ medición). |
+| RF-B3-076 | Tablas con ordenamiento asc/desc | Must | ❌ | La única tabla pública no ordena (`pqrsd.vue:222-245`), y CAG-24 vuelve a aplicar (D-20). |
+| RF-B1-070 | Proceso de integración a GOV.CO en 7 pasos | Must | ➖ | Proceso administrativo, sin huella verificable en el diseño. |
+| RF-B1-100 | Plan de Integración publicado e incorporado al PETI | Must | ➖ | Documento de gestión. |
+| RF-B2-001 | Redireccionamiento con enmascaramiento de URL (proxy MinTIC) | Must | ➖ | Depende de MinTIC; el diseño no puede acreditarlo. |
+| RF-B2-002 | Integrar **todos** los portales y apps de la Alcaldía | Must | ❌ | `/portales` es un aviso de «en preparación» (`portales.vue`); no hay inventario (D-17). |
+| RF-B2-003 | Portales transversales integrados en ≤6 meses | Must | ❌ | Sin inventario ni portal integrado (D-17). |
+| RF-B3-126 | Ficha en GOV.CO con los 4 momentos | Must | 🟡 | `tramites/[slug].vue` publica los seis atributos de la Guía §5.1.3, pero **no declara los cuatro momentos de GOV.CO** (`:5-18`). |
+| RF-B3-127 | Estados estandarizados (registrada → recibida → en trámite → resuelta) | Must | ❌ | No hay ninguna superficie pública que muestre estados: `/seguimiento` es un aviso (D-17). |
+| RF-B1-099 | Doble pila IPv4 + IPv6 | Must | ➖ | Infraestructura. |
+| RF-01-D01 | Consentimiento de cookies versionado y con caducidad ≤12 meses | Must | ❌ | Depende de RF-B1-008, que no existe (D-01). |
+| RF-01-D02 | CRUD de menú y noticias desde el CMS, con tope 7/2 | Must | ❌ | No hay CMS (D-15); el menú vive en una constante (`layouts/default.vue:46-94`) y el tope sólo se aplica en el cliente (D-31). |
+| RF-01-D03 | Lista blanca de dominios de confianza para el aviso de salida | Should | ❌ | Depende de RF-B1-071 (D-02). |
 
-Y el delta de la segunda pasada tampoco cuadra:
+**RNF del módulo 01**
 
-| Tipo | Declarado (`_global/matriz-trazabilidad.md:419`) | Presente en el corpus |
+| ID | Umbral | Estado | Evidencia / brecha |
+|---|---|---|---|
+| RNF-B1-027 | Doble pila IPv4+IPv6 | ➖ | Infraestructura. |
+| RNF-B1-033 | ≤3 navegadores sin diferencias funcionales | ⛔ | Sin matriz de pruebas multi-navegador. |
+| RNF-B3-045 | 100 % de componentes con Cobalt y Nunito Sans/Verdana | 🟡 | Sitio ✅; panel ❌ (D-14). |
+| RNF-B3-046 | Logo GOV.CO sin modificaciones | ✅ | Se usan las clases `govco-logo`/`govco-co` sin alterar el asset (`PiePaginaGovco.vue:350-352`). |
+| RNF-B3-005 | Objetivos táctiles ≥44×44 px | 🟡 | Correcciones explícitas en `sitio.css:396-414` y `:430-465` para buscador, pie, botones y formularios; sin medición en dispositivo (⛔). |
+| RNF-01-D01 | Resiliencia ante caída del CDN: degradar a fuentes locales | ✅ | **Cumplido por eliminación del riesgo**: el Kit y Bootstrap se sirven desde el propio dominio (`nuxt.config.ts:57-71`), no hay CDN de terceros del que degradar. |
+
+### 4.2 Módulo 07 — Accesibilidad (37 RF)
+
+| ID | Requisito | Prio | Estado | Evidencia / qué falta |
+|---|---|---|---|---|
+| RF-B1-044 | Barra de accesibilidad persistente con A/A+/A++, contraste, salto al contenido y **Centro de Relevo**; guarda la preferencia | Must | 🟡 | Contraste ✅ (`sitio.css:24-81`), salto ✅ (`CabeceraGovco.vue:66-68`), tamaño ✅ (`useAccesibilidad.ts:56-59`). **Faltan: la persistencia** (`:37` usa `useState`, no `localStorage`, contra ADR-0012) **y el enlace al Centro de Relevo**, ausente de todo `sitio/` (D-11). |
+| RF-B3-022 | «Saltar al contenido principal» como primer elemento tabulable | Must | ✅ | El enlace se movió de la cabecera a la **primera posición de la disposición** (`layouts/default.vue`), antes de `<BarraSuperior />`, con sus estilos `sr-only sr-only-focusable`. **Medido con navegador real en tres páginas** (`/pqrsd`, `/`, `/tramites`): el primer tabulador es «Saltar al contenido principal» (§14.1). Antes era el octavo o noveno; fue el hallazgo **R-P4**. |
+| RF-B1-045 | `alt` descriptivo (≤150 car.) o decorativo declarado | Must | ✅ | El `alt` es **obligatorio en el tipo** del carrusel (`CarruselGovco.vue:48-53`) con aviso en desarrollo si viene vacío (`:115-123`); pie y cabecera con `alt` real (`PiePaginaGovco.vue:295`, `CabeceraGovco.vue:80`). |
+| RF-B1-046 | Subtítulos, transcripción, audiodescripción y LSC | Must | ➖ | No hay multimedia en la sede. **Cuando la haya, aplica RN-07-D01** (bloqueo en el CMS), que tampoco existe (D-15). |
+| RF-B1-054 | Sin audio automático | Must | ➖ | No hay audio. |
+| RF-B3-007 | El color no es el único medio de información | Must | ✅ | Indicadores del carrusel huecos/rellenos en vez de sólo opacidad (`CarruselGovco.vue:25-37`); errores de formulario con texto y `role="alert"` (`realizar-una-peticion.vue:427-472`). |
+| RF-B3-046 | Codificación UTF-8 declarada | Must | ✅ | `nuxt.config.ts:40`. |
+| RF-B1-047 | HTML semántico y jerarquía H1-H6 sin saltos | Must | ✅ | `header`/`nav`/`main`/`footer` reales (`layouts/default.vue:167-201`, `PiePaginaGovco.vue:281`); un solo `h1` por página; el pie usa `h2`/`h3` en vez de `h4`/`h5` **para no romper el orden** (`:32-37`, `:368-379`). |
+| RF-B3-047 | Tablas y listas sólo para datos semánticos | Must | ✅ | La única tabla tiene `caption`, `scope="col"` y `scope="row"` (`pqrsd.vue:223-243`). |
+| RF-B1-052 | `lang="es"` en `<html>` | Must | ✅ | `nuxt.config.ts:38`. |
+| RF-B3-005 | Responsive en ambas orientaciones; 200 %/400 % sin pérdida | Must | 🟡 | Reflujo a 320 px tratado y **documentado con la causa** de cada desborde (`sitio.css:281-334`); la ampliación al 400 % no está medida (⛔). |
+| RF-B3-011 | Sin imágenes de texto | Must | ✅ | No hay ninguna; los logos son SVG/PNG con `alt`. |
+| RF-B3-014 | Espaciado de texto configurable y soportado | Must | ✅ | El panel lo tenía (`main.css:105-110`, `.a11y-spacing`) y **el sitio ya lo tiene**: preferencia `espaciado` en `useAccesibilidad` con botón en el bloque de accesibilidad del pie y la clase `.espaciado-govco`. Medido a 1 280 px y a 320 px: interlínea 2,00×, `letter-spacing` 0,12 em, `word-spacing` 0,16 em, **desborde horizontal 0 px** (§13.1). |
+| RF-B3-035 | Mismo componente → mismo nombre accesible | Must | ⛔ | Exige recorrido manual comparado entre vistas. |
+| RF-B1-048 | Todo operable sólo con teclado | Must | 🟡 | Sitio: menú con flechas, Inicio/Fin y Escape devolviendo el foco (`MenuNavegacionGovco.vue:399-503`); carrusel y buscador con controles nativos. **Panel: la tabla ordenable no es operable por teclado** (`DataTable.vue:60-79`) (D-16). |
+| RF-B3-017 | Sin trampas de foco; entrada y salida de modales con teclado | Must | 🟡 | El sitio no abre modales; el menú cierra con Escape devolviendo el foco. **El panel sí abre diálogos sin atrapar ni restaurar el foco** (`BaseModal.vue:29-35`, `CommandPalette.vue:54`) (D-16). |
+| RF-B1-048 | Orden de foco = DOM y foco visible con contraste ≥3:1 | Must | ⛔ | El sitio **no declara ningún estilo global de foco**: depende del Kit y de Bootstrap 5.0.2, que no usa `:focus-visible` (se introdujo en 5.2). Sin medición no puede afirmarse (D-16 bis). |
+| RF-B3-018 | Atajos de una sola tecla desactivables | Should | 🟡 | El sitio no usa atajos; el panel usa `⌘K`/`Ctrl+K` (`CommandPalette.vue:27`) sin forma de desactivarlo (D-16). |
+| RF-B3-019 | Límite de tiempo <20 h ajustable | Must | ➖ | No hay sesiones con límite en la parte pública. |
+| RF-B1-051 | Controles de movimiento y **pausa por defecto** | Must | 🟡 | Respeta `prefers-reduced-motion` (`CarruselGovco.vue:195-200`, `VolverArriba.vue:23-24`) y ofrece Play/Stop; **no arranca en pausa** (D-12). |
+| RF-B3-028 | Alternativa a gestos multidedo y a movimiento | Must/Should | ➖ | No hay gestos ni funciones por movimiento. |
+| RF-B3-033 | El foco no provoca cambios de contexto | Must | ✅ | Los filtros del catálogo se aplican al elegir en un `<select>` con `@change` explícito (`tramites/index.vue:628-638`); no hay envío por foco. |
+| RF-B1-049 | `<label>` asociada, instrucciones y ejemplo de formato | Must | 🟡 | Etiquetas y `for` ✅ (`realizar-una-peticion.vue:505-513`); los ejemplos de formato del RF no están en todos los campos (D-27 bis). |
+| RF-B3-006 | `type` y `autocomplete` por propósito de campo | Must | 🟡 | `autocomplete` presente en la entrada del panel (`EntrarView.vue:31,39`) y en varios campos del PQRSD; no en todos (⛔ verificación de axe). |
+| RF-B3-037 | Errores identificados en texto con sugerencia de corrección | Must | ✅ | `aria-invalid`, `aria-describedby`, `role="alert"` y foco al primer campo inválido (`realizar-una-peticion.vue:372,413-472`). |
+| RF-B3-040 | Confirmación antes de envíos sensibles | Must | ➖ | No hay pagos ni envíos irreversibles (el formulario PQRSD no radica). |
+| RF-B1-082 | Textos de enlace descriptivos y **vínculos visitados diferenciados** | Must/Should | 🟡 | Textos ✅ (nombres de destino reales); **visitados ❌**: no hay una sola regla `:visited` en el sitio (D-25). |
+| RF-B1-053 | Múltiples vías de navegación al mismo contenido | Must | 🟡 | Menú ✅, miga ✅, mapa del sitio ✅, **buscador ❌** (D-03). |
+| RF-B3-023 | `<title>` descriptivo en cada página | Must | ✅ | Las 19 páginas declaran `useHead({ title })`. |
+| RF-B3-041 | HTML válido, IDs únicos, sin atributos duplicados | Must | ⛔ | Sin validador W3C ni prueba de marcado. |
+| RF-B3-042 | Componentes personalizados con nombre, función y valor ARIA | Must | 🟡 | Sitio ✅: menú (`aria-expanded`/`aria-controls`/`aria-haspopup`, `MenuNavegacionGovco.vue:588-600`), carrusel (`aria-current`, `aria-live`), barra (`aria-pressed`, `BarraAccesibilidad.vue:45`). Panel ❌ (D-16). |
+| RF-B3-043 | Mensajes de estado con `role="status"`/`aria-live` sin tomar el foco | Must | 🟡 | Presentes en PQRSD, normativa, trámites, verificación, políticas y secciones en preparación; **ausente en `/buscar`** (D-03). |
+| RF-B3-030 | Etiqueta visual = nombre accesible | Must | ✅ | `aria-label` empieza por el texto visible, incluso en correos (`accesibilidad.vue:132-136`). |
+| RF-B3-015 | Tooltips descartables con ESC | Should | ➖ | No hay tooltips. |
+| RF-B3-044 | Mapa del sitio XML enlazado desde el pie, sin vínculos rotos | Must | 🟡 | Enlace en el pie (`PiePaginaGovco.vue:233`) y `sitemap.xml` servido (`sitemap.xml.ts:76-123`); la ausencia de vínculos rotos es ⛔. |
+| RF-B3-049 | Sin justificado, 60-80 caracteres por línea, sin pop-ups | Should/Must | ✅ | Texto no justificado y sin pop-ups no solicitados. |
+| RF-07-D01 | El CMS bloquea publicar multimedia sin subtítulos | Must | ❌ | No hay CMS (D-15). |
+
+**RNF del módulo 07**
+
+| ID | Umbral | Estado | Evidencia / brecha |
+|---|---|---|---|
+| RNF-B1-014 | WCAG 2.1 AA completo (52 criterios), 0 violaciones críticas o serias | ⛔ | **No hay ninguna ejecución de axe-core ni Lighthouse**: axe y `@axe-core/playwright` están instalados y sin usar (D-19). Es el RNF peor acreditado del proyecto: se declara cumplido en ADR-0015 sin instrumento (C-22). |
+| RNF-B1-015 | NTC 5854 nivel AA | ⛔ | Sin evaluación. |
+| RNF-B1-016 | Compatible con NVDA, JAWS y VoiceOver; ≥90 % de tareas críticas completables | ⛔ | Sin prueba con productos de apoyo. |
+| RNF-B1-017 | Contraste ≥4.5:1 (normal) y ≥3:1 (grande y componentes) | 🟡 | Hay mediciones documentadas y correctas en los puntos que el equipo tocó (`PiePaginaGovco.vue:39-50`, `sitio.css:183-192`); **no hay medición exhaustiva** de todo el texto (`RNF-B1-014` la exige). |
+| RNF-B1-018 | ≤3 destellos/s, respeta `prefers-reduced-motion`, movimiento ≤1/3 de pantalla | ✅ | `CarruselGovco.vue:161-200` y `VolverArriba.vue:23-24`. |
+| RNF-B1-019 | El alto contraste altera todos los colores satisfactoriamente | ✅ | Modo propio con 21:1 de fondo y 15:1 en enlaces, incluido foco amarillo (`sitio.css:24-81`). El del Kit es un stub y así se documenta (`:12-15`). |
+| RNF-B3-004 | Zoom 400 % sin doble scroll ni pérdida | ⛔ | Sin medición. La barra usa `zoom` sobre la raíz (`useAccesibilidad.ts:47-48`), mecanismo distinto del zoom de navegador que el RNF mide. |
+| RNF-B3-005 | Objetivos táctiles ≥44×44 px | 🟡 | Ver RNF-B3-005 del módulo 01. |
+| RNF-07-D01 | La barra de accesibilidad opera en tablet (768-992 px) | ❌ | **Incumplido por diseño**: `BarraAccesibilidad.vue:39` aplica `d-none d-lg-flex` y la oculta por debajo de 992 px. Es una contradicción entre el Kit (CAG-07) y este RNF sin resolver (C-25, D-21). |
+
+### 4.3 Módulo 08 — Usabilidad (23 RF)
+
+| ID | Requisito | Prio | Estado | Evidencia / qué falta |
+|---|---|---|---|---|
+| RF-B1-080 | Migas de pan con la sección actual marcada | Must | ✅ | Ver RF-B2-038. |
+| RF-B1-081 | URLs limpias, jerárquicas, en castellano | Should/Must | ✅ | `/participa/control-ciudadano`, `/politicas/uso-de-cookies`, `/tramites/{slug}`: sin acentos, sin parámetros, jerárquicas. |
+| RF-B1-082 | Vínculos visitados diferenciados | Must | ❌ | Sin `:visited` (D-25). **Es uno de los tres «tips» que el corpus recuperó del GIF de los PPTX** (`_global/auditoria-cobertura.md:64`), y sigue sin implementarse. |
+| RF-B2-072 | Navegación global consistente | Must | ✅ | El menú sale de **una sola constante** (`layouts/default.vue:46-94`); no puede divergir entre páginas. |
+| RF-B2-074 | El botón «atrás» nunca deja de funcionar | Must | ✅ | SPA con historial del navegador. Los `<a href>` internos recargan la página pero no rompen el historial (D-22). |
+| RF-B2-071 | Portada orientada a tareas: los 3 trámites más solicitados a ≤2 clics | Must | ❌ | La portada ofrece tres **secciones**, no trámites (`index.vue:72-90`); `/tramites` está a un clic, pero los trámites concretos a tres (portada → catálogo → ficha) (D-08). |
+| RF-B1-083 | Página de confirmación con nº de referencia, próximos pasos y plazo | Must | ❌ | No existe. El formulario PQRSD ni siquiera radica (D-26). |
+| RF-B2-077 | Procesos largos con pasos numerados (stepper) | Must | ✅ | El formulario de petición se divide en **tres pasos** con encabezado «Paso N de 3», línea de avance con `aria-current="step"` y estado por paso en texto. Medido con navegador en `make diseno` (§18). |
+| RF-B1-086 | Sin pop-ups no solicitados; un modal a la vez | Must | ✅ | No hay ninguno. La excepción que el criterio contempla —el banner de cookies— tampoco existe (D-01). |
+| RF-B1-084 | Formularios con ejemplos de formato, obligatorios marcados, etiquetas arriba y validación en línea | Must | 🟡 | Obligatorios, etiquetas y validación con foco al error ✅ (`realizar-una-peticion.vue:413-472`); **faltan los ejemplos de formato** y la validación al perder el foco en todos los campos (D-27 bis). |
+| RF-B3-077 | Carga de archivos con tipos, tamaño máximo y confirmación del fichero | Must | ❌ | **No hay ningún `type="file"` en la sede** (D-13). Bloquea también RF-B1-033 y RF-04-D04. |
+| RF-B3-078 | Desplegables con filtro de búsqueda | Must | ❌ | No implementados (D-27). ADR-0015 reexpresa el umbral a 12 elementos y el sitio usa `<select>` nativo: la desviación es defendible (C-06), pero **el componente no existe cuando se supere ese umbral**. |
+| RF-B3-079 | Entradas con estados y contraseña con ojo mostrar/ocultar | Must | ❌ | No hay control de mostrar/ocultar en ningún formulario —ni en el sitio ni en el acceso del panel (`EntrarView.vue:35-41`) (D-27). |
+| RF-B3-080 | Checkboxes/radios con `<label>` y `for` | Must | ✅ | `realizar-una-peticion.vue:503-513`; `pqrsd.vue`. |
+| RF-B1-006 | Buscador con autocompletado y corrección ortográfica | Must/Should | ❌ | Ver módulo 01 (D-03). |
+| RF-B1-085 | Responsive de 320 px a escritorio sin scroll horizontal | Must | 🟡 | Los tres desbordes medidos están corregidos y documentados (`sitio.css:281-334`, `PiePaginaGovco.vue:407-424`, `accesibilidad.vue:163-173`); los seis breakpoints no están probados uno a uno (⛔). |
+| RF-B1-089 | HTML/CSS válido W3C, CSS separado, sin tags ni vínculos rotos | Must | ⛔ | Sin validador. Nota: el CSS **sí** está separado (`sitio.css` + Kit) y no hay estilos en línea salvo el necesario (`useAccesibilidad.ts:47`). |
+| RF-B1-076 | Encabezados semánticos en lenguaje claro y logo a inicio | Must | ✅ | Un `h1` por página, jerarquía sin saltos; `CabeceraGovco.vue:79-81`. |
+| RF-B1-088 | SEO: títulos, meta-descripción, palabras clave, sitemap XML | Should | 🟡 | Título en las 19 páginas y descripción **sólo en la portada** (`index.vue:28-34`); `sitemap.xml` y `robots.txt` ✅; **sin `og:`/`twitter:` ni `canonical`** en ninguna página (D-28). |
+| RF-B2-081 | Texto no justificado, 60-80 caracteres por línea | Should | ✅ | No justificado ✅ y **medido**: `max-width: 68ch` sobre la prosa del contenido principal deja **74 caracteres/línea en `/pqrsd` y 70 en `/accesibilidad` y `/politicas/uso-de-cookies`** (§13.1). Antes eran ~81. |
+| RF-B1-087 | Encuesta SUS accesible y publicada | Should | ❌ | No existe (D-27). |
+| RF-B3-146 | Lenguaje claro con guía de voz y tono y pruebas de usuario | Must/Should | ⛔ | Exige evaluación con personas; el texto publicado sí es claro y sin siglas sin explicar (juicio cualitativo, no acreditado). |
+| RF-08-D01 | Criterio cuantitativo de usabilidad (tasa de éxito, tiempo en tarea) | Should | ➖ | Pregunta abierta del propio corpus (`08:58`). |
+
+**RNF del módulo 08**
+
+| ID | Umbral | Estado | Evidencia / brecha |
+|---|---|---|---|
+| RNF-B1-030 | SUS ≥68 | ❌ | No hay encuesta ni medición (D-27). |
+| RNF-B1-031 | 60-80 caracteres por línea | ✅ | Ver RF-B2-081: 70-74 medidos en tres páginas de prosa. |
+| RNF-B1-032 | 1024×768 sin scroll horizontal; responsive hasta 320 px | 🟡 | Los defectos a 320 px están corregidos y documentados; los 1024×768 no constan medidos. |
+| RNF-B2-019 | Buscador de ~200 px de ancho mínimo | 🟡 | El campo cede espacio y no desborda (`sitio.css:298-320`), pero mide lo que le deja la fila de la cabecera; sin medición de los 27 caracteres (⛔). |
+| RNF-B2-007 | FCP ≤2,5 s en 4G | ⛔ | Sin medición. |
+| RNF-B2-021 | ≤posición 10 en Google para ≥3 de 5 frases clave | ⛔ | Sin medición. |
+| RNF-B1-043 | Código limpio, HTML/CSS válido, **cobertura de pruebas ≥70 %**, CI/CD | 🟡 | **Ya hay pruebas**: 35 en el sitio y 20 en el panel, y `make unidad` es una puerta real (§14.1). Lo que sigue sin acreditarse es el **70 % de cobertura**: no hay proveedor de cobertura instalado y nadie la ha medido. HTML/CSS válido sigue siendo ⛔. |
+| RNF-B3-036 | ≤7 ítems de menú principal | ✅ | Exactamente 7 (`layouts/default.vue:46-94`). |
+| RNF-B3-037 | Índice Fernández-Huerta ≥60 | ⛔ | Sin cálculo. |
+| RNF-08-D01 | Resultados SUS almacenados y exportables | ❌ | No hay SUS (D-27). |
+
+### 4.4 Módulo 12 — Gestión de contenidos y administración (15 RF · **0 cumplen**)
+
+Es el módulo con el resultado más duro, y conviene decirlo sin ambigüedad: **el panel es hoy una
+carcasa de navegación**. 18 de sus 19 rutas renderizan el mismo marcador
+(`router/index.ts:41-59` → `EnConstruccionView.vue`), no hay autenticación, no hay CMS, no hay
+registro electrónico, no hay auditoría y no hay ninguna operación de escritura.
+
+| ID | Requisito | Prio | Estado | Evidencia / qué falta |
+|---|---|---|---|---|
+| RF-B1-076 | CMS con roles (administrador, editor de sección, publicador) y log de auditoría | Must | ❌ | Sin CMS. El panel tiene marcadores (D-15); el menú lateral declara los módulos pero ninguno existe (`AdminLayout.vue:29-87`). |
+| RF-B1-079 | Usuarios y roles con ≥3 niveles, permisos por módulo, auditoría, T&C y firma al registrarse | Must | ❌ | Sin gestión de usuarios. Los `permiso` declarados en el router no se aplican (D-04). |
+| RF-B2-067 | Registro electrónico 24/7/365 con consecutivo, acuse y distribución | Must | ❌ | Sin expediente ni radicación. `realizar-una-peticion.vue:14-19` lo declara honestamente: «al enviarlo no se registrará nada». |
+| RF-B2-068 | Relación de peticiones y calendario oficial de días hábiles | Must | ❌ | No existe. `pqrsd.vue:210-218` publica los plazos legales como tabla informativa, que no es lo mismo. |
+| RF-B1-077 | Archivo y conservación conforme a TRD y AGN | Must | ❌ | Sin SGDEA ni TRD. |
+| RF-B1-078 | Tablero ITA **interno**, que arranca en cero, valida al publicar y **no usa datos mock** | Must | ❌ | **Incumplido de la peor forma posible**: existe una superficie que parece ese tablero y publica cifras inventadas (287 PQRSD, 34 por vencer, 1 842 trámites, 94 % de ITA, «Sistema operativo», «API Gateway OK») en `InicioView.vue:22-54` (D-05). |
+| RF-B2-089 | Analítica de uso del portal | Should | ❌ | No hay analítica; el módulo `/reportes` es un marcador. |
+| RF-B2-093 | Publicación automática semestral del informe de control interno | Must | ❌ | Sin CMS ni planificación editorial. |
+| RF-B3-153 | Notificaciones electrónicas y alertas multicanal | Must | ❌ | El módulo `/notificaciones` es un marcador; **el icono de campana de la cabecera muestra un punto rojo sin dato alguno** (`AdminLayout.vue:298-309`). |
+| RF-B3-155 | Firma electrónica con efectos de la autógrafa | Must | ❌ | No hay firma. |
+| RF-12-D05 | Validación automática de criterios ITA al publicar, con bloqueo de los bloqueantes | Must | ❌ | Sin CMS. |
+| RF-12-D01 | Flujo editorial Borrador → Pendiente → Publicado → Archivado, con rechazo | Must | ❌ | Sin flujo. |
+| RF-12-D02 | Baja segura de usuarios con revocación ≤1 día hábil y trazabilidad | Must | ❌ | Sin usuarios. |
+| RF-12-D03 | Reintento y canal alterno de notificaciones | Should | ❌ | Sin notificaciones. |
+| RF-12-D04 | Verificación de edad de titulares menores | Must | ❌ | No hay registro que recolecte fecha de nacimiento. |
+
+**RNF del módulo 12**
+
+| ID | Umbral | Estado | Brecha |
+|---|---|---|---|
+| RNF-B1-044 | Sincronización con la Hora Legal Colombiana | ❌ | Sin reloj legal ni sello temporal. |
+| RNF-B2-026 | 100 % de expedientes con TRD aplicada | ❌ | Sin expedientes. |
+| RNF-B3-022 | 100 % de eventos críticos en log con retención ≥5 años | ❌ | Sin logs de auditoría. |
+| RNF-B3-044 | Integridad, inmutabilidad y MTBF >4 320 h | ➖ | Infraestructura. |
+| RNF-B1-039 | Programa RAEE | ➖ | Gestión ambiental, fuera del diseño. |
+| RNF-12-D01 | Bloqueo de concurrencia editorial | ❌ | Sin edición concurrente que bloquear. |
+
+### 4.5 Otros módulos con efecto en la interfaz (33 RF)
+
+| ID | Requisito | Estado | Evidencia / brecha |
+|---|---|---|---|
+| RF-B1-012 | Menú de Transparencia con ≥10 subsecciones publicadas | ❌ | `/transparencia` es un aviso de «en preparación» (`transparencia.vue`) (D-17). |
+| RF-B1-013 | Normativa con tipo, número, fechas, epígrafe, vigencia, descarga abierta y orden inverso | 🟡 | **La interfaz está construida y es sólida**: catálogo, filtros por tipo, recuento, orden por fecha de publicación con desempate, formato ISO y región viva (`normativa.vue:41-277`). **El listado está vacío** porque la Entidad no ha entregado normas. Cumple el diseño, no el contenido. |
+| RF-B1-014 | Enlace funcional al SUIN y Gaceta Oficial | ❌ | No existe enlace a SUIN en el sitio. |
+| RF-B1-015 | Enlace funcional a SECOP I/II y publicación de contratación | ❌ | Sin sección de contratación. |
+| RF-B1-016 | Plan de Acción publicado antes del 31 de enero | ❌ | Sin sección de planeación. |
+| RF-B1-018 | Predial, ICA y calendario tributario | ❌ | Sin sección tributaria. (`tramites/[slug].vue:22-28` declara canales de recaudo del predial sin pasarela.) |
+| RF-B1-037 | Informes trimestrales de PQRSD en formato abierto | ❌ | Sin informes. |
+| RF-B1-096 | Información para grupos de interés | ❌ | Sin sección. |
+| RF-B1-097 | Información institucional: misión, organigrama, directorio, planes, estados financieros | ❌ | Sin sección. |
+| RF-B1-021 | Catálogo de trámites vinculado al SUIT con los seis atributos | 🟡 | Implementado contra el contrato con procedencia declarada campo a campo (`tramites/[slug].vue:5-38`) y catálogo paginado con filtros (`tramites/index.vue:240-330`); depende de que el backend sirva los datos. |
+| RF-B3-126 | Ficha en GOV.CO con los cuatro momentos | 🟡 | Ver módulo 01. |
+| RF-B3-127 | Estados estandarizados de GOV.CO | ❌ | No hay estados en la interfaz. |
+| RF-B1-033 | PQRSD sin restricciones técnicas de formato, tamaño ni cantidad de adjuntos | Must | ❌ | **No hay campo de adjuntos** (D-13). Es la contradicción C-01 del corpus, resuelta aquí por omisión en vez de por diseño. |
+| RF-B1-034 | Seguimiento por número de radicado con estado y fecha estimada | Must | ❌ | `/seguimiento` es un aviso; `tramites/[slug].vue:29-33` explica que el canal viaja «declarado y no habilitado» (D-17). |
+| RF-B1-035 | Validación cliente y servidor con mensajes accesibles y foco al campo erróneo | Must | ✅ | `realizar-una-peticion.vue:359-413` (validación, resumen, foco al primer inválido) y `pqrsd.vue`. |
+| RF-B3-099 | Acuse de recibo automático y radicado en ≤24 h | Must | ❌ | Sin radicación. |
+| RF-B3-101 | Captcha accesible en el formulario | Must | ❌ | **No hay captcha en ningún formulario de la sede** (D-13). Incumple además el ítem 4 del PDF de seguridad y el ítem 5 del de funcionalidad. |
+| RF-04-D04 | Validación por campo del formulario PQRSD (documento, correo, tope de 2 000, obligatoriedad condicional) | Must | 🟡 | Hay validación y modalidad anónima que descarta los datos identificativos (`:167-168,278`); el patrón por tipo de documento y el tope de 2 000 caracteres no constan implementados. |
+| RF-04-D01 | Traslado por competencia con notificación | Must | ❌ | Sin back-office. |
+| RF-04-D02 | Gestión de respuesta y cierre con medición de plazo | Must | ❌ | Sin back-office. |
+| RF-04-D03 | Cómputo de plazos por tipo con calendario hábil | Must | ❌ | `pqrsd.vue:210-218` publica los plazos como texto; no hay cómputo. |
+| RF-03-D03 | Reanudación de trámite con adjuntos ya cargados | Should | ❌ | Sin adjuntos ni borradores. |
+| RF-03-D04 | Validación de adjuntos (MIME real, tamaño, cantidad, antivirus) | Must | ❌ | Sin carga de archivos. |
+| RF-05-D01 | Ciclo de vida de mecanismos de participación con cierre automático | Should | ❌ | Las seis subcategorías son avisos (`participa/[slug].vue:70-75`). |
+| RF-B1-041 | Sección de Canales de Atención con dirección, horarios, teléfonos y correos | Must | ✅ | `atencion.vue` publica los canales verificados contra el portal oficial, con `+57` y horarios. |
+| RF-B1-030 | Agendamiento de citas con confirmación y consulta | Should/Must | ❌ | Sin agendamiento. |
+| RF-06-D01 | Administración de la agenda de citas desde el CMS | Must | ❌ | Módulo `/citas` es un marcador. |
+| RF-B1-057 | Cookies con `Secure` y `HttpOnly`, sesión ≤900 s | Must | ⛔ | No hay cookies emitidas por el frontend que auditar; depende del backend y del punto de entrada. |
+| RF-B1-060 | Sanitización de todas las entradas | Must | ⛔ | Requiere pentest o prueba de XSS. |
+| RF-B1-058 | Captcha accesible en formularios que capturan datos y límite de intentos | Must | ❌ | Sin captcha (D-13). |
+| RF-B1-062 | Páginas de administración no accesibles desde internet sin autenticación | Must | ❌ | **Incumplido en el diseño de la interfaz**: `/admin/*` no tiene guardia (D-04). El `noindex` (`panel/index.html:17`) no es control de acceso. |
+| RF-B3-074 | Módulo de inicio de sesión del Kit con captcha y soporte de CC/CE/TI/PEP/NIT | Must | ❌ | El acceso es una maqueta sin autenticación, sin captcha y sin selector de tipo de documento (`EntrarView.vue`) (D-04). |
+| RF-11-D01 | Actualización programada de datasets con alerta de desactualización | Should | ❌ | Módulo de datos abiertos inexistente. |
+
+### 4.6 Recuento por estado
+
+| Módulo | RF | ✅ | 🟡 | ❌ | ⛔ | ➖ |
+|---|---|---|---|---|---|---|
+| 01 — Estructura e identidad | 44 | 10 | 10 | 18 | 1 | 5 |
+| 07 — Accesibilidad | 37 | 13 | 14 | 1 | 3 | 6 |
+| 08 — Usabilidad | 23 | 7 | 4 | 9 | 2 | 1 |
+| 12 — Gestión de contenidos | 15 | 0 | 0 | 15 | 0 | 0 |
+| Otros con efecto en la interfaz | 33 | 2 | 4 | 25 | 2 | 0 |
+| **Total RF** | **152** | **32** | **32** | **68** | **8** | **12** |
+| **Total RNF** | **31** | **5** | **7** | **8** | **8** | **3** |
+
+**Lectura de la tabla.** El 21 % de cumplimiento no es un fracaso del diseño, es la fotografía de
+un producto a medio construir: de los 68 RF no cumplidos, **43 lo están porque la superficie no
+existe** (módulo 12 completo, secciones de contenido, adjuntos, captcha, buscador, CMS) y **11
+porque existe una pieza que contradice el requisito** (cookies, aviso externo, login, tablero con
+datos simulados, carrusel en reproducción, barra sin persistencia, tabla sin ordenamiento,
+visitados sin diferenciar, panel con identidad ajena al Kit, barra oculta en tablet, identidad
+duplicada de datos de entidad). Esa segunda lista —11 requisitos donde hay algo construido
+**mal**— es la que hay que arreglar antes de seguir construyendo lo que falta.
+
+---
+
+## 5. Registro de hallazgos: todo lo que falta por corregir en el diseño
+
+Cada hallazgo lleva **qué falta**, **dónde** (evidencia) y **cómo se comprueba que quedó
+corregido**. El orden dentro de cada gravedad es el orden de corrección recomendado (§8).
+
+### 5.1 🔴 Bloqueantes (6)
+
+Impide que la sede cumpla la norma, o afirma al ciudadano algo que no es cierto.
+
+---
+
+**D-01 · No existe banner de cookies ni gestión de consentimiento**
+
+- **Requisitos:** RF-B1-008 (Must), RF-01-D01 (Must), RN-01-D01, HU-01-D01, HU-B1-010; ítem 5 del
+  PDF de funcionalidad (aviso de privacidad y autorización); Ley 1581 de 2012.
+- **Evidencia de la ausencia:** `grep -ri cookie sitio/app` sólo devuelve el rótulo del enlace del
+  pie y la página de política; no hay componente, ni estado, ni `useCookie`, ni almacenamiento.
+  El layout no monta nada equivalente (`layouts/default.vue:153-204`).
+- **Por qué es bloqueante y no «falta contenido»:** la política publicada **promete** que existe
+  —«Qué cookies usa el sitio… y cómo se administra el consentimiento de quien navega»
+  (`politicas/[slug].vue:48-52`)— y el criterio 5 del PDF oficial lo exige en *todos* los
+  formularios que capturan datos. Además, sin consentimiento versionado no puede activarse
+  analítica alguna (y `RF-B2-089` la pide).
+- **Qué falta construir:** (1) el banner con las tres acciones —aceptar todo, rechazar todo,
+  configurar por categoría—; (2) el registro del consentimiento con **categorías, fecha, hora y
+  versión de la política**; (3) la caducidad a 12 meses y la re-solicitud al cambiar la versión
+  (RN-01-D01); (4) el punto de revocación permanente; (5) el bloqueo efectivo de cualquier script
+  no esencial hasta la aceptación (hoy no hay ninguno, así que el bloqueo hay que construirlo
+  **antes** de que llegue la analítica).
+- **Verificación:** usuario nuevo → banner visible y cero cookies no esenciales en DevTools;
+  consentimiento guardado con versión y fecha; simular 13 meses → el banner reaparece.
+
+---
+
+**D-02 · No existe el aviso de salida a sitio externo**
+
+- **Requisitos:** RF-B1-071 (Must/Should), RF-B2-040, RF-B3-094, RF-01-D03 (Should), RN-01-D03;
+  ítem 2 del PDF de funcionalidad (página externa en nueva pestaña).
+- **Evidencia:** los enlaces externos abren en pestaña nueva **sin aviso**:
+  `BarraSuperior.vue:17-22` (Portal GOV.CO) y `PiePaginaGovco.vue:321-332` (Facebook, Instagram,
+  X), que sí declaran `rel="noopener"` pero ningún aviso intermedio.
+- **Qué falta construir:** el modal de aviso con nombre del destino y entidad responsable,
+  confirmación explícita, y la **lista blanca de dominios de confianza** (GOV.CO, pasarela del
+  Articulador, SCD) que evite el falso positivo (RF-01-D03, RN-01-D03). Requiere también el
+  componente de alerta modal (D-28), que hoy no existe.
+- **Nota de coherencia:** ADR-0015 §3 declara «CAG-21 no aplica porque la sede no abre modales».
+  Ese «no aplica» **caduca en el momento en que este RF se implemente**: el modal de aviso es
+  exactamente un modal (C-06).
+- **Verificación:** enlace a un dominio no listado → modal con confirmación; enlace a `gov.co` →
+  navegación directa sin modal.
+
+---
+
+**D-03 · El buscador existe, se ve en todas las páginas y no busca**
+
+- **Requisitos:** RF-B1-005 (Must), RF-B1-006 (Must/Should), RF-B2-035/036, RF-B3-067/140/141;
+  RNF-B2-019; ítem 6 del PDF de funcionalidad («la búsqueda debe hacerse dentro de la sede»).
+- **Evidencia:** `buscar.vue:44-49` —«El buscador todavía no tiene contenido que consultar»— y
+  `BuscadorGovco.vue:5-8`, que documenta la omisión del buscador predictivo. No hay endpoint de
+  búsqueda en el contrato (`contract/openapi.yaml`, tres rutas) ni índice de contenido.
+- **Por qué es bloqueante:** es una de las dos formas de localizar información en una sede
+  (WCAG 2.4.5 y RF-B1-053 piden ≥2 vías); sin buscador, el ciudadano que no conoce la jerarquía
+  del menú no tiene camino. Y el ítem 6 del PDF de aceptación de funcionalidad es explícito.
+- **Qué falta construir:** (1) el recurso de búsqueda en el contrato con su criterio de
+  pertinencia; (2) la página de resultados con **fecha, categoría, título, extracto, autor y
+  miniatura** por resultado, paginada y con estado vacío propio; (3) el buscador predictivo del
+  Kit (`govco-search-predictive`, clases hoy ausentes) con ≤10 sugerencias y tolerancia a errores
+  tipográficos; (4) el buscador **dentro** de la sección de Transparencia, que la Sección 5 §5.3.1
+  exige aparte.
+- **Verificación:** buscar «licncia» → sugiere «licencia de construcción»; buscar un término
+  inexistente → estado vacío con alternativas; `role="status"` anunciando el recuento.
+
+---
+
+**D-04 · El panel no autentica, y afirma que sí**
+
+- **Requisitos:** RF-B1-062 (Must, páginas de administración no accesibles sin autenticación),
+  RF-B3-074 (Must, módulo de inicio de sesión del Kit con captcha), RF-B1-058 (captcha),
+  RF-09-D02, RF-09-D04, RN-09-D03, RN-09-D04 (MFA obligatoria para roles internos),
+  GUIA-MAESTRA-COMPLETA §matriz 25 puntos (17-24: guardias, `panel-administrative`, coherencia
+  FE↔BE).
+- **Evidencia:**
+  1. El router declara los metadatos de seguridad y **no los aplica**: `router/index.ts:34-44`
+     (`requiereSesion`, `permiso`, `soloInvitados`) y el único gancho instalado es
+     `afterEach` para escribir el título (`:119-121`). **No hay un solo `beforeEach`.**
+  2. La pantalla de acceso lo dice en su propio comentario: «el envío **no autentica**, porque el
+     módulo de identidad todavía no existe» (`EntrarView.vue:5-9`), y sin embargo publica
+     «Sesión protegida con doble factor (Decreto 1078)» (`:59-61`).
+  3. El sitio público enlaza a esa pantalla desde la cabecera de **todas** las páginas
+     (`layouts/default.vue:182-184`).
+  4. El panel muestra «Administrador / Sesión activa» con iniciales fijas `'AD'`
+     (`AdminLayout.vue:166,318-319`).
+- **Qué falta:** (1) el ciclo real de sesión (SSO/SLO vía SCD de Autenticación, según ADR y
+  `contexto-transversal.md`), o bien **retirar el enlace de la cabecera** hasta que exista;
+  (2) las guardias `beforeEach` que apliquen `requiereSesion`/`permiso`/`soloInvitados`;
+  (3) el captcha accesible y el límite de intentos; (4) MFA; (5) mientras no exista nada de eso,
+  **quitar la afirmación de doble factor** y el marcador de sesión: hoy la interfaz miente sobre
+  su propio estado de seguridad.
+- **Verificación:** abrir `/admin/` sin sesión → redirección; rol sin permiso → pantalla de «sin
+  permiso» (que ya existe: `SinPermisoView.vue`); usuario autenticado en `/acceso` → redirección.
+
+---
+
+**D-05 · El panel publica cifras inventadas donde el requisito las prohíbe**
+
+- **Requisitos:** RF-B1-078 (Must) —«tablero ITA interno, **sin datos mock**, arranca en cero»—,
+  RF-B2-089, y el principio editorial que el propio proyecto sostiene («en un sitio institucional
+  [el relleno] se lee como información oficial», `SeccionEnPreparacion.vue:9-10`).
+- **Evidencia:** `InicioView.vue:26-29` publica «PQRSD activas 287 (+12 %)», «Por vencer 34»,
+  «Trámites SUIT 1 842», «Cumplimiento ITA 94 %»; `:22` publica la insignia «Sistema operativo»;
+  `:44-54` publica un panel de «Salud del sistema» con «API Gateway OK», «SIGMI Bus OK»,
+  «Conector RNEC Lento», «Firma electrónica OK»; `AdminLayout.vue:308` muestra una campana con
+  punto rojo de notificación. El propio archivo admite en un comentario que las cifras son «de
+  maqueta» (`:5-7`).
+- **Por qué es bloqueante y no cosmético:** es exactamente el patrón que RF-B1-078 prohíbe por
+  escrito (el corpus descarta el 47/100 del sitio anterior por ser «mock»:
+  `sede-electronica-doc/README.md` §3). Un funcionario que abra ese tablero no puede distinguir
+  lo real de lo inventado; y si el panel se despliega en producción, la Entidad publica
+  indicadores falsos de su propio cumplimiento.
+- **Qué falta:** sustituir cada cifra por su origen real (o por el estado «sin datos» declarado);
+  retirar las insignias de estado mientras no existan sondas; y construir el tablero ITA como lo
+  pide RF-B1-078: **interno, en cero, alimentado por el validador de publicación**.
+- **Verificación:** ninguna cifra sin `source` trazable; el tablero arranca en cero y se mueve
+  sólo al publicar contenido.
+
+---
+
+**D-06 · Las puertas de calidad y la matriz de trazabilidad acreditan artefactos que no existen**
+
+- **Requisitos:** RNF-B1-043 (Must, CI/CD y cobertura ≥70 %), CAG-32, §2.6.7 del expediente
+  (las tres puertas automáticas), y las reglas de trazabilidad de `docs/trazabilidad.md:9-13`.
+- **Evidencia:**
+  - `Makefile:107` → `node tests/conformidad-diseno.mjs` en `panel/`: **`panel/tests/` no existe**.
+  - `Makefile:111` → `node tests/accesibilidad.mjs`: ídem.
+  - `Makefile:97-98` → `npm run test` en `panel/` y `sitio/`: **ninguno de los dos declara ese
+    script** (`panel/package.json:5-9`, `sitio/package.json:6-13`).
+  - `Makefile:135,139` → `bash scripts/verificar-imagenes.sh` y `verificar-respaldo.sh`:
+    **no existe `scripts/`**.
+  - `Makefile:63` → `php artisan test --filter=ContratoDeriva`: **no hay ninguna prueba con ese
+    nombre**.
+  - `docs/trazabilidad.md` acredita 122/140 criterios citando `frontend/tests/*.mjs`,
+    `views/publico/*.vue`, `backend/tests/Feature/Sede/ConformidadSedeTest.php`,
+    `backend/tests/Feature/Api/CatalogoApiTest.php`, `GET /menus/{ubicacion}`, `GET /sedes` y
+    `npm run trazabilidad`. **Ninguna de esas rutas, pruebas, vistas ni operaciones existe.**
+- **Qué falta:** (1) decidir y ejecutar: o se construyen las pruebas y se regenera la matriz contra
+  el árbol real, o se **retira la matriz del expediente** mientras no describa el repositorio;
+  (2) alinear el `Makefile` con lo que existe para que `make comprobar` sea una puerta de verdad;
+  (3) escribir en la matriz los tres estados que ADR-0015 promete (satisfecho / no aplica /
+  desviación declarada) y no los tres actuales (implementado / cubierto / pendiente).
+- **Verificación:** `make comprobar` termina en verde **y** cada fila de la matriz resuelve a un
+  fichero existente.
+
+### 5.2 🟠 Graves (17)
+
+Incumple un Must funcional o de accesibilidad, o hace que el diseño no pueda acreditarse.
+
+---
+
+**D-07 · La portada no publica noticias**
+
+- **Requisitos:** RF-B1-011 (Must), RF-B2-071, RF-B1-083, FUN-026.
+- **Evidencia:** `index.vue:43-90`: tres diapositivas de secciones y tres tarjetas; ninguna noticia
+  con imagen 4:3/16:9, título, descripción y fecha. `/noticias` es un aviso de preparación.
+- **Qué falta:** el módulo de noticias con su modelo (fecha, categoría, autor, extracto, miniatura),
+  orden cronológico inverso y su CRUD en el CMS (RF-01-D02).
+- **Verificación:** una noticia publicada aparece en la portada con imagen, título ≤150 car.,
+  descripción ≤200 car. y fecha, en orden inverso.
+
+---
+
+**D-08 · La portada no está orientada a tareas**
+
+- **Requisitos:** RF-B2-071 (Must, «los 3 trámites más solicitados a ≤2 clics»), FUN-013.
+- **Evidencia:** `index.vue:72-90` ofrece tres **secciones** genéricas; los trámites concretos
+  quedan a tres clics (portada → catálogo → ficha) y para dos de las tres tarjetas
+  (`/servicios`, `/participa`) el destino es un aviso de preparación.
+- **Qué falta:** los tres trámites más solicitados en el primer scroll, con enlace directo a su
+  ficha; y decidir si `/servicios` y `/tramites` siguen siendo dos nombres para lo mismo (D-44).
+- **Verificación:** desde la portada, cada uno de los tres trámites abre su ficha en ≤2 clics.
+
+---
+
+**D-09 · La página 404 ofrece una sola salida**
+
+- **Requisitos:** RF-B1-007 (Must, «≥3 opciones de navegación o contenido alternativo»),
+  RF-B3-142.
+- **Evidencia:** `error.vue:39-56`: mensaje correcto, estado HTTP correcto y **un** enlace
+  («Volver a la portada»). El menú y el buscador del layout cuentan como vías de facto, pero el
+  criterio pide contenido alternativo explícito.
+- **Qué falta:** buscador dentro de la propia página de error y accesos a las secciones más
+  consultadas (trámites, PQRSD, transparencia, atención), más el registro del fallo para
+  observabilidad.
+- **Verificación:** una URL inexistente devuelve 404 con tres alternativas operables.
+
+---
+
+**D-10 · Las cinco políticas del pie no publican documento**
+
+- **Requisitos:** RF-B1-009 (Must), RF-B2-008, RF-B2-009, RF-B2-010, SEG-006; ítems 4 y 6 de los
+  PDF de funcionalidad y seguridad.
+- **Evidencia:** las cinco rutas existen y son honestas —avisan de que el documento está en
+  preparación (`politicas/[slug].vue:111-117`, `PiePaginaGovco.vue:235-236,344-346`)—, pero **no
+  hay documento, ni descarga, ni formato abierto**.
+- **Qué falta:** el texto de cada política con sus componentes mínimos (los seis de RF-B2-008, los
+  cinco de RF-B2-009) y su descarga en formato abierto; el acto administrativo de adopción; y la
+  política de derechos de autor, que el corpus señala como incumplimiento abierto de la Entidad.
+- **Verificación:** los cinco enlaces del pie responden 200 con el documento descargable.
+
+---
+
+**D-11 · La barra de accesibilidad no recuerda la preferencia ni ofrece el Centro de Relevo**
+
+- **Requisitos:** RF-B1-044 (Must: «tamaño de fuente, alto contraste, saltar al contenido, **enlace
+  al Centro de Relevo**; **guarda la preferencia del usuario**»), HU-B1-015, HU-B3-002;
+  **ADR-0012**, que compromete explícitamente la persistencia en `localStorage`.
+- **Evidencia:** `useAccesibilidad.ts:37` guarda el estado en `useState` —vive en memoria y se
+  pierde al recargar—; no hay una sola referencia a `localStorage` en todo `sitio/app`; el Centro
+  de Relevo no aparece en ningún fichero; `restablecer()` (`:61-63`) se exporta y **nadie lo usa**.
+- **Qué falta:** (1) persistir contraste y tamaño; (2) añadir el enlace al Centro de Relevo (canal
+  para discapacidad auditiva, `07:163` del corpus); (3) exponer y cablear el restablecimiento.
+- **Verificación:** activar alto contraste, recargar o navegar → sigue activo; el enlace al Centro
+  de Relevo está presente y etiquetado.
+
+---
+
+**D-12 · El carrusel arranca reproduciéndose**
+
+- **Requisitos:** RF-B1-042 (Must, «**pausa por defecto**»), RF-B1-051 (Must, «slider en pausa por
+  defecto»), WCAG 2.2.2.
+- **Evidencia:** `CarruselGovco.vue:98` (`autoplay: true` por defecto) y `:200`
+  (`reproduciendo.value = props.autoplay && !consultaMovimiento.matches`). El componente sí
+  respeta `prefers-reduced-motion` (`:195-200`) y ofrece control de pausa, lo que mitiga el daño
+  pero no cumple el criterio literal.
+- **Qué falta:** invertir el valor por defecto a `false` y dejar el arranque como acción explícita.
+- **Verificación:** al cargar la portada, el botón muestra «Reproducir», no «Pausar».
+
+---
+
+**D-13 · El PQRSD no admite adjuntos y ningún formulario tiene captcha**
+
+- **Requisitos:** RF-B1-033 (Must, sin restricciones técnicas de formato, tamaño ni cantidad),
+  RF-B3-077 (Must, carga de archivos con tipos, tamaño y confirmación), RF-04-D04, RF-B3-101 y
+  RF-B1-058 (captcha accesible), RN-07-D02; ítem 4 del PDF de seguridad y ítem 5 del de
+  funcionalidad.
+- **Evidencia:** **no hay un solo `type="file"` en la sede**; no hay captcha en ningún formulario
+  (`grep -ri captcha sitio/app` sin resultados); el formulario `realizar-una-peticion.vue` cubre
+  identificación, tipo, descripción, modalidad anónima y autorización de datos (`:865-897`), pero
+  no adjuntos ni desafío anti-bot.
+- **Nota:** la contradicción C-01 del corpus (la norma prohíbe límites, la sede actual los tenía)
+  queda hoy resuelta **por omisión**, que no es una decisión de diseño. Hay que decidirla y
+  documentarla: qué límites técnicos del servidor se aceptan y cómo se comunica el rechazo.
+- **Qué falta:** el componente de carga de archivos del Kit, con validación de tipo MIME real,
+  tamaño, cantidad y antivirus (RF-03-D04), mensaje de error accesible, y el captcha accesible con
+  alternativa de audio.
+- **Verificación:** adjuntar un PDF de 2 MB → «documento.pdf (2 MB)» confirmado; enviar sin captcha
+  resuelto → bloqueado con mensaje accesible.
+
+---
+
+**D-14 · El panel tiene una identidad visual ajena al Kit y la etiqueta como oficial**
+
+- **Requisitos:** RNF-B3-045 (Must, 100 % de componentes con Cobalt `#0943B5` y Nunito Sans /
+  Verdana), RF-B1-098, RN-B2-029, CAG-33; ADR-0003.
+- **Evidencia:** `panel/src/assets/styles/tokens.css:1-4` abre con el comentario «**SGDI — Design
+  tokens GOV.CO oficiales**» y acto seguido declara `--color-gov-blue: #3366CC`, que **no es** el
+  cobalto del Kit; `fonts.css` carga Inter, Montserrat y JetBrains Mono en lugar de Nunito Sans y
+  Verdana; `panel/index.html:15` publica `theme-color #3366CC` (el sitio, en cambio, usa
+  `#0943B5` en su manifiesto).
+- **Qué falta:** decidir y documentar una de dos: (a) el panel adopta los tokens del Kit (y la
+  GUIA-MAESTRA-COMPLETA, que exige Tailwind, se corrige), o (b) se declara formalmente que la
+  superficie interna tiene identidad propia —con su ADR— y **se retira la palabra «oficiales»** de
+  los tokens y del manifiesto. Lo que no puede sostenerse es la etiqueta actual: afirma una
+  conformidad que el propio valor desmiente (C-11).
+- **Verificación:** un `grep` de `#3366CC` en el panel no devuelve nada, o el ADR que lo justifica
+  está escrito y enlazado.
+
+---
+
+**D-15 · Dieciocho de las diecinueve rutas del panel son el mismo marcador**
+
+- **Requisitos:** todo el módulo 12: RF-B1-076, RF-B1-079, RF-B2-067, RF-B2-068, RF-B1-077,
+  RF-B1-078, RF-B2-093, RF-B3-153, RF-B3-155, RF-12-D01/D02/D04/D05; RF-06-D01.
+- **Evidencia:** `router/index.ts:41-59` genera 18 rutas que renderizan
+  `EnConstruccionView.vue`; la única vista con contenido propio es el tablero de la portada
+  (`InicioView.vue`), cuyas cifras son simuladas (D-05).
+- **Qué falta:** es el grueso del trabajo pendiente del proyecto, no un defecto del diseño
+  existente. Lo que sí es un defecto de diseño **hoy**: el menú lateral presenta los 18 módulos
+  como si existieran (`AdminLayout.vue:29-87`) y la paleta de comandos los ofrece como destinos
+  (`:150-160`). Falta la marca visual de «no disponible» —que el sitio público sí usa
+  (`SeccionEnPreparacion.vue`)— para que el funcionario no confunda un marcador con un módulo.
+- **Verificación:** cada entrada del menú que no esté implementada se declara como tal en la
+  propia interfaz.
+
+---
+
+**D-16 · Componentes del panel sin accesibilidad verificable**
+
+- **Requisitos:** RF-B3-042 (componentes personalizados con nombre, función y valor), RF-B3-076
+  (tablas con ordenamiento), RF-B3-075 (paginación con `aria-current`), RF-B3-017 (sin trampas de
+  foco), RF-B3-022 (salto al contenido), WCAG 2.1.1, 2.4.3, 2.4.7, 4.1.2.
+- **Evidencia:**
+  1. `DataTable.vue:60-79`: el ordenamiento se activa con `@click` en el `<th>`, **sin `aria-sort`,
+     sin botón, sin `tabindex` y sin manejador de teclado** → inoperable sin ratón.
+  2. `DataTable.vue:104-131`: paginación sólo con «anterior/siguiente», sin número de página, sin
+     `aria-label` de grupo y sin `aria-current`.
+  3. `BaseModal.vue:29-35`: `role="dialog" aria-modal="true"` **sin mover el foco al abrir, sin
+     atraparlo, sin devolverlo al cerrar y sin nombre accesible cuando `title` es `undefined`**
+     (`:34`).
+  4. `AdminLayout.vue:324`: existe `<main id="contenido-principal"` pero **nada enlaza a él**: el
+     panel no tiene enlace de salto.
+  5. `AdminLayout.vue:270-278`: la miga enlaza el último nivel a sí mismo y no marca la página
+     actual con `aria-current`.
+  6. `AccessibilityBar.vue:69-77`: el panel de opciones se declara `role="dialog"` sin gestión de
+     foco y **sin cerrarse con Escape**.
+- **Qué falta:** reescribir esos seis puntos con los patrones que el propio sitio ya aplica bien
+  (el menú y el carrusel del portal público son el modelo a copiar).
+- **Verificación:** tabular por el panel sin ratón y completar una ordenación, abrir y cerrar un
+  diálogo, y saltar al contenido desde el primer tabulador.
+
+---
+
+**D-17 · Seis secciones obligatorias están vacías**
+
+- **Requisitos:** FUN-013 y RF-B1-012, RF-B1-013, RF-B1-015, RF-B1-016, RF-B1-037, RF-B1-041,
+  RF-B1-096, RF-B1-097, RF-B2-093; RF-B1-002/030 del módulo 06.
+- **Evidencia:** son avisos de «en preparación» `transparencia.vue`, `servicios.vue`,
+  `noticias.vue`, `portales.vue`, `seguimiento.vue` y las seis subcategorías de
+  `participa/[slug].vue`.
+- **Qué falta:** contenido y contrato. El diseño ya dejó el hueco correcto y honesto; lo que falta
+  es lo que va dentro. **Riesgo de diseño concreto:** la portada y el menú anuncian como navegable
+  lo que hoy es un aviso, y el `sitemap.xml` publica esas rutas con prioridad 0,6-0,9
+  (`sitemap.xml.ts:37-47`), lo que las hace aparecer en buscadores como si publicaran contenido.
+- **Verificación:** cada sección del menú publica al menos su información mínima legal, o deja de
+  anunciarse en el `sitemap` con prioridad alta.
+
+---
+
+**D-18 · Los datos de la Entidad no vienen del contrato: están duplicados a mano**
+
+- **Requisitos:** RF-B1-002 (Must), ADR-0006 (`adr/README.md:161-166`: centralizar en
+  `backend/config/entidad.php` y exponer por `GET /api/v1/entidad`), y la descripción del propio
+  recurso en `contract/openapi.yaml:54` («alimenta la cabecera y el pie de página de la sede»).
+- **Evidencia:** `/entidad` **no se consume en ninguna página** (grep sin resultados); los datos
+  viven incrustados en `PiePaginaGovco.vue:150-199` y **repetidos** en `atencion.vue:34-37`. El
+  propio código reconoce el problema: «Si la Entidad cambia un canal hay que cambiarlo en los dos
+  archivos» (`atencion.vue:11-15`).
+- **Qué falta:** consumir `/entidad` en el layout y hacer del contrato la fuente única de teléfonos,
+  correos, dirección, horarios y redes. Mientras no exista backend, el dato debe vivir en **un**
+  módulo compartido y no en dos componentes.
+- **Verificación:** cambiar un teléfono en la fuente → cambia en el pie y en `/atencion` a la vez.
+
+---
+
+**D-19 · Cero pruebas automatizadas con las herramientas ya instaladas**
+
+- **Requisitos:** RNF-B1-043 (Must, cobertura ≥70 %, CI/CD), RNF-B1-014 (WCAG AA sin violaciones
+  críticas), CAG-32, §3.6.2 y §2.6.7 del expediente, matriz de 25 puntos de la GUIA Maestra.
+- **Evidencia:** no existe ningún `*.spec.*`, `*.test.*`, `playwright.config.*` ni
+  `vitest.config.*` en `sitio/` ni en `panel/`; `axe-core`, `@axe-core/playwright`, `vitest`,
+  `jsdom` y `@vue/test-utils` están declarados en los dos `package.json` y **no se usan en ningún
+  fichero**. `Makefile:97-98` invoca un script `test` que no existe.
+- **Qué falta:** la primera prueba es la que más valor tiene: **axe sobre las 15 vistas públicas**,
+  porque desbloquea RNF-B1-014, CAG-32 y la mitad de los ⛔ de esta auditoría. Después: pruebas de
+  contrato, de componentes base y de los flujos críticos (PQRSD, catálogo, menú).
+- **Verificación:** `make accesibilidad` ejecuta axe y publica el informe con 0 violaciones
+  críticas.
+
+---
+
+**D-20 · ADR-0015 ha caducado: declara desviaciones que ya no existen y omite las que sí**
+
+- **Requisitos:** ADR-0015 (desviaciones declaradas frente a CAG), §2.6.3 del expediente,
+  `trazabilidad.md:12-13` (vocabulario de estados).
+- **Evidencia:**
+  1. ADR-0015 §3 declara: «CAG-19, CAG-21, CAG-22, **CAG-24** y CAG-25 no aplican. La sede no usa
+     campos de calendario, no abre modales, no emite notificaciones *toast*, **no publica tablas**
+     ni usa acordeones». **`pqrsd.vue:222` publica una tabla.** CAG-24 vuelve a aplicar y no está
+     verificado.
+  2. Su «Evidencia» cita `frontend/tests/conformidad-diseno.mjs` y `make trazabilidad`: ninguno
+     existe (D-06).
+  3. Cita clases `.titulo-pie-sede` / `.subtitulo-pie-sede`; el código usa `.titulo-pie` /
+     `.subtitulo-pie` (`PiePaginaGovco.vue:368,375`).
+  4. Su punto 7 dice que el logo de la autoridad es «el logotipo tipográfico de la entidad» y deja
+     «**Pendiente:** incorporar el logo oficial»; hoy hay un `<img>` con
+     `sitio/public/logo-entidad.png` (`CabeceraGovco.vue:80`, `PiePaginaGovco.vue:295`).
+- **Qué falta:** regenerar ADR-0015 contra el código actual, con los tres estados que él mismo
+  promete, y **retirar los «no aplica» que el propio expediente contradice** (§2.5 exige tablas,
+  acordeón, pestañas, stepper y toast en Trámites y Detalle: C-06).
+- **Verificación:** cada desviación declarada tiene su comprobación automática real.
+
+---
+
+**D-21 · La barra de accesibilidad desaparece exactamente donde el requisito la exige**
+
+- **Requisitos:** RNF-07-D01 (Should, «en tablet la barra está disponible y operable»), HU-07-D02,
+  y la ambigüedad que el propio corpus reconoce (`07:174`).
+- **Evidencia:** `BarraAccesibilidad.vue:39` aplica `d-none d-lg-flex`, es decir, se oculta por
+  debajo de 992 px. El Kit (CAG-07) manda ocultarla entre 768 y 992; el corpus pide lo contrario
+  para tablet. **El diseño resolvió el conflicto a favor del Kit sin dejar constancia de la
+  decisión.**
+- **Qué falta:** decidir y documentar (un ADR de una página basta): o se sigue al Kit —y entonces
+  hay que justificar por qué se incumple RNF-07-D01—, o se muestra la barra desde 768 px y se
+  declara la desviación frente a CAG-07. En cualquiera de los dos casos, hoy falta además una
+  alternativa en móvil: la barra es **el único** mecanismo de contraste y tamaño, y en móvil no
+  existe ninguno.
+- **Verificación:** a 800 px de ancho, la barra está visible y operable, o el ADR explica por qué no.
+
+---
+
+**D-22 · La navegación interna usa `<a href>` y recarga la aplicación**
+
+- **Requisitos:** RF-B2-072/074 (navegación consistente), RNF-B3-010 (páginas internas ≤1 s),
+  y la coherencia del propio sistema: el sitio es una SPA con historial, y estos enlaces la
+  abandonan.
+- **Evidencia:** 12 enlaces internos escritos como `<a href>`: `SeccionEnPreparacion.vue:40`,
+  `buscar.vue:61`, `participa/index.vue:44,50,54`, `normativa.vue:489,543,548`,
+  `tramites/index.vue:715`, `tramites/[slug].vue:414,571,696,702,734,783`,
+  `MigaDePanGovco.vue:58`, `CarruselGovco.vue:235`. El propio código usa `NuxtLink` en otros sitios
+  (`layouts/default.vue:79`, `CabeceraGovco.vue:79`), así que la inconsistencia es de detalle, no
+  de criterio.
+- **Qué falta:** sustituir por `NuxtLink` los destinos internos —incluida la miga de pan, que es la
+  que más se usa— y dejar `<a>` sólo para los externos y las anclas.
+- **Verificación:** navegar entre secciones no recarga el documento (Network: sin petición de
+  documento completo).
+
+---
+
+**D-23 · No hay Declaración de Conformidad de Accesibilidad publicada**
+
+- **Requisitos:** Resolución 1519 de 2020, Anexo 1 num. 9.3, con los **12 elementos mínimos** que
+  `Sección 3 §3.6.3` reproduce: entidad, URL de la sede, norma de referencia, fecha de evaluación,
+  alcance, herramientas con versión, auditor, estado de cumplimiento, criterios no aplicables y
+  excepciones, excepciones documentadas con mitigación, hallazgos pendientes con severidad y plan,
+  y fecha de próxima revisión (≤12 meses).
+- **Evidencia:** `/accesibilidad` existe y es honesta —declara la norma, los canales de reporte y
+  **dice expresamente que no acredita conformidad** (`accesibilidad.vue:99-113`)—, pero no publica
+  la declaración: falta la fecha de evaluación, el alcance, las herramientas, el auditor y el
+  estado. Es exactamente lo que el propio requisito exige publicar.
+- **Qué falta:** ejecutar la auditoría (D-19), firmar el acta y publicarla con los 12 elementos; y
+  designar el responsable de la próxima revisión.
+- **Verificación:** existe una página que declara estado de cumplimiento, alcance, herramientas y
+  fecha de próxima revisión.
+
+### 5.3 🟡 Medios (20)
+
+Incumple un Should, o impide acreditar algo que el expediente exige.
+
+---
+
+**D-24 · El mapa del sitio y el `sitemap.xml` son tres listas escritas a mano**
+- **Requisitos:** RF-B1-010 (Must, «autoactualizado al cambiar la navegación»), RF-B3-044.
+- **Evidencia:** el menú vive en `layouts/default.vue:46-94`; el mapa HTML repite los destinos a
+  mano (`mapa-del-sitio.vue:33-115`); el XML los repite otra vez (`sitemap.xml.ts:35-70`), y las
+  subcategorías de Participa y las políticas se vuelven a enumerar en `:54-70`. El comentario de
+  `mapa-del-sitio.vue:16-17` afirma que ese mapa «alimenta el `sitemap.xml`»: **no lo alimenta**.
+- **Qué falta:** derivar las tres vistas de una única fuente (el árbol de navegación) y dejar la
+  lista escrita sólo como dato de entrada de esa fuente.
+- **Verificación:** añadir una página al menú → aparece en el mapa HTML y en el XML sin tocar nada más.
+
+---
+
+**D-25 · `robots.txt` declara un dominio distinto del que el sitio configura, y el `sitemap.xml` no publica `lastmod`**
+- **Evidencia:** `sitio/public/robots.txt:11` publica
+  `Sitemap: https://www.santamarta.gov.co/sitemap.xml` mientras `nuxt.config.ts:92` configura por
+  defecto `staging.santamarta.gov.co`; la interfaz `Direccion` de `sitemap.xml.ts:21-28` documenta
+  un campo «fecha de su último cambio real» **que no existe en el tipo** ni se emite (`:107-116`).
+- **Qué falta:** un único origen de verdad del dominio (variable de entorno) y, si se conoce,
+  `lastmod` por URL.
+- **Verificación:** el dominio de `robots.txt` coincide con el de `runtimeConfig` en cada entorno.
+
+---
+
+**D-26 · Los vínculos visitados no se distinguen**
+- **Requisitos:** RF-B1-082 (Must), RF-B2-042, RF-B3-048; es uno de los tres *tips* que el corpus
+  recuperó de los PPTX de criterios (`_global/auditoria-cobertura.md:64`).
+- **Evidencia:** no hay ninguna regla `:visited` en `sitio/app/assets/css/sitio.css` ni en los
+  componentes; la única del Kit apunta a `.link-tipografia-govco` (`public/govco/all.css:148`), que
+  el sitio no usa.
+- **Qué falta:** un color de visitado (preferiblemente el púrpura que el corpus cita) con contraste
+  ≥4,5:1 sobre los fondos reales del sitio.
+- **Verificación:** visitar un enlace y volver → el color cambia.
+
+---
+
+**D-27 · No hay páginas de confirmación ni procesos por pasos** — **pasos ✅ CERRADO · confirmación ⛔ BLOQUEADA por el contrato** (§18)
+- **Requisitos:** RF-B1-083 (Must, confirmación con nº de referencia, próximos pasos y tiempo
+  estimado), RF-B2-077 (Must, «pasos numerados»), CAG-20 (línea de avance).
+- **Evidencia del defecto:** no existía `stepper` en el sitio ni ninguna plantilla «Paso N de M».
+- **Corrección (mitad de pasos):** el formulario de petición se organiza en **tres pasos** —Solicitud,
+  Datos del solicitante y Autorización y envío— con línea de avance, encabezado «Paso N de 3: …» al
+  estilo de `Sección 3:360`, estado por paso («actual / completado / pendiente», en texto y no sólo
+  con color) y **salto libre** entre pasos, que es lo que CAG-20 permite. Avanzar exige que el paso
+  esté completo: si no, se marcan los campos y el foco va al primero. El estado «completado» sale de
+  la validación, no de la posición, para que saltar al final no convierta en completado lo que no lo
+  está.
+- **Qué queda (mitad de confirmación, RF-B1-083):** la pantalla de resultado con **número de
+  radicado**, próximos pasos y tiempo estimado. **No se puede hacer hoy**: el formulario no radica
+  —no hay backend que reciba la solicitud—, así que no existe ningún radicado que mostrar y una
+  pantalla de confirmación sería un número inventado. Queda bloqueada por el contrato, no por
+  decisión de diseño.
+- **Verificación:** `make diseno` comprueba los pasos (patrón «Paso N de M», un solo paso visible,
+  `aria-current="step"`, que avanzar sin rellenar frene con el foco en el primer campo inválido, el
+  salto libre y que saltar no marque nada como completado).
+
+---
+
+**D-28 · Faltan doce componentes del Kit que el expediente marca como obligatorios por flujo**
+- **Requisitos:** RF-B3-062 (acordeón), RF-B3-063 (modal), RF-B3-064 (*toast*), RF-B3-068 (galería),
+  RF-B3-070 (indicador de carga con aviso a los 10 s), RF-B3-078 (desplegable con filtro),
+  RF-B3-079 (ojo de contraseña), RF-B1-084 (ejemplos de formato), RF-B3-075, más §2.5 del
+  expediente (tablas, pestañas, *stepper*, área de servicio, etiquetas de filtro).
+- **Evidencia del cruce con `vendor-src/`:** clases del Kit cargadas en `all.css` y con **cero
+  apariciones** en `sitio/app`: acordeón (10 clases), alerta modal (22), alerta/tostada (17),
+  carga de archivos (22), desplegables y calendario (11 de 12), entradas de texto del Kit, buscador
+  predictivo (7), botones secundarios (5 variantes), carrusel múltiple, iconografía por fuente
+  (`.govco-icon`), tipografía (`text1`/`text3`/`bold-govco`/`bold-verdana-govco`) y el catálogo de
+  color `.govco-bg-*`. Y un componente **completo y nunca instanciado**:
+  `GaleriaAplicacionesGovco.vue` (354 líneas, 13 de 13 clases del Kit), ausente de todo el árbol.
+- **Qué falta:** decidir, por cada componente, entre implementarlo o declarar formalmente que no
+  aplica —y en ese caso corregir §2.5 y ADR-0015, que hoy se contradicen (C-06)—. La galería, en
+  particular, es un RF Should ya construido: o se coloca en la cabecera (donde el Kit la sitúa) o
+  se retira del código.
+- **Verificación:** `grep` de cada clase devuelve al menos un uso, o el ADR explica su ausencia.
+
+---
+
+**D-29 · El sitio no publica metadatos de compartición ni URL canónica** ✅ **CERRADO** (§17.2)
+- **Requisitos:** RF-B1-088 (Should), RNF-B2-021.
+- **Evidencia del defecto:** sólo `index.vue:26-35` declaraba `description`; ninguna de las 19
+  páginas declaraba `og:*`, `twitter:*` ni `link rel="canonical"`.
+- **Corrección:** `useMetadatosComparticion` (`app/composables/`), declarado una vez en la
+  disposición y afinado por la ficha de trámite y por cada política. Canónica y `og:url` absolutas
+  desde `runtimeConfig.public.dominio`, con la cabecera `Host` sólo como respaldo; sin canónica en el
+  404. `og:image` es el logotipo real de la Entidad. **La descripción no se inventa**: sólo se emite
+  cuando la página la declara, y la ficha de un trámite usa su `resumen` del contrato.
+- **Verificación:** comprobación propia en `make diseno` (19 criterios, 0 fallos) — canónica, `og:*`
+  y `og:locale` presentes en una página real; sin canónica ni `og:url` en el 404.
+
+---
+
+**D-30 · `make tipos` escribe en un fichero que nadie importa**
+- **Evidencia:** `Makefile:41` genera `sitio/types/api.d.ts`; el código importa
+  `~~/types/openapi` (`tramites/index.vue:46`, `tramites/[slug].vue:44`), que es el fichero que
+  **no se regenera**. `panel` sí coincide (`Makefile:40` → `src/types/openapi.d.ts`).
+- **Riesgo:** el contrato cambia, `make tipos` corre en verde y el sitio sigue compilando contra
+  tipos viejos sin que nadie lo note.
+- **Verificación:** el destino del generador y el import coinciden, y `git diff` queda limpio tras
+  `make tipos`.
+
+---
+
+**D-31 · Las listas canónicas están duplicadas en tres o cuatro sitios**
+- **Evidencia:** las cinco políticas se enumeran en `PiePaginaGovco.vue:211-234`,
+  `politicas/[slug].vue:32-58`, `mapa-del-sitio.vue:82-110` y `sitemap.xml.ts:63-70`; las seis
+  subcategorías de Participa en `layouts/default.vue:63-89`, `participa/index.vue:13-26` y
+  `sitemap.xml.ts:54-61`; el catálogo de tipos de norma, en `normativa.vue:41-68` y `pqrsd.vue:52`
+  (el propio comentario de `pqrsd.vue:52` admite la duplicación).
+- **Riesgo:** añadir una política o una subcategoría exige acordarse de cuatro sitios; el que se
+  olvide produce una inconsistencia silenciosa (ya ocurre: D-45).
+- **Verificación:** cada lista existe en un solo módulo y los demás la importan.
+
+---
+
+**D-32 · El tope del menú se aplica en el navegador y sólo avisa en desarrollo**
+- **Requisitos:** RN-01-D02 (la violación del tope **se rechaza al dar de alta**), RF-01-D02
+  (CRUD con tope), CAG-09.
+- **Evidencia:** `MenuNavegacionGovco.vue:143-171` recorta a 7 ítems y 4 secciones y **sólo avisa
+  por consola si `import.meta.dev`**; en producción, un menú de nueve ítems se recortaría en
+  silencio y el ciudadano no vería dos secciones.
+- **Qué falta:** la validación en el origen (CMS/datos) que rechace el alta; el componente debe
+  poder fallar de forma visible en el build, no degradar contenido en producción.
+- **Verificación:** intentar publicar un octavo ítem → rechazado con mensaje.
+
+---
+
+**D-33 · El panel no es responsive**
+- **Evidencia:** `AdminLayout.vue:180-190` fija la barra lateral en `w-16`/`w-64` (64-256 px) sin
+  variante móvil ni botón de menú; en una pantalla de 375 px queda menos de la mitad del ancho para
+  el contenido. Las utilidades responsive del panel sólo se usan en la cabecera (`:284`, `:317`).
+- **Requisitos:** RNF-B1-032 y RF-B1-085 se escribieron para la sede pública, pero la GUIA Maestra
+  exige la misma disciplina en el panel, y un funcionario que atienda desde una tablet queda fuera.
+- **Verificación:** a 768 px el menú se colapsa y el contenido ocupa el ancho.
+
+---
+
+**D-34 · La paleta de comandos imprime el nombre del icono como texto**
+- **Evidencia:** `AdminLayout.vue:150-160` construye los comandos con `icon: item.icono`, donde
+  `icono` es el nombre de un icono de FontAwesome (`'gauge-high'`, `'inbox'`…);
+  `CommandPalette.vue:77-79` los pinta con `{{ c.icon ?? '›' }}`, es decir, **como texto**. Al
+  abrir la paleta con `⌘K` se lee literalmente «gauge-high» junto a cada comando.
+- **Qué falta:** renderizar con `<FaIcon :icon="c.icon" />`, como hace el resto del panel
+  (`AdminLayout.vue:231`).
+- **Verificación:** abrir la paleta: cada comando muestra su icono.
+
+---
+
+**D-35 · Código y dependencias muertas**
+- **Evidencia:** `panel/package.json` declara `@tanstack/vue-query`, `vue3-toastify` y `zod` sin
+  ningún uso; `sitio/package.json` declara `axios`, `zod`, `@tanstack/vue-query` y `@pinia/nuxt`
+  sin ningún uso —el estado del sitio se resuelve con `useState`, no con Pinia—; en el panel,
+  `BaseModal`, `DataTable`, `EmptyState`, `Skeleton`, `StatusBadge` y `BaseTimeline` no tienen
+  consumidor; `tokens.css:36-49` define dos temas `[data-brand]` que nadie activa;
+  `useAccesibilidad.ts:61-63` exporta `restablecer` sin consumidor.
+- **Riesgo:** seis dependencias no usadas son seis superficies de vulnerabilidad y de actualización
+  que el proyecto no necesita.
+- **Verificación:** `npm ls --omit=dev` sin paquetes sin importar.
+
+---
+
+**D-36 · No hay decisión escrita sobre i18n y lenguas étnicas**
+- **Requisitos:** RN-B1-012 (castellano con traducciones admisibles y lenguas étnicas como
+  complemento), RNF-TX-D02 (diferido), RN-TX-D05 (fallback al castellano), RF-B3-055.
+- **Evidencia:** el diseño omitió el botón de idioma con un comentario (`BarraSuperior.vue:8-11`);
+  ADR-0015 §1 lo justifica sólo frente a CAG-06 y **no menciona** las lenguas étnicas ni el
+  fallback, que son requisitos propios del corpus.
+- **Qué falta:** un ADR que fije el alcance: sólo castellano hoy, con la ruta de incorporación de
+  lenguas étnicas y la regla de fallback.
+- **Verificación:** el ADR existe y el corpus queda reconciliado (C-22 y C-08).
+
+---
+
+**D-37 · La tabla de plazos del PQRSD usa la clase del Kit en el elemento equivocado**
+- **Evidencia (cruce con `vendor-src/`):** el Kit exige `div.tabla-govco > table`
+  (`examples/general/tablas.html:21-22`) y su CSS estiliza con descendencia
+  (`tablas.css:106-110`); el sitio pone la clase **en el `<table>`** dentro de un
+  `.table-responsive` (`pqrsd.vue:221-222`). Consecuencia: las reglas de cebra (`:276`), de
+  *hover* (`:281`) y de fila activa (`:271`) **no se aplican nunca**.
+- **Qué falta:** envolver la tabla en el `<div class="tabla-govco">` que el Kit espera.
+- **Verificación:** la tabla muestra filas alternas y el estilo del Kit.
+
+---
+
+**D-38 · La medida de línea está por encima del rango que el corpus exige**
+- **Requisitos:** RF-B2-081 y RNF-B1-031 (60-80 caracteres por línea), CAG-27 (45-75).
+- **Evidencia:** el contenido se limita con `col-lg-8` (≈736 px útiles dentro del contenedor de
+  1 140 px), lo que a 16 px de Verdana da del orden de 90-100 caracteres por línea. El único
+  contenedor con medida explícita es el aviso del pie (`PiePaginaGovco.vue:433`, `max-width: 60ch`).
+- **Qué falta:** una medida tipográfica global en `ch` para el contenido de prosa y su medición.
+- **Verificación:** contar caracteres en la línea más larga de una página de contenido.
+
+---
+
+**D-39 · No hay estilo de foco visible declarado ni medido**
+- **Requisitos:** RF-B1-048 (contraste de foco ≥3:1), CAG-10 (≥4,5:1), WCAG 2.4.7 y 2.4.11,
+  `Sección 3:281,420`.
+- **Evidencia:** `sitio/app/assets/css/sitio.css` no declara ninguna regla de foco fuera del modo
+  de alto contraste (`:63-68`); el foco de los controles depende de Bootstrap **5.0.2**, versión
+  que **no usa `:focus-visible`** (se introdujo en 5.2) y cuyo anillo por defecto nunca se contrastó.
+  El Kit sólo estiliza el foco de **sus propios** componentes.
+- **Qué falta:** un estilo de foco global del sitio, con ratio medido sobre fondo claro y sobre los
+  fondos teñidos del Kit; es el complemento natural del modo de alto contraste que ya existe.
+- **Verificación:** tabular por una página con teclado y medir el contraste del indicador.
+
+---
+
+**D-40 · La sede no ofrece control de espaciado de texto, y el panel sí**
+- **Requisitos:** RF-B3-014 (espaciado configurable), WCAG 1.4.12.
+- **Evidencia:** el panel implementa `.a11y-spacing` con interlínea 1,75, `letter-spacing` 0,05 em y
+  `word-spacing` 0,1 em (`panel/src/assets/styles/main.css:105-110`); **el sitio no tiene
+  equivalente** y no hay prueba de que resista el espaciado del criterio.
+- **Qué falta:** decidir si el control entra en la barra de accesibilidad del sitio (donde el RF lo
+  sitúa) y, en todo caso, verificar que el diseño no se rompe con el espaciado de 1.4.12.
+- **Verificación:** aplicar el espaciado del criterio y comprobar que no hay recortes ni solapes.
+
+---
+
+**D-41 · La comprobación de tipos no corre en la compilación**
+- **Evidencia:** `nuxt.config.ts:105` (`typeCheck: false`) y `Makefile:100-103`, cuyo objetivo
+  `compilar` ejecuta sólo `nuxt build` y `vite build` en `panel` (que sí encadena `vue-tsc -b`).
+  Es decir: **el panel comprueba tipos y el sitio no**.
+- **Qué falta:** activar la puerta de tipos del sitio de forma explícita (`nuxt typecheck`) dentro
+  de `make compilar`, que ya existe como script (`sitio/package.json:11`).
+- **Verificación:** introducir un error de tipos y comprobar que `make compilar` falla.
+
+---
+
+**D-42 · Los 18 módulos del panel no declaran permiso y el menú no filtra por rol**
+- **Requisitos:** GUIA-MAESTRA-COMPLETA, matriz de 25 puntos (18-25: botones y rutas según permiso,
+  `panel-administrative`, coherencia FE↔BE), RF-B1-079 (permisos por módulo).
+- **Evidencia:** sólo la portada declara `permiso: 'panel-administrative'` (`router/index.ts:66`);
+  las 18 rutas generadas (`:41-59`) declaran título y `requiereSesion` pero **ningún permiso**, y el
+  menú lateral muestra los 18 grupos sin condición alguna (`AdminLayout.vue:29-87`).
+- **Qué falta:** el permiso por módulo en cada ruta y el filtrado del menú por rol; sin eso, un
+  editor de normativa vería —y podría abrir— PQRSD, usuarios y auditoría.
+- **Verificación:** entrar con un rol de editor de sección → el menú no ofrece los módulos ajenos.
+
+---
+
+**D-43 · El entorno de staging es indexable**
+- **Evidencia:** `sitio/public/robots.txt` permite el rastreo total (`Disallow:` vacío);
+  `nuxt.config.ts:92` usa `staging.santamarta.gov.co` como dominio por defecto; no hay cabecera ni
+  meta de `noindex` condicionada al entorno. El panel sí lo hace bien (`panel/index.html:17`).
+- **Riesgo:** un despliegue de pruebas puede quedar indexado como si fuera la sede oficial, con
+  contenido «en preparación», y competir en resultados con la sede real.
+- **Qué falta:** `noindex` y `robots.txt` distintos en entornos no productivos, atados a la misma
+  variable que ya define el dominio.
+- **Verificación:** en staging, `robots.txt` responde `Disallow: /` y las páginas llevan `noindex`.
+
+### 5.4 ⚪ Menores (9)
+
+Pulido; no cambian el cumplimiento pero sí la calidad del conjunto.
+
+| ID | Hallazgo | Evidencia | Qué falta |
+|---|---|---|---|
+| D-44 | **Dos nombres para lo mismo:** la portada llama «Servicios» a un destino (`/servicios`) que es un aviso, mientras el menú y la portada del catálogo usan `/tramites`, que sí tiene contenido | `index.vue:59,83` frente a `layouts/default.vue:55` | Unificar en `/tramites` (o hacer que `/servicios` redirija) y retirar la tarjeta que anuncia lo que no hay. |
+| D-45 | **El mapa del sitio marca `/participa` como no publicada** aunque `participa/index.vue` publica contenido real (las seis subcategorías) | `mapa-del-sitio.vue:44` frente a `participa/index.vue:29-56` | Corregir el estado; es el síntoma exacto de la duplicación de listas (D-31). |
+| D-46 | **Dos activos distintos de logotipo:** `sitio/public/logo-entidad.png` (480×270, md5 `dc93ec…`) frente a `docs/logo500Or.png` y los dos del panel (5760×3240, md5 `ef5095…`) | `md5sum` de los cuatro ficheros | Un único activo canónico, versionado y declarado, con sus derivados generados; hoy el sitio y el panel no publican el mismo emblema. |
+| D-47 | **Título base inconsistente en el panel:** la pestaña dice «SGDI · Alcaldía Distrital de Santa Marta» al cargar y «Panel · Sede Electrónica de Santa Marta» tras navegar | `panel/index.html:17` frente a `router/index.ts:38` | Un solo nombre de producto. |
+| D-48 | **El bloque de ayuda de la portada invita a reportar y no ofrece ningún canal** | `index.vue:123-129` | Enlazar a `/atencion` y al correo de la declaración de accesibilidad. |
+| D-49 | **Un comentario del pie ya no describe su propio dato:** dice que la línea anticorrupción «hoy coincide con la línea de atención al ciudadano» cuando los números publicados son distintos | `PiePaginaGovco.vue:159-162` frente a `:157,162` | Corregir el comentario (o el dato) para que no induzca a error en la próxima revisión. |
+| D-50 | **El menú expone un hueco `buscador` que nunca se rellena** | `MenuNavegacionGovco.vue:741-743` frente a `layouts/default.vue:187`, que lo invoca sin slot | Rellenarlo (el Kit sitúa el buscador dentro del menú colapsado) o retirar el hueco. |
+| D-51 | **Clases inertes y clases sin definir:** `controls` (`CarruselGovco.vue:270`) y `dropdown-title` (`GaleriaAplicacionesGovco.vue:264`) no existen en ninguna hoja cargada; `enlace-ficha`, `grupo-encabezado`, `origen-ficha` y `resumen` no están definidas en ninguna parte del sitio | cruce con `all.css` y `bootstrap.min.css` (0 coincidencias) | Retirarlas o definirlas; una clase que no hace nada es una promesa incumplida en el marcado. |
+| D-52 | **El manifiesto del sitio está incompleto:** no declara `start_url` ni `scope` | `sitio/public/site.webmanifest` | Añadirlos, junto con `lang` y `dir`, para que la instalación en móvil funcione como se espera. |
+
+---
+
+## 6. Contradicciones y decisiones pendientes
+
+No son defectos del código: son **sitios donde el proyecto se contradice a sí mismo** y donde
+alguien tiene que decidir. Mientras no se decidan, cualquier auditoría —esta incluida— tendrá que
+elegir una fuente arbitrariamente. Se listan con la decisión que cada una exige.
+
+| # | Contradicción | Fuentes | Decisión que exige |
+|---|---|---|---|
+| C-01 | **Tres anclas distintas** para el enlace «Saltar al contenido principal» | `#contenido-principal` (`Sección 2:278`, `Sección 2:307`) frente a `#main-content` (`Sección 6:200-202,254,276`) frente a `#main` (`Sección 3:422`) | Fijar `#contenido-principal` (es la que el Kit documenta y la que el sitio implementa: `layouts/default.vue:197`) y corregir las otras dos secciones. |
+| C-02 | **Dos URLs de CDN distintas** para el Kit | `https://cdn.www.gov.co/layout/v5/all.css` (`Sección 2:160-161,304`; `Sección 6:179,193`) frente a `https://cdn.gov.co/layout/v5/govco-9.2.css` (`Sección 6:273,290`) | Ninguna de las dos se usa: ADR-0002 demuestra que la primera devuelve HTML y el proyecto vendoriza. Corregir el expediente y dejar una sola referencia. |
+| C-03 | **El snippet de `Sección 6` no lleva `integrity`**, pero su propia regla 9 lo exige | `Sección 6:260` frente a `Sección 6:193` | Si se sirve local, retirar la regla de SRI; si se sirve del CDN, añadirla. |
+| C-04 | **24 × 24 px: ¿AA o AAA?** | «sólo en WCAG 2.2 AAA» (`Sección 6:256`) frente a «2.5.8 Target Size (Minimum) 24×24 px = AA» (`Sección 3:57`) | Es AA. Corregir `Sección 6`. |
+| C-05 | **Conteo de componentes del Kit:** 23, 24 o 31 | «8+11+4 = 23» (`Sección 2:166,181`, con 19 filas reales) frente a «24 componentes: 8 transversales, 19 generales y 4 de formulario» (`adr/README.md:111`, = 31) | Contar sobre `vendor-src/`: **23 ejemplos reales + 5 esqueletos vacíos**. Corregir los tres documentos. |
+| C-06 | **ADR-0015 declara «no aplica» CAG-19, CAG-21, CAG-22, CAG-24 y CAG-25**, pero §2.5 del propio expediente exige tablas en Trámites, acordeón en Trámites y Detalle, pestañas y *stepper* en Detalle, y *toast* en Notificaciones globales | `adr/README.md:404-423` frente a `Sección 2:316-324` | Los criterios no pueden ser «no aplicables» si sus componentes son obligatorios. O se implementan, o §2.5 se corrige, o se declaran como desviación con fecha y motivo. **Hoy, además, la premisa ya es falsa: hay una tabla (`pqrsd.vue:222`).** |
+| C-07 | **La matriz de trazabilidad usa dos estados útiles** («implementado», «cubierto por pruebas o interfaz») mientras ADR-0015 promete tres (satisfecho, no aplica, desviación declarada) | `trazabilidad.md:12-13` frente a `adr/README.md:456-460` | Adoptar el vocabulario de tres estados; sin él, una desviación declarada se lee como cumplimiento. |
+| C-08 | ~~ADR-0015 omite el botón de idioma apoyándose en FUN-008 (sólo castellano), pero FUN-010 y la GUIA Maestra exigen «enlaces de traducción» en la barra superior~~ **Resuelta por ADR-0016**: la decisión de una sola lengua se escribe, sustituye a FUN-010 y fija la ruta de entrada de las lenguas étnicas (§15). | `adr/README.md:404-408` frente a `Sección 5:213` y `GUIA Maestra:2552-2563` | Decidir y escribirlo en el corpus: el idioma se difiere (decisión #16), y esa decisión debe sustituir a FUN-010 y a CAG-06, no convivir con ellos. |
+| C-09 | **La numeración de los ítems de los PDF oficiales está mal citada**, pese a declararse reproducción textual | `Sección 5:191-200` (los seis ítems desplazados; FUN-005 fusiona 3 y 4) y `Sección 4:164,170-175` (pares 3↔4 y 7↔8 invertidos) frente a los PDF verificados por coordenadas | Renumerar las citas con `pdftotext -bbox-layout` y dejar de llamarlas «textuales» hasta que lo sean. Un auditor externo que compare con el PDF encontrará el desfase. |
+| C-10 | **SEG-012 exige literalmente `Public-Key-Pins`** y el propio expediente lo prohíbe | ítem 12 del PDF de seguridad frente a `Sección 4:451` y `adr/README.md:196-211` | Mantener la prohibición (HPKP está retirado de los navegadores) y anotar la divergencia respecto del PDF oficial. |
+| C-11 | **Tailwind, TanStack y FontAwesome: prohibidos por ADR y exigidos por la GUIA Maestra** | `GUIA-MAESTRA-COMPLETA.md:497,1888` frente a `adr/README.md:93-96,118-119` | Decidir el alcance: si la prohibición vale sólo para el sitio público, decirlo; el **panel usa Tailwind y FontAwesome hoy** (D-14, D-35). |
+| C-12 | **La estructura del repositorio contradice a los ADR y a la matriz:** los documentos hablan de `frontend/` + `backend/`, el repositorio tiene `sitio/` + `panel/` | `GUIA-MAESTRA-COMPLETA.md:35-41`, `adr/README.md:21-23`, `trazabilidad.md:48-81` frente al árbol real | Actualizar los ADR y regenerar la matriz; es la causa raíz de D-06. |
+| C-13 | **PHP 8.4+ frente a 8.5** | `GUIA-MAESTRA-COMPLETA.md:513` frente a `adr/README.md:30` («verificado 8.5.10») | Alinear. Menor, pero es el tipo de dato que un auditor comprueba. |
+| C-14 | **Los criterios declarados no cuadran con los contados:** «Diseño CAG-NN 57» (existen 34) y «ACC-NN 49[F]+75[A]=124» (las tablas suman 81 filas; WCAG 2.1 tiene 78 criterios) | `GUIA Maestra:3414-3415` frente a `Sección 2:265-304` y `Sección 3` §3.3 | Recontar y publicar la cifra verificable. |
+| C-15 | **La GUIA Maestra no reproduce §2.6.7**, la verificación automática de diseño | `Sección 2:399-414` frente a `GUIA Maestra:1054-1061`, que cierra el checklist en §2.6.6 | Incorporarla: la guía consolidada es la que lee quien no abre el expediente entero. |
+| C-16 | **WCAG 2.1 frente a 2.2** y el objetivo táctil asociado | `Sección 3:34` y §3.1.4 frente a `Sección 6:95` y `Sección 6:256` | Fijar un nivel (2.1 AA es el exigible por la Resolución 1519; 2.2 como mejora) y no mezclarlos. |
+| C-17 | **`transparencia.md` dice que `/transparencia` es un stub retirado y `trazabilidad.md` marca FUN-016 a FUN-020 como implementados** con una vista que no existe | `transparencia.md:8-11` frente a `trazabilidad.md:102-106` | Es el mismo problema que D-06, con nombre y apellidos: la matriz describe otro producto. |
+| C-18 | **ACC-001 a ACC-008: seis códigos citados, ocho exigidos y ninguno definido** | `Sección 6:65,94-95,140` y `trazabilidad.md:37-42` frente a la ausencia de enunciados | Escribir los ocho enunciados o retirar los códigos. |
+| C-19 | **La evidencia de accesibilidad cita «axe-core 4.13.0 (ago-2026)»** mientras el resto de referencias se declaran vigentes y sin versión | `Sección 3:819-820` frente a `Sección 2:407` | Anclar versiones de las herramientas en el expediente, no sólo en un anexo. |
+| C-20 | **`localStorage`: prohibido para tokens y exigido para la preferencia de accesibilidad** | `GUIA-MAESTRA-COMPLETA.md:2543` frente a `adr/README.md:314` | Acotar la prohibición por contenido (credenciales sí, preferencias no) y escribirlo en ambos. |
+| C-21 | **El Kit dibuja el logotipo de la autoridad con la imagen del MinTIC y sin `alt`** (`all.css:8520-8522`) | Frente a CAG-12 y a la lógica de identidad del propio Kit UI §2.2.5 | El diseño ya decidió lo correcto (un `<img>` propio con `alt`, `PiePaginaGovco.vue:295`). **Falta declararlo como desviación** en ADR-0015, que hoy lo describe como pendiente. |
+| C-22 | **El corpus se contradice sobre el idioma:** RF-B1-001 (Must) pide «opción de traducción a la derecha» y RF-B3-055 (Could) la difiere | `01:19` frente a `01:24` y la decisión #16 | Resolver en el corpus, no en un comentario de código (hoy está resuelto sólo en `BarraSuperior.vue:8-11`). |
+| C-23 | **El corpus se contradice sobre los adjuntos del PQRSD:** RF-B1-033 prohíbe restricciones técnicas y RF-03-D04/RN-03-D04 exigen validar MIME, tamaño y antivirus | `04:20` frente a `03` (delta) y `rn-delta:40`; es la contradicción **C-01 del propio README** del corpus | Decidir el umbral técnico defendible y documentarlo: la prohibición se refiere a no rechazar por formato o tamaño arbitrarios, no a renunciar a límites de servidor. Hoy el diseño no ha decidido nada (D-13). |
+| C-24 | **§2.6.2 prohíbe reimplementar los componentes del Kit** («se instancian desde el repositorio v5, no se reimplementan a mano») y ADR-0011/0012 reimplementan su comportamiento en Vue | `Sección 2:362` frente a `adr/README.md:282-287,309-314` | La decisión del proyecto es correcta y está **demostrada**: el JS del Kit no es cargable (ver §9.5). Falta corregir §2.6.2 para que describa la realidad en lugar de prohibirla. |
+| C-25 | **La barra de accesibilidad: oculta entre 768 y 992 px (Kit) frente a disponible y operable en tablet (corpus)** | `Sección 2:398` y CAG-07 frente a RNF-07-D01, HU-07-D02 y `07:174` | Decidir con ADR. La barra es el **único** mecanismo de contraste y tamaño del sitio: ocultarla en tablet y móvil deja sin esa función a quien más la necesita (D-21). |
+
+---
+
+## 7. Cobertura y métricas
+
+### 7.1 Cobertura de requisitos
+
+Con el denominador declarado en §1.3 (152 RF y 31 RNF):
+
+| Estado | RF | % | RNF | % |
+|---|---|---|---|---|
+| ✅ Cumple | 32 | 21 % | 5 | 16 % |
+| 🟡 Parcial | 32 | 21 % | 7 | 23 % |
+| ❌ No cumple | 68 | 45 % | 8 | 26 % |
+| ⛔ No verificable | 8 | 5 % | 8 | 26 % |
+| ➖ No aplica / diferido | 12 | 8 % | 3 | 10 % |
+| **Cumple o parcial** | **64** | **42 %** | **12** | **39 %** |
+
+### 7.2 Cobertura de los criterios de aceptación de diseño (CAG-01 a CAG-34)
+
+Segundo eje de medida, sobre la línea base de aceptación (`docs/Sección 2 §2.4`):
+
+| Estado | CAG | Cuáles |
 |---|---|---|
-| RF-D | +37 | 38 |
-| RNF-D | +18 | 14 |
-| RN-D | +54 | 49 |
-| HU-D | +57 | 57 |
+| ✅ Cumple | **15** | CAG-01, 02, 04, 07, 08, 09, 11, 12, 13, 14, 15, 26, 30, 33, 34 |
+| 🟡 Parcial | **7** | CAG-05 (enlaza a `gov.co` y no a `/home/`), 10 (foco sin medir), 16 (falta la leyenda de obligatorios), 17, 23, 27 (medida de línea), 29 |
+| ❌ No cumple | **5** | CAG-21 (modal), 22 (*toast*), 24 (tablas), 25 (acordeón), 31 (galería sin instanciar) — CAG-20 pasó a ✅ con la línea de avance del formulario (§18) |
+| ⛔ No verificable | **3** | CAG-03 y CAG-28 (contraste medido), CAG-32 (WCAG AA con axe) |
+| ➖ No aplica o desviación declarada | **3** | CAG-06 (idioma), CAG-18 (umbral reexpresado), CAG-19 (calendario) |
 
-**Consecuencias verificables:**
+**15 de 34 cumplen (44 %); 22 de 34 cumplen o cumplen parcialmente (65 %).** El grupo de los seis
+no cumplidos tiene un rasgo común que conviene ver: **cinco son componentes del Kit que el
+expediente pide en páginas que aún no existen** (detalle de trámite, notificaciones) y uno es la
+galería ya construida y nunca colocada. Es decir: no son fallos de ejecución, son páginas que
+faltan.
 
-1. **28 RF y 28 RNF declarados en el total no tienen ningún identificador en el corpus.**
-   `README.md:134-139` declara 353 RF; sólo aparecen 325. No es un redondeo: los 28 restantes no son
-   enumerables, así que no se puede comprobar si están implementados.
-2. **215 identificadores se citan sin definirse en ninguna parte.** Por ejemplo `RF-B2-004`,
-   `RF-B2-005`, `RF-B2-011`, `RF-B2-035`… (124 RF). Sólo existen como referencia cruzada. Un
-   requisito que se cita pero no se enuncia no es un requisito: no tiene criterio de aceptación
-   contra el que auditar.
-3. **La fuente a la que el corpus remite no existe.** `README.md:141` dice que los IDs «trazan hacia
-   los catálogos fuente en `/tmp/elicit/out/_req_bundle_{1,2,3}.md`». Comprobado: `/tmp/elicit` no
-   existe. **La trazabilidad hacia atrás que el corpus promete es irrecuperable.**
-4. **`_global/matriz-trazabilidad.md:415` reconoce el desajuste sin resolverlo**: declara «~155 RF
-   filas» y «~64 RNF agrupados» frente a los 353 y 120 del mismo corpus, con la nota de que «los IDs
-   `RF-Bn-xxx` con dobletes/tripletes consolidan los 353 RF originales». Los dobletes existen
-   (`RF-B1-001 / RF-B2-004 / RF-B3-053` es una fila para tres identificadores), pero **no explican
-   las 28 ausencias ni los 215 huérfanos**.
+### 7.3 Cobertura de las puertas de calidad
 
-### 3.3 El módulo 01 está duplicado byte a byte
-
-**[HECHO]** `01-estructura-identidad/estructura-identidad.md` y `01-estructura-identidad/sede.md`
-tienen **181 líneas cada uno y son idénticos**: mismo `md5`, `2fdd6d353abd433de01208bb7f05c55e`,
-mismo tamaño. Es la única duplicación exacta del corpus (comprobado con `md5sum` sobre los 55
-ficheros).
-
-**[DEDUCCIÓN]** El titular citó **los dos** ficheros como fuente. Al ser el mismo, hoy no hay
-conflicto; en cuanto alguien edite uno —lo hará, porque el nombre invita a editar el que suene más
-específico— quedan dos módulos 01 divergentes y ninguna regla que diga cuál manda. Es el defecto más
-barato de arreglar y el que más fácilmente se convierte en un problema caro.
-
-### 3.4 La matriz de trazabilidad del proyecto no traza
-
-`docs/trazabilidad.md` (232 líneas) es **el único artefacto de trazabilidad del proyecto**.
-Se presenta así: «**Documento generado.** No se edita a mano: se produce con `npm run trazabilidad`
-a partir del contrato OpenAPI, de las pruebas y de las vistas» (`docs/trazabilidad.md:3-5`), y
-concluye: «**Cobertura: 122 de 140 criterios del expediente tienen evidencia (87 %)**»
-(`:29`) y «Operaciones del contrato: **41** (41 implementadas)» (`:31`).
-
-**Ninguna de las tres afirmaciones se sostiene contra el repositorio actual.** Verificado una por
-una:
-
-| Lo que afirma | Lo que hay | Prueba |
+| Puerta | Objetivo | Estado real |
 |---|---|---|
-| 41 operaciones en el contrato, 41 implementadas | **3 operaciones**, 2 implementadas y 1 `pending` | `grep -cE "^    (get\|post\|patch\|put\|delete):" contract/openapi.yaml` → `3`; `contract/openapi.yaml:65` `x-status: pending` |
-| FUN-016…FUN-020 «implementado», con interfaz `views/publico/TransparenciaView.vue` | **`views/publico/` no existe**; `/transparencia` es un stub de 17 líneas | `find . -type d -name publico` → nada; `sitio/app/pages/transparencia.vue` (17 líneas) |
-| La matriz proviene de «las pruebas y las vistas» | Los ficheros citados no existen | `frontend/` no existe; `components/govco/BuscadorSede.vue`, `MenuNavegacion.vue`, `AvisoPrivacidad.vue`, `frontend/tests/conformidad-diseno.mjs`, `backend/tests/Feature/Sede/ConformidadSedeTest.php`, `backend/tests/Feature/Api/CatalogoApiTest.php`: **los 15 comprobados, ninguno existe** |
-| Los endpoints de los criterios | `GET /contenidos/{tipo}`, `GET /buscar`, `GET /bloques`, `GET /transparencia` | Ninguno está en `contract/openapi.yaml` (0 coincidencias cada uno) |
-
-Las únicas pruebas que existen en el backend son siete ficheros y **ninguno** es de los citados:
-`TramiteTest.php`, `TramiteSeederTest.php`, `IngestaTramitesTest.php`, `ReconciliacionSuitTest.php`,
-`SaludTest.php`, `ContactoPublicableTest.php`, `TestCase.php`.
-
-**[DEDUCCIÓN]** `docs/trazabilidad.md` describe una implementación anterior —una SPA `frontend/` con
-`views/publico/`, 41 endpoints, una sección de Transparencia publicada y un componente
-`AvisoPrivacidad`— que fue sustituida por `sitio/` + `panel/`. El generador `npm run trazabilidad`
-tampoco existe (`sitio/package.json` y `panel/package.json` no lo declaran). **Es un documento
-huérfano que certifica 87 % de cumplimiento sobre un sistema que no es el que se va a desplegar.**
-
-Esto es un hallazgo bloqueante (§5.1, BL-10) y no un detalle documental: es el instrumento con el
-que la Entidad creería estar cumpliendo.
-
----
-
-## 4. Matriz de trazabilidad
-
-**Cómo leerla.** Una fila por requisito nuclear. La columna *Fuente* cita la norma **y su numeral**,
-o el requisito del corpus con su identificador. Cuando la exigencia sólo consta en el corpus y no en
-la norma, se marca `[corpus]`: es un requisito del proyecto, no una obligación legal, y se audita
-como tal. Cuando es una interpretación mía, `[DEDUCCIÓN]`.
-
-Estados: **construido** · **parcial** · **stub** (existe la ruta y no hay contenido) · **ausente**.
-
-### Módulo 01 — Estructura e identidad GOV.CO
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| Barra superior GOV.CO en todas las páginas, 56 px, Cobalt `#0943B5`, área activa ≥44×44 px | Res. 1519/2020 Anexo 2; Kit UI 9.2 p. 7; RF-B1-001/RF-B3-053 | El enlace de la barra mide ≥44×44 px y su color computado es `#0943B5` | **parcial** | **GR-13**: el enlace mide 36 px de alto (`all.css:702-705`) |
-| Pie GOV.CO con los ocho datos institucionales y las cinco políticas | Res. 1519/2020 Anexo 2 §2.2.1; RF-B1-002/RF-B2-006 | Los ocho datos y los cinco enlaces están en el pie de cualquier página | **construido** | El documento de cada política no existe (**BL-06**) |
-| Menú principal con los 3 mínimos obligatorios primero, ≤7 ítems, ≤2 niveles, `aria-label` | Res. 1519/2020 Anexo 2 §4.1.2; Kit UI 9.2 p. 27 (CAG-09, CAG-10); RF-B1-003 | Menú con 7 ítems y `aria-label`; los 3 obligatorios antes de los adicionales | **construido** | — |
-| Migas de pan en todas las páginas internas, derivadas de la jerarquía | Kit UI 9.2 p. 28 (CAG-11); RF-B2-038 | Toda ruta interna ≠ `/` muestra su recorrido con el nivel actual marcado | **construido** | — |
-| Buscador interno en la cabecera que busque sólo contenido de la sede | Res. 1519/2020 Anexo 2 §2.4.1 (c); RF-B1-005/RF-B2-035 | Buscar un término devuelve resultados propios, ordenados por pertinencia | **ausente** | **BL-07**: el campo no busca |
-| Autocompletado ≤10 sugerencias y tolerancia a errores | RF-B1-006/RF-B2-036 (Must) | Con ≥3 caracteres aparecen ≤10 sugerencias pese a errores tipográficos | **ausente** | **M-07** |
-| Mapa del sitio navegable + `sitemap.xml` | Res. 1519/2020 Anexo 1 §4.3.1 (b); RF-B1-010 | `/mapa-del-sitio` y `/sitemap.xml` responden y coinciden | **parcial** | **GR-11**: el sitemap anuncia 5 páginas vacías; **GR-16**: sin fichas de trámite |
-| Página 404 con ≥3 vías de navegación | RF-B1-007/RF-B2-039/RF-B3-142 (Must) | URL inexistente → 404 personalizado con ≥3 alternativas | **parcial** | **M-10** |
-| Banner de consentimiento de cookies con aceptar/rechazar/configurar | RF-B1-008/RF-B2-011 + RF-01-D01 + RN-01-D01 (Must); Ley 1581/2012 | Ninguna cookie no esencial se activa sin consentimiento; el consentimiento se versiona y caduca a 12 meses | **ausente** | **BL-05** |
-| Módulo de noticias en la portada | Res. 1519/2020 Anexo 2 §2.4.1; RF-B1-011 (Must) | Noticia con imagen 4:3/16:9, título ≤150 car., descripción ≤200 car. y fecha, en orden inverso | **stub** | **GR-11**, **BL-08** |
-| Carrusel con indicadores, flechas y pausa, **pausa por defecto** | Kit UI 9.2 p. 22 (CAG-01, CAG-02); RF-B1-042/RF-B3-069 (Must) | Al cargar la portada el carrusel está detenido | **parcial** | **M-01**: `autoplay: true` |
-| Aviso de salida a sitio externo con nombre del destino | RF-B1-071/RF-B2-040 (Must); ADR-0015 §3 lo declara «no aplica» | Pulsar un enlace externo abre confirmación con el dominio del destino | **ausente** | **GR-15** |
-| Tipografía e interlineado del Kit (Nunito Sans / Verdana) | Kit UI 9.2 p. 12; RNF-B3-045 (Must) | `h1`…`h6` y párrafos con la familia y el interlineado de la tabla del Kit | **parcial** | **GR-12** |
-| Identidad: el logotipo de la **autoridad**, no el de la Nación | Res. 1519/2020 Anexo 2 §2.3; RF-B1-043 | La cabecera y el pie muestran el escudo del Distrito con `alt` | **parcial** | ADR-0015 §7: falta el archivo oficial; hoy es el nombre tipográfico |
-| Componentes del Kit obligatorios para sedes electrónicas | Kit UI 9.2 §«Requerido, mínimamente, en»; RN-B2-029 | Cada componente marcado para «Sedes electrónicas» existe y cumple su criterio | **parcial** | **GR-14** |
-
-### Módulo 02 — Transparencia y acceso a la información
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| Menú *Transparencia* con ≥10 subsecciones | Res. 1519/2020 Anexo 2 §2.4.2 (g); Ley 1712/2014 art. 2.1.1.2.1.4 D. 1081/2015; RF-B1-012/RF-B3-081 (Must) | Diez subsecciones navegables y con contenido | **stub** | **BL-09**: la sección entera no existe |
-| Información en orden cronológico inverso | Res. 1519/2020 Anexo 2 §2.4.2 (e); RF-B3-087 (Must) | El elemento más reciente aparece primero | **ausente** | **BL-09**, **GR-09** |
-| Fecha de publicación en **todo** documento | Res. 1519/2020 Anexo 2 §2.4.1 (e); FUN-019 (Must) | Cada registro publica su fecha; ninguna vista dice «no consta» | **ausente** | **GR-09** |
-| Fuente única: otros menús redirigen sin duplicar | Res. 1519/2020 Anexo 2 §2.4.1 (f); RF-B3-088 (Must) | Un documento tiene una sola URL canónica | **ausente** | **BL-09** |
-| Directorio de servidores públicos vinculado a SIGEP | Ley 1712/2014; RF-B1-017 (Must) | Nuevo servidor publicado en ≤1 día | **ausente** | **BL-09** |
-| Normativa con los siete campos y enlace a SUIN | RF-B1-013/RF-B1-014 (Must); Res. 1519/2020 Anexo 2 §2.4.1 (g) | Cada norma con tipo, número, fechas, epígrafe, vigencia y enlace; enlace funcional al SUIN | **parcial** | **M-04**: sin SUIN |
-| Información tributaria: predial e ICA con los elementos del tributo y calendario | Res. 1519/2020 Anexo 2 §2.4.2 (g) + Conpes 3956/2019; RF-B1-018/RF-B3-089/RF-B3-151 (Must) | Ficha con sujeto activo/pasivo, hecho generador, causación, base gravable y tarifa; calendario con vencimientos | **ausente** | **BL-09** |
-| Datos abiertos federados a `datos.gov.co` | Res. 1519/2020 art. 7 y Anexo 4; RF-B1-019 (Must) | La categoría muestra el catálogo federado, no una copia | **ausente** | **M-03** |
-| Publicación inmediata o en tiempo real | Res. 1519/2020 Anexo 2 §2.4.2 (e); RN-B1-002 | Un funcionario publica sin desplegar código | **ausente** | **BL-08** |
-
-### Módulo 03 — Servicios y trámites
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| Catálogo de trámites vinculado a SUIT con ficha en GOV.CO | Res. 1519/2020 Anexo 2 §2.4.3 (i); RF-B1-021 (Must) | Cada trámite con nombre, descripción, modalidad, costo, tiempo y enlace a GOV.CO | **construido** | 123 de 124 fichas (falta la que la ingesta no trajo) |
-| Seis atributos obligatorios por trámite | `docs/Sección 5 · Funcionalidad.md:41-50` §5.1.3 (Must) | Si falta uno, el ítem no se publica | **construido** | — |
-| Búsqueda, filtros y paginación | Res. 1519/2020 Anexo 2 §2.4.3 (i); RF-B1-022/RF-B2-091 (Must) | Filtrar por modalidad y costo devuelve el subconjunto correcto | **construido** | — |
-| Las 4 etapas (Inicio → Solicitud → Procesamiento → Respuesta) en la ficha | RF-B2-028/RF-B3-071 (Must); Kit UI 9.2 p. 26 | La ficha presenta el trámite en los 4 momentos | **ausente** | **GR-10** |
-| Línea de avance (stepper) | Kit UI 9.2 p. 26 (requerido en «Trámites y servicios»); RF-B2-028 | El ciudadano ve en qué paso está | **ausente** | **GR-14** |
-| Área de servicio: «¿Cómo fue tu experiencia?» y «¿Tienes dudas?» | Kit UI 9.2 p. 18; RF-B3-065/RF-B2-033/034 (Must/Should) | Calificar FÁCIL/DIFÍCIL y ver el canal de dudas, en la ficha | **ausente** | **GR-17** |
-| Indicador de carga | Kit UI 9.2 p. 25 (CAG-29); RF-B3-070 (Must) | Proceso >10 s informa del estado | **ausente** | **GR-14** |
-| Paginación ≥44×44 px con `aria-current` | Kit UI 9.2 p. 30 (CAG-23); RF-B3-075 (Must) | Página activa marcada; controles de 44 px en móvil | **parcial** | Incrustada en `tramites/index.vue:781-1014`; no reutilizable |
-| Tablas con ordenamiento | Kit UI 9.2 p. 32 (CAG-24); RF-B3-076 (Must) | Ordenar asc/desc por columna | **parcial** | Único uso, mal anidado: `pqrsd.vue:222` pone `tabla-govco` en el `<table>` y no en el contenedor → `all.css:10213` (`.tabla-govco table`) no encuentra tabla descendiente y `all.css:10168` deja `overflow`/`max-height` sobre un `display:table` |
-| Consulta de estado por radicado | Res. 1519/2020 Anexo 2 §2.4.3 (iii) cond. 4; FUN-024 (Must) | Consultar un radicado devuelve su estado | **stub** | **BL-03** |
-| Pagos electrónicos sin recargo | Decreto Ley 2106/2019 art. 17; Decreto 088/2022; RF-B1-029/RF-B3-123 (Must) | Se paga en línea sin costo adicional al presencial | **ausente** | — |
-| Carpeta Ciudadana Digital | Decreto 620/2020; RF-B1-027 (Must) | El resultado del trámite llega a la CCD | **ausente** | — |
-
-### Módulo 04 — PQRSD
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| Formulario con los campos mínimos y modalidad anónima real | Res. 1519/2020 Anexo 2 §2.4.3 (iii); RF-B1-031/RF-B1-032 (Must) | Marcada la casilla, los campos identificatorios desaparecen | **construido** | — |
-| Radicación con número único | Decreto Ley 2106/2019 art. 14; RF-B2-030 (Must) | Radicar devuelve un número de radicado | **ausente** | **BL-01** |
-| Acuse de recibo con fecha y hora | Res. 1519/2020 Anexo 2 §2.4.3 (iii) cond. 1; RF-B3-099 (Must) | Radicar produce acuse inmediato con fecha y hora | **ausente** | **BL-02** |
-| Radicado en ≤24 horas hábiles | Ley 1437/2011; Ley 1755/2015; RN-B3-026 (Must) | El acuse compromete y cumple el plazo | **ausente** | **BL-02** |
-| Sin restricciones técnicas de formato, tamaño ni cantidad de adjuntos | Ley 1755/2015 art. 23 CP; RF-B1-033/RN-B1-010 (Must) | Un archivo grande y no estándar se acepta | **parcial** | El formulario no adjunta nada (**BL-01**) |
-| Seguimiento por radicado | Res. 1519/2020 Anexo 2 §2.4.3 (iii) cond. 4; RF-B1-034 (Must) | El estado del radicado se consulta en línea | **stub** | **BL-03** |
-| CAPTCHA accesible en todo formulario que capture datos | `docs/Sección 5 · Funcionalidad.md:198` FUN-004 y `:253` FUN-030 (Must); RF-B3-101/RF-B1-058 (Must); Kit UI 9.2 p. 29 | El formulario rechaza el envío sin resolver el reto, y existe alternativa accesible | **ausente** | **BL-04** |
-| Mensaje de falla del sistema distinto del error de validación | Res. 1519/2020 Anexo 2 §2.4.3 (iii) cond. 5; RF-B3-102 (Must) | Una caída del servidor muestra mensaje propio con opción de reintentar | **ausente** | **BL-01** |
-| Validación accesible con foco en el campo inválido | WCAG 2.1 §3.3.1/3.3.3; RF-B1-035 (Must) | El foco se mueve al primer campo inválido y el error se anuncia | **construido** | — |
-| Integración con el SGDEA | Decreto Ley 2106/2019 art. 16; RF-B1-036 (Must) | Radicar crea expediente en Orfeo en <5 s | **ausente** | **BL-01** |
-| Plazos diferenciados por tipo (15/10/30 días) | Ley 1755/2015 art. 14; RF-04-D03 (Must) | Cada tipo computa su plazo sobre el calendario hábil | **parcial** | Los términos se **publican** (`pqrsd.vue`); no se **computan** |
-
-### Módulo 05 — Participa
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| Sección *Participa* con las 6 subcategorías del Anexo 2 §4.1.2.3 | Res. 1519/2020 Anexo 2 §4.1.2; RF-B1-038 (Must) | Las 6 subcategorías navegables con contenido | **stub** | **GR-11** |
-| Consulta ciudadana de normas en elaboración vía SUCOP | Ley 1757/2015; RF-B1-039 (Must) | Se radican aportes a un proyecto de norma | **ausente** | **GR-11** |
-| Micrositios por grupo de interés | RF-B1-040 (Should) | Cada grupo caracterizado con su contenido en lenguaje claro | **ausente** | **GR-11** |
-| Publicación del resultado del proceso participativo | Decreto 1081/2015 art. 2.1.2.1.14; RF-05-D02 (Must) | El consolidado de observaciones y su respuesta se publica | **ausente** | **GR-11** |
-| Rendición de cuentas y control ciudadano con documentos reales | Ley 1757/2015; Anexo 2 §4.1.2.3 | Informes de gestión y audiencias publicados con fecha | **ausente** | **GR-11** |
-
-### Módulo 06 — Canales de atención
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| Canales con dirección, código postal, horario y contactos con `+57` | Res. 1519/2020 Anexo 2 §2.2.1-2.2.2; RF-B1-041/RN-B1-017 (Must) | Todos los datos con prefijo país salvo 018000/019000 | **construido** | Duplicado en tres ficheros (**M-05**) |
-| Agendamiento de citas con confirmación | Res. 1519/2020 Anexo 2 §2.4.3 (ii); RF-B1-030 (Must) | Reservar una cita devuelve código de confirmación | **ausente** | **GR-18** |
-| Alternativa no digital al agendamiento | Ley 1753/2015 art. 45 par. 1; RN-B2-023 (invariante) | El canal presencial y telefónico siguen disponibles | **parcial** | Los canales se publican; no hay agenda que alternar |
-| Acceso inclusivo con puestos y apoyo en sede | RF-B1-095 (Must) | Un adulto mayor sin internet completa el trámite en sede | **ausente** | — |
-
-### Módulo 07 — Accesibilidad (transversal)
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| WCAG 2.1 AA en todo el sitio | Res. 1519/2020 art. 3 y Anexo 1; Ley 1618/2013 art. 16(11); RNF-B1-014/RNF-B3-001 | Cero violaciones críticas o serias en axe-core sobre las 21 rutas | **parcial** | **GR-07**: nunca se ha medido |
-| Declaración de conformidad publicada | Res. 1519/2020 Anexo 1 num. 9.3; `docs/Sección 3 · Accesibilidad.md:673,714` | Documento con alcance, herramientas, excepciones y fecha de próxima revisión | **ausente** | **GR-07** |
-| Barra de accesibilidad persistente con letra y contraste | Kit UI 9.2 p. 6 (CAG-07); RF-B1-044 (Must) | Escala y contraste persisten entre páginas | **construido** | El Kit la trae como *stub*; el sitio la reimplementó |
-| «Saltar al contenido principal» como primer elemento tabulable | Kit UI 9.2 p. 9 (CAG-08); WCAG 2.1 §2.4.1; RF-B3-022 (Must) | Primer Tab muestra el enlace y el foco entra en `#contenido-principal` | **construido** | — |
-| Contraste ≥4.5:1 en todo texto | WCAG 2.1 §1.4.3; RNF-B1-017 (Must) | Ningún texto por debajo del umbral | **parcial** | Sin medir en navegador (§1.3) |
-| Área táctil ≥44×44 px en móvil | Kit UI 9.2 pp. 7 y 30 (CAG-23); RNF-B3-005 (Must) | Todo control pulsable mide ≥44×44 px a 360 px | **parcial** | **GR-13** |
-| Reflujo a 320 px sin scroll horizontal | WCAG 2.1 §1.4.10; RNF-B3-004 | A 320 px no hay desplazamiento horizontal | **parcial** | Corregido a mano y **sin prueba** (**GR-07**) |
-| Respeto a `prefers-reduced-motion` | WCAG 2.1 §2.3.3; RNF-B1-018 | Con la preferencia activa, no hay movimiento | **construido** | Carrusel y «volver arriba» lo respetan |
-| Multimedia con subtítulos, transcripción y LSC | Res. 1519/2020 Anexo 1 §1.5; RN-B3-002/RN-B3-003 (Must) | Todo vídeo nuevo con subtítulos; LSC en los 4 tipos | **ausente** | Sin multimedia que publicar (**BL-08**) |
-| Bloqueo de publicación de multimedia inaccesible | RF-07-D01/RF-12-D05 (Must) | El CMS no deja publicar un vídeo sin subtítulos | **ausente** | **BL-08** |
-
-### Módulo 08 — Usabilidad
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| URLs limpias, en castellano, sin tildes y jerárquicas | RF-B1-081/RF-B3-144 | La ruta describe el contenido | **construido** | — |
-| Navegación global consistente en todas las páginas | RF-B2-072 (Must) | Mismo menú, mismo orden y mismos nombres | **construido** | — |
-| Sin pop-ups no solicitados | RF-B1-086/RF-B3-051 (Must) | La portada no abre modales por su cuenta | **construido** | — |
-| Encuesta de usabilidad visible | `docs/Sección 5 · Funcionalidad.md:295` FUN-052 (Must); RF-B1-087/RF-B2-083 (Should) | Encuesta operativa en ≥90 % de las páginas | **ausente** | **M-02** |
-| SUS ≥68 y tasa de éxito ≥90 % | RNF-B1-030; `_global/matriz-trazabilidad.md:436` (decisión 2026-06-05) | Puntaje calculado, almacenado y publicado | **ausente** | **M-02** |
-| Validación W3C de HTML y CSS | RF-B1-089/RF-B2-075 (Must) | El validador no reporta errores | **ausente** | Sin puerta en CI (**GR-07**) |
-| Lenguaje claro con índice Fernández-Huerta ≥60 | RNF-B3-037/RNF-B1-038 | Descripciones con índice ≥60 | **parcial** | Sin medir |
-| Código con pruebas y cobertura ≥70 % | RNF-B1-043 (Should) | Cobertura medida en CI | **parcial** | Backend con pruebas; **sitio y panel, ninguna** (**GR-07**) |
-
-### Módulo 09 — Seguridad digital
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| HTTPS con redirección y certificado vigente | `docs/Sección 4 · Seguridad.md:168` SEG-001 (Must); RF-B1-055 | `http` redirige a `https` con certificado válido | **parcial** | Vive en nginx; fuera de alcance (§1.3) |
-| Cabeceras de seguridad (CSP, HSTS, X-CTO, X-FO, Referrer-Policy) | SEG-012; ADR-0008 omite HPKP con justificación | `securityheaders.com` sin avisos salvo HPKP | **parcial** | Fuera de alcance (§1.3) |
-| Cookies `Secure` + `HttpOnly` | SEG-005; RF-B1-057 (Must) | Toda cookie de sesión con ambos atributos | **parcial** | No hay sesión que proteger (**GR-01**) |
-| CAPTCHA accesible y control de tasa | SEG-003; RF-B1-058/RF-B3-101 (Must) | El envío automático se bloquea sin dañar la accesibilidad | **ausente** | **BL-04** |
-| RBAC, roles y privilegios, separación de funciones | Res. 1519/2020 Anexo 3 §2; RNF-B2-010; SEG-016 (MFA) | Quien crea un contenido no lo aprueba; el rol limita el acceso | **ausente** | **GR-01**, **GR-19** |
-| Registro de auditoría con retención ≥5 años | SEG-013; RNF-B3-022 | Cada cambio queda en un log inmutable | **ausente** | **GR-19** |
-| Control de acceso a la administración | RF-B1-062 (Must): «páginas de administración no accesibles desde internet sin autenticación» | `/admin` exige autenticación | **ausente** | **GR-01** |
-| Protección de datos: aviso, autorización, ARCO, RNBD | Ley 1581/2012 arts. 8, 13, 17, 25; RF-B2-047/048 (Must) | Aviso y casilla no premarcada; solicitud ARCO tramitable | **parcial** | El formulario autoriza el tratamiento; sin módulo ARCO |
-| Mensajes de error genéricos sin filtrar tecnología | SEG-011; RF-B1-061 (Must) | Un error 500 no revela versión ni traza | **parcial** | Laravel por defecto; sin verificar en producción |
-
-### Módulo 10 — Interoperabilidad
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| Servicios Ciudadanos Digitales: autenticación, interoperabilidad, carpeta | Decreto Ley 2106/2019 arts. 9 y 10; RF-B1-025 (Must) | Autenticación por nivel de confianza vía OIDC; SCD operativos | **ausente** | Sin convenio con la AND (§8) |
-| No exigir documentos que el Estado ya tiene | Decreto Ley 2106/2019 art. 10 inc. 4; RF-B2-094 (Must) | El formulario no pide lo que puede consultar | **ausente** | — |
-| X-Road / PDI con estampado cronológico | RF-B1-028/RF-B2-018 (Must) | Mensaje cifrado con estampa TSA | **ausente** | — |
-| Actualizar SUIT en ≤3 días hábiles | Ley 2052/2020 art. 19; RN-B1-006 | Tras un acto administrativo, la ficha SUIT queda actualizada | **parcial** | La ingesta existe; el despliegue no la ejecuta **[SIN VERIFICAR]** |
-| Expediente electrónico con integridad y autenticidad | Decreto Ley 2106/2019 art. 16; RF-B3-095 | Expediente foliado, con índice firmado | **ausente** | SGDEA = Orfeo, sin implementar |
-
-### Módulo 11 — Datos abiertos
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| Publicar y federar datos abiertos a `datos.gov.co` | Res. 1519/2020 art. 7 y Anexo 4; RF-B1-019 (Must) | Los conjuntos propios aparecen en el portal nacional | **ausente** | **M-03** |
-| Formatos abiertos y procesables (≥90 %) | RNF-B3-039/RNF-B1-090 (Must) | Descarga en CSV, JSON o XML | **ausente** | **M-03** |
-| Metadatos y registro de activos de información | Ley 1712/2014; RF-B1-020/RF-B1-091 (Must) | Inventario con criticidad y licencia | **ausente** | **M-03** |
-| Licencia abierta declarada por conjunto | RN-B1-026(f2); `docs/Sección 5 · Funcionalidad.md:307` FUN-059 | Cada conjunto declara su licencia | **ausente** | **M-03** |
-
-### Módulo 12 — Gestión de contenidos y administración
-
-| Requisito | Fuente que lo exige | Criterio de aceptación verificable | Estado | Brecha |
-|---|---|---|---|---|
-| CMS que publique sin conocimientos técnicos, con roles y log | RF-B1-076 (Must); `docs/Sección 1 · Marco normativo.md:49` («CMS unificado; sin micrositios huérfanos») | Un editor publica una resolución sin desplegar código y queda en el log | **ausente** | **BL-08**, **GR-01** |
-| Flujo editorial Borrador → Pendiente → Publicado → Archivado | RF-12-D01/RN-12-D01 (Must) | El rechazo devuelve a Borrador con comentario al editor | **ausente** | **BL-08** |
-| Segregación de funciones: quien crea no aprueba | RF-09-D03/RN-09-D02 (Must) | El creador no puede aprobar lo propio | **ausente** | **GR-19** |
-| Roles y permisos (≥3 niveles) con auditoría | RF-B1-079/RF-B2-097 (Must) | Un editor de normativa no accede a PQRSD de otra dependencia | **ausente** | **GR-01**, **GR-19** |
-| Registro electrónico 24/7/365 con consecutivo y acuse | RF-B2-067/RF-B3-118 (Must) | Documento de las 23:55 de un festivo → radicado inmediato | **ausente** | **BL-01**, **BL-02** |
-| Calendario oficial de días hábiles para cómputo de plazos | RF-B2-068/RF-B3-119 (Must) | El cómputo excluye fines de semana y festivos del Distrito | **ausente** | — |
-| Archivo conforme a TRD/AGN; no eliminar sin aprobación | Decreto 1080/2015; Ley 594/2000; RF-B1-077 (Must) | Eliminar requiere aprobación superior y queda en el log | **ausente** | **BL-08** |
-| Tablero ITA interno que arranca en cero, sin datos de maqueta | RF-B1-078/RF-12-D05 (Must); A-03 resuelto el 2026-06-05 | Al publicar contenido que incumple, el tablero lo marca con su norma | **ausente** | **GR-03** afirma lo contrario en pantalla |
-| Notificaciones electrónicas multicanal con constancia | Decreto Ley 2106/2019 arts. 46-47; RF-B3-153/154 (Must) | Cambio a «Resuelto» → notificación <1 h por el canal preferido | **ausente** | — |
-| Firma electrónica con efectos jurídicos | Decreto Ley 2106/2019 art. 60; RF-B3-155 (Must) | Documento firmado válido y archivado en el SGDEA | **ausente** | — |
-
-**Recuento de la matriz:** 96 requisitos trazados (17 en el módulo 01, 9 en el 02, 13 en el 03, 10 en
-el 04, 5 en el 05, 4 en el 06, 10 en el 07, 8 en el 08, 9 en el 09, 5 en el 10, 4 en el 11 y 10 en el
-12). Estados: **construido 17 · parcial 22 · stub 4 · ausente 53**.
-
----
-
-## 5. Hallazgos
-
-Cada hallazgo es **una sola cosa que corregir**. Si dos arreglos son independientes, son dos
-hallazgos.
-
-### 5.1 Bloqueantes
-
-Un hallazgo es bloqueante cuando su ausencia **impide cumplir un requisito legal de obligado
-cumplimiento**, **impide prestar el servicio que define la sede**, o **impide demostrar el
-cumplimiento**.
-
----
-
-#### BL-01 · No hay radicación: el contrato no declara ninguna operación de escritura
-
-- **Qué falta.** El formulario de `sitio/app/pages/realizar-una-peticion.vue` (1 097 líneas) tiene
-  todos los campos del anexo y termina en `enviar()` (líneas 359-378) sin destino. El contrato
-  declara **tres operaciones, todas `GET`**: `/entidad` (`contract/openapi.yaml:54`), `/tramites`
-  (`:129`) y `/tramites/{slug}` (`:289`). No hay ninguna operación de escritura, ni ruta para
-  PQRSD en `backend/routes/api.php:22-27`, que registra dos. La propia página lo declara en pantalla
-  (`realizar-una-peticion.vue:402-410`: «al enviarlo **no se registrará nada**»).
-- **Norma.** Decreto Ley 2106/2019 art. 14 inc. 1 y 3; Res. 1519/2020 Anexo 2 §2.4.3 (iii),
-  condiciones técnicas 1, 4, 5 y 6; Ley 1437/2011 art. 60. En el corpus: RF-B2-030 (Must), RF-B3-102
-  (mensaje de falla), RF-B1-036 (SGDEA), RN-B3-026.
-- **Dónde.** `contract/openapi.yaml` (3 operaciones); `backend/routes/api.php:22-27`;
-  `sitio/app/pages/realizar-una-peticion.vue:359-378` y `:402-410`.
-- **Qué hay que hacer.** Declarar primero la operación en el contrato, con su esquema de error, su
-  mensaje de falla y su punto de integración con el SGDEA; implementarla después; conectar el
-  formulario al final. El aviso honesto de las líneas 402-410 **no debe retirarse hasta que la
-  operación funcione de extremo a extremo**: retirarlo antes convertiría una carencia declarada en
-  una promesa falsa.
-- **Cómo se verifica.** Una prueba de integración que radique una PQRSD contra la API y afirme que
-  la respuesta contiene un número de radicado con el formato acordado
-  (`SM-{dependencia}-{año}-{consecutivo}`, RNF-04-D01); y una prueba de extremo a extremo que envíe
-  el formulario desde el navegador y reciba ese número. La operación deja de estar ausente cuando la
-  prueba falla sin ella.
-- **Qué desbloquea.** BL-02, BL-03, GR-17, GR-18 (el expediente), y el módulo 12 entero.
-
----
-
-#### BL-02 · No hay acuse de recibo ni compromiso de radicado
-
-- **Qué falta.** El envío del formulario no produce confirmación alguna al ciudadano: no hay correo
-  de acuse, ni fecha y hora de recepción, ni número de radicado, ni el plazo de las 24 horas
-  hábiles. Sin BL-01 no hay nada que acusar, pero el requisito es **distinto y verificable por
-  separado**: el acuse es un artefacto con contenido propio (identificador, fecha, hora, plazo) y su
-  ausencia es una violación autónoma.
-- **Norma.** Res. 1519/2020 Anexo 2 §2.4.3 (iii) condición técnica 1 y el apartado «Condiciones de
-  acceso a la información» (publicar los plazos de respuesta); Ley 1437/2011; Ley 1755/2015. En el
-  corpus: RF-B3-099 (Must), RN-B3-026.
-- **Dónde.** Ausente en `sitio/`, `backend/` y `contract/`. La página publica los términos del art.
-  14 del CPACA pero no acusa nada.
-- **Qué hay que hacer.** Que la radicación devuelva, en la misma respuesta y por correo, un acuse con
-  el número de radicado, la fecha y hora exactas y el plazo comprometido.
-- **Cómo se verifica.** Una prueba que radique y afirme (a) que existe el acuse, (b) que contiene un
-  radicado, (c) que la fecha y la hora coinciden con la de recepción y (d) que el plazo declarado en
-  el acuse es el que corresponde al **tipo** de solicitud (15, 10 o 30 días hábiles) y no un valor
-  fijo.
-- **Qué desbloquea.** BL-03.
-
----
-
-#### BL-03 · No hay mecanismo de seguimiento en línea
-
-- **Qué falta.** `sitio/app/pages/seguimiento.vue` tiene **19 líneas** y su plantilla es
-  `<SeccionEnPreparacion>`. Está en el menú obligatorio (`layouts/default.vue:58`) y en el
-  `sitemap.xml` (`server/routes/sitemap.xml.ts:48`). No hay consulta por radicado, ni endpoint, ni
-  modelo.
-- **Norma.** Res. 1519/2020 Anexo 2 §2.4.3 (iii) condición técnica 4; `docs/Sección 5 ·
-  Funcionalidad.md:237` FUN-024 (Must); RF-B1-034 (Must).
-- **Dónde.** `sitio/app/pages/seguimiento.vue` (19 líneas); `contract/openapi.yaml`.
-- **Qué hay que hacer.** Operación de consulta por radicado que devuelva tipo, fecha de radicación,
-  dependencia asignada, estado y fecha estimada de respuesta —los cinco campos que el corpus fija en
-  RF-B1-034—, y la pantalla que los muestre.
-- **Cómo se verifica.** Consultar un radicado existente devuelve los cinco campos; consultar uno
-  inexistente devuelve 404 con mensaje propio y no un 200 vacío (el proyecto ya tiene la postura
-  correcta en `politicas/[slug].vue:74-82` y `[...ruta].vue:20-27`: **no la abandone aquí**).
-- **Qué desbloquea.** Nada; cierra el módulo 04.
-
----
-
-#### BL-04 · No hay control antispam, y el paquete ya decidido está instalado sin cablear
-
-- **Qué falta.** `grep -rni "captcha\|recaptcha\|turnstile\|honeypot"` sobre `sitio/`, `sitio/server`,
-  `backend/app`, `backend/config` y `backend/routes` devuelve **dos coincidencias, y las dos son
-  Laravel**: la documentación de la opción `throttle` en `backend/config/auth.php:91,102`, que
-  pertenece al guard de autenticación y no se usa porque no hay rutas de autenticación. **Cero
-  controles en código propio.**
-- **Y sin embargo la decisión ya está tomada y pagada**: `backend/composer.json:24` declara
-  `"spatie/laravel-honeypot": "^4.7"`. Comprobado: **ningún fichero de `backend/app`, `backend/routes`,
-  `backend/config` o `backend/database` lo usa**, y su fichero de configuración no se ha publicado
-  (`backend/config/` no tiene `honeypot.php`).
-- **Norma.** `docs/Sección 5 · Funcionalidad.md:198` FUN-004 y `:253` FUN-030 (Must: «Todos los
-  formularios que capturen datos personales deben incluir […] **Captcha**»);
-  `docs/Sección 4 · Seguridad.md:170` SEG-003 (Must); Res. 1519/2020 Anexo 2 §2.4.3 (iii) condición
-  técnica 3 y Anexo 3 §9. En el corpus: RF-B3-101 y RF-B3-101/RF-B1-058 (Must), RN-07-D02 («captcha
-  accesible obligatorio», que resuelve la contradicción *Captcha vs A11y* del propio corpus). Y el
-  Kit lo exige también en el login: «el **Módulo de inicio de sesión** […] debe contener título,
-  campo para ingresar contraseña, **módulo para confirmar que quien accede es un ser humano** y
-  botones de navegación específicos» (Kit UI 9.2 p. 29).
-- **Dónde.** `backend/composer.json:24`; ausencia en `backend/app/`, `backend/config/` y
-  `sitio/app/`. El formulario de acceso del panel (`panel/src/views/acceso/EntrarView.vue`, 63
-  líneas) tampoco lo tiene, aunque el Kit lo exige ahí (p. 29) y RF-B3-074 lo recoja (Must).
-- **Qué hay que hacer.** Publicar la configuración del honeypot ya instalado, aplicar el middleware
-  a los formularios públicos y añadir limitación de tasa por origen. **La vía menos arriesgada es
-  la que la propia norma admite**: un reto invisible con alternativa accesible declarada, no un
-  captcha de desafío visual, que incumpliría WCAG 2.1 §1.1.1 y §1.4.3.
-- **Cómo se verifica.** Una prueba que envíe el formulario sin resolver el reto y afirme que la
-  respuesta es un rechazo; otra que lo envíe con el reto resuelto y afirme que se radica; y una
-  tercera que afirme que el reto es superable sin percepción visual. Que el paquete esté instalado
-  **no cuenta como avance** mientras no haya middleware aplicado.
-- **Qué desbloquea.** Nada. Sin esto, la sede no puede exponer ningún formulario público sin
-  convertirse en un objetivo trivial.
-
----
-
-#### BL-05 · No existe consentimiento de cookies
-
-- **Qué falta.** El sitio no tiene banner, ni registro de consentimiento, ni revocación, ni
-  caducidad. `grep -rni "cookie" sitio/app/` devuelve **cuatro coincidencias y las cuatro son
-  rótulos o enlaces**: el catálogo de `politicas/[slug].vue:48-52`, su enlace en el pie
-  (`PiePaginaGovco.vue:218`), su entrada en el mapa del sitio (`mapa-del-sitio.vue:100-101`) y su
-  inclusión en el sitemap (`sitemap.xml.ts:68`). **No hay componente, ni lógica, ni persistencia.**
-- **Norma.** RF-B1-008/RF-B2-011 (Must), RF-01-D01 (Must) y RN-01-D01 (invariante); Ley 1581/2012
-  (consentimiento informado y temporal). El Anexo 2 §2.3.4 exige la política en el pie; la política
-  sin mecanismo de consentimiento no sirve de nada.
-- **Dónde.** Ausencia total en `sitio/app/`.
-- **Qué hay que hacer.** Componente con aceptar / rechazar / configurar por categoría; persistencia
-  **con versión de la política y fecha**; re-solicitud cuando cambie la versión o pasen doce meses
-  (RN-01-D01); y ninguna cookie no esencial activa antes del consentimiento.
-- **Cómo se verifica.** Tres pruebas: (1) con `localStorage` limpio, no se inyecta ningún script no
-  esencial y el banner aparece; (2) aceptar analítica y recargar mantiene la elección; (3) con un
-  consentimiento marcado con fecha de hace 13 meses o con versión de política anterior, el banner
-  reaparece y ninguna cookie no esencial se reactiva.
-- **Qué desbloquea.** Nada, y es la más barata de las bloqueantes.
-
----
-
-#### BL-06 · Las cinco políticas obligatorias no tienen documento
-
-- **Qué falta.** Existen las cinco **rutas** y ninguna **política**. `politicas/[slug].vue` (148
-  líneas) contiene un catálogo cerrado de cinco títulos y propósitos (líneas 32-58) y, para cada una,
-  un aviso de que el documento está en preparación (líneas 111-117). No hay PDF, ni HTML, ni acto
-  administrativo de adopción, ni descarga en formato abierto.
-- **Norma.** `docs/Sección 4 · Seguridad.md:173` SEG-006 (Must) transcribe el criterio de
-  MinTIC: «Incorporamos una sección en la barra inferior (footer), con la documentación asociada al
-  cumplimiento de las siguientes políticas: a. Términos y condiciones de uso. b. Seguridad y
-  Privacidad. c. Protección y tratamiento de datos personales. d. Uso de Cookies. e. Derechos de
-  Autor y uso sobre contenidos»; y `:146` SEG-006-RC-02: «Cada enlace dirige a un documento PDF/HTML
-  accesible y **versionado, con fecha de última actualización y acto administrativo de adopción**».
-  Res. 1519/2020 Anexo 2 §2.3.1 a §2.3.4. En el corpus: RF-B1-009/RF-B3-058, RF-B2-008, RF-B2-009,
-  RF-B2-010 (todos Must).
-- **Dónde.** `sitio/app/pages/politicas/[slug].vue:32-58` y `:111-117`;
-  `components/govco/PiePaginaGovco.vue:211-234`.
-- **Qué hay que hacer.** Es **un acto administrativo, no una tarea de programación**: la Entidad
-  tiene que aprobar los cinco documentos. El diseño ya está preparado para recibirlos (catálogo
-  cerrado, 404 real para slug inventado, navegación cruzada). Aparte, ya reconocido en el propio
-  código (`politicas/[slug].vue:16-19`): **la política de derechos de autor no existe en la
-  Entidad**, así que aquí no hay sólo una página vacía sino un incumplimiento abierto.
-- **Cómo se verifica.** Cada uno de los cinco enlaces del pie devuelve un documento descargable con
-  su fecha de última actualización y la referencia del acto que lo adopta; y ninguno de los cinco
-  dice «en preparación».
-- **Qué desbloquea.** Nada técnico, pero **debe empezar ya**: su plazo no depende del equipo.
-
----
-
-#### BL-07 · El buscador de la Sede no existe: hay un campo que no busca
-
-- **Qué falta.** Hay campo de búsqueda en la cabecera de todas las páginas
-  (`layouts/default.vue:167-170`, componente `BuscadorGovco`, 167 líneas) y hay página de
-  resultados (`buscar.vue`, 64 líneas), pero no hay índice ni operación que consulte. La página lo
-  dice en pantalla (`buscar.vue:44-47`). El componente **no busca**: recoge el término y lo emite
-  (`BuscadorGovco.vue:10-11`).
-- **Norma.** Res. 1519/2020 Anexo 2 §2.4.1 (c): «Se debe contar con un buscador en el que la
-  ciudadanía pueda encontrar información, datos o contenidos», aplicable a **todo** el sitio; y el
-  §2.4.2 (d), que lo exige además **dentro** de Transparencia. En `docs/`:
-  `Sección 5 · Funcionalidad.md:195` FUN-001 (Must, «la búsqueda [se realiza] **dentro de la
-  Sede**. No se puede contemplar un buscador que use Google») y `:225` FUN-017 (Must, buscador
-  propio de Transparencia). En el corpus: RF-B1-005/RF-B2-035/RF-B3-067 (Must).
-- **Dónde.** `sitio/app/pages/buscar.vue:44-47`; `components/govco/BuscadorGovco.vue`;
-  `contract/openapi.yaml` (sin operación de búsqueda).
-- **Matiz que hay que conservar.** La reimplementación del componente **mejora** el contrato del
-  Kit: el JS del Kit enlaza el `keyup` al **primer** `.input-search-basic-govco` del documento
-  (`vendor-src/layout-govco-v5/src/general/buscador.js:44`), que fallaría con los dos buscadores que
-  el sitio tiene (`/tramites` monta otro). La versión Vue funciona por instancia. **No revertir
-  esto.**
-- **Qué hay que hacer.** Añadir la operación de búsqueda al contrato, indexar trámites y documentos,
-  y conectar el campo. Mientras no exista, el campo de la cabecera **promete algo que no da**.
-- **Cómo se verifica.** Una prueba que busque un término presente en el catálogo y afirme que
-  devuelve ese resultado; y que afirme que el dominio consultado es el de la sede y **no** un
-  buscador comercial (FUN-001).
-- **Qué desbloquea.** La búsqueda de la sección de Transparencia (§4.1.2.3 del Anexo 2) reutiliza el
-  mismo índice.
-
----
-
-#### BL-08 · No hay gestor de contenidos: ningún funcionario puede publicar sin desplegar código
-
-- **Qué falta.** Las tres piezas, cada una verificada:
-  1. **En el backend** no hay modelo ni endpoint de contenido: `backend/app/Models/` tiene tres
-     ficheros (`Tramite.php`, `IngestaTramite.php`, `User.php`) y el contrato tres operaciones de
-     lectura. `backend/app/Policies/` contiene **sólo un `.gitkeep` de 0 bytes**.
-  2. **En el panel** los **18 módulos** del menú —entre ellos `cms`, `sede`, `transparencia`,
-     `portal`— apuntan a la **misma** vista de marcador: `panel/src/router/index.ts:69-76` los
-     genera en bucle sobre `EnConstruccionView.vue`, que tiene **22 líneas** y sólo pinta el título.
-     No hay formulario de publicación de nada.
-  3. **En el frontend público** las cinco secciones que deberían publicar contenido son avisos de
-     «en preparación» (GR-11).
-- **Norma.** Res. 1519/2020 Anexo 2 §2.4.2 (e): la información debe publicarse «de manera inmediata o
-  en tiempo real». Con el contenido en el bundle, publicar exige un despliegue: la obligación es
-  **materialmente imposible** de cumplir. `docs/Sección 1 · Marco normativo.md:408-410` deriva del
-  art. 14 inc. 2 del Decreto 2106/2019 que «el sistema debe permitir que la entidad sea dueña
-  operativa de su sede (**gestión de contenido**, configuración, sin dependencias técnicas externas
-  que la conviertan en rehén)»; y `:49` traduce «sitios web» del art. 14 a «**CMS unificado**; sin
-  micrositios huérfanos». En el corpus, el módulo 12 entero: RF-B1-076 (Must), RF-B1-079 (Must),
-  RF-12-D01 (Must), RF-12-D02 (Must), RN-12-D01.
-- **Dónde.** `contract/openapi.yaml`; `backend/app/Models/`; `backend/app/Policies/`;
-  `panel/src/router/index.ts:69-76`; `panel/src/views/admin/EnConstruccionView.vue` (22 líneas);
-  `panel/src/views/admin/InicioView.vue` (59 líneas).
-- **Qué hay que hacer.** Es **el hallazgo con mayor efecto dominó** (§8). Modelo de datos,
-  migraciones, contrato, repositorio, servicio, endpoints, **Policy por recurso** (`FormRequest` y
-  `Policy` son exigidos explícitamente por `docs/transparencia.md:128-130`) y pantalla de
-  publicación. Construir al menos el corte vertical de **un** tipo de contenido antes de generalizar.
-- **Cómo se verifica.** Un editor autenticado crea un documento, lo envía a aprobación, otro usuario
-  distinto lo aprueba y el documento aparece en el sitio público **sin redesplegar**; y un tercer
-  usuario sin el permiso recibe 403. Mientras esa secuencia no se pueda recorrer en el navegador, el
-  hallazgo sigue abierto.
-- **Qué desbloquea.** GR-03, GR-09, GR-11, GR-15, GR-17, M-01, M-02, M-03, BL-09 y el módulo 12.
-
----
-
-#### BL-09 · La sección de Transparencia no existe
-
-- **Qué falta.** `sitio/app/pages/transparencia.vue` tiene **17 líneas** y su plantilla es
-  `<SeccionEnPreparacion>`. El directorio `sitio/app/pages/transparencia/` no existe, y
-  `sitio/app/types/` contiene un único fichero (`menu.ts`). No hay categorías, ni apartados, ni
-  documentos, ni buscador de sección, ni fecha de publicación.
-- **Norma.** Ley 1712/2014 arts. 9 y 11; Res. 1519/2020 Anexo 2 §2.4.1 y §2.4.2 (g) (información
-  mínima obligatoria del art. 2.1.1.2.1.4 del Decreto 1081 de 2015); Res. 2893/2020 Anexo 2
-  §4.1.2.1. En el corpus: RF-B1-012/RF-B3-081 (Must, ≥10 subsecciones), RF-B3-087, RF-B3-088,
-  RF-B1-013, RF-B1-014, RF-B1-015, RF-B1-016, RF-B1-017, RF-B1-018, RF-B1-096, RF-B1-097, RF-B3-084,
-  RF-B3-151, RF-B3-152.
-- **Dónde.** `sitio/app/pages/transparencia.vue` (17 líneas).
-- **Matiz imprescindible.** El contenido institucional **no** debe volver al frontend: la versión
-  anterior (333 documentos incrustados) se retiró por decisión del titular y el análisis se conserva
-  en `docs/transparencia.md:8-11`, que lo dice con precisión: «el contenido institucional no vive en
-  el frontend; esta sección se construye cuando el backend la sirva por API». **Esta bloqueante es
-  hija de BL-08 y no se resuelve sin ella.**
-- **Aviso sobre las diez subsecciones.** El corpus (RF-B1-012) exige **diez**, nombrando por separado
-  (9) «Obligación de reporte específico» y (10) «Tributaria (predial, ICA)». `docs/transparencia.md`
-  habla de «nueve categorías». `README.md:19` del corpus dice «las 10 subsecciones». **Hay que
-  resolver esa contradicción antes de construir** (§7.1): de ella depende si son una o dos
-  categorías nuevas.
-- **Qué hay que hacer.** Modelo, API y pantalla. Lo valioso de la versión retirada —el modelo de
-  **procedencia** (fuente, apartado de origen, campos que no vienen tal cual de la fuente, reglas
-  con las que se calculó, lo que la fuente no declara)— es lo que hay que migrar, no desechar
-  (`docs/transparencia.md:124-126`).
-- **Cómo se verifica.** Las diez subsecciones responden y contienen al menos un documento con su
-  fecha de publicación; un documento de la categoría tributaria muestra los seis elementos del
-  tributo; y el buscador de la sección devuelve resultados ordenados del más reciente al más antiguo.
-- **Qué desbloquea.** M-03, M-04 y el cumplimiento del ITA en la materia de mayor peso.
-
----
-
-#### BL-10 · La matriz de trazabilidad del proyecto certifica un estado que no existe
-
-- **Qué falta.** `docs/trazabilidad.md` —el **único** artefacto de trazabilidad del proyecto— se
-  presenta como documento generado y concluye: «Cobertura: **122 de 140** criterios del expediente
-  tienen evidencia (**87 %**)» (`:29`) y «Operaciones del contrato: **41** (41 implementadas)»
-  (`:31`). Verificado contra el repositorio:
-  - El contrato declara **3** operaciones, no 41. Dos implementadas y una `pending`
-    (`contract/openapi.yaml:65`).
-  - FUN-016 a FUN-020 aparecen como «implementado» con interfaz
-    `views/publico/TransparenciaView.vue` (`:102-106`). **Ese directorio no existe**: el sitio es
-    Nuxt, no una SPA con `views/`. `/transparencia` es un stub de 17 líneas.
-  - Los 15 ficheros de evidencia comprobados —`frontend/tests/conformidad-diseno.mjs`,
-    `frontend/tests/conformidad-shell.mjs`, `components/govco/BuscadorSede.vue`,
-    `components/govco/MenuNavegacion.vue`, `components/govco/AvisoPrivacidad.vue`,
-    `views/publico/*.vue` (siete), `backend/tests/Feature/Sede/ConformidadSedeTest.php`,
-    `backend/tests/Feature/Api/CatalogoApiTest.php`— **ninguno existe**. El directorio `frontend/`
-    tampoco.
-  - Los endpoints que la matriz asocia a los criterios (`GET /contenidos/{tipo}`, `GET /buscar`,
-    `GET /bloques`, `GET /transparencia`) **no están en el contrato**: cero coincidencias cada uno.
-  - El generador que la produce, `npm run trazabilidad`, **no está declarado** en
-    `sitio/package.json` ni en `panel/package.json`.
-- **Norma.** No es un incumplimiento normativo directo, y por eso se explica la severidad:
-  **impide demostrar el cumplimiento**, que es la razón por la que existe una sede electrónica
-  integrada. La verificación de MinTIC (proceso de 7 pasos, RF-B1-070/RF-B3-128) y el reporte del
-  ITA a la Procuraduría dependen de esta evidencia. `docs/Sección 3 · Accesibilidad.md:68` describe
-  el mecanismo: «la PGN monitorea el cumplimiento de la Resolución 1519/2020 a través del Formulario
-  Único de Reporte de Avance en la Gestión (FURAG) y del Índice de Transparencia y Acceso a la
-  Información Pública (ITA)».
-- **Dónde.** `docs/trazabilidad.md:3-5, 29, 31, 48-106` (y todo el documento).
-- **Qué hay que hacer.** Regenerarlo contra el árbol real o retirarlo y sustituirlo. **Retirarlo no
-  es la opción cómoda: es la correcta si no hay generador.** Un documento que declara 87 % sobre un
-  sistema que no existe es peor que no tener matriz, porque produce una decisión equivocada.
-- **Cómo se verifica.** La matriz deja de ser un fichero escrito a mano cuando (a) `npm run
-  trazabilidad` existe y se ejecuta en CI, (b) cada fila apunta a un artefacto que existe —una
-  comprobación automática puede verificar que cada ruta citada está en el disco— y (c) el número de
-  operaciones de la matriz coincide con el del contrato.
-- **Qué desbloquea.** La posibilidad de medir cualquier otra cosa.
-
----
-
-### 5.2 Graves
-
----
-
-#### GR-01 · El panel no tiene ningún control de acceso: declara permisos y no los lee
-
-- **Qué falta.** `panel/src/router/index.ts` declara en los metadatos de ruta
-  `requiereSesion?: boolean` (`:28`), `permiso?: string` (`:29`) y `soloInvitados?: boolean` (`:30`),
-  y los asigna: `requiereSesion: true, permiso: 'panel-administrative'` en el tablero (`:67`) y
-  `requiereSesion: true` en los 18 módulos (`:74`). **Ninguna línea de código los lee.** La
-  comprobación es exhaustiva: `grep -rn "beforeEach\|beforeResolve\|beforeEnter\|navigationGuard"`
-  sobre `panel/src/` devuelve **cero coincidencias funcionales**; lo único que existe es un
-  `enrutador.afterEach` que cambia el título del documento (`:119-121`). El comentario del propio
-  fichero dice lo que debería pasar y no pasa: «Quien no ha entrado va a la entrada DEL PANEL» (`:6`).
-- **Norma.** Res. 1519/2020 Anexo 3 §2: «Implementar o exigir controles de seguridad relacionados
-  con la **autenticación, definición de roles y privilegios y separación de funciones**». En
-  `docs/`: `Sección 4 · Seguridad.md:190` SEG-016 (MFA obligatoria para funciones administrativas);
-  RF-B1-062 (Must: «páginas de administración **no accesibles desde internet sin autenticación**»);
-  RF-B1-079/RF-B2-097 (Must, roles con permisos por módulo); `docs/Sección 5 · Funcionalidad.md:190`
-  y `docs/trazabilidad.md:204` («solo_los_funcionarios_activos_administran_la_sede»). En el corpus:
-  RN-09-D01 (autorización por recurso), RN-09-D04 (MFA).
-- **Dónde.** `panel/src/router/index.ts:28-30, 67, 74, 119-121`.
-- **Qué hay que hacer.** Escribir la guarda de navegación que consume esos metadatos y la tienda de
-  sesión que los alimenta. Los metadatos ya están declarados: el trabajo es leerlos.
-- **Cómo se verifica.** Con el almacenamiento del navegador vacío, abrir `/admin` redirige a
-  `/admin/acceso`; con una sesión sin el permiso, abrir `/admin/usuarios` muestra `/admin/sin-permiso`
-  —una ruta que **ya existe** (`:98-102`) y a la que hoy nadie llega—; y una prueba de extremo a
-  extremo afirma los dos casos.
-- **Qué desbloquea.** GR-02, GR-19 y cualquier endpoint de escritura de BL-08. **Debe resolverse
-  antes del primer endpoint de escritura, no después.**
-
----
-
-#### GR-02 · El panel afirma una sesión y un doble factor que no existen, y la sede enlaza a esa pantalla
-
-- **Qué falta.** Tres afirmaciones falsas en la interfaz, todas verificables:
-  1. `EntrarView.vue:60` muestra «**Sesión protegida con doble factor (Decreto 1078)**». No hay doble
-     factor: el mismo fichero documenta que el envío «**no autentica**» (`:5-8`).
-  2. `AdminLayout.vue:318-319` muestra «Administrador» y «**Sesión activa**» como texto fijo, y
-     `:166` calcula las iniciales del avatar con `computed(() => 'AD')` —una constante—, con el
-     comentario de que «la identidad real llega con el módulo de identidad» pero sin dejar de
-     pintarla como si hubiera llegado.
-  3. `layouts/default.vue:183` publica en la cabecera de **todas las páginas del sitio público** un
-     enlace «Iniciar sesión» a `/admin/acceso`. El comentario que lo acompaña (`:172-181`) enuncia
-     el principio correcto —«un botón que abre un formulario que **no autentica** es peor que no
-     tenerlo, porque el ciudadano cree haber iniciado sesión»— y el código hace exactamente lo que
-     el comentario prohíbe.
-- **Norma.** El proyecto tiene una virtud declarada y documentada: **el sitio dice la verdad sobre sí
-  mismo** (es el fundamento de la sección 9). Una afirmación falsa sobre un control de seguridad no
-  es un detalle de acabado: es información engañosa sobre protección de datos. Ley 1581/2012; y, en
-  el plano del diseño, WCAG 2.1 §3.2.4 (identificación coherente) y §1.3.1 (la información y la
-  relación no dependen sólo de la presentación).
-- **Dónde.** `panel/src/views/acceso/EntrarView.vue:5-8, 60`; `panel/src/layouts/AdminLayout.vue:166,
-  318-319`; `sitio/app/layouts/default.vue:172-183`.
-- **Qué hay que hacer.** Quitar la frase del doble factor y la de «sesión activa» hasta que existan;
-  y decidir qué hace el enlace «Iniciar sesión» de la cabecera pública (retirarlo, o apuntarlo a la
-  entrada de identidad ciudadana cuando exista). El texto de `AccesibilidadBar.vue` y los badges de
-  estado del panel tienen el mismo problema si afirman operatividad: revísense con el mismo criterio.
-- **Cómo se verifica.** `grep -rni "doble factor\|sesión activa\|Sesión protegida" panel/src` no
-  devuelve nada, o lo que devuelva está respaldado por un módulo de identidad que existe.
-- **Qué desbloquea.** Nada; protege la credibilidad del resto.
-
----
-
-#### GR-03 · El panel publica cifras de maqueta, incluido el cumplimiento ITA que una decisión prohíbe
-
-- **Qué falta.** `panel/src/views/admin/InicioView.vue` es el tablero de entrada del panel y muestra
-  cuatro indicadores **fijos en el código** (`:26-29`): «PQRSD activas **287** (+12)», «Por vencer
-  **34** (−8)», «Trámites SUIT **1842** (+5)» y «Cumplimiento ITA **94 %** (+3)». Y una lista de
-  «Salud del sistema» (`:44-54`) con estados inventados: «API Gateway OK», «SIGMI Bus OK»,
-  «Conector RNEC Lento», «Firma electrónica OK».
-- **Norma. Es el punto más delicado del panel.** El corpus resolvió expresamente este problema como
-  **A-03**, y su resolución está registrada en tres sitios:
-  - `README.md` del corpus, §3: «El tablero ITA del sitio actual mostraba 218/412 ítems, 47/100,
-    pero ese dato era **“mock”** (el HTML usa esa palabra) → **se descarta como línea base; no se
-    usa**» y «El nuevo tablero ITA es **interno (no público)**, **arranca en cero** y valida
-    automáticamente».
-  - `12-gestion-contenidos/gestion-contenidos.md:34` (RF-B1-078, Must): «**No usa datos mock ni
-    puntuaciones precargadas (no se usa el 47/100)**».
-  - `_global/matriz-trazabilidad.md:389`: «✅ Resuelto 2026-06-05: el tablero ITA se rediseña como
-    validador interno automático que **arranca en cero** y no usa datos mock ni el 47/100».
-  El 94 % del panel es, además, la **única cifra de cumplimiento** que hoy produce el sistema —y es
-  inventada.
-- **Dónde.** `panel/src/views/admin/InicioView.vue:26-29` y `:44-54`. El comentario de cabecera
-  (`:2-8`) reconoce que «las cifras son de maqueta», lo cual es honestidad de código pero **no
-  cambia lo que ve quien entra**: un funcionario mira el tablero, no el código.
-- **Qué hay que hacer.** Sustituir las cuatro cifras por el estado real (vacío declarado, o datos
-  del backend cuando existan) con la misma postura que el sitio público: decir que no hay datos es
-  correcto; mostrar 287 no. Retirar la lista de «Salud del sistema» hasta que exista monitorización.
-- **Cómo se verifica.** Con la base de datos vacía, el tablero muestra «sin datos» y **no** un
-  indicador de 94 %. Y una prueba afirma que ningún componente del panel contiene un literal
-  numérico de cumplimiento.
-- **Qué desbloquea.** BL-08 (el tablero real de ITA se alimenta de la validación al publicar).
-
----
-
-#### GR-04 · El panel no habla con la API: cliente huérfano, sin tiendas y sin contrato de escritura
-
-- **Qué falta.** Cuatro verificaciones, todas con el mismo resultado:
-  1. **`panel/src/services/http.ts` (68 líneas) no lo importa nadie.** `grep -rn "services/http"`
-     sobre `panel/src/**/*.vue|*.ts` sólo devuelve su propia definición. El cliente HTTP está escrito,
-     documentado y desconectado.
-  2. **`panel/src/types/api.ts` sólo lo importa `http.ts`.** La capa de tipos del contrato no llega a
-     ninguna vista.
-  3. **Pinia está instalado e instanciado y no hay ni una tienda**: `createPinia()` en `main.ts:27` y
-     **cero** `defineStore` en todo `panel/src/`.
-  4. **El contrato no tiene operaciones de escritura**: los tipos generados
-     (`panel/src/types/openapi.d.ts`, 580 líneas) declaran **`/entidad`, `/tramites` y
-     `/tramites/{slug}`**, los tres `GET`. La superficie de tipos del panel es el catálogo público.
-     **Por eso el panel no puede tiparse contra ninguna API de publicación: no existe.**
-- **Norma.** El proyecto declara que el contrato es «la única fuente de verdad del intercambio HTTP»
-  (`README.md:58`, `contract/README.md:3-5`) y `backend/routes/api.php:13-15` repite que «ninguna
-  ruta vive aquí sin su operación declarada». El panel no participa de ese contrato en absoluto:
-  **hay un tercer cliente declarado en la arquitectura que no consume el contrato**.
-- **Dónde.** `panel/src/services/http.ts`; `panel/src/types/api.ts`; `panel/src/main.ts:27`;
-  `panel/src/types/openapi.d.ts:20-92`; `contract/openapi.yaml`.
-- **Qué hay que hacer.** Es consecuencia de BL-08 y se resuelve con él: en cuanto exista la primera
-  operación de escritura, el panel debe consumirla por `http.ts` y guardar el estado de sesión en una
-  tienda. Hoy el hallazgo sirve para **no confundir el andamiaje con avance**: hay un cliente HTTP,
-  un sistema de tipos y un gestor de estado, y ninguno está en el camino de datos.
-- **Cómo se verifica.** `grep -rn "services/http" panel/src --include='*.vue'` devuelve al menos una
-  vista, y esa vista pinta datos que provienen de la API (no de un literal).
-- **Qué desbloquea.** BL-08.
-
----
-
-#### GR-05 · ADR-0009 decide Filament 5 en `/admin`; lo construido sirve una SPA Vue en `/admin`
-
-- **Qué falta.** El ADR-0009 lo dice sin ambigüedad: «Se incorpora **Filament 5** (panel `/admin`, en
-  español) como CMS profesional: motor de contenidos con tipos y campos, flujo editorial […] roles y
-  permisos (Spatie), registro de auditoría y publicación programada» (`docs/adr/README.md:224-231`),
-  y añade que «el panel aporta **Livewire y Blade** como dependencias del backend» (`:234-236`).
-  Verificado contra el repositorio:
-  - **Filament no está instalado.** `grep -n "filament\|livewire" backend/composer.json` → cero
-    coincidencias.
-  - **`/admin` no lo sirve Laravel.** `docker/nginx/conf.d/default.conf:8` documenta «`/admin` → SPA
-    del panel, servida desde disco» y `:124-129` lo resuelve con
-    `try_files $uri $uri/ /admin/index.html`. La SPA está en `panel/` con `base: '/admin/'`
-    (`panel/vite.config.ts:14`) y `createWebHistory('/admin')` (`panel/src/router/index.ts:114`).
-  - **Los paquetes de Spatie sí se instalaron** (`backend/composer.json:22-27`), consecuencia parcial
-    del ADR —y sin usar (**GR-19**).
-  El ADR-0014 (`:377-380`) delegaba en la aplicación las rutas `/api`, `/admin`, `/livewire` y
-  `/storage`; nginx sirve un fichero estático.
-- **Norma.** No es una norma externa: es **la coherencia interna del propio proyecto**. `README.md`
-  del repositorio describe la arquitectura vigente —«tres aplicaciones» con `panel/` SPA— sin
-  mencionar que contradice un ADR aceptado. Un ADR que contradice lo construido sin ADR que lo
-  superseda deja la decisión sin dueño.
-- **Dónde.** `docs/adr/README.md:215-239` (ADR-0009) y `:377-380` (ADR-0014);
-  `docker/nginx/conf.d/default.conf:8, 124-129`; `panel/vite.config.ts:14`;
-  `panel/src/router/index.ts:114`; `backend/composer.json`.
-- **Qué hay que hacer.** Decidir y **registrar**: o se construye Filament (y entonces `panel/` es
-  trabajo perdido), o se mantiene la SPA y se escribe el ADR que sucede al 0009 explicando por qué
-  (coste de Livewire/Blade, regla absoluta 2 de la guía de casa —«sin Inertia ni Blade»—, que es
-  precisamente lo que el ADR-0001 invoca y el 0009 contradice). **La contradicción es hoy
-  indistinguible de un olvido.**
-- **Cómo se verifica.** Existe un ADR con fecha posterior al 0009 cuyo estado es «Aceptada» y cuyo
-  texto describe el sistema que está en el disco; o `backend/composer.json` incluye
-  `filament/filament` y nginx ya no sirve `/admin` desde disco.
-- **Qué desbloquea.** BL-08: hoy no está claro sobre qué superficie se construye el CMS.
-
----
-
-#### GR-06 · Los ADR describen una arquitectura que ya no existe, y ninguno tiene fecha
-
-- **Qué falta.** El conjunto de decisiones está desalineado con el repositorio en los puntos
-  estructurales, y **ninguno de los 15 ADR tiene fecha** (comprobado: ninguna entrada tiene campo
-  «Fecha»), todos con «**Estado:** Aceptada». Sin fecha no hay orden, y sin orden no se sabe cuál
-  sucede a cuál.
-  - **ADR-0001** (`:19-23`): «Monorepo con `backend/` (Laravel 13, PHP 8.5, API REST) y
-    **`frontend/`** (Vue 3 + TypeScript + Vite, SPA)». **`frontend/` no existe**; hay `panel/` y
-    `sitio/`. El ADR tampoco contempla el sitio Nuxt, que es la pieza central del diseño.
-  - **ADR-0003** (`:90-97`): «**No se instala Tailwind.** […] se descarta **FontAwesome**».
-    `panel/package.json:21` declara `tailwindcss ^3.4.19`, hay `panel/tailwind.config.js` y
-    `panel/postcss.config.js`, y `:12-14` declaran tres paquetes `@fortawesome/*`, todos en uso
-    (`panel/src/plugins/fontawesome.ts`). El panel se construyó íntegramente con Tailwind y
-    FontAwesome.
-  - **ADR-0004** (`:107-113`): los componentes Vue «**reproducen el marcado oficial y delegan el
-    comportamiento en el `script.js` del Kit cuando existe**». **ADR-0011** (`:282-284`) dice lo
-    contrario: «**No se carga `/govco/script.js` de forma global**». Verificado en el disco: **el
-    sitio no copió ni uno de los 15 `.js` del Kit** (`find sitio/public/govco -name '*.js'` → 0).
-    La decisión que se siguió fue la del 0011, no la del 0004.
-  - **ADR-0015** (`:412-424`) declara que «CAG-19, **CAG-21**, CAG-22, CAG-24 y CAG-25 — no aplican»
-    porque «la sede no usa campos de calendario, **no abre modales** […]». Pero el aviso de salida a
-    sitio externo es un **modal con confirmación** exigido por RF-B1-071/RF-B2-040 y por el Anexo 2
-    §2.4.3: **CAG-21 sí aplica** y hoy no se cumple (**GR-15**). Y CAG-25 (acordeón) tampoco es
-    prescindible: el Kit lo marca como **requerido en sedes electrónicas** (Kit UI 9.2, «Acordeón →
-    Sedes electrónicas» en el bloque «Requerido, mínimamente, en» de su ficha). La desviación no es declarativa de una decisión: es un requisito sin
-    construir.
-- **Norma.** No hay norma externa: es control de configuración. `docs/adr/README.md:6-7` invoca la
-  guía de casa y `GUIA-MAESTRA-COMPLETA.md`.
-- **Dónde.** `docs/adr/README.md:19-23` (0001), `:90-97` (0003), `:107-113` (0004), `:282-284`
-  (0011), `:412-424` (0015); `panel/package.json:12-21`;
-  `find sitio/public/govco -name '*.js'` → 0.
-- **Qué hay que hacer.** Poner fecha a los quince y añadir el estado «Sustituida por ADR-nnnn» donde
-  corresponda. Un ADR sin fecha ni sucesor no es trazabilidad: es una afirmación sin caducidad.
-- **Cómo se verifica.** Cada ADR tiene fecha y estado; y ninguna decisión «Aceptada» describe un
-  sistema distinto del que está en el disco.
-- **Qué desbloquea.** GR-05 y la credibilidad del resto de las decisiones.
-
----
-
-#### GR-07 · No hay una sola prueba de accesibilidad ni declaración de conformidad, y la puerta que los ADR invocan no existe
-
-- **Qué falta.** Cuatro verificaciones:
-  1. **No existe ninguna prueba ejecutable de accesibilidad.** Los ficheros de prueba del sitio son
-     **tres, todos dentro de `sitio/.scratch/`**: `pie.test.ts`, `normativa.test.ts` y
-     `vitest.config.ts`. `.scratch/` está ignorado por git (`.gitignore:17`), así que no llegan al
-     repositorio ni a CI.
-  2. **No hay configuración de Playwright ni de vitest fuera de `.scratch/`.** Comprobado:
-     `find sitio panel -name 'playwright.config.*' -o -name 'vitest.config.*'` sólo devuelve
-     `sitio/.scratch/vitest.config.ts`. Y el panel no tiene **ninguna** prueba.
-  3. **La integración continua no mide accesibilidad.** El trabajo `Sitio` ejecuta
-     `npm run typecheck` y `npm run build` (`.github/workflows/ci.yml:149-154`); el trabajo `Panel`,
-     `npm run build` (`:119-124`). Ni axe ni Playwright.
-  4. **La puerta que los propios ADR invocan como evidencia no existe.** ADR-0015 funda cada
-     desviación en `frontend/tests/conformidad-diseno.mjs` y afirma que contiene «más de cincuenta
-     verificaciones» (`docs/adr/README.md:464-467`). **Ese fichero no existe, ni el directorio
-     `frontend/`.** Las cinco desviaciones del punto 3 se apoyan en una comprobación inexistente.
-- **Norma.** Res. 1519/2020 art. 3 y Anexo 1 §1.3 (WCAG 2.1 AA obligatorio desde el 1 de enero de
-  2022; plazo **vencido** según el propio corpus, `README.md:115`) y Anexo 1 §2.2.3.8 («Revisión de
-  la accesibilidad de un sitio web»). `docs/Sección 1 · Marco normativo.md:447` O-11 (Must) pide
-  «pruebas automatizadas (axe-core / pa11y) en CI; auditoría manual semestral»;
-  `docs/Sección 3 · Accesibilidad.md:673` exige la **Declaración de Conformidad** conforme al
-  Anexo 1 num. 9.3, con fecha de próxima revisión a 12 meses (`:714`).
-- **Dónde.** `sitio/.scratch/`; `.github/workflows/ci.yml:119-124, 149-154`;
-  `docs/adr/README.md:464-467`; `sitio/package.json:24-33` y `panel/package.json:28-40` (declaran
-  `@axe-core/playwright`, `@playwright/test`, `axe-core`, `vitest`, `@vue/test-utils` y `jsdom`
-  **sin usar**).
-- **Qué hay que hacer.** Escribir la suite —incluyendo el reflujo a 320 px, el área táctil a 360 px y
-  el orden de tabulación, que son los puntos que `sitio.css:378-390` documenta haber medido **a
-  mano**—, sacarla de `.scratch/`, añadirla como trabajo **bloqueante** en `ci.yml`, y sólo entonces
-  redactar la declaración de conformidad. Mientras tanto, **`pages/accesibilidad.vue:10-17` hace bien
-  en no declarar un nivel**: esa abstención es correcta y no debe cambiarse por comodidad.
-- **Cómo se verifica.** CI falla si axe-core reporta una violación crítica en cualquiera de las 21
-  rutas; existe un `playwright.config.ts` versionado; y la declaración de conformidad cita la
-  herramienta, su versión y la fecha de la última ejecución.
-- **Qué desbloquea.** Convierte en demostrable todo lo que el sitio ya hace bien y que hoy sólo está
-  documentado en comentarios.
-
----
-
-#### GR-08 · La línea base de requisitos no está versionada, está duplicada y no reconcilia
-
-- **Qué falta.** Los tres hechos, medidos en §3:
-  1. **Fuera del repositorio.** El corpus vive en `/var/www/portal-smr-main/sede-electronica-doc/`,
-     no en el árbol versionado (§3.1).
-  2. **Duplicado byte a byte.** `01-estructura-identidad/estructura-identidad.md` y
-     `01-estructura-identidad/sede.md` son idénticos (md5 `2fdd6d35…`, 181 líneas cada uno, §3.3).
-  3. **No reconcilia.** 215 identificadores citados sin enunciado; 28 RF y 28 RNF declarados en el
-     total sin identificador; la fuente a la que el corpus remite (`/tmp/elicit/out/_req_bundle_*.md`)
-     **no existe**; y las cifras totales del corpus discrepan entre sí en al menos cuatro sitios
-     (`README.md:134-139` → 691; `_global/matriz-trazabilidad.md:415` → «~155 RF» y «~64 RNF»;
-     `README.md:149` → «+37 RF-D, +18 RNF-D, +54 RN-D, +57 HU-D»; el recuento real → 38, 14, 49, 57).
-- **Norma.** No es una norma externa. Es la condición de posibilidad de auditar: sin línea base
-  versionada, ningún requisito puede darse por cumplido ni por ausente, y la cobertura no es
-  calculable.
-- **Dónde.** §3.1, §3.2, §3.3 de este documento, con las mediciones y sus comandos.
-- **Qué hay que hacer.** Tres cosas independientes, de ahí que el hallazgo tenga tres criterios:
-  (a) incorporar el corpus al repositorio (o declarar por escrito que la línea base es `docs/` y el
-  corpus es material de trabajo); (b) eliminar uno de los dos ficheros del módulo 01 y dejar una nota;
-  (c) cerrar la reconciliación: decidir qué se hace con los 215 huérfanos —o se enuncian, o se
-  retiran del corpus— y corregir las cuatro cifras totales.
-- **Cómo se verifica.** Un único total de requisitos en el corpus que coincida con el recuento de
-  identificadores por `grep`; y cada identificador citado tiene al menos un enunciado.
-- **Qué desbloquea.** BL-10 y la sección 6.
-
----
-
-#### GR-09 · La fecha de publicación es opcional en la fuente y no consta en ninguna
-
-- **Qué falta.** La obligación legal está en dos numerales y no tiene dato:
-  - `docs/Sección 5 · Funcionalidad.md:227` FUN-019 (Must): «Toda la información o documentación
-    debe llevar **fecha de publicación** y estar ordenada del más reciente al más antiguo».
-  - `docs/transparencia.md:124-126`: cada documento debe llevar «**fecha de publicación** (nullable,
-    y la interfaz dice «no consta» cuando falta)». Es decir: **el propio proyecto reconoce que el
-    modelo nace con el campo opcional.**
-  - `docs/transparencia.md:58-60` mide la ausencia: «**Cero de los 334 enlaces declara fecha de
-    publicación.** No es una impresión: `grep «Fecha de publicación»` sobre los 1.730 ficheros del
-    rastreo da **cero coincidencias**». Y `:62-64`: «mientras la Entidad no declare fechas, **la
-    sección no puede cumplir el Anexo 2 §4.1.2.1** —orden de la más reciente a la más antigua—, y
-    eso hay que declararlo en la página en vez de inventar una cronología».
-- **Norma.** Res. 1519/2020 Anexo 2 §2.4.1 (e): «Todo documento o información debe indicar la fecha
-  de su publicación en página web»; §2.4.2 (e): la información debe publicarse «de manera inmediata o
-  en tiempo real e **incluir fecha de publicación**»; Res. 2893/2020 Anexo 2 §4.1.2.1 (orden). En el
-  corpus: RF-B3-087 (Must).
-- **Dónde.** `docs/transparencia.md:58-64, 124-126`; ausencia del campo en todo el modelo construido.
-- **Qué hay que hacer.** **No inventar una fecha.** El campo debe nacer **obligatorio** en el modelo
-  del backend cuando se construya (BL-08), y la Entidad debe declarar la fecha de cada documento en
-  la fuente. Mientras el dato no exista, decir «no consta» es la conducta correcta: es la virtud que
-  la sección 9 protege.
-- **Cómo se verifica.** El esquema del documento publicado declara `fecha_publicacion` como
-  obligatorio, la API rechaza un documento sin fecha, y ningún registro de la base de datos la tiene
-  nula.
-- **Qué desbloquea.** El orden cronológico del Anexo 2 §4.1.2.1 y la ordenación de la búsqueda.
-
----
-
-#### GR-10 · La ficha del trámite no publica los cuatro momentos GOV.CO
-
-- **Qué falta.** `sitio/app/pages/tramites/[slug].vue` (950 líneas) describe el trámite, sus
-  requisitos, su costo, sus puntos de atención, su normativa y cómo consultar el estado —nueve
-  secciones— pero no lo articula en los cuatro momentos. `grep -n "etapa\|momento"` sobre el fichero
-  devuelve **cero coincidencias**.
-- **Norma.** RF-B3-126 (Must): «Registrar todos los trámites en SUIT (DAFP) y publicar ficha en
-  GOV.CO con los **4 momentos** (acceso, solicitud, resolución, resultado)»; RF-B2-028/RF-B3-071
-  (Must); RF-B3-127 (Must, estados estandarizados: solicitud registrada → recibida a satisfacción →
-  en trámite → resuelta), que es consecuencia del Anexo 2 §2.4.3 (i) y del proceso de integración al
-  Portal Único. El Kit lo pide con nombre propio: «**Línea de avance**: […] ubica al ciudadano,
-  mostrándole exactamente en qué parte del proceso de ejecución de un trámite se encuentra» (Kit UI
-  9.2 p. 26).
-- **Dónde.** `sitio/app/pages/tramites/[slug].vue`; los datos vienen de `GET /api/v1/tramites`
-  (`contract/openapi.yaml:129-288`).
-- **Qué hay que hacer.** Decidir primero si los cuatro momentos **se derivan** de los datos que ya
-  trae la ingesta o **exigen campos nuevos** en el contrato. **No inventarlos en la plantilla**: el
-  propio código advierte que el catálogo no se completa con nada que la fuente no declare
-  (`tramites/[slug].vue` y el modelo de procedencia).
-- **Cómo se verifica.** La ficha de cualquiera de los 123 trámites muestra los cuatro momentos
-  rotulados y, si el trámite tiene estado consultable, el momento actual marcado.
-- **Qué desbloquea.** La integración al Portal Único (RF-B2-001), que verifica requisitos mínimos
-  entre los que están las 4 etapas.
-
----
-
-#### GR-11 · Cinco secciones publicadas en el menú y el sitemap son avisos de «en preparación»
-
-- **Qué falta.** Cinco rutas son envoltorios de `SeccionEnPreparacion.vue` (61 líneas) y no publican
-  contenido. Medido:
-
-  | Ruta | Fichero | Líneas | En el menú | En el sitemap |
-  |---|---|---|---|---|
-  | `/transparencia` | `sitio/app/pages/transparencia.vue` | **17** | sí (`layouts/default.vue:48`) | sí, prioridad 0.9 (`sitemap.xml.ts:37`) |
-  | `/servicios` | `sitio/app/pages/servicios.vue` | **17** | no | sí, 0.6 (`:47`) |
-  | `/portales` | `sitio/app/pages/portales.vue` | **17** | no | sí, 0.6 (`:46`) |
-  | `/noticias` | `sitio/app/pages/noticias.vue` | **17** | sí (`:93`) | sí, 0.7 (`:42`) |
-  | `/seguimiento` | `sitio/app/pages/seguimiento.vue` | **19** | sí (`:58`) | sí, 0.7 (`:45`) |
-
-- **Norma.** `/transparencia` es BL-09. `/servicios` es una de las tres secciones que FUN-013 obliga
-  a mostrar en la portada (`docs/Sección 5 · Funcionalidad.md:216`, Must) y el Anexo 2 §2.4.3 (i)
-  exige que dé acceso a trámites, OPA y consultas. `/seguimiento` es BL-03. `/noticias`:
-  `docs/Sección 5 · Funcionalidad.md:244` FUN-026 (Must) y RF-B1-011 (Must). `/portales` responde al
-  Decreto Ley 2106/2019 arts. 14 y 15 y a `docs/Sección 5 · Funcionalidad.md:245` FUN-027 (Must).
-- **Dónde.** Los cinco ficheros de la tabla.
-- **Qué hay que hacer.** Tres de las cinco ya tienen su hallazgo propio: `/seguimiento` es BL-03,
-  `/transparencia` es BL-09 y `/servicios` es una decisión de producto (M-11). Las otras dos
-  —`/portales` y `/noticias`— no tienen ninguno, y lo que este hallazgo añade, y es lo corregible
-  hoy sin esperar a BL-08, es **el `sitemap.xml`**: su propio comentario dice «**Sólo se anuncian las
-  páginas que existen de verdad.** Anunciar una que devuelve 404 es peor que no anunciarla: el
-  buscador la indexa, el ciudadano llega desde ahí y encuentra un error» (`sitemap.xml.ts:15-19`).
-  Anunciar cinco páginas que devuelven 200 con un aviso de «en preparación» produce exactamente el
-  mismo efecto con peor diagnóstico.
-- **Cómo se verifica.** Cada ruta del `sitemap.xml` publica contenido real; o deja de estar en el
-  mapa hasta que lo publique. Una prueba puede recorrer las `loc` del mapa y comprobar que la página
-  no es un `SeccionEnPreparacion`.
-- **Qué desbloquea.** Nada; evita que los buscadores indexen la sede como vacía.
-
----
-
-#### GR-12 · El sitio no aplica la tipografía ni el interlineado del Kit, y ahora está medido
-
-- **Qué falta.** Con la tabla de tipografía del propio PDF del Kit leída de primera mano (Kit UI 9.2,
-  «Tipografía», jerarquía de escritorio):
-
-  | Estilo del Kit | Familia | Tamaño | Interlineado | Lo que aplica el sitio |
-  |---|---|---|---|---|
-  | Encabezado h1 | Nunito Sans Bold | 42 px | **50 px** | 42 px, `line-height: 1.2` (Bootstrap) = 50,4 px ✓ |
-  | Encabezado h2 | Nunito Sans Bold | 34 px | **42 px** | 34 px, 1.2 = 40,8 px ✗ |
-  | Encabezado h3 | Nunito Sans Bold | 26 px | **34 px** | 26 px, 1.2 = 31,2 px ✗ |
-  | Encabezado h4 | Nunito Sans Bold | 22 px | **32 px** | 22 px, 1.2 = **26,4 px** ✗ (5,6 px de menos) |
-  | Encabezado h5 | Nunito Sans Bold | 20 px | **26 px** | 20 px, 1.2 = 24 px ✗ |
-  | Encabezado h6 | Nunito Sans Bold | 16 px | **22 px** | 16 px, 1.2 = 19,2 px ✗ |
-  | **Body text 1** | **Verdana Regular** | **15 px** | **22 px** | **Nunito Sans Regular a 16 px**, `line-height: 1.5` = 24 px ✗ |
-  | Caption | Verdana Regular | 12 px | 20 px | sin clase; no se aplica |
-
-  Tres hechos verificables que producen ese resultado:
-  1. El `all.css` del Kit **no aplica interlineado a los encabezados**: `h1`–`h6` declaran sólo
-     `font-family` y `font-size` (`sitio/public/govco/all.css:73-101`), y de las 60 declaraciones
-     `line-height` del fichero **ninguna** corresponde a `h1`–`h6`, `body` ni `p`.
-  2. El Kit asigna **Verdana al texto de cuerpo** en su tabla, pero su CSS sólo la aplica a clases
-     propias (`.text2-govco`, `.text3-govco`, `.link-tipografia-govco`, `.pie-pagina-govco p`…),
-     mientras `html` recibe `font-family: 'Nunito_Sans-Regular'` (`all.css:67-71`).
-  3. **La hoja propia del sitio tampoco lo corrige**: `sitio/app/assets/css/sitio.css` (465 líneas)
-     tiene **cero** declaraciones `line-height` y **cero** `font-family`. En consecuencia gana el
-     *reboot* de Bootstrap 5.0.2, que sí vendorizamos: `h1..h6 { line-height: 1.2 }` y
-     `body { line-height: 1.5 }`.
-- **Norma.** Kit UI 9.2, capítulo «Tipografía» (tabla de tamaño e interlineado, p. 12) —es el
-  documento vigente de diseño—; RNF-B3-045 (Must: «100 % de componentes con paleta Cobalt `#0943B5`
-  + tipografía Nunito Sans/Verdana»), RF-B1-098/RF-B3-045/046, y `docs/Sección 2 · Diseño.md:297`
-  CAG-27 («Tipografía: nunca justificar texto; 45-75 caracteres por línea; unidades relativas»).
-  Añádase que el **texto de cuerpo en Nunito Sans a 16 px** incumple además el tamaño que el Kit fija
-  en 15 px, lo que altera el número de caracteres por línea que CAG-27 acota.
-- **Dónde.** `sitio/app/assets/css/sitio.css` (0 `line-height`, 0 `font-family`);
-  `sitio/public/govco/all.css:67-101`; `sitio/public/govco/bootstrap.min.css`.
-- **Qué hay que hacer.** Añadir a `sitio.css` los valores de **interlineado** del Kit para `h1`–`h6`,
-  `body` y `p`, y la familia **Verdana** al texto corrido. Es una corrección de **una sola hoja** que
-  afecta a las 21 páginas a la vez.
-- **Precaución, y es real.** `line-height` en unidades absolutas puede romper el criterio WCAG 2.1
-  §1.4.12 («Espaciado de texto»), que exige que el contenido siga siendo legible con interlineado
-  1,5×, espaciado entre párrafos 2×, entre letras 0,12× y entre palabras 0,16×. **Aplicar el Kit y
-  verificar §1.4.12 con la suite de GR-07 antes y después.** Si el Kit y §1.4.12 entran en conflicto,
-  §1.4.12 manda: es norma, el Kit es lineamiento.
-- **Cómo se verifica.** El valor computado de `line-height` de un `h4` es 32 px y el de un párrafo es
-  22 px a 15 px de cuerpo; y la prueba de §1.4.12 sigue en verde. Una medición en navegador lo
-  resuelve en una línea —que es, exactamente, lo que no se ha hecho nunca (§1.3).
-- **Qué desbloquea.** Da conformidad visual a las 21 páginas y cierra RNF-B3-045.
-
----
-
-#### GR-13 · El enlace de la barra superior mide 36 px: por debajo de los 44 que el propio Kit fija, y la corrección escrita se aplicó a otro selector
-
-- **Qué falta.** Este hallazgo es nuevo y está medido contra el PDF del Kit.
-  - **Lo que el Kit exige**, literal, en su página 7 («Barra superior»): «Debe tener una altura de
-    **56 píxeles**»; «Para garantizar el tamaño adecuado de la imagen para los usuarios de pantallas
-    táctiles, **respeta un área activa mínima de 44 x 44 píxeles, incluyendo las medidas del logo**»;
-    y «El logo debe manejar una relación de **24 x 136 píxeles**».
-  - **Lo que el Kit hace**: `.barra-superior-govco a { content: url('assets/images/logo.svg');
-    height: calc(1.5rem * 1.5); }` → **36 px de alto** (`sitio/public/govco/all.css:702-705`). El Kit
-    incumple su propia especificación.
-  - **Lo que el sitio hace**: `BarraSuperior.vue` (24 líneas) reproduce el marcado canónico —el
-    ejemplo del Kit también usa un `<a>` vacío, `examples/transversal/barra-superior.html:24-27`, y
-    el logo lo pinta el CSS— y por tanto hereda los 36 px. **No hay ninguna regla que lo corrija**:
-    `grep -rn "barra-superior-govco" sitio/app/ | grep -i "min-\|height"` → cero coincidencias.
-  - **La trampa**: `sitio.css:430-434` sí aplica `min-height: 2.75rem` (44 px)… pero a
-    `.enlace-logotipo-govco`, que es el enlace del **logotipo de la cabecera**
-    (`CabeceraGovco.vue:79, 152`), **no** el de la barra superior. Y el comentario que precede a esa
-    regla (`sitio.css:419-424`) declara el problema en primera persona: «La medición a 360 px dejó
-    tres que no cubría la regla anterior: **el logotipo de la barra superior (71 × 40)** […] El Kit
-    cita expresamente el logotipo de la barra superior en su página 7 al fijar los 44 px, así que su
-    propio componente lo incumple». Es decir: **el defecto está identificado por escrito en la hoja
-    que debía corregirlo, y la regla que lo sigue apunta a otro elemento.**
-- **Norma.** Kit UI 9.2 p. 7 (44×44 px en la barra superior, «incluyendo las medidas del logo»);
-  Kit UI 9.2 p. 30 (CAG-23); RNF-B3-005 («Elementos interactivos ≥44×44 px en móvil») y RF-B1-001 /
-  RF-B3-053 (Must). En `docs/`: `Sección 2 · Diseño.md:275` CAG-05 y `:293` CAG-23.
-- **Dónde.** `sitio/public/govco/all.css:702-705`; `sitio/app/components/govco/BarraSuperior.vue:16-23`;
-  `sitio/app/assets/css/sitio.css:419-434`.
-- **Qué hay que hacer.** Añadir a `sitio.css` una regla para `.barra-superior-govco a` con la altura
-  mínima de 44 px (y ancho mínimo, que la especificación también fija). Está en la hoja propia y no
-  en el componente porque el defecto es del Kit y afecta a **todas** las páginas: es el mismo criterio
-  con el que se corrigió el buscador y el pie.
-- **Cómo se verifica.** A 360 px de ancho, la caja del enlace de la barra superior mide ≥44×44 px. Es
-  una aserción de tres líneas en la suite de GR-07, y hasta hoy no existía.
-- **Qué desbloquea.** Cierra RNF-B3-005 en la pieza que está presente en el 100 % de las páginas.
-
----
-
-#### GR-14 · Nueve componentes del Kit exigidos para sedes electrónicas no existen
-
-- **Qué falta.** El catálogo del Kit UI 9.2 tiene **32 componentes** (9 transversales, 19 generales, 4
-  de formulario; leído del PDF, «Lista de contenido»). El sitio implementa **11** componentes en
-  `sitio/app/components/govco/`. De los que el Kit marca como requeridos y el sitio no tiene:
-
-  | Componente del Kit | Página del Kit | Marcado requerido en | Estado en el sitio |
-  |---|---|---|---|
-  | Acordeón | 15 | **Sedes electrónicas** | ausente (`grep -rni "accordion\|acordeon" sitio/app/` → 0) |
-  | Alerta modal | 16 | Sedes electrónicas · Trámites y servicios | ausente (0 `container-modal-govco`) |
-  | Alerta notificación (toast) | 17 | — | ausente (0 `container-toast-govco`) |
-  | Descripción emergente | 23 | Sedes electrónicas | ausente (sólo `tooltip-text-govco` en la galería) |
-  | Etiquetas | 24 | **Sedes electrónicas** | ausente |
-  | Indicador de carga | 25 | Sedes electrónicas · Trámites y servicios | ausente (0 `spinner`) |
-  | Cuadrícula | — | Todas | aportada por Bootstrap 5.0.2 vendorizado (`nuxt.config.ts:61`) |
-  | Pestañas | 31 | Sedes electrónicas · Trámites y servicios | sustituidas por botones con `aria-pressed` en `tramites/index.vue` (desviación declarada) |
-  | Paginación | 30 | Sedes electrónicas · Trámites y servicios | existe **incrustada** en `tramites/index.vue:781-1014`, no como componente |
-
-  **Rectificación al informe anterior:** la edición previa enumeraba nueve componentes ausentes
-  tomando como referencia los que **no tienen carpeta en `vendor-src/layout-govco-v5/src/`** (que
-  son efectivamente nueve: Cuadrícula, Área de servicio, Descripción emergente, Etiquetas, Indicador
-  de carga, Línea de avance, Módulo de inicio de sesión, Paginación y Pestañas). Este informe usa un
-  criterio distinto y más exigible: **los que el Kit marca como requeridos en «Sedes electrónicas» y
-  el sitio no implementa**. Con ese criterio, **Acordeón y Alerta modal entran** —y son los dos que la
-  desviación declarada de ADR-0015 §3 da por no aplicables, lo que convierte el punto en un
-  incumplimiento y no en una desviación.
-- **Norma.** Kit UI 9.2, §«Requerido, mínimamente, en» de cada componente; RN-B2-029 («Kit UI GOV.CO
-  de cumplimiento obligatorio en trámites integrados», corpus módulo 01) y `docs/Sección 5 ·
-  Funcionalidad.md:290` FUN-047 (Must). En el corpus: RF-B2-084/RF-B2-085 (Must), RF-B3-062
-  (acordeón, Must), RF-B3-063 (alerta modal, Must), RF-B3-064 (toast, Must), RF-B3-070 (indicador de
-  carga, Must), RF-B3-075 (paginación, Must). En `docs/`: CAG-21, CAG-22, CAG-25, CAG-29.
-- **Dónde.** `sitio/app/components/govco/` (11 ficheros); `docs/adr/README.md:412-424`.
-- **Qué hay que hacer.** Priorizar por uso real: **Acordeón y Alerta modal** primero —el modal es
-  requisito de GR-15 y el acordeón lo exige el Kit para sedes—; luego **Indicador de carga** (bloquea
-  cualquier pantalla con espera) y **Etiquetas** (estados). **Paginación** debe extraerse del catálogo
-  a un componente reutilizable **sin esperar**: hoy cualquier listado futuro la reescribirá.
-- **Cómo se verifica.** Cada componente que el Kit marca para sedes electrónicas tiene su
-  implementación y pasa una prueba que afirma su contrato (estados, ARIA, teclado). La desviación
-  declarada de CAG-21 y CAG-25 desaparece de ADR-0015.
-- **Qué desbloquea.** GR-15 y GR-17.
-
----
-
-#### GR-15 · No hay aviso de salida a sitio externo, y el ADR que lo declara inaplicable contradice la norma
-
-- **Qué falta.** Los enlaces que salen de la sede navegan directamente. En la ficha del trámite hay
-  al menos ocho con clase `enlace-externo` (`tramites/[slug].vue:414, 458, 526, 571, 696, 702, 734,
-  783`) y, como mucho, `rel="noopener"`. No hay modal de aviso, ni nombre del destino, ni
-  confirmación, ni lista blanca administrable. `grep -rni "sitio externo" sitio/app/` → **cero
-  coincidencias en código**.
-- **Norma.** RF-B1-071/RF-B2-040/RF-B3-094 (Must/Should), con sus derivados RF-01-D03 y RN-01-D03,
-  que exigen además que la lista blanca sea **administrable** para no disparar el aviso en
-  redirecciones a GOV.CO o al Articulador. `docs/Sección 5 · Funcionalidad.md:197` FUN-003
-  (recomendación de `target="_blank"` con `rel="noopener noreferrer"`).
-- **Dónde.** `sitio/app/pages/tramites/[slug].vue` (8 enlaces); ausencia en
-  `sitio/app/components/`.
-- **La contradicción que hay que resolver.** ADR-0015 §3 (`docs/adr/README.md:417-424`) declara:
-  «**CAG-19, CAG-21, CAG-22, CAG-24 y CAG-25 — no aplican.** La sede no usa campos de calendario,
-  **no abre modales**, no emite notificaciones *toast*, no publica tablas ni usa acordeones.» El
-  aviso de salida a sitio externo **es un modal** y es un requisito **Must** del corpus. Por tanto
-  CAG-21 **sí aplica**, y la desviación declarada no es una decisión de diseño: es un requisito sin
-  construir presentado como decisión. La misma objeción alcanza a CAG-25 (acordeón, requerido para
-  sedes electrónicas) y a CAG-24 (tablas: `pqrsd.vue:222` publica una tabla del Kit).
-- **Qué hay que hacer.** Construir el componente —que resuelve a la vez **GR-14**, porque el modal es
-  el componente #10 del Kit— y la lista blanca. La lista blanca necesita persistencia, así que
-  depende de BL-08.
-- **Cómo se verifica.** Pulsar un enlace a un dominio no listado muestra el aviso con el nombre del
-  destino y no navega hasta confirmar; pulsar uno a `gov.co` navega sin aviso. Dos pruebas.
-- **Qué desbloquea.** Cierra CAG-21 y aporta el primer componente modal del Kit al sitio.
-
----
-
-#### GR-16 · Las 123 fichas de trámite no están en el `sitemap.xml`
-
-- **Qué falta.** El mapa anuncia `/tramites` (`server/routes/sitemap.xml.ts:38`) pero **ninguna** de
-  sus fichas: `grep -n "tramites/" sitio/server/routes/sitemap.xml.ts` no devuelve coincidencias. Las
-  123 fichas existen, responden y están enlazadas internamente, pero son invisibles para los motores
-  de búsqueda. Tampoco están las cinco políticas ni las seis subcategorías de Participa… **estas sí**
-  (`:93-105`), lo que confirma que el mecanismo existe y sólo falta aplicarlo a los trámites.
-- **Norma.** Res. 1519/2020 Anexo 1 §4.3.1 (b): el mapa del sitio debe estar en formato XML «para que
-  sea visible a los motores de búsqueda». En `docs/`: `Sección 5 · Funcionalidad.md:226` RF-B1-088 /
-  RF-B2-082; en el corpus: RF-B1-010/RF-B2-037 (Must) y HU-B1-001 («encontrar la sede como primer
-  resultado»).
-- **Dónde.** `sitio/server/routes/sitemap.xml.ts:43-58` y `:93-105`.
-- **Qué hay que hacer.** Añadir las fichas. O se enumeran al construir el mapa —una llamada paginada
-  a `GET /api/v1/tramites`, que ya soporta `page` y `per_page`—, o se declara un índice de mapas. **Ojo
-  con el comentario del propio fichero (`:15-19`)**: sólo se anuncian direcciones que existen de
-  verdad; si la API no responde durante la construcción del mapa, la entrada debe omitirse, no
-  inventarse.
-- **Cómo se verifica.** `/sitemap.xml` contiene las 123 `loc` de ficha y cada una responde 200. La
-  prueba puede recorrer el mapa y comprobar el código de estado de cada entrada.
-- **Qué desbloquea.** HU-B1-001 y el requisito de SEO del módulo 08.
-
----
-
-#### GR-17 · Falta el Área de servicio en la ficha del trámite
-
-- **Qué falta.** El Kit UI 9.2, **página 18**, define el **Área de servicio** —«Estos módulos se han
-  diseñado para brindarle ayuda al ciudadano y recibir la retroalimentación sobre su experiencia con
-  los trámites vinculados al Portal GOV.CO»— con sus dos módulos «¿Cómo fue tu experiencia durante el
-  proceso?» (FÁCIL / DIFÍCIL) y «¿Tienes dudas sobre este trámite o consulta?» (teléfono, línea
-  gratuita, correo y «Te explicamos con tutoriales»). La ficha del trámite tiene nueve secciones y
-  ninguna es ésa (`tramites/[slug].vue`: `Ficha del trámite`, `Requisitos`, `Costo y pago`, `Dónde se
-  atiende`, `A quién va dirigido`, `Qué obtiene`, `Normativa`, `Cómo consultar el estado`,
-  `Procedencia de los datos`).
-- **Sobre su alcance, con honestidad de método.** La extracción de texto del PDF sitúa el Área de
-  servicio en «**Trámites y servicios**» y **no** en «Sedes electrónicas» (a diferencia de Acordeón,
-  Etiquetas o Indicador de carga, donde sí aparece «Sedes electrónicas»). Las casillas del PDF son
-  gráficas y el orden extraído no garantiza correspondencia uno a uno con la casilla marcada
-  (**§1.4, punto 3**). Lo que **sí** es firme: el Kit describe el componente como destinado a los trámites
-  vinculados al Portal GOV.CO, y el corpus lo exige con independencia del Kit.
-- **Norma.** Kit UI 9.2 p. 18; Res. 1519/2020 Anexo 2 §2.4.3 (i); en el corpus: RF-B3-065 (Should) y
-  RF-B2-033/034 (Must: «**Retroalimentación obligatoria** “¿Cómo fue tu experiencia?” (FÁCIL/DIFÍCIL +
-  texto) **al inicio y al final**»); RF-B1-094 (Must: encuesta de ≤3 preguntas y 1-5 estrellas al
-  finalizar). En `docs/`: `Sección 2 · Diseño.md:322` («Atención al ciudadano | Área de servicio ·
-  Acordeón · Tarjeta de información · Buscador · Botones | Módulos *¿Cómo fue tu experiencia?* +
-  *¿Tienes dudas?* (Kit UI v9.2 pág. 18)»).
-- **Dónde.** `sitio/app/pages/tramites/[slug].vue` (950 líneas); ausencia del componente.
-- **Qué hay que hacer.** Añadir el bloque al final de la ficha. La valoración de la experiencia
-  necesita endpoint (depende de BL-08); **el bloque de dudas puede resolverse primero** con los
-  canales de atención ya publicados y verificados en `atencion.vue`.
-- **Cómo se verifica.** La ficha muestra los dos módulos; el de dudas lleva al conmutador y al correo
-  reales; el de valoración registra la respuesta (cuando exista el endpoint).
-- **Qué desbloquea.** RF-B1-094 (la encuesta de experiencia) y el ITA en la materia de trámites.
-
----
-
-#### GR-18 · Los canales de atención no permiten pedir cita
-
-- **Qué falta.** `sitio/app/pages/atencion.vue` (209 líneas) publica dirección, código postal, horario,
-  conmutador, línea gratuita y correos —verificados contra la fuente y sin inventar— pero **no ofrece
-  agendamiento**: `grep -ni "cita\|agend"` sobre el fichero devuelve **cero coincidencias**.
-- **Norma.** Res. 1519/2020 Anexo 2 §2.4.3 (ii): «Canales de atención **y pida una cita**. Los sujetos
-  obligados deberán incluir en su respectiva sede electrónica la información y contenidos relacionados
-  con los canales habilitados para la atención a la ciudadanía»; `docs/Sección 1 · Marco
-  normativo.md:439` O-03 («Bloque fijo en homepage con PQRS, **agendamiento de citas**, horarios y
-  canales verificados»); en el corpus: RF-B1-030/RF-B3-096 (Must), RF-06-D01 a RF-06-D04 (Must),
-  RN-06-D01 a RN-06-D03. `_global/matriz-trazabilidad.md:435` registra la decisión del 2026-06-05:
-  «**agenda propia en la sede**».
-- **Dónde.** `sitio/app/pages/atencion.vue`; ausencia de operación en `contract/openapi.yaml`;
-  `panel/src/router/index.ts:40` declara el módulo `citas`… como stub.
-- **Qué hay que hacer.** Contrato, endpoint y pantalla. La decisión ya está tomada (agenda propia), de
-  modo que no hay que reevaluarla. Es una de las funciones con mayor efecto visible y **no depende de
-  BL-08**.
-- **Cómo se verifica.** Reservar una cita devuelve un código de confirmación; el mismo cupo no se
-  asigna dos veces bajo concurrencia (RN-06-D01); cancelar libera el cupo (RN-06-D02); y sigue
-  existiendo alternativa presencial (RN-06-D03, invariante).
-- **Qué desbloquea.** Cierra el módulo 06 y da al panel su primer módulo con datos reales.
-
----
-
-#### GR-19 · Seis paquetes de Spatie están declarados y no los usa ningún fichero
-
-- **Qué falta.** `backend/composer.json:22-27` declara seis paquetes. Comprobado con `grep -rl` sobre
-  `backend/app`, `backend/routes`, `backend/config` y `backend/database`: **los seis aparecen en cero
-  ficheros.**
-
-  | Paquete | Para qué lo decidió ADR-0009 | Uso real |
-  |---|---|---|
-  | `spatie/laravel-permission` | «roles y permisos (Spatie)» | **0 ficheros**; sin `config/permission.php` |
-  | `spatie/laravel-activitylog` | «registro de auditoría» | **0 ficheros**; sin `config/activitylog.php` |
-  | `spatie/laravel-medialibrary` | «biblioteca de medios» | **0 ficheros** |
-  | `spatie/laravel-honeypot` | — | **0 ficheros** (es **BL-04**) |
-  | `spatie/laravel-sitemap` | — | **0 ficheros** |
-  | `spatie/laravel-backup` | DRP/BCP (SEG-014) | **0 ficheros**; sin `config/backup.php` |
-
-  Y ninguna de las seis publicó su fichero de configuración: `backend/config/` contiene once ficheros
-  (`app`, `auth`, `cache`, `database`, `filesystems`, `logging`, `mail`, `queue`, `sanctum`,
-  `services`, `session`) y **ninguno** de los seis paquetes.
-- **Norma.** No es un incumplimiento por sí mismo; lo es por lo que **representa**: cinco capacidades
-  exigidas por norma —RBAC (Anexo 3 §2; RNF-B2-010), auditoría (SEG-013; RNF-B3-022), antispam (BL-04),
-  copias de seguridad con prueba de restauración (`docs/Sección 4 · Seguridad.md:188` SEG-014:
-  «Copias de seguridad cifradas con **prueba de restauración trimestral** (RPO ≤ 24 h, RTO ≤ 4 h)»)—
-  figuran **como instaladas** y no existen en el sistema. Igual que el directorio `Policies/` vacío en
-  la edición anterior: **un `composer.json` con los paquetes dentro se lee como trabajo hecho.**
-- **Dónde.** `backend/composer.json:22-27`; `backend/config/`; `backend/app/Policies/` (sólo
-  `.gitkeep`); `backend/app/Models/User.php`.
-- **Qué hay que hacer.** Decidir por paquete: se cablea o se retira. Cuatro de los seis tienen un
-  destino claro y ya decidido —honeypot → BL-04; permission → GR-01/GR-19; activitylog → la auditoría
-  del módulo 12; backup → SEG-014—. Los otros dos (`sitemap`, `medialibrary`) no tienen requisito que
-  los reclame hoy: **retírense** y vuelvan cuando el CMS los pida. Cada dependencia sin usar es
-  superficie de suministro sin contrapartida.
-- **Cómo se verifica.** Para cada paquete que se conserve: existe su configuración publicada, hay al
-  menos un punto de uso, y una prueba afirma el comportamiento (p. ej. un rol sin permiso recibe 403;
-  un evento de auditoría queda registrado; un envío con el campo trampa se descarta).
-- **Qué desbloquea.** BL-04 y la capa de autorización que BL-08 necesita.
-
----
-
-### 5.3 Medios
-
----
-
-#### M-01 · El carrusel arranca solo
-
-- **Qué falta.** El componente arranca en reproducción automática: `autoplay: true`
-  (`sitio/app/components/govco/CarruselGovco.vue:98`) y
-  `reproduciendo.value = props.autoplay && !consultaMovimiento.matches` (`:200`), con intervalo de
-  6 000 ms (`:99`). Los tres controles obligatorios del Kit **sí están** —indicadores de posición,
-  flechas y reproducción/pausa— y el botón cambia de estado y de etiqueta accesible (`:271-275`).
-- **Norma.** WCAG 2.1 §2.2.2 exige **un mecanismo** para detenerlo, y existe. Lo que incumple es el
-  requisito del proyecto: RF-B1-042/RF-B3-069 (Must) pide «**pausa por defecto**». La resolución de
-  `prefers-reduced-motion` (`:195-200`) es buena práctica y **no es** pausa por defecto.
-- **Dónde.** `sitio/app/components/govco/CarruselGovco.vue:98-99` y `:200`.
-- **Qué hay que hacer.** Cambiar el valor por defecto a `autoplay: false`. Es un cambio de una línea
-  que altera el comportamiento de la portada: conviene decidirlo, no aplicarlo por sorpresa.
-- **Cómo se verifica.** Al cargar la portada el botón muestra «Reproducir» y las diapositivas no
-  cambian solas en 12 segundos.
-- **Qué desbloquea.** Nada.
-
----
-
-#### M-02 · No hay encuesta de usabilidad ni criterio cuantitativo de «cumple»
-
-- **Qué falta.** `grep -rni "encuesta" sitio/app/ backend/app` devuelve dos coincidencias y las dos
-  son **documentos de la Entidad listados en un inventario**, no un mecanismo del sitio. No hay
-  cuestionario SUS, ni invitación, ni registro de resultados.
-- **Norma.** `docs/Sección 5 · Funcionalidad.md:295` FUN-052 (Must: «La Sede debe incluir una
-  encuesta de usabilidad **visible para el ciudadano**») y `:417` («Visible y operativa en ≥90 % de
-  las páginas»); en el corpus: RF-B1-087/RF-B2-083 (Should), RNF-B1-030 (SUS ≥68) y
-  `_global/matriz-trazabilidad.md:436`, que registra el umbral decidido el 2026-06-05: «**≥90 % tasa
-  de éxito** + SUS ≥68».
-- **Dónde.** Ausencia en `sitio/app/`.
-- **Qué hay que hacer.** Puede construirse sin BL-08 —una encuesta con destino en el backend no
-  necesita CMS— pero **su utilidad depende de que haya servicio que evaluar**: hoy el ciudadano no
-  puede radicar nada. **Recomiendo no construirla todavía** y planificarla para después de BL-01.
-- **Cómo se verifica.** La encuesta aparece en ≥90 % de las páginas, calcula el puntaje SUS y lo
-  almacena con fecha y versión del sitio.
-- **Qué desbloquea.** Nada.
-
----
-
-#### M-03 · No hay federación de datos abiertos a `datos.gov.co`
-
-- **Qué falta.** No hay catálogo propio, ni federación, ni metadatos, ni licencia declarada.
-  `grep -rn "datos.gov.co" sitio/app/` devuelve **una sola coincidencia**, y es la URL de un
-  documento de la Entidad, no un mecanismo de federación.
-- **Norma.** Res. 1519/2020 art. 7 y Anexo 4: los sujetos obligados deben publicar sus datos abiertos
-  y **federarlos** al portal nacional. `docs/Sección 1 · Marco normativo.md:508-510` lo dice con
-  precisión: «El art. 14 no obliga a publicar datos abiertos, pero la Res. 1519/2020 (Anexo 4) sí.
-  **Decisión de proyecto:** federar al portal datos.gov.co desde el inicio». En el corpus: RF-B1-019,
-  RF-B1-020, RF-B1-090, RF-B1-091, RNF-B3-039 (≥90 % en formatos abiertos), RN-B1-019
-  («datos.gov.co **no** es archivo»).
-- **Dónde.** Ausencia; `docs/transparencia.md:94-109` documenta además la trampa encontrada: los
-  volcados `ds_*.json` del rastreo contienen «**24 de Barranquilla**, 7 de Santa Rosa de Cabal, **0 de
-  Santa Marta**» y usarlos «publicaría datos de otro municipio como si fueran del Distrito».
-- **Qué hay que hacer.** Es trabajo de datos, no de interfaz: publicar los conjuntos en
-  `datos.gov.co` y **enlazarlos**. La interfaz debe mostrar el catálogo federado, no alojarlo
-  (`docs/transparencia.md:107-109`: «federar, no alojar copias»).
-- **Cómo se verifica.** La categoría de datos abiertos muestra los conjuntos propios consultados a la
-  API de `datos.gov.co` filtrando por entidad propietaria, y ninguno es un volcado ajeno.
-- **Qué desbloquea.** El módulo 11.
-
----
-
-#### M-04 · La sección de normativa no publica el enlace al SUIN
-
-- **Qué falta.** `sitio/app/pages/normativa.vue` (734 líneas) construye correctamente la estructura
-  que el Anexo 2.1 exige para cada norma —tipo, fecha de expedición, fecha de publicación, epígrafe,
-  enlace, vigencia, proyectos con fecha máxima de comentarios, en `:126-179`— y declara cero normas,
-  a propósito y con razón. Pero el catálogo de apartados que publica sólo tiene cuatro entradas
-  (`:88-99`), la de «Vínculo al Diario o Gaceta oficial» queda diferida (`:95-99`), y
-  `grep -ni "suin"` sobre el fichero devuelve **cero coincidencias**.
-- **Norma.** RF-B1-014 (Must): «Enlace funcional al **SUIN** (suin-juriscol.ramajudicial.gov.co) y al
-  Diario/Gaceta Oficial; publicar **Agenda Regulatoria**»; Res. 1519/2020 Anexo 2 §2.4.1 (g);
-  `docs/Sección 5 · Funcionalidad.md:227` FUN-019.
-- **Dónde.** `sitio/app/pages/normativa.vue:88-99`.
-- **Qué hay que hacer.** Añadir el enlace al SUIN, que es una URL pública y estable. El de la Gaceta
-  Distrital no puede añadirse hasta que la Entidad confirme la URL, y la razón que el propio código da
-  para diferirlo es correcta: **apuntar a una dirección sin comprobarla sería inventar un enlace.**
-- **Cómo se verifica.** La página de normativa contiene un enlace a `suin-juriscol.ramajudicial.gov.co`
-  que responde 200.
-- **Qué desbloquea.** RF-B1-014 y la Agenda Regulatoria (que comparte el enlace con el módulo 05).
-
----
-
-#### M-05 · Los datos de la Entidad están duplicados en tres ficheros
-
-- **Qué falta.** El nombre, la dirección, el horario, el conmutador, la línea gratuita y los correos
-  viven en `sitio/app/components/govco/PiePaginaGovco.vue:150-177` y se repiten en
-  `sitio/app/pages/atencion.vue:35-52` y en `sitio/app/pages/accesibilidad.vue:26-37`. Cambiar un
-  teléfono exige tocar tres ficheros.
-- **Norma.** Res. 1519/2020 Anexo 2 §2.4.1 (f): fuente única de la información pública, sin
-  duplicidad; y `docs/Sección 5 · Funcionalidad.md:228` FUN-020 («Se debe evitar la **duplicidad** de
-  información entre secciones»).
-- **Dónde.** Los tres ficheros citados.
-- **Nota.** **No es un descuido oculto: está declarado por escrito.** `atencion.vue:11-15` —«*Fuente
-  única, hoy duplicada a propósito.* […] Queda anotado para que no se pierda»— y
-  `accesibilidad.vue:20-23`.
-- **Qué hay que hacer.** Consumir `GET /api/v1/entidad`, que **ya está declarado en el contrato**
-  (`contract/openapi.yaml:54-128`) con el esquema completo. Depende de GR-20.
-- **Cómo se verifica.** Cambiar el teléfono en la base de datos cambia el que se ve en el pie, en
-  atención y en accesibilidad, sin tocar código.
-- **Qué desbloquea.** GR-20.
-
----
-
-#### M-06 · El catálogo de tipos de PQRSD está duplicado
-
-- **Qué falta.** Los seis tipos con sus slugs viven en `sitio/app/pages/pqrsd.vue:51-56` y se repiten
-  en `sitio/app/pages/realizar-una-peticion.vue:35-38`. **Ambos ficheros declaran la deuda** y
-  explican por qué no se resolvió.
-- **Norma.** Misma fuente única (Anexo 2 §2.4.1 (f)). Y hay un riesgo funcional añadido: si las dos
-  listas divergen, un enlace de PQRSD abriría el formulario sin tipo preseleccionado.
-- **Dónde.** `pqrsd.vue:51-56`; `realizar-una-peticion.vue:35-38`.
-- **Qué hay que hacer.** Extraer a `sitio/app/types/` o a un composable. **Es el trabajo más barato de
-  toda esta lista** y el que más probablemente se pague solo.
-- **Cómo se verifica.** Existe una sola declaración de los seis tipos; una prueba afirma que el
-  formulario preselecciona el tipo que llega por la URL para los seis slugs.
-- **Qué desbloquea.** Nada.
-
----
-
-#### M-07 · Dependencias declaradas y no usadas en el sitio y en el panel
-
-- **Qué falta.** Dos listas, ambas medidas.
-  - **Sitio** (`sitio/package.json:13-22`): `axios`, `zod`, `pinia` y `@tanstack/vue-query` —
-    **los cuatro en cero ficheros**. Las páginas de trámites usan `useRequestFetch` de Nuxt. Y en
-    `devDependencies` (`:24-33`), `@playwright/test`, `@axe-core/playwright`, `axe-core`, `vitest`,
-    `@vue/test-utils` y `jsdom` sin configuración ni pruebas (GR-07).
-  - **Panel** (`panel/package.json:11-26`): `zod`, `@tanstack/vue-query` y `vue3-toastify` — **los
-    tres en cero ficheros**. Y `pinia` se importa en un único fichero, `main.ts:15,27`, sin una sola
-    tienda (GR-04). En `devDependencies` (`:28-40`), los mismos seis de pruebas, tampoco usados.
-  - **Y en el backend**: los seis paquetes de Spatie (GR-19).
-- **Norma.** Criterio de proyecto, no normativo: `README.md:119-127` y la regla sobre dependencias de
-  terceros. Hay un trabajo de CI dedicado a revisar los ficheros de bloqueo
-  (`.github/workflows/ci.yml:191-199`).
-- **Dónde.** `sitio/package.json`; `panel/package.json`; `backend/composer.json`.
-- **Qué hay que hacer.** Decidir en cada caso: se usa o se retira. Las de pruebas se usarán cuando
-  exista GR-07; las otras doce no tienen destino declarado. **Doce dependencias de ejecución sin usar
-  son superficie de suministro sin contrapartida**, y en una entidad pública eso es una decisión, no
-  un descuido.
-- **Cómo se verifica.** Cada dependencia declarada tiene al menos un punto de importación, o no está.
-  Una comprobación puede automatizarlo en el trabajo de dependencias que ya existe.
-- **Qué desbloquea.** Nada.
-
----
-
-#### M-08 · La galería de aplicaciones no está montada en ninguna parte, y el ADR afirma que sí
-
-- **Qué falta.** `sitio/app/components/govco/GaleriaAplicacionesGovco.vue` tiene **354 líneas**, está
-  bien construido —conserva todas las clases del Kit, y **amplía** su contrato con `Escape` con
-  devolución de foco, flechas en rejilla de tres columnas y `aria-expanded`/`aria-controls`, que el JS
-  del Kit (22 líneas) no tenía— y **no lo usa nadie**: `grep -rn "GaleriaAplicacionesGovco"
-  sitio/app/` devuelve **cero coincidencias**.
-- **Norma.** Kit UI 9.2 p. 21 (CAG-31: «Galería de aplicaciones: recorrido por teclado
-  izquierda→derecha, arriba→abajo; abre con `Enter` y cierra con `Esc`»); RF-B3-068 (Should).
-  Y la afirmación que hay que corregir: ADR-0015 §1 concluye que la barra superior «conserva el logo
-  GOV.CO **y la galería de aplicaciones**» (`docs/adr/README.md:404-405`). **No la conserva: no la
-  monta.** La desviación está justificada con un hecho falso.
-- **Dónde.** `sitio/app/components/govco/GaleriaAplicacionesGovco.vue`; ausencia de uso en
-  `sitio/app/layouts/default.vue` y `BarraSuperior.vue`; `docs/adr/README.md:404-405`.
-- **Qué hay que hacer.** Decidir: montarla en la barra superior —su sitio natural, y donde el Kit la
-  describe— o retirarla. **Tenerla construida y no usada es lo peor de las dos opciones**: se paga su
-  mantenimiento y no se recibe su beneficio. Nótese además que sus contenidos por defecto son
-  marcadores («Aplicación de ejemplo 1/2/3», `:78-82`), lo cual está bien para un componente sin
-  datos y sería un defecto si se montara sin ellos.
-- **Cómo se verifica.** El componente aparece montado en la disposición con datos reales y pasa la
-  prueba de teclado de CAG-31; o el fichero ya no está.
-- **Qué desbloquea.** Nada.
-
----
-
-#### M-09 · Hay dos implementaciones independientes de los controles de accesibilidad, con mecanismos y claves distintos
-
-- **Qué falta.** El sitio y el panel resuelven el mismo requisito —barra de accesibilidad con tamaño
-  de letra y contraste— con dos implementaciones que no comparten nada:
-
-  | | Sitio | Panel |
-  |---|---|---|
-  | Fichero | `sitio/app/composables/useAccesibilidad.ts` (81 líneas) + `components/govco/BarraAccesibilidad.vue` (90) | `panel/src/components/base/AccessibilityBar.vue` (223 líneas) |
-  | Escalado | `zoom` sobre la raíz, ±8 % por paso, 5 pasos | `zoom` sobre la raíz, ±10 %, entre 0,8 y 1,5 |
-  | Contraste | Clase `contraste-govco` con reglas propias en `sitio.css:24-81` | Clase `a11y-contrast` con **42 reglas** de sobrescritura de utilidades Tailwind en `panel/src/assets/styles/main.css:37-71`, más `filter: contrast(1.15)` |
-  | Persistencia | `useState('sede.accesibilidad')` | `localStorage['smr_panel_a11y']` |
-  | Extras | — | Modo oscuro y espaciado de texto (que el corpus **no** exige) |
-
-- **Norma.** Kit UI 9.2 p. 6 (CAG-07: «Barra de accesibilidad: incluir Aumentar letra · Reducir letra
-  · Contraste; oculta entre 768-992 px»); RF-B1-044/RF-B2-043/RF-B3-054 (Must); RNF-B1-019 (modo de
-  alto contraste que altera todos los colores satisfactoriamente).
-- **Dónde.** Los cuatro ficheros de la tabla.
-- **Dos objeciones concretas, y la segunda es funcional.**
-  1. **El contraste del panel es frágil por construcción.** Funciona sobrescribiendo clases de
-     Tailwind **enumeradas a mano** (`bg-white`, `bg-slate-50`, `text-slate-900`, `text-slate-400`…).
-     Cualquier utilidad nueva que se use en una vista y no esté en la lista **no se convertirá**, y el
-     modo de alto contraste quedará a medias sin que nada avise. El sitio resolvió esto con selectores
-     universales (`sitio.css:31-37`), que no dependen de enumerar nada.
-  2. **`filter: contrast(1.15)` sobre `html`** (`main.css:51`) crea un bloque contenedor y afecta a
-     todo el documento, incluidos los elementos con `position: fixed` —entre ellos la propia barra,
-     que es `fixed` (`AccessibilityBar.vue:69`). Es el tipo de interacción que sólo se descubre
-     midiendo en navegador, y no se ha medido (§1.3).
-- **Qué hay que hacer.** Extraer el comportamiento a una pieza compartida, o —si se decide que el
-  panel es un producto distinto y no está sujeto al Kit (decisión legítima, pero **no tomada**)—
-  escribirlo en un ADR y sustituir el contraste enumerado por selectores universales.
-- **Cómo se verifica.** Con el modo de alto contraste activo, una vista nueva con utilidades Tailwind
-  no enumeradas sigue siendo legible; y el panel mantiene su disposición sin desplazamientos
-  laterales.
-- **Qué desbloquea.** M-15 y la coherencia de la identidad.
-
----
-
-#### M-10 · La página 404 ofrece una sola vía de navegación propia
-
-- **Qué falta.** `sitio/app/error.vue` (59 líneas) explica el error, muestra el código (`:52`) y
-  ofrece **un** enlace: «Volver a la portada» (`:55`).
-- **Norma.** RF-B1-007/RF-B2-039/RF-B3-142 (Must): «≥3 opciones de navegación/contenido alternativo
-  (menú, buscador, secciones populares)».
-- **Dónde.** `sitio/app/error.vue:54-56`.
-- **`[DEDUCCIÓN]`** La página se monta dentro de `NuxtLayout` (`:37`), así que **hereda el menú de
-  siete ítems, el buscador de la cabecera, la miga de pan y el pie completo**. Si el criterio se lee
-  como «la página debe ofrecer esas tres vías», se cumple por el armazón. Si se lee como «la propia
-  página debe listar tres alternativas», no. **No puedo resolver esa ambigüedad leyendo el código** y
-  conviene aclararla con quien redactó el criterio antes de tocar nada. Lo que sí es mejora clara en
-  cualquier lectura: añadir enlaces a las tres secciones obligatorias.
-- **Cómo se verifica.** Una URL inexistente muestra al menos tres destinos distintos dentro de la
-  propia página.
-- **Qué desbloquea.** Nada.
-
----
-
-#### M-11 · `/servicios` y `/tramites` cubren el mismo objeto
-
-- **Qué falta.** El menú principal no ofrece `/servicios` —sus siete ítems son Inicio, Transparencia,
-  Atención y Servicios a la Ciudadanía (cuyo despliegue lleva a `/tramites`, `/atencion`,
-  `/realizar-una-peticion` y `/seguimiento`), Participa, PQRSD, Normativa y Noticias
-  (`layouts/default.vue:46-94`)—, pero `/servicios` sí está enlazada desde el carrusel de la portada,
-  desde una tarjeta de la portada y desde el `sitemap.xml:47`. Y está vacía (GR-11), mientras
-  `/tramites` (1 061 líneas) publica el catálogo completo de 123 trámites.
-- **Norma.** FUN-013 (Must) exige mostrar la sección «Servicios a la Ciudadanía» en la portada, y el
-  Anexo 2 §2.4.3 (i) exige que dé acceso a trámites y OPA.
-- **Dónde.** `sitio/app/pages/servicios.vue` (17 líneas); `sitio/app/pages/tramites/index.vue`
-  (1 061 líneas); `layouts/default.vue:46-94`; `sitemap.xml.ts:47`.
-- **`[DEDUCCIÓN]`** `/tramites` **ya es** la sección «Atención y Servicios a la Ciudadanía»: es donde
-  el menú obligatorio apunta y donde el contenido existe. Mantener dos rutas para el mismo objeto
-  produce dos direcciones canónicas del mismo contenido, que es exactamente lo que el Anexo 2 §2.4.1
-  (f) prohíbe. **Recomiendo redirigir `/servicios` a `/tramites` y corregir los enlaces.** Es mi
-  recomendación, no una conclusión que se deduzca del texto de la norma; la alternativa —dar a
-  `/servicios` el contenido de servicios **no** tramitables— es igualmente válida y es decisión del
-  titular.
-- **Cómo se verifica.** Existe una sola URL canónica para el catálogo y una comprobación de que
-  ninguna otra ruta sirve el mismo contenido.
-- **Qué desbloquea.** GR-11 en la parte de `/servicios`.
-
----
-
-#### M-12 · El panel declara tokens «GOV.CO oficiales» que no lo son, y usa otra identidad tipográfica
-
-- **Qué falta.** Tres afirmaciones y un hecho:
-  1. `panel/src/assets/styles/tokens.css:1` titula el fichero «**SGDI — Design tokens GOV.CO
-     oficiales**».
-  2. Y define `--color-gov-blue: **#3366CC**` (`:3`). El Cobalt oficial del Kit, que el corpus repite
-     once veces, es **`#0943B5`** (RF-B1-098, RF-B3-045, RNF-B3-045: «100 % de componentes con paleta
-     Cobalt `#0943B5`»; Kit UI 9.2 p. 7: «Maneja un único color azul Cobalt “#0943B5”»). **Son dos
-     azules distintos en el mismo proyecto**: el sitio usa el del Kit —`sitio.css:268-274` aplica
-     `var(--govcolor-cobalt, #0943b5)` a todos los enlaces y documenta el contraste medido, 8,46:1— y
-     el panel usa `#3366CC`.
-  3. Define la tipografía como `--font-heading: 'Montserrat'` y `--font-body: 'Inter'`
-     (`tokens.css:29-31`), y carga Montserrat, Inter y JetBrains Mono autoalojadas
-     (`panel/src/assets/styles/fonts.css`), mientras el Kit fija **Nunito Sans** para títulos y
-     **Verdana** para el cuerpo (Kit UI 9.2 p. 12).
-  4. Además `tokens.css:42-55` declara dos paletas alternativas (`[data-brand='caribe']` y
-     `[data-brand='dorado']`) que **ningún código activa**: `grep` de `data-brand` en `panel/src/`
-     devuelve sólo su definición.
-- **Norma.** RN-B2-029 («Kit UI GOV.CO de cumplimiento obligatorio en trámites integrados; solo el
-  footer puede usar color institucional»); RNF-B3-045 (Must); CAG-05 (Must: «Barra superior: logo
-  GOV.CO 24 × 136 px, color `#0943B5`»). **Y el límite honesto:** el Kit se declara «Requerido,
-  mínimamente, en: Sedes electrónicas · Trámites y servicios · Ventanillas únicas · Portales
-  transversales». Un back-office interno **no es** ninguno de los cuatro, de modo que usar otra
-  identidad para el panel es **una decisión defendible** —[DEDUCCIÓN] es además la práctica habitual:
-  un producto interno no debe parecerse al sitio público—, **pero es una decisión que nadie ha
-  tomado**. No hay ADR que la registre y el fichero afirma lo contrario de lo que hace.
-- **Dónde.** `panel/src/assets/styles/tokens.css:1, 3, 29-31, 42-55`; `panel/src/assets/styles/fonts.css`;
-  `panel/tailwind.config.js:36-40`; `sitio.css:259-274`.
-- **Qué hay que hacer.** Elegir una de las dos y escribirla: (a) el panel adopta Cobalt `#0943B5` y la
-  tipografía del Kit —y entonces la autoridad tipográfica es una sola—; o (b) el panel mantiene su
-  identidad propia y **el fichero deja de llamarse «GOV.CO oficiales»** y `--color-gov-blue` pasa a
-  llamarse `--color-marca-panel`. Lo que no puede quedarse es la afirmación actual: **una fuente de
-  verdad que dice ser lo que no es contamina todo lo que se construya encima.** Las dos paletas
-  inactivas se retiran salvo que alguien pueda decir para qué están.
-- **Cómo se verifica.** `grep -rn "3366CC" panel/src` no devuelve nada, o el fichero no afirma
-  oficialidad; y existe un ADR que registra la identidad del panel.
-- **Qué desbloquea.** M-15 (la comparación entre las dos capas visuales deja de ser una comparación
-  entre dos verdades).
-
----
-
-#### M-13 · El panel no puede publicar contenido y su pantalla de entrada lo afirma con datos inventados
-
-- **Qué falta.** Este hallazgo aísla la parte del panel que **no** cubren BL-08, GR-01, GR-03 y GR-04:
-  el **inventario de lo que falta**, medido, para que no se confunda con lo que existe.
-
-  | Pieza de `panel/src/` | Líneas | Estado |
-  |---|---|---|
-  | `router/index.ts` | 123 | 18 módulos + entrada + MFA + recuperar + sin-permiso + 404 |
-  | `layouts/AdminLayout.vue` | 332 | completo: menú de 18 módulos en 7 grupos, migas, paleta de comandos |
-  | `views/admin/EnConstruccionView.vue` | **22** | sirve a los 18 módulos |
-  | `views/admin/InicioView.vue` | **59** | tablero con 4 KPIs de maqueta |
-  | `views/acceso/*.vue` (5 ficheros) | 63+33+30+26+31 = **183** | pantallas de acceso; ninguna autentica |
-  | `components/` (12 ficheros) | **1 148** | sistema de diseño base completo |
-  | `services/http.ts` | 68 | cliente Axios **huérfano** |
-  | `types/api.ts` + `types/openapi.d.ts` | 51 + 580 | tipos del contrato, sin consumidor |
-  | **Total** | **≈2 500** | de los cuales **publican contenido: 0 líneas** |
-
-  Y el panel **se despliega**: `docker/nginx/conf.d/default.conf:124-129` sirve la SPA en `/admin`,
-  `panel/dist/` contiene una construcción compilada, y la arquitectura del `README.md:55` lo describe
-  como «SPA editorial» para «Funcionarios y ciudadanos». Un funcionario que hoy entre en
-  `https://…/admin` encuentra un tablero con cifras inventadas, un botón de «Ingresar» que no
-  autentica y dieciocho módulos que dicen «Vista en construcción».
-- **Norma.** Todas las de BL-08, GR-01 y GR-03. Este hallazgo no añade norma: **ordena la lectura**.
-- **Dónde.** `panel/src/` completo; `docker/nginx/conf.d/default.conf:124-129`.
-- **Qué hay que hacer.** Antes de escribir una línea de módulo nuevo: **desconectar el panel de
-  producción o ponerle una guarda** (GR-01). Un panel sin autenticación accesible desde Internet es
-  peor que un panel que no existe, porque parece que existe.
-- **Cómo se verifica.** Ninguna ruta del panel alcanza un módulo sin sesión, y ningún módulo de
-  contenido está desplegado como accesible.
-- **Qué desbloquea.** GR-01.
-
----
-
-### 5.4 Menores
-
----
-
-#### m-01 · `BaseModal.vue` no gestiona el foco
-
-- **Qué falta.** `panel/src/components/base/BaseModal.vue` (65 líneas) implementa `role="dialog"`,
-  `aria-modal="true"`, cierre con `Escape` (`:14`) y con clic en el fondo (`:37-38`), y bloquea el
-  desplazamiento del cuerpo (`:20`). **No mueve el foco al diálogo al abrirse, no lo atrapa dentro y
-  no lo devuelve al elemento que lo abrió al cerrarse.** Y `:34` usa `:aria-label="title"`, que es
-  `undefined` por defecto (`:9`) cuando se usa el hueco `header` (`:41`): en ese caso el diálogo queda
-  **sin nombre accesible**.
-- **Norma.** WCAG 2.1 §2.4.3 (Orden del foco) y §4.1.2 (Nombre, función, valor); Kit UI 9.2 p. 16
-  (CAG-21: «Alerta modal: cerrable con tecla Esc y clic fuera; no anidar modales; máximo 1 modal
-  simultáneo»).
-- **Dónde.** `panel/src/components/base/BaseModal.vue:9, 14, 29-41` y `:37-38`.
-- **Qué hay que hacer.** Mover el foco al primer elemento enfocable al abrir, atraparlo, devolverlo al
-  cerrar, y exigir el nombre accesible (o derivarlo del encabezado).
-- **Cómo se verifica.** Con el modal abierto, `Tab` no sale de él; al cerrarlo, el foco vuelve al
-  botón que lo abrió; y el diálogo tiene nombre accesible en sus dos modos de uso.
-- **Qué desbloquea.** Nada.
-
----
-
-#### m-02 · `DataTable.vue` ordena con ratón y no con teclado
-
-- **Qué falta.** `panel/src/components/base/DataTable.vue` (134 líneas) pone el manejador de
-  ordenación en el `<th>` (`:69`, `@click="header.column.getToggleSortingHandler()?.($event)"`), que
-  **no es enfocable ni operable por teclado**, y **no declara `aria-sort`**. El usuario de teclado o
-  lector de pantalla no puede ordenar y no sabe por qué columna está ordenada.
-- **Norma.** WCAG 2.1 §2.1.1 (Teclado) y §4.1.2; Kit UI 9.2 p. 32 (CAG-24); RF-B3-076 (Must:
-  «Tablas […] con **ordenamiento asc/desc**»).
-- **Dónde.** `panel/src/components/base/DataTable.vue:60-70`.
-- **Qué hay que hacer.** Un `<button>` dentro del `<th>` con `aria-sort` en el encabezado.
-- **Cómo se verifica.** Ordenar por teclado cambia el orden y `aria-sort` refleja la columna activa y
-  su sentido.
-- **Qué desbloquea.** Nada.
-
----
-
-#### m-03 · La paginación del panel está a 32×32 px
-
-- **Qué falta.** Los botones de página de `DataTable.vue:115-130` usan `h-8 w-8`, es decir **32×32
-  px**, cuando el Kit fija **44×44 px** para la paginación en móvil (Kit UI 9.2 p. 30, CAG-23) y
-  RNF-B3-005 lo eleva a requisito (Must).
-- **Norma.** Kit UI 9.2 p. 30 (CAG-23); RNF-B3-005; RF-B3-075 (Must).
-- **Dónde.** `panel/src/components/base/DataTable.vue:115-130`.
-- **Qué hay que hacer.** Elevar a 44 px en pantalla estrecha, con el mismo criterio con el que
-  `sitio.css:396-414` ya lo hizo en el buscador del sitio.
-- **Cómo se verifica.** A 360 px, los botones de paginación miden ≥44×44 px.
-- **Qué desbloquea.** Nada.
-
----
-
-#### m-04 · El `README.md` del panel es la plantilla de Vite sin adaptar
-
-- **Qué falta.** `panel/README.md` tiene **5 líneas**, está **en inglés** y dice: «Vue 3 + TypeScript
-  + Vite. This template should help get you started developing with Vue 3 and TypeScript in Vite».
-  Es el texto que genera `npm create vite`. El proyecto tiene una regla explícita: «**El código va en
-  castellano**: identificadores, mensajes y confirmaciones» (`README.md:124`).
-- **Norma.** Regla del proyecto (`README.md:124`); `panel/` es la única carpeta del repositorio sin
-  README propio adaptado.
-- **Dónde.** `panel/README.md` (5 líneas).
-- **Qué hay que hacer.** Escribirlo: qué es el panel, a quién sirve, cómo se arranca, qué módulos
-  existen y **cuáles son marcadores**. Los 18 módulos de GR-13 no están documentados en ninguna parte.
-- **Cómo se verifica.** `panel/README.md` describe el panel y no la plantilla.
-- **Qué desbloquea.** Nada.
-
----
-
-#### m-05 · `/buscar` se anuncia en el `sitemap.xml` y la página pide no indexarse
-
-- **Qué falta.** `sitio/server/routes/sitemap.xml.ts:48` anuncia `/buscar` con prioridad 0.3, y la
-  propia página se declara `noindex, follow` (`buscar.vue:25`, con la razón escrita: «Una página de
-  resultados no aporta nada a un buscador externo y puede generar direcciones infinitas»). Anunciar
-  en el mapa del sitio una dirección que la propia página pide no indexar es contradictorio.
-- **Norma.** Res. 1519/2020 Anexo 1 §4.3.1 (b) (el mapa debe servir a los motores de búsqueda).
-- **Dónde.** `sitemap.xml.ts:48`; `buscar.vue:25`.
-- **Qué hay que hacer.** Quitar la entrada del `sitemap.xml`. La contradicción se resolvería sola
-  cuando exista el índice (BL-07), pero la página **seguirá** siendo `noindex` por la razón que
-  declara, así que la entrada sobra en cualquier caso.
-- **Cómo se verifica.** Ninguna `loc` del mapa corresponde a una página con `noindex`.
-- **Qué desbloquea.** Nada.
-
----
-
-## 6. Cobertura por sección
-
-### 6.1 Cómo se calcula, y qué significa el número
-
-Dos universos distintos, y conviene no mezclarlos:
-
-- **Universo A — el corpus de elicitación.** 409 requisitos con enunciado (§3.2). Es el universo de
-  *qué hay que construir*.
-- **Universo B — el expediente de `docs/`.** 140 criterios de aceptación, enumerados y cerrados:
-  34 de diseño (`CAG-01…CAG-34`), 60 de funcionalidad (`FUN-001…FUN-060`), 18 de seguridad
-  (`SEG-001…SEG-018`), 14 obligaciones (`O-01…O-14`), 3 de marco normativo (`RN-01…RN-03`), 5
-  técnicos (`RT-01…RT-05`) y 6 de accesibilidad (`ACC-001…ACC-008`). Es el universo de *con qué se
-  evalúa*.
-
-**El porcentaje de la tabla siguiente es sobre el universo A**, y la unidad de medida es la sección.
-El estado de cada sección sale de recorrer sus requisitos con enunciado y clasificarlos en
-**construido** (existe y cumple su criterio), **parcial** (existe parte y falta pieza declarada) o
-**ausente/stub** (no existe o existe la ruta sin contenido). El desglose por requisito está en la
-matriz de §4.
-
-**Dos avisos de honestidad.**
-1. **Los números son de esta auditoría, no del proyecto.** El proyecto no tiene una matriz que
-   funcione (BL-10). Reproducirlos exige repetir el recorrido de §4.
-2. **Sobre el universo B, el «87 %» del proyecto no es un dato.** `docs/trazabilidad.md:29` afirma
-   122 de 140 con evidencia, pero la evidencia que cita no existe (§3.4), y 6 de los 140 criterios
-   —los `ACC-*`— **no tienen enunciado en ningún documento**: `docs/Sección 3 · Accesibilidad.md` no
-   asigna ni un solo código `ACC-NNN` (usa la numeración WCAG 1.1.1…4.1.3). **El denominador de 140
-   contiene 6 criterios sin texto.**
-
-### 6.2 Cobertura por sección del corpus
-
-| # | Sección | Reqs. con enunciado | Construidos | Parciales | Ausentes / stub | **Cobertura** | Qué falta, en una línea |
-|---|---|---|---|---|---|---|---|
-| 01 | Estructura e identidad | 41 | 6 | 6 | 29 | **27 %** | cookies, noticias, tipografía, identidad visual, 9 componentes del Kit, aviso de salida |
-| 02 | Transparencia | 15 | 0 | 3 | 12 | **10 %** | la sección entera: categorías, apartados, fechas, directorio SIGEP, tributaria, datos abiertos |
-| 03 | Servicios y trámites | 23 | 4 | 6 | 13 | **26 %** | radicación, 4 etapas, área de servicio, pagos, carpeta ciudadana, expediente |
-| 04 | PQRSD | 10 | 2 | 2 | 6 | **30 %** | radicar, acusar, radicar número, seguir, antispam, SGDEA |
-| 05 | Participa | 3 | 0 | 0 | 3 | **0 %** | todo: es un stub con las seis subcategorías rotuladas |
-| 06 | Canales de atención | 3 | 1 | 1 | 1 | **50 %** | agendamiento de citas; acceso inclusivo |
-| 07 | Accesibilidad | 35 | 6 | 11 | 18 | **33 %** | medición, declaración de conformidad, multimedia, área táctil de la barra superior |
-| 08 | Usabilidad | 22 | 3 | 6 | 13 | **27 %** | encuesta y SUS, validación W3C, medición de lenguaje claro |
-| 09 | Seguridad | 22 | 0 | 9 | 13 | **20 %** | RBAC, MFA, antispam, auditoría, protección de datos (ARCO, RNBD) |
-| 10 | Interoperabilidad | 18 | 0 | 1 | 17 | **3 %** | todo: SCD, X-Road, TSA, expediente electrónico |
-| 11 | Datos abiertos | 4 | 0 | 0 | 4 | **0 %** | ningún conjunto propio federado |
-| 12 | Gestión de contenidos | 10 | 0 | 0 | 10 | **0 %** | CMS, roles, flujo editorial, TRD/AGN, registro 24/7, ITA, notificaciones, firma |
-| | **Total** | **206** | **22** | **45** | **139** | **33 %** | |
-
-**Recuento de estados por sección:** 0 secciones construidas por completo · 0 con cobertura ≥75 % ·
-**7 parciales** (01, 03, 04, 06, 07, 08 y 09, todas entre el 20 % y el 50 %) · **5 stubs o ausentes**
-(02 con el 10 %, y 05, 10, 11 y 12 por debajo del 5 %). **Ninguna sección llega al 75 %.**
-
-**Cómo se lee esto bien.** El 33 % **no** significa «un tercio de la sede funciona»: significa que un
-tercio de los requisitos del corpus tiene artefacto verificable en el repositorio. La distribución
-importa más que el total, y la distribución dice que **lo construido se concentra en lo que se lee y
-lo ausente en lo que se opera**. Las cinco secciones de cobertura más alta son las que el ciudadano
-mira; las tres de cobertura más baja —interoperabilidad, datos abiertos, gestión de contenidos— son
-las que sostienen que la sede *funcione*, y **son exactamente las tres que no tienen una sola línea
-de implementación**.
-
-### 6.3 Cobertura del expediente de `docs/` (universo B)
-
-El proyecto declara 122 de 140 (87 %). **No he podido reproducir ninguna de las dos cifras**, porque
-el artefacto que las produce no existe (§3.4). Lo que sí se puede decir, criterio por grupo, con la
-evidencia que sí está en el disco:
-
-| Grupo | Criterios | Con artefacto verificable en el repositorio | Observación |
-|---|---|---|---|
-| `CAG-01…034` (diseño) | 34 | **9** | CAG-05, 08, 09, 10, 11, 12, 15, 27 y 33 tienen implementación identificable. Los demás o no aplican declaradamente (ADR-0015) o no existen (CAG-21, 24, 25, 29) |
-| `FUN-001…060` (funcionalidad) | 60 | **12** | Los de estructura y navegación; FUN-004/030 (captcha) ausentes; FUN-016…020 (Transparencia) ausentes |
-| `SEG-001…018` (seguridad) | 18 | **4** | Los que viven en nginx (fuera de alcance, §1.3) y poco más; SEG-003, 013, 016 ausentes |
-| `O-01…O-14` (obligaciones) | 14 | **2** | O-01 y O-14 tienen artefacto; el resto depende de piezas ausentes |
-| `RN-01…03`, `RT-01…05` | 8 | **0** | No están definidos en `docs/Sección 1` (verificado: cero coincidencias de `RN-[0-9]`/`RT-[0-9]`), pero `docs/trazabilidad.md:169-183` se los atribuye |
-| `ACC-001…008` (accesibilidad) | 6 | **0** | **Sin enunciado en ningún documento**; sólo `ACC-002` apunta a `BarraAccesibilidad.vue` |
-| | **140** | **≈27 (19 %)** | Frente al 87 % declarado |
-
-**[DEDUCCIÓN]** La brecha entre el 87 % declarado y el 19 % medido no es que el proyecto haya
-empeorado: es que **el 87 % se calculó sobre otro sistema**. Es la misma causa raíz de §3.4.
-
-### 6.4 Lo que el corpus pide y la norma no exige (y al revés)
-
-La instrucción es explícita: una discrepancia aquí es un hallazgo en sí misma, porque significa que
-alguien va a construir algo que no hace falta —o que falta algo que nadie pidió—. **Ocho
-discrepancias, cada una verificada en las dos fuentes.**
-
-**A. El corpus exige más que la norma.**
-
-| # | Lo que el corpus pide | Lo que la norma y el Kit dicen | Consecuencia |
-|---|---|---|---|
-| 1 | **Línea de avance (stepper) de 4 etapas** en la ficha (RF-B2-028/RF-B3-071, Must) | El Kit la marca requerida en «**Trámites y servicios**» y **no** en «Sedes electrónicas» (Kit UI 9.2 p. 26) | El corpus eleva a obligatorio lo que el Kit destina a los trámites integrados al Portal. **Es una exigencia legítima del proyecto, no de la norma**: no la cite como obligación legal |
-| 2 | **Área de servicio** (RF-B3-065, RF-B2-033/034 Must) | El Kit la destina a «Trámites y servicios» y a los trámites «vinculados al Portal GOV.CO» (p. 18) | Igual que el anterior. Tiene sentido para una sede que quiere integrarse, pero el fundamento es el corpus |
-| 3 | **Encuesta de usabilidad en ≥90 % de las páginas** (FUN-052, `docs/Sección 5:417`) | Ninguna norma lo exige. Es una práctica | Construirla cuesta más que su rendimiento normativo. **Recomiendo priorizarla por debajo de BL-01** (M-02) |
-| 4 | **IPv6 en coexistencia IPv4** (RF-B1-099/RNF-B1-027, Must) | Real, pero el plazo del corpus (31/12/2020) está **vencido** y no es verificable desde el código | No auditable aquí (§1.3) |
-| 5 | **Modo oscuro y espaciado de texto en el panel** (implementados en `AccessibilityBar.vue`) | El Kit pide «Aumentar letra · Reducir letra · Contraste» (p. 6). El espaciado corresponde a WCAG §1.4.12; el **modo oscuro no lo pide nadie** | Funcionalidad construida sin requisito que la respalde. No hace daño; **no la trate como cumplimiento** |
-
-**B. La norma (o el Kit) exige lo que el corpus no recogió.**
-
-| # | Lo que exige la norma | Lo que el corpus dice | Consecuencia |
-|---|---|---|---|
-| 6 | **CAPTCHA en el módulo de inicio de sesión**: «el *Módulo de inicio de sesión* […] debe contener título, campo para ingresar contraseña, **módulo para confirmar que quien accede es un ser humano** y botones de navegación específicos» (Kit UI 9.2 p. 29) | El corpus recoge el login en RF-B3-074 citando el Kit, pero **su criterio de aceptación sólo enumera los tipos de documento** (CC, CE, TI, PEP, NIT) y **no menciona el CAPTCHA** | **El requisito quedó fuera de la aceptación.** El corpus aceptaría un login sin CAPTCHA. **Añádase al criterio de RF-B3-074** |
-| 7 | **44×44 px en la barra superior**, «incluyendo las medidas del logo» (Kit UI 9.2 **p. 7**) | El corpus recoge el dato en RF-B1-001 («área activa ≥44×44 px») pero **sin el alcance**: no dice que alcanza al logotipo | Por eso el defecto de **GR-13** pasó desapercibido en dos auditorías. **Precise el criterio de RF-B1-001** |
-| 8 | **Interlineado por estilo** (Kit UI 9.2 p. 12: h1 42/50, h4 22/32, body 15/22) | RNF-B3-045 sólo fija «paleta Cobalt + tipografía Nunito Sans/Verdana»; **el interlineado no está en ningún requisito del corpus** | **GR-12** no tiene requisito del corpus que lo respalde: sólo el Kit. **Añada el interlineado a RNF-B3-045** o acepte que no es exigencia |
-
-**C. El caso simétrico, que es el más caro: la norma se contradice.**
-
-| # | Contradicción | Dónde | Consecuencia |
-|---|---|---|---|
-| 9 | **Los anexos de la Resolución 1519/2020 se definen al revés en dos documentos del mismo expediente.** `docs/Sección 1 · Marco normativo.md:465`: «**Anexo 1**: WCAG 2.1 AA. Anexo 2: estándares de transparencia y divulgación. Anexo 3: seguridad digital. Anexo 4: datos abiertos». `docs/Sección 4 · Seguridad.md:308`: «la Sede debe cumplir el **Anexo 1 (transparencia pasiva y activa)** y el **Anexo 2 (accesibilidad, usabilidad, seguridad)**». Y `docs/adr/README.md:90-91` atribuye al «Anexo 2» la imposición del Kit | Los tres son incompatibles entre sí. **Ninguna cita de anexo es fiable sin resolver esto antes**, y esta auditoría ha tenido que apoyarse en el texto de la resolución recogido en `investigacion/raw/nat/res1519.html` para zanjar cada caso |
-| 10 | **Disponibilidad: 95 % o 99 %.** `docs/Sección 5 · Funcionalidad.md:301` FUN-053 (Must): «igual o superior al **95 %**»; `:396`: «≥ 95 %». `docs/Sección 6 · Implementación paso a paso.md:15`: «≥ **99 %** mensual»; `:125`: «SLA ≥ 99 % mensual». `docs/Sección 1:257`: «SLA ≥ 99 % en horario hábil». Y el corpus añade dos más: RNF-B1-001 «≥98 %» para trámites y «≥95 %» para la sede, marcados como **C-02 «En conflicto — ALTA»** | **Cuatro umbrales distintos en cinco documentos** sobre el mismo atributo. La diferencia entre 95 % y 99 % es de unas 36 horas a unas 7 de caída al mes. **No se puede aceptar un sistema contra un criterio que tiene cuatro valores** |
-| 11 | **Bloqueo de cuenta: 5 o 10 intentos.** `docs/Sección 4 · Seguridad.md:171` y `:415`: «tras **5 fallos en 5 min** […] Cuenta bloqueada tras **10 fallos/día**». `docs/trazabilidad.md:192` SEG-004: «la_cuenta_se_bloquea_tras_**cinco**_intentos_fallidos» | El criterio y su prueba afirman cosas distintas | La prueba no puede pasar. **Unifíquese antes de escribirla** |
-
-**[DEDUCCIÓN] Lo que esto significa en conjunto.** El corpus es más exigente que la norma en cinco
-materias, la norma es más exigente que el corpus en tres, y el expediente se contradice en tres más.
-De las once, **las tres últimas son las graves**: no son huecos, son **criterios con dos valores**, y
-un criterio con dos valores no se puede incumplir ni cumplir. Mientras el §7.1 de este documento no
-se cierre, cualquier prueba que se escriba contra esos criterios será una prueba que afirma algo que
-otro documento del mismo proyecto niega.
-
----
-
-## 7. Contradicciones
-
-Sólo las que enfrentan dos fuentes —norma, corpus, `docs/` o lo construido— y tienen consecuencia.
-Las cinco primeras son las que hay que cerrar **antes** de construir.
-
-### 7.1 Las cinco que bloquean trabajo
-
-| # | Fuente A | Fuente B | Efecto | Acción |
-|---|---|---|---|---|
-| **1** | **Corpus:** el módulo 02 exige **diez** subsecciones de Transparencia, nombrando por separado (9) «Obligación de reporte específico» y (10) «Tributaria» (RF-B1-012/RF-B3-081, Must); `README.md:19` del corpus dice «las 10 subsecciones» | **`docs/transparencia.md:21-23`:** «Exige **nueve categorías**» | De ello depende **si hay que construir una o dos categorías nuevas** en BL-09 | Resolver con el texto del Anexo 2 §4.1.2.1 de la Res. 2893 **antes** de implementar |
-| **2** | **Norma y Kit:** la Res. 1519/2020, Anexo 2 §2.4.3 y el Kit p. 18 exigen el **aviso de salida a sitio externo como modal** (RF-B1-071, Must) y el **Área de servicio** en los trámites | **ADR-0015 §3:** «CAG-19, **CAG-21**, CAG-22, CAG-24 y CAG-25 — **no aplican**. La sede […] **no abre modales**» | Un requisito Must presentado como decisión de diseño. **GR-15** y **GR-17** | Retirar CAG-21 y CAG-25 de las desviaciones declaradas; construir ambos |
-| **3** | **ADR-0009:** «Se incorpora **Filament 5** (panel `/admin`) […] Livewire y Blade como dependencias del backend» | **Lo construido:** `docker/nginx/conf.d/default.conf:124-129` sirve una **SPA Vue estática** en `/admin`; **Filament no está en `backend/composer.json`** | No está claro **sobre qué superficie se construye el CMS** (BL-08) | **GR-05**: decidir y registrar |
-| **4** | **ADR-0004:** los componentes «**delegan el comportamiento en el `script.js` del Kit**» | **ADR-0011:** «**No se carga `/govco/script.js`**». Verificado: el sitio no copió **ninguno** de los 15 `.js` del Kit | Dos decisiones aceptadas que se excluyen. La construida es la del 0011 | **GR-06**: poner fecha y estado a los ADR, y marcar el 0004 como sustituido |
-| **5** | **`docs/Sección 1:465`:** Anexo 1 = accesibilidad, Anexo 2 = transparencia, Anexo 3 = seguridad, Anexo 4 = datos abiertos | **`docs/Sección 4:308`:** «Anexo 1 (transparencia) y Anexo 2 (accesibilidad, usabilidad, seguridad)» | **Ninguna cita de anexo del expediente es utilizable** | Resolver una vez y corregir el otro documento |
-
-### 7.2 Las que afectan al diseño construido
-
-| # | Fuente A | Fuente B | Efecto |
-|---|---|---|---|
-| **6** | **`docs/trazabilidad.md:102-106`:** FUN-016…020 «implementado» con `views/publico/TransparenciaView.vue` | **El repositorio:** `views/publico/` no existe; `/transparencia` tiene 17 líneas | **BL-10**: la matriz certifica un sistema que no es el desplegado |
-| **7** | **`docs/trazabilidad.md:31`:** «Operaciones del contrato: **41** (41 implementadas)» | **`contract/openapi.yaml`:** **3** operaciones, 2 implementadas y 1 `pending` | El contrato se declara fuente única (`README.md:58`) y la matriz lo contradice por un factor de 13 |
-| **8** | **Contrato:** slugs de las cinco políticas `terminos-y-condiciones`, `tratamiento-de-datos`, `derechos-de-autor` (`contract/openapi.yaml:110-124`) | **Sitio:** `terminos-y-condiciones-de-uso`, `proteccion-y-tratamiento-de-datos-personales`, `derechos-de-autor-y-uso-sobre-contenidos` (`politicas/[slug].vue:33-57` y `sitemap.xml.ts:64-70`) | **Tres de cinco no coinciden.** En cuanto `/entidad` se implemente y el pie consuma `politicas[].slug`, **tres de los cinco enlaces del pie darán 404** —y el 404 aquí es real y contundente, por diseño (`politicas/[slug].vue:74-82`) |
-| **9** | **`README.md:58` y `contract/README.md:3-5`:** el contrato es «la única fuente de verdad del intercambio HTTP» | **`contract/openapi.yaml:322-331`:** declara `securitySchemes` (`cookieSesion`, `portador`) y **ninguna de las tres operaciones los usa** —las tres llevan `security: []` (`:127, :287, :319`) | El mecanismo de sesión del panel está declarado en el contrato y **no lo consume ninguna operación**: no hay contrato para la escritura (BL-01, GR-04) |
-| **10** | **Kit UI 9.2 p. 12:** *Body text 1* = **Verdana Regular 15/22** | **`all.css:67-71`:** `html { font-family: 'Nunito_Sans-Regular' }`, y el sitio no declara familia para el texto corrido (`sitio.css`: 0 `font-family`) | Los párrafos de las 21 páginas salen en **Nunito Sans a 16 px**, no en Verdana a 15. **GR-12** |
-| **11** | **Kit UI 9.2 p. 7:** «área activa mínima de 44 x 44 píxeles, **incluyendo las medidas del logo**» | **`all.css:702-705`:** `.barra-superior-govco a { height: calc(1.5rem * 1.5) }` = **36 px** | El Kit incumple su propia especificación y el sitio la hereda. **GR-13** |
-| **12** | **Kit:** `.govco-logo-entidad { content: url(assets/images/Logo-v2-MinTIC.png) }` (`all.css:8522`) y lo mismo en `:849`, `:794`, `:8736` | **Sitio:** omite la clase a propósito y usa un `<img>` propio (`PiePaginaGovco.vue:24-30`, `:295`) | **El sitio tiene razón.** Pintar el logo del Ministerio TIC donde va el de la autoridad sería mostrar el emblema de otro organismo. La desviación está justificada y verificada. **No «corregir» esto** |
-| **13** | **Kit:** `.pie-pagina-govco .logo-container { position: absolute; right: 3.125rem }` (`all.css:8570-8573`) y `sitio.css:107-114` lo pasan a `position: static` | El Kit UI 9.2 **p. 11** exige que los logos «estén **asociados y alineados a la izquierda**» | El Kit incumple su propio texto en escritorio. La corrección del sitio es correcta |
-| **14** | **Kit:** el botón de contraste alterna `contrast-govco` | **`all.css:681,685`:** sus dos únicas reglas apuntan a `.accesibility-example`, la caja de demostración | **El botón del Kit es un stub.** El sitio lo reemplazó por uno real (`BarraAccesibilidad.vue:11-13`, `useContraste` en `useAccesibilidad.ts:16-20`). **No revertir** |
-| **15** | **Kit:** `.barra-superior-govco` a 56 px de alto (p. 7) | **`all.css:692-695`:** `height: 3.5rem` = 56 px ✓ | **Coincide.** Se registra para que no se «corrija» a 44 |
-
-### 7.3 Las que afectan a la documentación
-
-| # | Fuente A | Fuente B | Efecto |
-|---|---|---|---|
-| **16** | **`docs/Sección 5:301,396`:** disponibilidad ≥**95 %** (FUN-053, Must) | **`docs/Sección 6:15,125`** y **`docs/Sección 1:257`:** ≥**99 %**. Y el corpus, marcado C-02 «ALTA»: ≥98 % trámites / ≥95 % sede | Cuatro umbrales. **§6.4 #10** |
-| **17** | **`docs/Sección 4:171,415`:** bloqueo tras 5 fallos en 5 min / cuenta bloqueada tras 10 fallos al día | **`docs/trazabilidad.md:192`:** «la_cuenta_se_bloquea_tras_cinco_intentos_fallidos» | El criterio y su prueba no coinciden. **§6.4 #11** |
-| **18** | **`docs/Sección 2 · Diseño.md:166`:** «El Kit UI v9.2 organiza **24 componentes** en 3 grupos»; `:181` titula «Componentes generales **(11)**»; `:362` «8 transversales, **11 generales** y 4 de formulario» | **La tabla del propio documento** (`:170-212`) contiene **31 filas**; su diagrama (`:230-250`) lista **19** nodos generales; **ADR-0004:111** dice «(8 transversales, **19 generales** y 4 de formulario)»; **el PDF del Kit** lista **9 + 19 + 4 = 32** | **Cuatro cifras distintas para el mismo catálogo.** Este informe usa la del PDF, que es la fuente |
-| **19** | **`docs/trazabilidad.md:26`:** «Total **140**» | **`docs/GUIA Maestra Sede Electronica Colombia.md:3409`:** «Las secciones 2 a 5 producen un total de **~210 criterios** trazables», con «CAG-NN **57**» (la Sección 2 define **34**) y «FUN-NN **74**» (la Sección 5 define **60**, `:317`) | El denominador de la cobertura no es único. **BL-10** |
-| **20** | **`docs/Sección 6 · Implementación paso a paso.md`** cita códigos como criterios (p. ej. `:41` asigna **CAG-12** a la miga de pan —CAG-12 es el pie, la miga es CAG-11—; `:65` asigna **CAG-09** a la barra de accesibilidad —es CAG-07—; `:107` asigna **FUN-026** a las pruebas de regresión —FUN-026 son noticias—; `:143` usa **RT-02** para firma electrónica —en `trazabilidad.md:180` RT-02 es TLS—) | **Las secciones 2, 4 y 5**, donde esos códigos están definidos | **Una docena de desalineaciones. Los códigos de la Sección 6 no son utilizables como matriz** sin corregirlos |
-| **21** | **`docs/Sección 3`** no asigna **ningún** código `ACC-NNN` | **`docs/Sección 6:86,94-95,140`** y **`docs/trazabilidad.md:37-42`** los usan como si existieran; el Apéndice B los cuantifica en «49 [F] + 75 [A]» sin lista que lo respalde | **6 de los 140 criterios del denominador no tienen enunciado.** Cualquier cobertura calculada sobre ellos es falsa por construcción |
-| **22** | **Corpus, módulo 12 y RF-B1-078:** el tablero ITA es **interno**, «arranca en **cero**» y «**no usa datos mock** ni puntuaciones precargadas (no se usa el 47/100)»; A-03 resuelto el 2026-06-05 | **`panel/src/views/admin/InicioView.vue:29`:** «Cumplimiento ITA **94 %**» | **GR-03**: la única cifra de cumplimiento que produce el sistema es inventada y contradice una decisión registrada |
-| **23** | **`docs/adr/README.md:404-405`:** la barra superior «conserva el logo GOV.CO **y la galería de aplicaciones**» | **`grep -rn "GaleriaAplicacionesGovco" sitio/app/` → cero coincidencias** | **M-08**: la desviación de CAG-06 está justificada con un hecho falso |
-| **24** | **`README.md:55` del repositorio:** el panel es «SPA editorial» para «Funcionarios y ciudadanos» | **`panel/src/router/index.ts:69-76`:** sus 18 módulos son marcadores | La arquitectura publicada describe una capacidad que no existe. **M-13** |
-| **25** | **ADR-0003:** «**No se instala Tailwind** […] se descarta FontAwesome» | **`panel/package.json:12-21`:** `tailwindcss ^3.4.19` + tres paquetes `@fortawesome/*`, todos en uso | **GR-06** |
-| **26** | **ADR-0001:** monorepo con `backend/` y **`frontend/`** | El repositorio tiene `backend/`, **`panel/`** y **`sitio/`** | El ADR no contempla el sitio Nuxt, que es la pieza central. **GR-06** |
+| `make contrato` | Redocly + `ContratoDeriva` | 🟡 El lint puede correr; **la prueba `ContratoDeriva` no existe** |
+| `make formato-verificar` | Pint | ✅ Verificable |
+| `make analisis` | PHPStan nivel 8 | ✅ Verificable |
+| `make pruebas` | Suite del backend | ✅ Verificable (hay 7 ficheros de prueba reales) |
+| `make unidad` | Pruebas de los dos frontends | ❌ **Ninguno de los dos declara script `test`** |
+| `make tipos` | Generar tipos del contrato | 🟡 El panel sí; **el sitio escribe un fichero que nadie importa** (D-30) |
+| `make compilar` | Tipos y compilación | 🟡 El panel comprueba tipos; **el sitio no** (D-41) |
+| `make diseno` | Criterios de diseño en navegador | ❌ **`panel/tests/conformidad-diseno.mjs` no existe** |
+| `make accesibilidad` | axe sobre las 15 vistas | ❌ **`panel/tests/accesibilidad.mjs` no existe** |
+| `make imagenes` | Bases fijadas por resumen | ❌ **`scripts/` no existe** |
+| `make respaldo` | Copia y restauración | ❌ **`scripts/` no existe** |
+
+**Una de once puertas es plenamente ejecutable.** `make comprobar` —que encadena ocho— **no puede
+terminar en verde**, y eso convierte el mensaje «Todas las puertas en verde» (`Makefile:54`) en una
+afirmación que nadie puede haber visto.
+
+### 7.4 Lo que el corpus pide y la norma no exige (y al revés)
+
+Útil para no gastar esfuerzo donde no rinde.
+
+| Requisito del corpus | ¿Lo exige la norma/el Kit? | Comentario |
+|---|---|---|
+| `RF-B1-044` — enlace al Centro de Relevo en la barra de accesibilidad | No lo exige el Kit UI, sí la práctica de accesibilidad colombiana | Coste bajo, valor alto para discapacidad auditiva; hoy falta (D-11). |
+| `RNF-07-D01` — barra de accesibilidad en tablet | Contradice al Kit (CAG-07) | Es una mejora respecto del Kit, no un incumplimiento: merece decisión, no silencio (C-25). |
+| `RF-B1-078` — tablero ITA interno que arranca en cero | No está en el Kit ni en la Resolución 1519; viene de una decisión de la Entidad | El diseño lo incumple hoy (D-05). |
+| `RNF-B1-039` — programa RAEE | Norma ambiental, no de sede electrónica | No tiene huella en el diseño; fuera de alcance. |
+| CAG-34 — servir el Kit desde el CDN | El Kit lo ofrece, ADR-0002 demuestra que la URL publicada no sirve CSS | El proyecto vendoriza y **acierta**; el expediente debe corregirse (C-02). |
+| §2.6.2 — no reimplementar componentes | Regla de proceso del expediente, no norma | El proyecto la incumple con motivo demostrado (C-24). |
 
 ---
 
 ## 8. Cadenas de dependencia y orden de corrección
 
-### 8.1 Las cadenas, con lo que desbloquea cada eslabón
+### 8.1 Las tres cadenas que bloquean todo lo demás
 
-**Cadena 1 — la operativa (la que define una sede electrónica).**
-
-```
-BL-01 (radicar: contrato + backend + Policy)
-  ├─→ BL-02 (acuse y radicado)          → cierra el módulo 04
-  ├─→ BL-03 (seguimiento)               → cierra /seguimiento (GR-11)
-  ├─→ GR-18 (citas) ────────────────────→ primer módulo real del panel
-  ├─→ GR-01 (guarda de sesión del panel) ← DEBE ir ANTES, no después
-  └─→ M-02 (encuesta y SUS)             ← sólo tiene sentido con servicio que evaluar
-```
-
-**Cadena 2 — la publicación (el efecto dominó mayor).**
+**Cadena A — Cumplimiento legal de la carcasa.** Cuatro requisitos Must de rango legal o de
+aceptación oficial dependen de piezas que no existen, y tres de ellas se necesitan entre sí:
 
 ```
-GR-05 (decidir la superficie editorial: Filament o la SPA)
-  └─→ BL-08 (CMS: modelo, API, Policy, pantalla)
-        ├─→ GR-01 (RBAC y guarda)          ← y GR-19: los paquetes ya instalados
-        ├─→ GR-03 (tablero ITA real, desde cero)
-        ├─→ GR-09 (fecha de publicación obligatoria)
-        ├─→ GR-11 (las 5 secciones vacías dejan de estarlo)
-        ├─→ GR-15 (lista blanca del aviso de salida)
-        ├─→ GR-16 (sitemap de fichas: la API pasa a ser la fuente)
-        ├─→ GR-17 (área de servicio)
-        ├─→ M-01 (encuesta de usabilidad)
-        ├─→ M-04 (SUIN desde /normativa)
-        └─→ BL-09 (Transparencia entera)   ← y antes, resolver §7.1 #1 (¿9 o 10 categorías?)
-              └─→ M-03 (federación de datos abiertos)
+D-28 (componente de alerta modal) ──► D-02 (aviso de salida a sitio externo + lista blanca)
+D-01 (banner de cookies) ──────────► habilita analítica (RF-B2-089) y cierra el ítem 5 del PDF
+D-13 (captcha + carga de archivos) ─► depende del backend (endpoint de subida y verificación)
+D-04 + D-05 (honestidad del panel) ─► no dependen de nada: son edición de contenido y de código
 ```
 
-**Cadena 3 — la demostrable (la que hace que todo lo demás valga).**
+**Cadena B — Nada puede acreditarse mientras no haya instrumento.** Es la cadena con mejor
+relación coste/beneficio del proyecto:
 
 ```
-BL-10 (retirar o regenerar la matriz falsa)
-  └─→ GR-08 (una sola línea base, versionada y reconciliada)
-        └─→ se puede volver a medir la cobertura
-
-GR-07 (suite de accesibilidad + declaración de conformidad)
-  ├─→ permite verificar GR-12 (tipografía) y GR-13 (área táctil) con instrumentos
-  ├─→ permite verificar M-09 (contraste del panel) y m-01, m-02 (foco y teclado)
-  └─→ hace publicable la declaración de conformidad (Anexo 1 num. 9.3)
+D-19 (escribir axe sobre las 15 vistas) ──► RNF-B1-014 y CAG-32 dejan de ser ⛔
+                                        ──► D-23 (declaración de conformidad publicable)
+                                        ──► D-39 (foco) y CAG-03/CAG-28 medidos
+D-06 (Makefile y matriz alineados) ─────► las puertas vuelven a significar algo
 ```
 
-**Cadena 4 — la coherencia, que no bloquea nada y hay que hacer igual.**
+**Cadena C — El contenido no llega porque falta contrato.** La mayoría de los 68 ❌ no son fallos de
+interfaz, son ausencias de origen:
 
 ```
-GR-06 (ADR con fecha y estado)
-  ├─→ GR-05 (queda claro qué superficie editorial manda)
-  ├─→ M-12 (decidir de una vez la identidad del panel) ─→ M-09 (una sola barra de accesibilidad)
-  └─→ GR-14 (retirar CAG-21 y CAG-25 de las desviaciones declaradas)
+contract/openapi.yaml (hoy 3 recursos) ──► D-18 (/entidad → pie y cabecera)
+                                       ──► D-03 (búsqueda)
+                                       ──► D-07 (noticias)
+                                       ──► D-17 (transparencia, normativa, PQRSD, participación)
+CMS (RF-B1-076/079) ───────────────────► D-15, D-31/D-32 (listas y topes del menú)
+expediente electrónico ────────────────► /seguimiento, PQRSD real, confirmaciones (D-27)
 ```
 
-### 8.2 Orden de corrección
+### 8.2 Orden de corrección recomendado
 
-El orden es por **valor para el ciudadano** y por **dependencia técnica**, no por facilidad.
+**Fase 0 — Correcciones sin dependencias externas (una iteración).** Todo lo que se puede hacer
+hoy, sin backend, sin MinTIC y sin contenido nuevo. Es donde está el mejor retorno:
 
-**Etapa 0 — antes de escribir una línea (horas, no semanas).**
-1. **GR-01 · poner la guarda del panel, o desconectarlo de producción.** Hoy `/admin` es una
-   superficie de administración sin autenticación, accesible desde Internet, que anuncia un doble
-   factor inexistente. **Nada de lo demás importa hasta que esto se resuelva**, y cuesta un
-   `beforeEach`.
-2. **GR-02 · retirar las afirmaciones falsas** del panel y del enlace de la cabecera pública.
-3. **BL-10 · retirar `docs/trazabilidad.md` o marcarlo como no vigente.** Mientras exista, cualquier
-   decisión que se tome leyéndolo será una decisión equivocada.
+| Orden | Hallazgo | Por qué primero |
+|---|---|---|
+| 1 | **D-05** quitar las cifras simuladas del panel | Es una afirmación falsa en un producto institucional; se corrige en un fichero. |
+| 2 | **D-04** retirar la afirmación de doble factor y el marcador de sesión del panel (la autenticación real es de otra fase) | Igual que el anterior: la interfaz no debe afirmar lo que no ocurre. |
+| 3 | **D-12** carrusel en pausa por defecto | Una línea; cierra un Must. |
+| 4 | **D-11** persistencia de la preferencia de accesibilidad + Centro de Relevo | Cierra RF-B1-044 y cumple ADR-0012. |
+| 5 | **D-22** `<a href>` internos → `NuxtLink` | Mecánico, 12 puntos. |
+| 6 | **D-37** `tabla-govco` al `<div>` contenedor | Una línea; recupera el estilo del Kit. |
+| 7 | **D-30/D-41** destino de `make tipos` y puerta de tipos del sitio | Dos líneas en `Makefile` y `nuxt.config.ts`. |
+| 8 | **D-34/D-47/D-49/D-50/D-51/D-52** pulido (icono de la paleta, títulos, comentarios, clases inertes, manifiesto) | Barato y visible. |
+| 9 | **D-43** `noindex` en entornos no productivos | Evita indexar el staging. |
+| 10 | **C-06 a C-25** las decisiones y sus ADR | Sin decidir, cualquier corrección posterior puede ir en la dirección contraria. |
 
-**Etapa 1 — cerrar las contradicciones que bloquean construcción.**
-4. §7.1 #1 (¿nueve o diez subsecciones?), #2 (retirar CAG-21 y CAG-25 de ADR-0015), #3 (Filament o
-   SPA), #4 (ADR-0004 vs 0011), #5 (los anexos). **Son decisiones, no programación**, y sin ellas se
-   construye contra dos criterios distintos.
-5. **GR-06 y GR-08**: fechar los ADR y reconciliar la línea base. Barato, y todo lo demás se apoya
-   en ello.
+**Fase 1 — Instrumentos (antes de seguir construyendo).**
+`D-19` (axe sobre las 15 vistas primero, después pruebas de contrato y de componentes base),
+`D-06` (alinear el `Makefile` y regenerar o retirar la matriz).
 
-**Etapa 2 — lo que la ley exige para poder operar.**
-6. **GR-05 → BL-08** (decidir la superficie y construir el primer corte vertical del CMS). Es el
-   hallazgo con mayor efecto dominó de toda la lista.
-7. **BL-01, BL-02, BL-03** (radicar, acusar, seguir). Es el servicio que define la sede.
-8. **BL-04** (antispam: el honeypot ya está instalado). Va **con** BL-01, no después: un formulario
-   que radica sin control antispam es un formulario que se llena solo.
-9. **BL-05** (cookies). Independiente de todo; puede hacerse en paralelo desde el primer día.
-10. **BL-06** (las cinco políticas). **No es programación: es un acto administrativo. Debe empezar
-    ya**, porque su plazo no depende del equipo técnico.
-11. **GR-19** (decidir los seis paquetes de Spatie) — cuatro tienen destino y son capacidad ya
-    instalada de BL-04, GR-01 y la auditoría del módulo 12.
+**Fase 2 — Cumplimiento legal de la carcasa.** `D-28` (modal, que desbloquea `D-02`), `D-01`
+(cookies), `D-13` (captcha y adjuntos, con el backend), `D-10` (políticas), `D-09` (404).
 
-**Etapa 3 — lo que cierra los huecos de la norma de publicación.**
-12. **GR-09** (fecha obligatoria) — con BL-08.
-13. **BL-09** (Transparencia) — con BL-08, y después de §7.1 #1.
-14. **BL-07** (buscador) — necesita el índice de BL-08.
-15. **GR-16** (sitemap de fichas), **GR-11** (las cinco secciones), **M-11** (decisión sobre
-    `/servicios`).
-16. **M-03** (datos abiertos) y **M-04** (SUIN). El SUIN es una URL pública: **puede hacerse hoy.**
+**Fase 3 — Accesibilidad verificada y declarada.** Cerrar los ⛔ con la puerta de `Fase 1`:
+`D-38` (medida de línea), `D-39` (foco), `D-40` (espaciado), `D-21` (decisión de tablet),
+`D-23` (declaración de conformidad publicada).
 
-**Etapa 4 — lo que hace demostrable lo que el sitio afirma.**
-17. **GR-07** (suite de accesibilidad y declaración de conformidad). **Debería adelantarse en
-    paralelo a la etapa 3 si hay capacidad**: mide trabajo futuro tanto como el presente, y es la
-    única forma de verificar GR-12, GR-13, M-09, m-01 y m-02.
-18. **GR-12** (tipografía) y **GR-13** (área táctil de la barra superior) — una sola hoja las dos,
-    con la suite del punto 17 como árbitro.
+**Fase 4 — Contenido y contrato.** `D-18` (`/entidad`), `D-03` (buscador y su recurso),
+`D-17` (secciones obligatorias), `D-07` (noticias), `D-08` (portada por tareas), `D-27`
+(confirmaciones y pasos), `D-24`/`D-25` (mapa y sitemap derivados), `D-28` (resto de componentes),
+`D-29` (metadatos sociales).
 
-**Etapa 5 — el acabado que la norma exige y el ciudadano nota.**
-19. **GR-14** (componentes del Kit), **GR-15** (aviso de salida) y **GR-17** (área de servicio) —en
-    la ficha del trámite y en la barra superior.
-20. **GR-10** (cuatro momentos GOV.CO), **GR-18** (citas).
-21. **M-01, M-05 a M-13** y **m-01 a m-05** — correcciones puntuales, muchas de una línea.
-22. **M-02** (encuesta) — sólo cuando haya servicio que evaluar.
+**Fase 5 — Panel y CMS.** `D-15`, `D-16`, `D-33`, `D-42`, `D-14`, y con ellos todo el módulo 12.
 
-### 8.3 Lo que **no** hay que tocar en ninguna etapa
+### 8.3 Lo que **no** hay que tocar en ninguna fase
 
-Todo lo listado en la sección 9. En particular: **el orden del menú, la derivación de la miga de
-pan, el 404 real, los slugs cerrados con 404, el escalado de letra por la raíz, el contraste real, la
-abstención de declarar conformidad sin auditoría, la publicación de la procedencia, y la negativa a
-inventar fechas, nombres de aplicación, estados de sistema o cifras de cumplimiento.** Casi todos los
-hallazgos de este documento conviven con esas piezas sin contradecirlas: **son huecos alrededor de un
-trabajo bien hecho, no errores dentro de él.**
+Se dice explícitamente porque son las piezas que una corrección apresurada rompería:
+
+1. **La decisión de vendorizar el Kit** (`nuxt.config.ts:57-71`) y de **no cargar su `script.js`**.
+   Está demostrada en §9.5: cargarlo rompería la página.
+2. **El modo de alto contraste propio** (`sitio.css:24-81`). El del Kit es un stub verificado.
+3. **El carrusel reescrito** con los controles fuera de la imagen: cumple CAG-01, CAG-02 y CAG-04.
+4. **El menú con estado reactivo** en lugar de manipulación del DOM.
+5. **La miga de pan derivada de la ruta** (`layouts/default.vue:132-150`): es lo que hace que
+   CAG-11 se cumpla por construcción.
+6. **El `<main>` y el enlace de salto en la disposición**, no en cada página.
+7. **La política editorial de no publicar relleno.** Es la razón por la que esta auditoría puede
+   distinguir «falta» de «está mal», y es un activo, no una carencia.
+8. **El reflujo a 320 px** y sus comentarios con la causa medida de cada desborde.
+9. **Las mediciones de contraste documentadas** del pie y de los enlaces: son correctas y están
+   razonadas; lo que falta es extenderlas, no rehacerlas.
 
 ---
 
 ## 9. Lo que ya está bien (y no hay que romper «arreglándolo»)
 
-Esta sección existe para que una corrección futura no deshaga trabajo correcto. Todo lo que sigue
-está verificado en el código.
+Sección deliberadamente detallada: en una auditoría con 68 requisitos no cumplidos, lo construido
+bien es la única razón por la que el resto es recuperable.
 
 ### 9.1 Estructura y navegación
 
-1. **El menú de siete ítems y su orden.** Los tres mínimos obligatorios primero (Transparencia,
-   Atención y Servicios a la Ciudadanía, Participa) y los adicionales detrás, con las **seis
-   subcategorías exactas** de Participa (`layouts/default.vue:46-94`, con los comentarios de
-   `:38-45`). Coincide con el Anexo 2 §4.1.2. **No reordenar.**
-2. **La miga de pan se deriva del menú, no se escribe página a página** (`layouts/default.vue:105-150`).
-   Es lo que impide que el nombre de la miga y el del menú diverjan y que una página nueva herede
-   miga sin que nadie se acuerde. El truco de buscar el prefijo más largo (`:125-130`) resuelve bien
-   las rutas de Trasparencia y Participa.
-3. **El `<main>` y el salto al contenido viven en la disposición, no en cada página**
-   (`layouts/default.vue:197-199`), con `tabindex="-1"` para que el foco se mueva de verdad y
-   `outline: none` en el destino (`:250-252`) para que no dibuje un marco sobre todo el contenido.
-   Cualquier página nueva hereda el enlace funcionando.
-4. **El 404 es un 404 de verdad.** `pages/[...ruta].vue:20-27` fuerza `statusCode: 404` con
-   `fatal: true`, y `error.vue:37` monta la disposición a mano porque Nuxt no la aplica a ese
-   fichero. **No sustituir por una redirección a la portada.**
-5. **Los slugs cerrados responden 404 real.** `politicas/[slug].vue:74-82` y
-   `participa/[slug].vue:61-63`. Una dirección inventada no puede devolver 200 con una página vacía:
-   en una sede electrónica eso es peor que un error.
-6. **`robots.txt` no oculta nada** (`sitio/public/robots.txt`, 535 bytes) y explica por qué.
-7. **`content-type` y `cache-control` del `sitemap.xml` son correctos**, y el `<loc>` se construye
-   con URL absoluta y esquema a partir de la configuración y **no** de la cabecera `Host`
-   (`server/routes/sitemap.xml.ts:79-98`). La segunda decisión evita anunciar la IP de un
-   balanceador.
+- **La disposición concentra la carcasa** (`layouts/default.vue`), de modo que barra superior,
+  cabecera, menú, miga, `<main>` y pie **no pueden faltar en una página nueva**. Los criterios
+  CAG-08 y CAG-11 se cumplen *por construcción*, no por disciplina.
+- **El menú se deriva de una única constante** (`:46-94`) y la miga, del propio menú
+  (`:132-150`): es imposible que el nombre de una sección difiera entre el menú y la miga.
+- **El componente de menú acota los topes antes de dibujar** (`MenuNavegacionGovco.vue:143-171`) y
+  documenta por qué no usa `role="menu"` (`:33-39`): añadir roles de aplicación sin sus
+  `menuitem` habría empeorado el árbol accesible del Kit.
+- **El teclado del menú está resuelto entero**: flechas para abrir y recorrer, Inicio/Fin, Escape
+  que cierra y **devuelve el foco al disparador** (`:399-503`).
+- **La página 404 responde 404 de verdad** con `<meta name="robots" content="noindex">`
+  (`error.vue:25-33`, `[...ruta].vue:20-26`), y monta la disposición para no dejar al ciudadano
+  sin navegación.
+- **`robots.txt` y `sitemap.xml` existen y están declarados** (`robots.txt:11`), con dominio
+  tomado de configuración y escapado XML correcto (`sitemap.xml.ts:73-91`).
 
 ### 9.2 Accesibilidad
 
-8. **El contraste es real y no decorativo.** `useAccesibilidad.ts:16-20` y `sitio.css:24-81`: el Kit
-   sólo estilizaba su caja de demostración —**verificado**: `all.css:681,685` son las dos únicas
-   reglas de `.contrast-govco` y ambas apuntan a `.accesibility-example`— y el sitio construyó un
-   modo de verdad, con los contrastes calculados y anotados (21:1 el fondo, ~15:1 el amarillo).
-   Además distingue los estados con `aria-pressed` (`BarraAccesibilidad.vue:45`), que es lo que un
-   lector de pantalla necesita.
-9. **El escalado de letra escala la raíz y no escribe `font-size` en línea en cada elemento**
-   (`useAccesibilidad.ts:40-49`; el Kit recorre `body *` y fija estilos en línea,
-   `vendor-src/.../barra-accesibilidad.js:99-101`). La razón está escrita y es correcta: el enfoque
-   del Kit no alcanza al contenido que llega después de una llamada a la API.
-10. **El carrusel tiene los tres controles obligatorios** —indicadores de posición, flechas y
-    reproducción/pausa— con etiquetas accesibles que cambian con el estado
-    (`CarruselGovco.vue:248-280`), los controles viven en **una barra propia fuera de la imagen** (`:247`, que es
-    CAG-01), y respeta `prefers-reduced-motion` (`:195-200`). El defecto de M-01 es el valor inicial,
-    no el componente. Y es el único componente del sitio realmente reimplementado en su marcado, con
-    motivo declarado y verificado: el Kit superpone los controles a la fotografía.
-11. **El enlace de accesibilidad va en el pie y la página no afirma conformidad.**
-    `PiePaginaGovco.vue:223-232` cita el Anexo 1 §4.3.2 (c) y `pages/accesibilidad.vue:10-17`
-    explica por qué **no** declara un nivel. Las dos decisiones son correctas. **No añadir un sello
-    «Cumple AA» sin la auditoría de GR-07.**
-12. **Las correcciones al Kit están medidas y razonadas, no son gusto.**
-    `sitio.css:183-192` calcula el contraste de cada combinación y elige **texto negro sobre azul
-    celeste de la Entidad** porque es la única que pasa (8,12:1) frente a blanco (2,59:1) o azul
-    noche (2,78:1). `sitio.css:194-205` documenta además un **error propio anterior** —redefinir el
-    token en todo el pie hundía los enlaces de la primera sección a 2,58:1— y su corrección. Es
-    exactamente la disciplina que hay que preservar.
-13. **El texto de los enlaces no depende de Bootstrap.** `sitio.css:254-270`: Bootstrap pinta los
-    enlaces con `#0D6EFD`, que sobre blanco da **exactamente 4,50:1** —en el límite— y sobre el
-    amarillo del Kit baja a 3,63:1. El sitio lo reapunta al Cobalt del Kit (8,46:1) en una sola
-    regla, de modo que un enlace nuevo hereda el color correcto sin que nadie lo escriba.
+- **Salto al contenido** implementado con `clip` y no con `display:none`, con la razón explicada
+  (`CabeceraGovco.vue:106-123`), y destino con `tabindex="-1"` en la disposición (`:197`).
+- **Modo de alto contraste real** (21:1 de fondo, 15:1 en enlaces, foco amarillo de 3 px,
+  `sitio.css:24-81`), construido porque el del Kit es un stub —y está documentado que lo es.
+- **`prefers-reduced-motion` respetado** en las dos piezas con movimiento (`CarruselGovco.vue:195-200`,
+  `VolverArriba.vue:23-24`).
+- **Contraste calculado, no elegido**: los pares del pie y de los enlaces están medidos y anotados
+  con la cifra y el motivo (`PiePaginaGovco.vue:39-50`, `sitio.css:183-192,254-266`). Incluso el
+  caso incómodo —que el azul celeste de la Entidad no admite texto blanco— está resuelto con la
+  medición delante.
+- **Áreas táctiles de 44 px corregidas donde el Kit no las cumple** (`sitio.css:396-414,430-465`).
+- **Reflujo a 320 px** con la causa de cada desborde identificada (`sitio.css:281-334`).
+- **Etiquetas accesibles que empiezan por el texto visible** (WCAG 2.5.3), incluso en el correo de
+  la declaración (`accesibilidad.vue:127-136`).
+- **Jerarquía de encabezados respetada contra el Kit**: el pie usa `h2`/`h3` y reproduce la
+  apariencia del Kit con reglas propias, en lugar de saltar a `h4` (`PiePaginaGovco.vue:32-37`).
 
-### 9.3 Datos, contrato y honestidad
+### 9.3 Honestidad editorial
 
-14. **El catálogo de trámites está completo y es honesto.** 123 trámites con los seis atributos,
-    paginación y búsqueda **en el servidor**, filtros validados contra el contrato
-    (`ListarTramitesRequest`), mensajes de error en castellano escritos a mano y los tipos generados
-    desde el contrato (`types/openapi.d.ts`). **«Contrato primero» se cumple aquí de verdad.**
-15. **La ausencia de datos se declara en pantalla y no se rellena.**
-    `realizar-una-peticion.vue:402-410` (el formulario no radica), `buscar.vue:44-47` (el índice está
-    vacío), `politicas/[slug].vue:111-117`, `components/SeccionEnPreparacion.vue:18-26` y
-    `verificar/[codigo].vue`. **Es la razón por la que esta auditoría tiene que ser explícita: el
-    sitio ya dice la verdad sobre sí mismo.** Buena parte de lo que aquí se llama «hallazgo» está
-    reconocido en la propia interfaz, y eso es una virtud.
-16. **El orden cronológico no se finge.** `docs/transparencia.md:62-64` fija la postura: «mientras la
-    Entidad no declare fechas […] eso hay que declararlo en la página en vez de inventar una
-    cronología». **No cambiarla por comodidad** cuando se construya BL-09.
-17. **La procedencia de cada documento se publica, no se oculta.** El modelo de procedencia —fuente,
-    apartado de origen, campos que no vienen tal cual, reglas con las que se calculó, lo que la
-    fuente no declara— está documentado en `docs/transparencia.md:124-126` y **es el activo más
-    valioso del proyecto**. Es lo que hay que migrar a base de datos en BL-08, no lo que hay que
-    desechar.
-18. **Los defectos del origen están documentados antes de reproducirlos.** `docs/transparencia.md:66-90`
-    enumera los diez, incluido el `<liclass>` malformado que hundía 88 documentos, las diez URLs
-    relativas y el enlace que apuntaba a sí mismo. Y `:94-109` documenta la trampa de los `ds_*.json`
-    («**24 de Barranquilla**, 7 de Santa Rosa de Cabal, **0 de Santa Marta**»). **Ese análisis es el
-    que impide publicar datos ajenos como propios.** Consérvese.
+Es el rasgo más valioso del trabajo y el que hace esta auditoría posible:
 
-### 9.4 La capa visual y el Kit
+- **No se publica contenido de relleno**: las secciones vacías dicen qué publicarán y por qué no
+  lo hacen todavía (`SeccionEnPreparacion.vue:2-11`).
+- **No se finge una capacidad que no existe**: no hay botón de pago donde no hay pasarela
+  (`tramites/[slug].vue:22-28`), no hay formulario de seguimiento donde no hay expediente
+  (`seguimiento.vue:5-9`), no hay consulta de estado simulada.
+- **Los datos publicados declaran su procedencia** campo por campo
+  (`tramites/[slug].vue:13-18`).
+- **La declaración de accesibilidad no declara un nivel de conformidad que no puede acreditar**
+  (`accesibilidad.vue:99-113`): dice lo que sí ofrece y lo que falta.
+- **Los datos de contacto se omiten antes que inventarse** (`PiePaginaGovco.vue:61-65`).
 
-19. **La capa visual no depende de un tercero.** El Kit, Bootstrap y las tipografías se sirven desde
-    el propio dominio (`nuxt.config.ts:61-71`, `public/govco/`), con la copia de Bootstrap verificada
-    contra el `sha384` que publican los ejemplos del Kit. **Y el `all.css` es byte a byte el del
-    Kit**: comprobado con `cmp`, 266 316 bytes idénticos a
-    `vendor-src/layout-govco-v5/src/all.css`. **No se ha modificado el Kit; las correcciones van en
-    `sitio.css`.** Esa separación es la correcta.
-20. **Las 786 referencias a activos del `all.css` resuelven.** Comprobado: de las 787 `url()`
-    distintas del fichero, 786 existen en el disco (la restante es un `data:` URI). No hay un solo
-    icono roto.
-21. **La barra superior reproduce el marcado canónico exacto**, incluido el `<a>` vacío cuyo logo
-    pinta el CSS (`BarraSuperior.vue:16-23` frente a `examples/transversal/barra-superior.html:24-27`
-    y `all.css:702-705`). El único defecto es la altura, y es del Kit (GR-13).
-22. **Ocho de los once componentes conservan el contrato de clases del Kit sin sustituir ninguna.**
-    Verificado clase por clase contra el `all.css`: barra de accesibilidad, barra superior, buscador,
-    galería de aplicaciones, menú de navegación, miga de pan (incluida la clase mal escrita
-    `invested`, que el Kit define así en `all.css:8502`), tarjetas de información y volver
-    arriba. **Ninguna clase del Kit que exista en `all.css` fue reemplazada por otra.**
-23. **Las reimplementaciones en Vue cubren un contrato más amplio que el del Kit.** El menú del Kit
-    **no gestiona ninguna tecla de navegación**; el sitio añade `Escape` con devolución de foco
-    (`MenuNavegacionGovco.vue:399-428`), `ArrowDown`/`ArrowUp` (`:437-500`), `Inicio`/`Fin`
-    (`:486-489`) y cierre al salir el foco (`:516-525`). La galería pasa de 22 líneas de JS sin teclado a un componente con
-    `aria-expanded`/`aria-controls` y navegación en rejilla. **La decisión de no cargar el `script.js`
-    del Kit (ADR-0011) está bien tomada**: el agregado se autoinicializa sobre selectores que en
-    estas páginas no existen —y su propio encabezado dice `Version: 4.0.0`
-    (`vendor-src/.../src/script.js:3`) mientras el árbol dice 5.0.0—.
-24. **El sitio documenta cada desviación del Kit con su motivo.** Los JSDoc de cabecera de los once
-    componentes explican **por qué** se apartan, y **en los 20 puntos que he podido verificar, la
-    descripción del Kit es exacta**: el `content: url(...Logo-v2-MinTIC.png)`, el stub del contraste,
-    el `-webkit-fill-available` del buscador, la clase muerta `barra-inferior-desktop`, el
-    `position: absolute` del `logo-container`, la ausencia de `sr-only` en el Kit y en Bootstrap 5
-    (que la renombró `visually-hidden`). **Ese rigor es el activo que hay que conservar.**
-25. **El Kit es el insumo peor construido del proyecto, y el sitio lo sabe.** Medición reproducible
-    de `vendor-src/`: **239 defectos**, entre ellos 8 clases referenciadas en los ejemplos que no
-    existen en su propio `all.css`; una deriva de versión demostrable (los ejemplos usan
-    `barra-inferior-desktop`/`dir-menu-govco` mientras el bundle define
-    `barra-inferior-mobile`/`container-navbar-menu-govco`); dependencia de Bootstrap CSS **y JS** que
-    su README niega; 15 defectos de JS (dos ramas muertas por `classList.contains('button.x')`, cuatro
-    accesos sin comprobar nulo que lanzan `TypeError`, un `window.onload` que sobrescribe y un
-    `Escape` que cierra un modal fijo por id); 194 enlaces con destino vacío o `#`; 8 defectos ARIA; y
-    tres plantillas de ejemplo que enlazan `../src/govco.css`, un fichero **inexistente**.
-    **Conclusión que hay que retener: cada apartamiento del sitio tiene su causa en el Kit, no en el
-    sitio.** Cuando algo del sitio parezca raro, **léase primero el Kit**.
+Esa disciplina es la que convierte 68 ❌ en una lista de trabajo en lugar de una lista de defectos.
 
-### 9.5 Backend, contrato y puertas
+### 9.4 La capa visual y el Kit (cruce con `vendor-src/`)
 
-26. **La integración continua es seria y no decorativa.** Cinco trabajos bloqueantes (`ci.yml`:
-    Contrato, Backend, Panel, Sitio, Pila) más revisión de dependencias, con una comprobación
-    **negativa** deliberada de que la pila deja de resolverse cuando falta un secreto
-    (`ci.yml:173-189`). El trabajo `Sitio` comprueba tipos **porque** `nuxt build` no los comprueba
-    (`ci.yml:145-148`). Lo que falta es añadir accesibilidad y pruebas de frontend (GR-07).
-27. **`panel/vite.config.ts:7-14` documenta un fallo que habría sido invisible.** `base: '/admin/'`
-    no es cosmético: sin él, Vite emitía las direcciones de sus activos desde la raíz y el navegador
-    recibía una página HTML con `nosniff` y se negaba a ejecutarla: **el panel quedaba en blanco con
-    todas las respuestas en 200**. Es el tipo de defecto que cuesta un día encontrar y una línea
-    arreglar.
-28. **El panel protege la procedencia de sus fuentes.** `panel/src/assets/fonts/LEEME.md` documenta
-    el `sha256` de cada binario, la fecha de obtención, la licencia (SIL OFL 1.1) y el procedimiento
-    exacto para regenerarlas, con la razón de autoalojarlas: «cargarla desde un tercero entregaría la
-    IP de cada funcionario a un servicio externo, que en una entidad pública es una cesión de datos
-    que no corresponde hacer». **Es la misma disciplina que la procedencia del sitio, aplicada a un
-    producto interno. Consérvese.**
-29. **Los componentes base del panel están bien construidos, y GR-01 no los desmiente.**
-    `FormField.vue` asocia etiqueta con `for`, usa `aria-describedby`, `aria-invalid` y `role="alert"`
-    (`:52-90`). `DataTable.vue` emite un `<table>` con `scope="col"` (`:58-64`) y estado vacío y de
-    carga propios. `BaseModal.vue` tiene `role="dialog"`, `aria-modal`, cierre con `Escape` y con
-    clic en el fondo. `KpiCard.vue:24-28` **documenta el contraste medido** y elige los tonos `-700`
-    en lugar de `-600` porque «`emerald-600` da 3,76:1 y no alcanza el 4,5:1 que exige WCAG 2.1 AA».
-    **El problema del panel no es su calidad: es que le falta la mitad que publica** (M-13).
+- **`sitio/public/govco/all.css` es byte a byte idéntico al del Kit** (md5
+  `e656079915d1f96d5ab8b9bd813ffb17` en los dos): la copia vendorizada es fiel, no un extracto.
+- **Bootstrap 5.0.2 se carga desde el propio dominio y antes del Kit**, con la justificación
+  escrita de por qué es imprescindible y por qué el orden importa (`nuxt.config.ts:44-61`).
+- **Se usan las clases canónicas del Kit** en los componentes que existen: cabecera, menú (incluidas
+  las variantes `col-2`/`col-3`/`megamenu`), miga (`inverted`/`invested`, con la errata del Kit
+  replicada a propósito), pie, carrusel, tarjetas, botones, buscador básico, barra de accesibilidad
+  y volver arriba.
+- **La galería de aplicaciones está completa** (13 de 13 clases del Kit) aunque hoy no se instancie:
+  el trabajo hecho se conserva aunque haya que colocarlo (D-28).
+- **Se evitan las trampas del Kit por decisión y no por suerte**: no se carga su JS, no se copia su
+  logotipo del MinTIC, no se reproduce su combinación verde de 3,61:1, no se pone `role="button"`
+  en un enlace, no se usa `content:url()` para un logotipo con `alt`.
+
+### 9.5 Por qué no cargar el `script.js` del Kit es la decisión correcta (verificado)
+
+La auditoría del Kit confirma, uno por uno, los motivos que el código del sitio declara:
+
+1. **`barra-superior.js:7-8` lanza `TypeError`** con exactamente la variante que la sede usa
+   (barra superior sin botón de idioma): `querySelector` + `addEventListener` sin guarda de `null`.
+2. **El contraste del Kit es un stub**: alterna `contrast-govco` y sus dos únicas reglas apuntan a
+   su caja de demostración (`all.css:681,685`).
+3. **El escalado de letra es acumulativo**: recorre `body *` y escribe `font-size` en línea
+   (`script.js:164,179`), sumando sobre el valor ya modificado y dejando sin escalar lo que se
+   dibuje después. Es literalmente el defecto que `useAccesibilidad.ts:7-14` describe.
+4. **El carrusel del Kit no se detiene y rota cada 2 s** (`carrusel.js:14-16`,
+   `carrusel.html:26,28`, `pause:false`), y su código corre en tiempo de parseo, antes de que el
+   DOM exista.
+5. **La alerta modal abre TODOS los modales al cargar** (`alerta-modal.js:1-14`, con
+   `display:block !important` en el CSS).
+6. **La carga de archivos tiene un contrato roto**: `data-action` documentado como código de
+   función y consumido con `JSON.parse` (`carga-archivos.js:275`) → cae al `catch` y el callback
+   nunca se ejecuta.
+7. **El bundle `script.js` no se puede cargar junto con los parciales**: declaraciones `let`
+   duplicadas (`DatePicker`, `DatePickerDay`, `itemsDropdownCandy`) producen `SyntaxError`.
+8. **Ningún HTML del propio Kit referencia `script.js`** (0 coincidencias): son 3 925 líneas que
+   el fabricante no usa en sus propios ejemplos.
+
+Además, los 5 esqueletos de `examples/` enlazan **sin `rel`** un `../src/govco.css` que **no
+existe**, y varios ejemplos usan `viewport content="width=+"` inválido y `lang="en"` sobre
+contenido español. **Conclusión: el sitio no debe cargar ningún `.js` del Kit, y esta auditoría lo
+respalda con la misma evidencia que el proyecto ya había reunido.**
+
+### 9.6 Contrato, datos y puertas del backend
+
+- **El contrato es la única fuente de verdad declarada y se respeta**: los dos clientes importan
+  tipos generados desde `openapi.yaml` (`tramites/index.vue:46`, `tramites/[slug].vue:44`,
+  `panel/src/types/api.ts`), y el sobre plano se desempaqueta **en un solo sitio**
+  (`panel/src/services/http.ts:47-66`), no en cada vista.
+- **El catálogo de trámites se resuelve en el servidor**, con `useRequestFetch` y la razón explicada
+  (`tramites/index.vue:277-280`), y con una colección vacía declarada en lugar de una petición
+  inventada para lo que aún no se publica.
+- **La sesión del panel viaja en cookie `HttpOnly` y no en `localStorage`**
+  (`panel/src/services/http.ts:40-43`), que es la decisión correcta y coherente con C-20.
+- **El backend tiene pruebas reales** (6 clases de prueba más su `TestCase` y un doble de prueba:
+  `Api/V1/TramiteTest`, `Datos/TramiteSeederTest`, `Ingesta/IngestaTramitesTest`,
+  `Ingesta/ReconciliacionSuitTest`, `SaludTest`, `Unit/Support/ContactoPublicableTest`); el agujero
+  de pruebas está en los dos frontends (D-19).
 
 ---
 
-## 10. Índice de hallazgos
+## 10. Índice de hallazgos y mapa de archivos
 
-**47 hallazgos**: 10 bloqueantes, 19 graves, 13 medios, 5 menores.
+### 10.1 Índice por gravedad
 
-### Por gravedad
-
-| Código | Título | Sección | Cadena |
+| 🔴 Bloqueantes (6) | 🟠 Graves (17) | 🟡 Medios (20) | ⚪ Menores (9) |
 |---|---|---|---|
-| **BL-01** | No hay radicación: el contrato no declara ninguna operación de escritura | 04 | 1 |
-| **BL-02** | No hay acuse de recibo ni compromiso de radicado | 04 | 1 |
-| **BL-03** | No hay mecanismo de seguimiento en línea | 04 | 1 |
-| **BL-04** | No hay control antispam, y el paquete ya decidido está instalado sin cablear | 04, 09 | 1 |
-| **BL-05** | No existe consentimiento de cookies | 01 | — |
-| **BL-06** | Las cinco políticas obligatorias no tienen documento | 01, 09 | — |
-| **BL-07** | El buscador de la Sede no existe: hay un campo que no busca | 01, 02 | — |
-| **BL-08** | No hay gestor de contenidos: ningún funcionario puede publicar sin desplegar código | 12 | 2 |
-| **BL-09** | La sección de Transparencia no existe | 02 | 2 |
-| **BL-10** | La matriz de trazabilidad del proyecto certifica un estado que no existe | Transversal | 3 |
-| **GR-01** | El panel no tiene ningún control de acceso: declara permisos y no los lee | 12, 09 | 1, 2 |
-| **GR-02** | El panel afirma una sesión y un doble factor que no existen | 12 | 4 |
-| **GR-03** | El panel publica cifras de maqueta, incluido el ITA que una decisión prohíbe | 12 | 2 |
-| **GR-04** | El panel no habla con la API: cliente huérfano, sin tiendas y sin contrato de escritura | 12 | 2 |
-| **GR-05** | ADR-0009 decide Filament 5 en `/admin`; lo construido sirve una SPA Vue en `/admin` | 12 | 2, 4 |
-| **GR-06** | Los ADR describen una arquitectura que ya no existe, y ninguno tiene fecha | Transversal | 4 |
-| **GR-07** | No hay prueba de accesibilidad ni declaración de conformidad, y la puerta citada no existe | 07, 08 | 3 |
-| **GR-08** | La línea base no está versionada, está duplicada y no reconcilia | Transversal | 3 |
-| **GR-09** | La fecha de publicación es opcional en la fuente y no consta en ninguna | 02 | 2 |
-| **GR-10** | La ficha del trámite no publica los cuatro momentos GOV.CO | 03 | 2 |
-| **GR-11** | Cinco secciones del menú y el sitemap son avisos de «en preparación» | 01-06 | 2 |
-| **GR-12** | El sitio no aplica la tipografía ni el interlineado del Kit, y ahora está medido | 01, 08 | 3 |
-| **GR-13** | El enlace de la barra superior mide 36 px: la corrección escrita se aplicó a otro selector | 01, 07 | 3 |
-| **GR-14** | Nueve componentes del Kit exigidos para sedes electrónicas no existen | 01, 03 | 4 |
-| **GR-15** | No hay aviso de salida a sitio externo, y el ADR que lo declara inaplicable contradice la norma | 01 | 2, 4 |
-| **GR-16** | Las 123 fichas de trámite no están en el `sitemap.xml` | 01, 03 | 2 |
-| **GR-17** | Falta el Área de servicio en la ficha del trámite | 03 | 2 |
-| **GR-18** | Los canales de atención no permiten pedir cita | 06 | 1 |
-| **GR-19** | Seis paquetes de Spatie están declarados y no los usa ningún fichero | 09, 12 | 1, 2 |
-| **M-01** | El carrusel arranca solo | 01 | 2 |
-| **M-02** | No hay encuesta de usabilidad ni criterio cuantitativo de «cumple» | 08 | 1 |
-| **M-03** | No hay federación de datos abiertos a `datos.gov.co` | 11 | 2 |
-| **M-04** | La sección de normativa no publica el enlace al SUIN | 02 | 2 |
-| **M-05** | Los datos de la Entidad están duplicados en tres ficheros | 01 | 2 |
-| **M-06** | El catálogo de tipos de PQRSD está duplicado | 04 | — |
-| **M-07** | Dependencias declaradas y no usadas en el sitio y en el panel | Transversal | 3 |
-| **M-08** | La galería de aplicaciones no está montada, y el ADR afirma que sí | 01 | 4 |
-| **M-09** | Dos implementaciones de los controles de accesibilidad, con mecanismos y claves distintos | 07 | 4 |
-| **M-10** | La página 404 ofrece una sola vía de navegación propia | 01 | — |
-| **M-11** | `/servicios` y `/tramites` cubren el mismo objeto | 03 | 3 |
-| **M-12** | El panel declara tokens «GOV.CO oficiales» que no lo son | 01 | 4 |
-| **M-13** | El panel no puede publicar contenido: inventario de lo que falta | 12 | 2 |
-| **m-01** | `BaseModal.vue` no gestiona el foco | 12 | 3 |
-| **m-02** | `DataTable.vue` ordena con ratón y no con teclado | 12 | 3 |
-| **m-03** | La paginación del panel está a 32×32 px | 12 | 3 |
-| **m-04** | El `README.md` del panel es la plantilla de Vite sin adaptar | 12 | — |
-| **m-05** | `/buscar` se anuncia en el `sitemap.xml` y la página pide no indexarse | 01, 08 | — |
+| D-01 Cookies | D-07 Noticias en portada | D-24 Mapa y sitemap manuales | D-44 Servicios vs Trámites |
+| D-02 Aviso sitio externo | D-08 Portada por tareas | D-25 robots/lastmod | D-45 `/participa` mal marcada |
+| D-03 Buscador | D-09 404 | D-26 Visitados | D-46 Dos logotipos |
+| D-04 Autenticación del panel | D-10 Políticas sin documento | D-27 Confirmación y pasos | D-47 Título del panel |
+| D-05 Cifras simuladas | D-11 Barra de accesibilidad | D-28 Componentes ausentes | D-48 Ayuda sin canal |
+| D-06 Puertas y trazabilidad | D-12 Carrusel en reproducción | D-29 Metadatos sociales | D-49 Comentario del pie |
+| | D-13 Adjuntos y captcha | D-30 `make tipos` | D-50 Hueco de buscador |
+| | D-14 Identidad del panel | D-31 Listas duplicadas | D-51 Clases inertes |
+| | D-15 Módulos marcador | D-32 Tope del menú | D-52 Manifiesto incompleto |
+| | D-16 Accesibilidad del panel | D-33 Panel no responsive | |
+| | D-17 Secciones vacías | D-34 Icono como texto | |
+| | D-18 Datos de la Entidad | D-35 Código y dependencias muertas | |
+| | D-19 Sin pruebas | D-36 i18n sin decisión | |
+| | D-20 ADR-0015 caducado | D-37 `tabla-govco` mal anidada | |
+| | D-21 Barra en tablet | D-38 Medida de línea | |
+| | D-22 Enlaces internos | D-39 Foco visible | |
+| | D-23 Declaración de conformidad | D-40 Espaciado de texto | |
+| | | D-41 Tipos del sitio | |
+| | | D-42 Permisos por módulo | |
+| | | D-43 Staging indexable | |
 
-### Por archivo — dónde hay que tocar
+### 10.2 Por archivo: dónde hay que tocar
 
-| Archivo | Hallazgos |
+| Fichero | Hallazgos |
 |---|---|
-| `contract/openapi.yaml` | BL-01, BL-03, BL-07, GR-04, GR-09, GR-10, GR-18 |
-| `backend/` (`composer.json`, `Models/`, `Policies/`, `routes/`) | BL-01, BL-02, BL-04, BL-08, GR-01, GR-19 |
-| `panel/src/router/index.ts` | GR-01, M-13 |
-| `panel/src/views/admin/InicioView.vue` | GR-03, M-13 |
-| `panel/src/views/admin/EnConstruccionView.vue` | BL-08, M-13 |
-| `panel/src/views/acceso/EntrarView.vue` | GR-02, BL-04 |
-| `panel/src/layouts/AdminLayout.vue` | GR-02 |
-| `panel/src/services/http.ts`, `types/api.ts`, `main.ts` | GR-04 |
-| `panel/src/assets/styles/tokens.css`, `main.css` | M-09, M-12 |
-| `panel/src/components/base/BaseModal.vue` | m-01 |
-| `panel/src/components/base/DataTable.vue` | m-02, m-03 |
-| `panel/README.md` | m-04 |
-| `sitio/app/layouts/default.vue` | GR-02 |
-| `sitio/app/pages/realizar-una-peticion.vue` | BL-01, BL-02, BL-04, M-06 |
-| `sitio/app/pages/seguimiento.vue` | BL-03, GR-11 |
-| `sitio/app/pages/transparencia.vue` | BL-09, GR-11 |
-| `sitio/app/pages/politicas/[slug].vue` | BL-06, §7.2 #8 |
-| `sitio/app/pages/buscar.vue` | BL-07, m-05 |
-| `sitio/app/pages/tramites/[slug].vue` | GR-10, GR-15, GR-17 |
-| `sitio/app/pages/tramites/index.vue` | GR-14 (paginación) |
-| `sitio/app/pages/normativa.vue` | M-04 |
-| `sitio/app/pages/atencion.vue` | GR-18, M-05 |
-| `sitio/app/pages/pqrsd.vue` | M-06, §6.2 (tabla mal anidada) |
-| `sitio/app/pages/servicios.vue`, `portales.vue`, `noticias.vue` | GR-11, M-11 |
-| `sitio/app/components/govco/BuscadorGovco.vue` | BL-07 |
-| `sitio/app/components/govco/CarruselGovco.vue` | M-01 |
-| `sitio/app/components/govco/BarraSuperior.vue` + `sitio.css` | GR-13 |
-| `sitio/app/components/govco/GaleriaAplicacionesGovco.vue` | M-08 |
-| `sitio/app/assets/css/sitio.css` | GR-12, GR-13 |
-| `sitio/server/routes/sitemap.xml.ts` | GR-11, GR-16, m-05 |
-| `sitio/package.json` | M-07, GR-07 |
-| `panel/package.json` | M-07, GR-07 |
-| `docker/nginx/conf.d/default.conf` | GR-05, M-13 |
-| `docs/trazabilidad.md` | BL-10 |
-| `docs/adr/README.md` | GR-05, GR-06, GR-14, GR-15, M-08, M-12, §7.1 |
-| `docs/Sección 1, 4, 5, 6` | §6.4, §7.3 |
-| Corpus (`01`/`02`/`03`/`04`/`07`/`12`, `_global/`) | BL-09, GR-08, GR-09, GR-14, GR-17, §6.4 |
+| `sitio/app/layouts/default.vue` | D-02, D-22, D-31, D-32 |
+| `sitio/app/components/govco/BarraSuperior.vue` | D-02, D-36 |
+| `sitio/app/components/govco/BarraAccesibilidad.vue` | D-11, D-21 |
+| `sitio/app/components/govco/CabeceraGovco.vue` | D-22 (enlaces), D-46 |
+| `sitio/app/components/govco/MenuNavegacionGovco.vue` | D-31, D-32, D-50 |
+| `sitio/app/components/govco/BuscadorGovco.vue` | D-03 |
+| `sitio/app/components/govco/CarruselGovco.vue` | D-12, D-22, D-51 |
+| `sitio/app/components/govco/GaleriaAplicacionesGovco.vue` | D-28, D-51 |
+| `sitio/app/components/govco/PiePaginaGovco.vue` | D-02, D-18, D-24, D-31, D-46, D-49 |
+| `sitio/app/components/govco/MigaDePanGovco.vue` | D-22 |
+| `sitio/app/composables/useAccesibilidad.ts` | D-11, D-35, D-40 |
+| `sitio/app/pages/index.vue` | D-07, D-08, D-44, D-48 |
+| `sitio/app/pages/buscar.vue` | D-03, D-22 |
+| `sitio/app/pages/error.vue` | D-09 |
+| `sitio/app/pages/politicas/[slug].vue` | D-10, D-31 |
+| `sitio/app/pages/mapa-del-sitio.vue` | D-24, D-31, D-45 |
+| `sitio/app/pages/pqrsd.vue` | D-31, D-37 |
+| `sitio/app/pages/realizar-una-peticion.vue` | D-13, D-27 |
+| `sitio/app/pages/tramites/*.vue` | D-22, D-51 |
+| `sitio/app/pages/participa/index.vue`, `participa/[slug].vue` | D-17, D-22, D-31 |
+| `sitio/app/assets/css/sitio.css` | D-26, D-38, D-39 |
+| `sitio/nuxt.config.ts` | D-41, D-43 |
+| `sitio/server/routes/sitemap.xml.ts` | D-24, D-25, D-31 |
+| `sitio/public/robots.txt`, `site.webmanifest` | D-25, D-43, D-52 |
+| `panel/src/router/index.ts` | D-04, D-42 |
+| `panel/src/layouts/AdminLayout.vue` | D-16, D-33, D-34, D-42 |
+| `panel/src/views/acceso/EntrarView.vue` | D-04 |
+| `panel/src/views/admin/InicioView.vue` | D-05 |
+| `panel/src/components/base/DataTable.vue`, `BaseModal.vue`, `AccessibilityBar.vue` | D-16 |
+| `panel/src/assets/styles/tokens.css`, `fonts.css` | D-14, D-35 |
+| `panel/index.html` | D-14, D-47 |
+| `Makefile` | D-06, D-30, D-41 |
+| `docs/trazabilidad.md`, `docs/adr/README.md`, `docs/Sección 2/4/5/6` | D-06, D-20, C-01 a C-25 |
+| `sede-electronica-doc/01-estructura-identidad/sede.md` | §3.2 (duplicado byte a byte) |
+| `sede-electronica-doc/**` | C-22, C-23 y las 17 colisiones de identificadores (§3.4) |
+
+### 10.3 Método de verificación reproducible
+
+Cualquiera puede rehacer las comprobaciones centrales de esta auditoría sin más herramientas que
+`grep` y `git`:
+
+```bash
+# D-01: no hay banner de cookies
+grep -ri 'cookie' sitio/app | grep -v 'uso-de-cookies'      # → sólo enlaces y política
+# D-02: no hay aviso de sitio externo
+grep -rn 'sitio externo' sitio/app                          # → 0 resultados
+# D-03: el buscador no busca
+sed -n '44,49p' sitio/app/pages/buscar.vue
+# D-04: el panel no tiene guardias
+grep -rn 'beforeEach' panel/src                             # → 0 resultados
+# D-05: cifras simuladas
+sed -n '26,29p' panel/src/views/admin/InicioView.vue
+# D-06: puertas a artefactos inexistentes
+ls panel/tests scripts sitio/tests                          # → no existen
+grep -n 'frontend/tests' docs/trazabilidad.md | wc -l        # → citas a un árbol inexistente
+# D-11: sin persistencia ni Centro de Relevo
+grep -rn 'localStorage' sitio/app                            # → 0 resultados
+grep -rin 'relevo' sitio/app                                 # → 0 resultados
+# D-12: el carrusel arranca solo
+grep -n 'autoplay' sitio/app/components/govco/CarruselGovco.vue
+# D-13: sin adjuntos ni captcha
+grep -rn 'type="file"' sitio/app                             # → 0 resultados
+grep -rin 'captcha' sitio/app                                # → 0 resultados
+# D-14: identidad del panel
+grep -n '3366CC' panel/src/assets/styles/tokens.css
+# D-18: /entidad no se consume
+grep -rn 'entidad' sitio/app --include=*.vue | grep -i fetch # → 0 resultados
+# D-19: sin pruebas
+find sitio panel -name '*.spec.*' -o -name '*.test.*' | grep -v node_modules  # → 0
+# D-22: enlaces internos con <a href>
+grep -rn '<a ' sitio/app --include=*.vue | grep -v NuxtLink
+# D-26: sin vínculos visitados
+grep -rn ':visited' sitio/app                                # → 0 resultados
+# D-30/D-41: tipos y compilación
+grep -n 'api.d.ts\|openapi.d.ts' Makefile
+grep -n 'typeCheck' sitio/nuxt.config.ts
+# D-37: la tabla del Kit mal anidada
+sed -n '221,222p' sitio/app/pages/pqrsd.vue
+# §3.2: el módulo 01 duplicado
+diff -q sede-electronica-doc/01-estructura-identidad/sede.md \
+        sede-electronica-doc/01-estructura-identidad/estructura-identidad.md
+# D-46: dos logotipos distintos
+md5sum docs/logo500Or.png sitio/public/logo-entidad.png panel/public/logo-alcaldia.png
+```
+
+**Lo que este método no puede comprobar** —y por eso aparece como ⛔ en la sección 4—: contraste
+efectivo, reflujo y áreas táctiles reales, FCP, validez W3C, navegación con productos de apoyo,
+posición en buscadores y encuestas de usabilidad. Todo eso exige ejecutar la sede; es exactamente
+lo que la Fase 1 de la sección 8 propone construir.
 
 ---
 
-### Cierre
+## 11. Anexos
 
-Dos frases que resumen el estado, y conviene que no se pierdan entre 47 hallazgos:
+### Anexo A — Los 34 criterios de aceptación de diseño (CAG-01 a CAG-34), texto literal y estado
 
-**Lo que está bien, está muy bien, y está documentado en el propio código con una disciplina que no
-he visto en ningún otro punto del proyecto.** Las 25 piezas de la sección 9 no son cumplidos: son
-trabajo que una corrección apresurada puede destruir, y varias de ellas —la abstención de declarar
-conformidad, la negativa a inventar fechas, la publicación de la procedencia, el contraste medido y
-no elegido— son la razón por la que esta auditoría ha podido ser precisa.
+Línea base de aceptación del diseño (`docs/Sección 2 · Diseño.md §2.4`), con el estado que esta
+auditoría les asigna. La columna **Δ** indica si el criterio se desvía por decisión declarada.
 
-**Lo que falta, falta entero.** No hay secciones a medio construir por descuido: de los 206 requisitos con enunciado, 22 tienen
-artefacto que cumple su criterio, 45 tienen parte, y 139 no tienen nada. Y la más urgente no es ninguna de las catorce: es
-**GR-01**, porque hoy hay una superficie de administración accesible desde Internet que anuncia un
-doble factor inexistente; y la segunda es **BL-10**, porque mientras el proyecto crea que cumple el
-87 %, cada decisión que se tome sobre esa cifra será una decisión equivocada.
+| CAG | Criterio literal | Sev. | Estado | Nota |
+|---|---|---|---|---|
+| CAG-01 | Los elementos controladores del carrusel NO deben solaparse ni confundirse con las imágenes o fondos; si ocurre, añadir fondo a los controles o ubicarlos fuera del carrusel. | 🔴 | ✅ | El carrusel lleva los controles en una banda propia fuera de la imagen (`CarruselGovco.vue:23-28`). |
+| CAG-02 | Carrusel: indicadores de posición, flechas de navegación y controles de reproducción/pausa (todos obligatorios). | 🔴 | ✅ | `CarruselGovco.vue:240-300`. |
+| CAG-03 | Carrusel: contraste mínimo 4.5:1 entre contenido y controles. | 🔴 | ⛔ | Documentado (todo pulsable en blanco sobre cobalto, 8,46:1) pero **sin medición reproducible** (D-19). |
+| CAG-04 | Carrusel: las imágenes deben llevar `alt`, `aria-label` o `aria-labelledby`. | 🟠 | ✅ | El `alt` es obligatorio en el tipo (`CarruselGovco.vue:48-53`) con aviso en desarrollo (`:115-123`). |
+| CAG-05 | Barra superior: logo GOV.CO 24 × 136 px, `#0943B5`, enlaza a `https://www.gov.co/home/`. | 🔴 | 🟡 | Enlaza a `https://www.gov.co/` sin `/home/` (`BarraSuperior.vue:18`); el tamaño lo pone el Kit y no se declara. |
+| CAG-06 | Botón de cambio de idioma 24 × 24 px a la derecha, `aria-label`, idioma persistente. | 🟠 | ➖ Δ | Omitido por ADR-0015, **pero FUN-010 y la GUIA Maestra exigen enlaces de traducción** (C-08, C-22). |
+| CAG-07 | Barra de accesibilidad con Aumentar letra · Reducir letra · Contraste; oculta entre 768-992 px. | 🔴 | ✅ | `BarraAccesibilidad.vue:39-72`, oculta por debajo de 992 px. **Contradice RNF-07-D01** (C-25, D-21). |
+| CAG-08 | Enlace «Saltar al contenido principal» con `sr-only sr-only-focusable` al destino. | 🔴 | ✅ | `CabeceraGovco.vue:66-68`; clases implementadas en `:113-150`; destino en la disposición (`layouts/default.vue:197`). |
+| CAG-09 | Menú: máximo 7 ítems principales y máximo 4 secciones internas por ítem. | 🔴 | ✅ | 7 exactos (`layouts/default.vue:46-94`); el tope se aplica en el cliente (D-32). |
+| CAG-10 | `aria-label` en el menú, navegación completa por teclado y contraste de foco ≥ 4.5:1. | 🔴 | 🟡 | `aria-label` y teclado ✅ (`MenuNavegacionGovco.vue:556,399-503`); **el contraste del foco no se mide** (D-39). |
+| CAG-11 | Miga de pan en todas las secciones excepto Home; invertida sólo sobre fondo oscuro. | 🔴 | ✅ | Derivada de la ruta (`layouts/default.vue:132-150`), por construcción. |
+| CAG-12 | Pie: contraste ≥ 4.5:1 con logo autoridad + GOV.CO + Colombia-CO. | 🔴 | ✅ | `PiePaginaGovco.vue:39-50,281-358`; la disposición de logos se corrige frente al Kit (`sitio.css:107-129`). |
+| CAG-13 | Botones `<button type="button">` con `aria-label` si sólo llevan ícono; estados `:hover`/`:focus`. | 🔴 | ✅ | `BarraAccesibilidad.vue:40-71`, `VolverArriba.vue:37`. |
+| CAG-14 | Botones deshabilitados con `disabled`, fuera del orden de tabulación. | 🟠 | ✅ | `BarraAccesibilidad.vue:56,67`. |
+| CAG-15 | Buscador con placeholder claro, borrable y navegable por teclado. | 🟠 | ✅ | `BuscadorGovco.vue:97-133`; el botón de limpiar sólo existe cuando hay texto (`:118-126`). |
+| CAG-16 | Asterisco `*` para obligatorios + leyenda inicial; `<label for>`. | 🟠 | ✅ | Asterisco y `label` ✅. **La leyenda existía pero a mitad del formulario**: los dos primeros campos ya eran obligatorios y quien lo rellenaba se topaba con el asterisco antes que con su explicación. Se movió al principio y se enlazó con `aria-describedby` (§16.1). Medido: va antes del primer campo obligatorio. |
+| CAG-17 | Entradas con borde contrastado, estados Default/Active/Focus/Disabled/Valid/Invalid y `autocomplete`. | 🟠 | ✅ | `autocomplete` en los 13 campos visibles del formulario y en el buscador. Estados completos: foco al cobalto, deshabilitado con fondo del Kit y opacidad 1 (el 0,65 de Bootstrap dejaba el texto ilegible) y validez con el rojo institucional (§16.1). Medido con navegador. |
+| CAG-18 | Desplegable-lista: máximo 5 elementos visibles antes de scroll. | 🟡 | ➖ Δ | Reexpresado a 12 por ADR-0015 §2, con justificación razonada (C-06). |
+| CAG-19 | Calendario con estilo similar al de la sección Desplegables. | 🟡 | ➖ Δ | Declarado no aplica; no hay campos de calendario (C-06). |
+| CAG-20 | Línea de avance con foco ≥ 4.5:1 y paso libre o bloqueado según obligatoriedad. | 🟠 | ❌ | No existe el componente y **§2.5 lo exige en el detalle de trámite** (C-06). |
+| CAG-21 | Alerta modal cerrable con Esc y clic fuera; sin anidar; máximo un modal. | 🔴 | ❌ | No existe, **y RF-B1-071 (Must) lo necesita** (D-02). |
+| CAG-22 | Notificaciones *toast* con duración suficiente y cierre automático. | 🟠 | ❌ | No existe, y §2.5 lo exige en las notificaciones globales (C-06). |
+| CAG-23 | Paginación ≥ 44 × 44 px en móvil con `aria-current` en la página activa. | 🟠 | 🟡 | `tramites/index.vue:782-805` con `aria-current`; el tamaño se corrige globalmente (`sitio.css:463-465`) pero sin medición móvil. |
+| CAG-24 | Tablas: números a la derecha y sin scroll horizontal en responsive. | 🟡 | ✅ | **ADR-0015 la declaró «no aplica» y `pqrsd.vue:222` publica una tabla**: la desviación caducó (D-20). |
+| CAG-25 | Acordeón con `aria-expanded`, sin apertura al enfocar y con jerarquía de encabezados. | 🔴 | ❌ | No existe, y §2.5 lo exige en Trámites y Detalle (C-06). |
+| CAG-26 | Tarjeta encerrada en `<a>` o `<button>`, con máximo 2 palabras en el título/CTA. | 🟠 | ✅ | `TarjetaInformacionGovco.vue:9-15,92-100`; el `<a>`/`<button>` envuelve la tarjeta entera. |
+| CAG-27 | Tipografía: nunca justificar, 45-75 caracteres por línea, unidades relativas. | 🟡 | ✅ | No se justifica ✅; **la medida de línea excede el rango** (D-38) y hay `px` en varios puntos del sitio. |
+| CAG-28 | Color: contraste 4.5:1 (texto normal) y 3:1 (texto grande). | 🔴 | ⛔ | Mediciones parciales documentadas y correctas; **sin medición exhaustiva** (D-19). |
+| CAG-29 | Indicador de carga: si supera 10 s, informar del progreso. | 🟠 | 🟡 | **Implementado** en `tramites/index.vue`: si la consulta pasa de diez segundos, el estado de carga añade un aviso dentro de un `role="status"`. **No medido**: haría falta un servicio con más de diez segundos de latencia, que este entorno no tiene; la matriz lo lista como «implementación», no como prueba. |
+| CAG-30 | Volver arriba en la esquina inferior derecha con foco visible. | 🟡 | ✅ | `VolverArriba.vue:36-49`, con `aria-label` y respeto de `prefers-reduced-motion`. |
+| CAG-31 | Galería de aplicaciones navegable con teclado; abre con Enter y cierra con Esc. | 🟠 | ❌ | El componente está completo y **nunca se instancia** (D-28). |
+| CAG-32 | Todos los componentes cumplen la Resolución 1519 y WCAG 2.1 AA. | 🔴 | ⛔ | **Sin axe-core ni Lighthouse ejecutados** (D-19); es el criterio peor acreditado. |
+| CAG-33 | Construir sobre Bootstrap 5.0.2 y las variables `--govcolor-*`. | 🔴 | ✅ | `nuxt.config.ts:61,71`; Bootstrap 5.0.2 desde el propio dominio y antes del Kit. |
+| CAG-34 | Servir el frontend desde el CDN oficial v5 o desde la copia local del repo. | 🟠 | ✅ | Copia local **byte a byte idéntica** al Kit (md5 verificado); ADR-0002 documenta por qué (C-02). |
+
+### Anexo B — Criterios de los PDF oficiales de MinTIC · AND
+
+**Diseño** (1 página, 2 ítems): los dos están cubiertos por CAG-01 y su alternativa.
+
+**Funcionalidad** (1 página, 6 ítems, orden verificado por coordenadas del PDF):
+
+| # | Criterio literal | Estado |
+|---|---|---|
+| 1 | Garantiza que los vínculos presentados en las páginas no estén rotos y direccionen a las páginas solicitadas. | ⛔ sin rastreador; sin indicios de rotura |
+| 2 | Cuando se direccione a una página externa, se recomienda que se abra en una nueva pestaña. | ✅ `target="_blank" rel="noopener"` |
+| 3 | Garantiza que los campos obligatorios dentro de los formularios cumplan con esa condición; si el usuario no los diligencia, debe presentarse el mensaje de error. | ✅ `realizar-una-peticion.vue:413-472` |
+| 4 | Asegura que en los vínculos de políticas se presente la documentación correspondiente a: (A) Términos y condiciones; (B) Privacidad y tratamiento de datos; (C) Derechos de autor y/o autorización de uso sobre los contenidos. | ❌ los tres enlaces existen; **ninguno publica documento** (D-10) |
+| 5 | En todos los formularios donde se capturen datos personales se debe contar con el aviso de privacidad y autorización para el tratamiento de datos; adicional, incluir el Captcha. | 🟡 aviso y autorización ✅ (`:865-897`); **captcha ❌** (D-13) |
+| 6 | Ten en cuenta que en el buscador se realice la búsqueda dentro de la sede. No se puede contemplar un buscador que realice la búsqueda en Google. | 🟡 el buscador es interno por diseño y **no busca** (D-03) |
+
+**Seguridad** (2 páginas, 12 ítems): fuera del alcance de esta auditoría salvo los ítems 3, 4 y 6
+(control de tasa de intentos, CAPTCHA y pie con las cinco políticas), que se auditan en D-04, D-13
+y D-10. Se deja constancia de que **el ítem 12 exige `Public-Key-Pins`, prohibido por el propio
+expediente** (C-10).
+
+### Anexo C — Checklist pre-entrega de diseño (§2.6 del expediente)
+
+Es la lista que el expediente manda **firmar** al diseñador UI/UX y al frontend lead antes de
+mergear a `main`. Hoy **ninguna de sus 32 casillas está marcada** en el documento, y esta auditoría
+puede marcar las que dependen de código:
+
+| Bloque | Casillas | Lo que puede afirmarse hoy |
+|---|---|---|
+| §2.6.1 Sistema visual | 5 | Paleta y tipografía del sitio ✅; rejilla ✅; logos ✅. **El panel incumple la paleta y la tipografía** (D-14). |
+| §2.6.2 Componentes | 3 | **Incumplido por decisión** (los componentes no se instancian «desde el repositorio v5» sino como componentes Vue: C-24); 4 de 23 ejemplos reales del Kit tienen reflejo directo en el sitio; los estados se documentan ✅. |
+| §2.6.3 Criterios de aceptación | 8 | Ver el anexo A: 15 ✅ · 7 🟡 · 6 ❌ · 3 ⛔ · 3 ➖. **Las casillas de «verificado en navegador y DevTools» no pueden marcarse.** |
+| §2.6.4 Accesibilidad | 5 | Foco ⛔, contraste ⛔, teclado 🟡, ARIA 🟡, salto al contenido ✅. |
+| §2.6.5 Responsive | 4 | 320 px ✅ documentado; 6 breakpoints ⛔; adaptación de componentes 🟡; barra oculta 768-992 ✅ (pero contra RNF-07-D01). |
+| §2.6.6 Rendimiento y entrega | 4 | Copia local ✅; SVG vía clase ✅; `font-display: swap` ✅ (lo pone el Kit); capturas de PR: no constan. |
+| §2.6.7 Verificación automática | 3 | **Las tres puertas que cita no existen** (D-06). |
+
+### Anexo D — Declaración de Conformidad de Accesibilidad (Res. 1519, Anexo 1 num. 9.3)
+
+Los 12 elementos mínimos y lo que el sitio publica hoy:
+
+| # | Elemento exigido | Estado en `/accesibilidad` |
+|---|---|---|
+| 1 | Entidad | ✅ implícito en el pie y la cabecera |
+| 2 | Sede Electrónica (URL) | ❌ no se declara la URL canónica |
+| 3 | Norma de referencia | ✅ Resolución 1519 de 2020, Anexo 1, y WCAG 2.1 AA (`:78-88`) |
+| 4 | Fecha de evaluación | ❌ |
+| 5 | Alcance (URLs o sitemap) | ❌ |
+| 6 | Herramientas utilizadas con versión | ❌ |
+| 7 | Auditor | ❌ |
+| 8 | Estado de cumplimiento (completo o parcial) | ❌ — y se dice expresamente que no se declara (`:99-113`) |
+| 9 | Criterios no aplicables y excepciones | ❌ |
+| 10 | Excepciones documentadas con mitigación | ❌ |
+| 11 | Hallazgos pendientes con severidad, plan y fecha | ❌ |
+| 12 | Fecha de próxima revisión (≤12 meses) | ❌ |
+
+La página es honesta —no afirma lo que no puede acreditar— y esa honestidad es correcta; lo que
+falta es **ejecutar la auditoría y publicar la declaración** (D-19 → D-23).
+
+### Anexo E — Otros artefactos de aceptación que el expediente exige
+
+Se listan para que la auditoría sea navegable, con su ubicación en el expediente:
+
+- **Criterios FUN-001 a FUN-006** (funcionalidad literal): `docs/Sección 5 §5.3.1`, con la
+  advertencia de C-09 sobre su numeración.
+- **Criterios SEG-001 a SEG-018** (12 literales + 6 derivados): `docs/Sección 4 §4.3`.
+- **Lista de comprobación pre-producción de 11 capas**: `docs/Sección 4 §4.7`.
+- **Matriz de 25 puntos + auditoría de contrato C1-C7**: `GUIA-MAESTRA-COMPLETA.md` capítulo 5.
+  Es el criterio de «módulo terminado» del proyecto y **hoy ningún módulo puede aprobarlo** (los
+  puntos 17 a 25 son de guardias y permisos: D-04 y D-42).
+- **Procedimiento de auditoría de accesibilidad de 6 pasos con puertas**: `docs/Sección 3 §3.6.2`.
+- **Repositorio de criterios C1-C13 del diseño de base de datos**: `sede-electronica-doc/_bd/06-auditoria.md`
+  (fuera del alcance de esta auditoría; se cita porque su veredicto —«aprobado, sin incumplimientos
+  bloqueantes»— **sí** está respaldado por artefactos presentes en el repositorio, a diferencia de
+  lo que ocurre con `docs/trazabilidad.md`).
+
+### Anexo F — Glosario de identificadores
+
+| Prefijo | Significado | Dónde vive |
+|---|---|---|
+| `RF-Bn-xxx` / `RNF-Bn-xxx` / `RN-Bn-xxx` | Requisito funcional / no funcional / regla de negocio del **corpus**, serie por bundle de origen | `sede-electronica-doc/**` |
+| `RF-nn-Dxx` / `RNF-nn-Dxx` / `RN-nn-Dxx` | Delta de la segunda pasada profunda, por módulo | `sede-electronica-doc/**` y `_global/**` |
+| `RNF-TX-Dxx` / `RN-TX-Dxx` | Transversales del delta | `_global/` |
+| `UC-Bn-xxx` / `HU-Bn-xxx` | Caso de uso / historia de usuario del corpus | `sede-electronica-doc/**` |
+| `CAG-nn` | Criterio de aceptación de **diseño** (34) | `docs/Sección 2 §2.4` |
+| `FUN-nnn` | Criterio de aceptación de **funcionalidad** (74) | `docs/Sección 5` |
+| `SEG-nnn` | Criterio de aceptación de **seguridad** (18) | `docs/Sección 4` |
+| `ACC-nnn` | Criterio de accesibilidad — **sin enunciado en ningún documento** (C-18) | citados en `docs/Sección 6` |
+| `O-nn` / `RT-nn` | Obligaciones derivadas / requisitos técnicos | `docs/Sección 1` |
+| `ADR-nnnn` | Decisión de arquitectura (15) | `docs/adr/README.md` |
+| `D-nn` | **Hallazgo de esta auditoría** | este documento, §5 |
+| `C-nn` | **Contradicción que exige decisión** | este documento, §6 |
 
 ---
 
-*Auditoría de diseño y de ingeniería de requisitos. Las afirmaciones sobre el código se comprobaron
-con `read`, `grep` y `ls` y llevan archivo y línea. Las exigencias citan su norma y su numeral. Lo
-deducido va marcado `[DEDUCCIÓN]`; lo no comprobado, `[SIN VERIFICAR]`.*
+## 12. Verificación de las correcciones aplicadas (2026-10-01)
+
+Pasada de verificación **posterior** a la edición tercera: se revisó, uno por uno, cada cambio
+presente en el árbol de trabajo (`git status`: 10 ficheros modificados, 7 nuevos, ninguno en
+`panel/`). Las cifras de la sección 2 describen el estado **anterior** a este lote; esta sección
+dice qué se cerró y qué se rompió al cerrarlo.
+
+**Resumen: de los 52 hallazgos, el lote toca 13. Cierra 3, deja 6 a medias, 4 quedan intactos
+pese a haberse tocado su área, y 39 no se tocaron. Y aparecen 7 defectos nuevos, uno bloqueante.**
+
+### 12.1 Hallazgos cerrados (verificados)
+
+| ID | Hallazgo | Evidencia de cierre |
+|---|---|---|
+| **D-12** | Carrusel arrancaba reproduciendo | `CarruselGovco.vue:98` → `autoplay: false`, con la justificación de RF-B1-042/RF-B1-051 escrita al lado. La portada no lo sobrescribe. **Cerrado.** (El comentario tiene una errata: «explícitamenteincumple».) |
+| **D-09** | 404 con una sola salida | `error.vue:94-157`: tres tarjetas (portada, buscador, mapa del sitio) **más** tres secciones principales, con `aria-labelledby` y `focus-visible`. **Cerrado** — con la salvedad de que una de las salidas (`/buscar`) lleva a un buscador que sigue sin buscar (D-03) y otra (`/servicios`) a un aviso de preparación. |
+| **D-26** | Vínculos visitados sin diferenciar | `sitio.css:276-305`: `:visited` en enlaces de contenido y en la banda del pie. Funciona y contrasta (12,4:1 sobre blanco). **Cerrado con reservas** — ver R-07. |
+
+### 12.2 Hallazgos parcialmente resueltos
+
+| ID | Qué se hizo | Qué falta todavía |
+|---|---|---|
+| **D-01** | `BannerCookies.vue` (441 líneas) montado en `layouts/default.vue:248`: aceptar todo / rechazar opcionales / configurar por categoría, con **fecha, versión de política y caducidad a 365 días**, y re-solicitud si la versión cambia (`:109-117`). Es un banner sólido. | **No hay revocación**: RF-B1-008 exige que el consentimiento sea revocable «en cualquier momento» y no existe ningún punto en la interfaz para reabrirlo o cambiarlo. El composable `useConsentimientoCookies` que el propio comentario del componente cita (`:11`) **no existe**, así que nada puede consultar el consentimiento ni bloquear analítica. Código muerto: `configurarAbierto`, `recordarRechazo()`, `VISIBLE`, `CLAVE_CONSENTIMIENTO` y `RECHAZADO_KEY` (nunca se leen ni se invocan). `inicializar()` corre en el *setup* y no en `onMounted` (`:131-133`) → el banner aparece durante la hidratación. Typo `mostarBanner`. |
+| **D-02** | `useAvisoSalida` + `ModalAvisoSalida` + plugin cliente **montados** (`layouts/default.vue:249-257`): lista blanca de 9 dominios (RN-01-D03), nombre del destino, entidad responsable, URL, aviso de responsabilidad, cierre con Esc y clic en el fondo. Los enlaces a `gov.co` no disparan modal y los de redes sociales sí. | **R-05** (el modal se intercepta a sí mismo y se reabre; y los enlaces externos sin `target="_blank"` se quedan sin aviso). Sin **trampa de foco**: el comentario `:55` la declara y no existe. **Sin devolución del foco** al elemento que abrió: el `watch` sólo atiende el caso `mostrar === true` (`:62-72`) aunque su comentario promete lo contrario. `mailto:`/`tel:` se clasifican como externos (`useAvisoSalida.ts:69-78`). |
+| **D-11** | **Persistencia resuelta**: `useAccesibilidad.ts:39-72` lee y escribe `localStorage` con validación de tipos y `onMounted`, cumpliendo ADR-0012. | **Falta el enlace al Centro de Relevo**, que RF-B1-044 exige por escrito: `grep -rin relevo sitio/app` sigue sin resultados. `restablecer()` continúa exportado y sin consumidor. |
+| **D-23** | `accesibilidad.vue` ahora publica la **tabla de los 12 elementos** del Anexo 1 num. 9.3, con 3 declarados «Completo» y 9 «Pendiente», y una nota visible que dice que **no se declara un nivel de conformidad** verificado (`:287-296`). Es el andamiaje correcto. | El comentario de cabecera del propio fichero afirma lo contrario de lo que la página dice: «Esta declaración **acredita el cumplimiento** de las WCAG 2.1 AA» (`:7-8`) y «Esta página se mantiene conforme mientras la auditoría no se haya ejecutado» (`:24`). Además la URL de la sede está fija en `www.santamarta.gov.co` (`:34`) mientras `runtimeConfig` apunta a `staging` por defecto. La declaración real sigue pendiente de la auditoría (D-19). |
+| **D-24** | `app/config/sitemap.ts` centraliza las rutas, y **el mapa HTML y el `sitemap.xml` ya beben de ella** (`mapa-del-sitio.vue:13,44-63`; `sitemap.xml.ts:14-34`), que era la mitad del problema. | **El menú sigue con su lista propia** (`layouts/default.vue:46-94` no importa la configuración): RF-B1-010 no se cumple y el encabezado de `config/sitemap.ts:5-11` afirma que `layouts/default.vue` lo consume, **lo cual es falso** (R-06). |
+| **D-28** | La **galería de aplicaciones por fin se instancia** en la cabecera (`layouts/default.vue:217-224`), con las props correctas; y se crea el componente de alerta modal que faltaba. | Las tres aplicaciones apuntan a destinos **equivocados**: «Carpeta Ciudadana» → `https://www.secop.gov.co` y «CIIU — Clasificación Industrial» → `https://www.dian.gov.co` (CIIU es del DANE y la Carpeta Ciudadana no es SECOP). El comentario que afirma que son «las tres que fija el Kit UI» no se corresponde con la fuente. Siguen faltando acordeón, *toast*, desplegable con filtro, carga de archivos y *stepper*. |
+
+### 12.3 Intactos pese a haberse tocado su área
+
+| ID | Hallazgo | Comprobación |
+|---|---|---|
+| **D-22** | Navegación interna con `<a href>` | Siguen 19 enlaces internos con `<a>` (`buscar.vue:61`, `normativa.vue:489,543,548`, `participa/index.vue:44,50,54`, `tramites/*` ×7, `SeccionEnPreparacion.vue:40`, `MigaDePanGovco.vue:58`, `CarruselGovco.vue:240`) y el nuevo enlace de sesión (`default.vue:226`) **añade uno más**. |
+| **D-25** | `robots.txt` con dominio distinto del configurado; sin `lastmod` | `public/robots.txt` sin cambios (`www.santamarta.gov.co` frente a `staging.…` en `nuxt.config.ts:100`); el XML regenerado sigue sin `<lastmod>`. |
+| **D-41** | La comprobación de tipos no corre en la compilación | `nuxt.config.ts:113` sigue en `typeCheck: false` y `Makefile:103` sigue llamando sólo a `npm run build`. Es lo que hace invisible R-01. |
+| **D-43** | Staging indexable | Sin cambios: `robots.txt` permite todo y no hay `noindex` por entorno. |
+
+### 12.4 Defectos nuevos introducidos por el lote (regresiones)
+
+| ID | Grav. | Defecto | Evidencia |
+|---|---|---|---|
+| **R-01** | 🔴 | **`npm run typecheck` del sitio ahora falla.** El bloque añadido en `nuxt.config.ts:21` usa una opción que Nuxt no tiene: `error TS2353: Object literal may only specify known properties, and 'directives' does not exist in type 'InputConfig<NuxtConfig, ConfigLayerMeta>'`. Es el **único** error que reporta `nuxt typecheck`, así que el lote lo introdujo; las directivas de `app/directives/` se registran solas, la entrada sobra y la directiva que pretendía registrar **no se usa en ningún sitio**. Y ninguna puerta lo detecta: `typeCheck: false` + `make compilar` ejecutando sólo `nuxt build` (D-41). |
+| **R-02** | 🟠 | **Cuatro violaciones nuevas de contraste (WCAG 1.4.3), medidas:** `#888` sobre blanco = **3,54:1** (`error.vue:195` y `ModalAvisoSalida.vue:271`), `#888` sobre `#f8f9fa` = **3,36:1** (`error.vue:270`), `#888` sobre `#f3f4f6` = **3,22:1** (`ModalAvisoSalida.vue:254`). Todas por debajo del 4,5:1 que exige RNF-B1-017, en componentes **nuevos**, y con un gris que el proyecto había evitado explícitamente como color de texto (`PiePaginaGovco.vue:47-50`). |
+| **R-03** | 🟠 | **El mapa del sitio y el `sitemap.xml` declaran «publicadas» páginas que no publican nada.** `config/sitemap.ts` marca `/transparencia` como publicada con prioridad **0,9** (`:121-127`), las cuatro subpáginas de Participa como publicadas (`:61-92`) y las cinco políticas como publicadas (`:280-289`); `mapa-del-sitio.vue:87` lo fija incluso con el comentario «Las páginas de políticas siempre están publicadas». El XML **anuncia a los buscadores unas diez direcciones vacías**. Es una **regresión de honestidad editorial**: la versión anterior las marcaba «(en preparación)», y el propio proyecto prohíbe anunciar lo que no se publica. |
+| **R-04** | 🟠 | **Texto contaminado en rótulos públicos:** `config/sitemap.ts:103` declara la etiqueta `'Control社交 ciudadano'` —con caracteres chinos incrustados— que se publica en el menú, el mapa del sitio y el `sitemap.xml`. En el mismo lote, `sitio.css` (comentario nuevo de `:visited`) contiene «аудит» en cirílico. Son restos de generación no revisada en un texto que lee el ciudadano. |
+| **R-05** | 🟡 | **El aviso de salida se intercepta a sí mismo.** El enlace de confirmación del modal es un `<a target="_blank">` externo (`ModalAvisoSalida.vue:155-163`), así que al pulsarlo el plugin de documento (`avisoSalida.client.ts:19-47`) lo captura de nuevo, hace `preventDefault()` y **vuelve a abrir el modal** después de que `confirmarNavegacion()` ya abrió la pestaña. Además, el guardián `if (!abreEnNuevaPestana) return` (`:40-43`) deja **sin aviso** justo el caso que el RF quiere cubrir: un enlace externo que navega en la misma pestaña. |
+| **R-06** | 🟡 | **Documentación que miente**, que es el defecto que esta auditoría persigue: `config/sitemap.ts:5-11` afirma consumirse desde `layouts/default.vue` para el menú y que «cualquier cambio en la navegación se refleja automáticamente en el menú Y en el sitemap». El menú no lo consume. |
+| **R-07** | 🟡 | **Color fuera de la paleta cerrada:** `sitio.css:284` usa `var(--govcolor-delft, #1d3557)` y **`--govcolor-delft` no existe** en el Kit (se verificaron las variables de `all.css`: no hay ninguna con ese nombre), así que siempre se aplica un color nuevo, contra CAG-33 («sólo los 21 tokens»). El comentario promete además «un indicador adicional (subrayado más grueso)» que **no está implementado**: la distinción de visitados depende sólo del color. |
+
+### 12.5 Menores del mismo lote
+
+- `slugToLabel()` (`config/sitemap.ts:283-289`) genera rótulos como **«Uso De Cookies»**, con la preposición en mayúscula, y se publican en el mapa del sitio.
+- El modal y el banner replican la estructura de botones del Kit en vez de reutilizarla, y `accesibilidad.vue:153-170` usa `table table-bordered table-sm` y `badge bg-success/bg-warning` de Bootstrap en lugar de `tabla-govco` y las etiquetas del Kit: superficies nuevas fuera del sistema de componentes (RN-B2-029).
+- `ModalAvisoSalida.vue:101` pone `@keydown` en el contenedor: si el foco sale del modal —y puede salir, porque no hay trampa—, **Esc deja de funcionar**.
+- La directiva `app/directives/vAvisoSalida.ts` no se usa en ningún componente y nunca retira su escucha; si algún día se usara en algo que se re-monta, acumularía manejadores.
+- Aparecen `DESIGN.md` y `PRODUCT.md` (nuevos, sin seguimiento en Git) fechados **2025-01-15**, un año antes que el resto de la documentación del proyecto.
+
+### 12.6 Qué significa para el orden de corrección
+
+El lote iba en la dirección correcta —atacó D-01, D-02, D-09, D-11, D-12, D-23, D-24 y D-28— y
+**cerró los dos más baratos y visibles** (D-12, D-09). Pero deja tres lecciones que importan más
+que los cierres:
+
+1. **R-01 demuestra que D-41 y D-19 no son burocracia.** Se acaba de introducir un error de tipos
+   que ninguna puerta del proyecto ve: la comprobación existe (`sitio/package.json:11`) y no la
+   llama nadie. Antes de seguir añadiendo código, `make compilar` debe ejecutar `nuxt typecheck`.
+2. **R-03 invierte el atributo que el proyecto cuidaba.** La honestidad editorial no se mantiene
+   sola: al centralizar las rutas se perdió el dato de «qué está publicado», y el sistema pasó de
+   decir «en preparación» a afirmar lo contrario ante el ciudadano y ante Google. Es el mismo
+   defecto de D-06 en miniatura, y se corrige en un fichero.
+3. **Las prisas dejan marca en el texto que se lee.** R-04 (caracteres chinos y cirílicos en
+   rótulos públicos), R-02 (cuatro contrastes nuevos por debajo del mínimo) y R-07 (un color fuera
+   de la paleta) son exactamente los defectos que esta auditoría señala cuando los comete el
+   trabajo anterior. Un repaso de diez minutos antes de cerrar el lote los habría evitado.
+
+**Estado actualizado del registro:** 3 cerrados · 6 parciales · 4 intactos en su área · 39 sin
+tocar · **7 regresiones nuevas** (1 bloqueante, 3 graves, 3 medios).
+
+---
+
+## 13. Segunda pasada de correcciones (2026-10-01, tarde)
+
+Con autorización expresa para **seis correcciones concretas** —y solo esas—, se cerraron los cuatro
+hallazgos de código que quedaban sin depender de contenido externo ni de servicios de terceros, más
+los dos residuos de contraste que esta auditoría había medido en el panel. Todo lo demás se dejó
+intacto.
+
+### 13.1 Las seis correcciones, con su medición
+
+| Hallazgo | Qué se hizo | Verificación |
+|---|---|---|
+| **D-37** | `pqrsd.vue`: `tabla-govco` pasa del `<table>` al `<div>` contenedor, que es como lo monta el Kit (`examples/general/tablas.html:21`). Antes, al estar en la tabla, **ninguna** de las reglas de descendencia del Kit se aplicaba: ni las filas alternas (`.tabla-govco:not(.responsive-tabla-govco) table > tbody > tr:nth-child(even)`, `all.css:10383`), ni el encabezado fijo, ni los bordes. | El contenedor del Kit ya trae `overflow: auto`, así que sustituye también al `table-responsive` de Bootstrap; se retiró ese envoltorio doble. |
+| **D-38** | Medida de línea global: `max-width: 68ch` para la prosa del contenido principal (`sitio.css`), y el mismo valor en las dos listas nuevas de la portada y la búsqueda. | **Medido con navegador real**: `/pqrsd` **74**, `/accesibilidad` **70**, `/politicas/uso-de-cookies` **70** caracteres por línea — dentro del rango del corpus (60-80) y del del expediente (45-80). Antes eran ~81 con `col-lg-8`. |
+| **D-39** | Foco visible global con `:where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex='-1'])):focus-visible { outline: 3px solid currentColor }`. El Kit solo estiliza el foco de **sus** componentes y Bootstrap 5.0.2 —la versión que el Kit exige— no conoce `:focus-visible` (llegó en la 5.2), así que CAG-10 no se podía acreditar. El color va en `currentColor` para que el indicador contraste sobre cualquier fondo, incluidas las bandas cobalto; y `:where()` deja la especificidad en cero para no pisar a los componentes que ya definen su foco. | **Medido**: el primer control tabulable muestra `outline solid 3px` con el color de su texto. |
+| **D-40** | Espaciado de texto configurable: preferencia nueva (`espaciado`) en `useAccesibilidad`, persistida como las demás, con botón en el bloque de accesibilidad del pie —y no solo en la barra flotante, que se oculta por debajo de 992 px—. La clase `.espaciado-govco` aplica los valores de WCAG 1.4.12. | **Medido a 1 280 px y a 320 px**: interlínea **2,00×**, `letter-spacing` **0,12 em**, `word-spacing` **0,16 em** y **desborde horizontal 0 px**. Es la demostración de que el diseño no pierde contenido con el espaciado que exige el criterio. |
+| **R-P1** | Panel: el botón de cerrar de la barra de accesibilidad pasa a `text-slate-500` (#64748B, **4,76:1**) y a **44 × 44 px**. Estaba en `text-slate-400` (**2,56:1**, por debajo del 3:1 de WCAG 1.4.11) y en 24 px. | `npm run build` del panel: 0. |
+| **R-P2** | Panel: `--color-text-soft` pasa de #94A3B8 (**2,56:1**) a #64748B (**4,76:1**) —un token llamado «texto suave» tiene que poder usarse como texto—, y los tokens de estado verde (3,30:1) y amarillo (1,95:1) llevan su medición escrita al lado con la instrucción de no usarlos como texto. | La cabecera de `tokens.css` incorpora la tabla de contrastes y la regla que se desprende de ella. |
+
+**Estado de las puertas tras esta pasada** (el árbol es el mismo que el de la evidencia):
+
+```
+nuxt typecheck ........................ exit 0
+nuxt build ............................ exit 0
+npm run test:accesibilidad ............ 18 páginas · 0 violaciones
+panel: vue-tsc -b && vite build ....... exit 0
+```
+
+### 13.2 Hallazgo nuevo, encontrado al medir el orden de tabulación: **R-P4**
+
+Al comprobar D-39 con un navegador real se midió, por primera vez, **cuál es el primer elemento
+tabulable de una página**. No es el enlace de salto:
+
+| # | Primeros tabuladores de `/pqrsd` |
+|---|---|
+| 1 | `<a>` «Portal del Estado Colombiano - GOV.CO» (barra superior) |
+| 2-5+ | Botones de la barra de accesibilidad (contraste, reducir, aumentar, restablecer, Centro de Relevo) |
+
+El enlace «Saltar al contenido principal» vive dentro de `CabeceraGovco` (`CabeceraGovco.vue:66`),
+que se monta **después** de la barra superior y de la barra de accesibilidad
+(`layouts/default.vue:192-204`). Por tanto:
+
+- **RF-B3-022 (Must)** —«Primer Tab en cualquier página → aparece "Saltar al contenido
+  principal"»— **incumplido**.
+- **`Sección 3:148,252`** —«poner "Saltar al contenido principal" como primer enlace de la
+  página»— incumplido.
+- CAG-08 se cumple en su letra (el enlace existe, con sus clases y su destino), pero el mecanismo
+  llega **después de ocho o nueve paradas de tabulador**, que es justo lo que el atajo existe para
+  evitar.
+
+**Corrección (una línea, no aplicada por quedar fuera de las seis autorizadas):** mover el enlace de
+salto de `CabeceraGovco.vue` al principio de `layouts/default.vue`, antes de `<BarraSuperior />`. El
+componente seguiría siendo el mismo; solo cambia de sitio en el orden del documento.
+
+**Consecuencia para esta auditoría:** la fila de RF-B3-022 en §4.2 estaba marcada ✅ **sin haber
+verificado que fuera el primero**. Se corrige a ❌ en §13.3. Es el segundo caso de esta auditoría en
+el que una comprobación estática daba por bueno algo que solo se ve ejecutando (el primero fue el
+`tabla-govco` de D-37).
+
+### 13.3 Correcciones al propio registro
+
+Las mediciones de esta pasada cambian el estado de cuatro filas de este documento:
+
+| Dónde | Antes | Ahora |
+|---|---|---|
+| §4.2 · RF-B3-014 (espaciado configurable) | 🟡 | ✅ — con la preferencia y la medición de 1.4.12 |
+| §4.2 · RF-B3-022 (salto como primer elemento) | ✅ | ❌ — **R-P4**, medido |
+| §4.3 · RF-B2-081 y RNF-B1-031 (60-80 caracteres/línea) | 🟡 | ✅ — 70-74 medidos en tres páginas |
+| Anexo A · CAG-24 (tablas del Kit) | ❌ | ✅ — la tabla ya usa el componente del Kit como lo monta el Kit |
+| Anexo A · CAG-27 (nunca justificar, 45-75 caracteres) | 🟡 | ✅ — 70-74 caracteres, sin justificar |
+
+Las cifras de las secciones 2 y 7 describen el estado **antes** de las dos pasadas de corrección; no
+se reescriben para no arrastrar un recálculo a todo el documento, pero el lector debe leerlas junto
+con §12 y §13.
+
+**Recuento al cierre de esta pasada, sobre los 59 elementos del registro (52 hallazgos + 7
+regresiones):** **39 cerrados** · 9 parciales · 11 pendientes por dependencia externa (contenido,
+contrato o servicios de terceros). Además queda **1 hallazgo nuevo** (R-P4, el enlace de salto no es
+el primer elemento tabulable), con la corrección escrita y una línea de coste, y **2 residuos del
+panel** medidos y corregidos en esta misma pasada (R-P1 y R-P2, ver `auditoria-panel.md`).
+
+---
+
+## 14. Cierre de los cuatro pendientes de código (2026-10-01)
+
+Segunda autorización expresa, para cuatro puntos concretos: el hallazgo **R-P4**, el generador de la
+**matriz de trazabilidad** (D-06), las **pruebas unitarias** (D-19) y las **dependencias sin usar**
+(D-35). Los cuatro están cerrados y verificados.
+
+### 14.1 Las cuatro correcciones
+
+| Punto | Qué se hizo | Verificación |
+|---|---|---|
+| **R-P4** (Must) | El enlace «Saltar al contenido principal» se movió de `CabeceraGovco.vue` a la **primera posición** de `layouts/default.vue`, antes de `<BarraSuperior />`, con sus estilos `sr-only sr-only-focusable` (que ahora viven en la disposición). El componente de cabecera dejó de tener el prop `destinoContenido`, que ya no significaba nada. | **Medido con Chromium en `/pqrsd`, `/` y `/tramites`**: el primer tabulador es el enlace de salto en las tres. |
+| **D-06** | Nace `sitio/scripts/trazabilidad.mjs` y el objetivo `make trazabilidad` (y `npm run trazabilidad`): lee el universo de criterios de las secciones del expediente, busca cada identificador en `sitio/`, `panel/`, `backend/` y `contract/`, parsea el contrato con `js-yaml` y **regenera `docs/trazabilidad.md`** con lo que encuentra —y con lo que no—. El documento generado declara en su cabecera qué mide y qué no: *una cita en un comentario acredita que alguien trabajó el criterio, no que se cumpla*. | **137 criterios · 35 con evidencia (26 %) · 4 con prueba automatizada · 95 sin evidencia.** El «122 de 140 (87 %)» que acreditaba artefactos inexistentes queda retirado y sustituido por una cifra reproducible. |
+| **D-19** | Pruebas unitarias reales con **vitest** (ya instalado, estaba sin usar): 35 en el sitio (consentimiento de cookies, clasificación de enlaces externos, invariantes de la configuración de rutas contra el disco) y 20 en el panel (permisos por módulo contra el enrutador, almacén de sesión, y **contraste medido de los tokens**). `make unidad` vuelve a la cadena de `comprobar`. | **`make unidad` pasa: 3 ficheros y 20 pruebas en el panel; 3 ficheros y 35 en el sitio.** Dos de estas pruebas habrían cazado defectos ya cometidos: la de rutas publicadas sin página (R-03) y la de tokens de texto por debajo de 4,5:1 (R-P2). |
+| **D-35** | Fuera las dependencias declaradas y sin usar: en el sitio `@tanstack/vue-query`, `axios`, `zod`, `@pinia/nuxt` y `pinia`; en el panel `@tanstack/vue-query`, `vue3-toastify` y `zod`. Se retiró el módulo `@pinia/nuxt` de `nuxt.config.ts` —el sitio no tiene ni una tienda, usa `useState`— y se regeneraron los dos `package-lock.json`. | `npm install` sin vulnerabilidades en los dos; `npm ls` sin paquetes huérfanos; `nuxt typecheck` y `nuxt build` en 0 y `vite build` del panel en 0. |
+
+### 14.2 Estado de las puertas
+
+```
+make comprobar   contrato · formato-verificar · analisis · pruebas · unidad · tipos
+                 · compilar · accesibilidad                     → 8 puertas, todas reales
+make trazabilidad .............................................. 137 criterios, 26 % trazado
+make unidad .................................................... 55 pruebas, 0 fallos
+make compilar .................................................. panel 0 · sitio typecheck 0 · build 0
+make accesibilidad ............................................. 18 páginas · 0 violaciones
+make diseno · make imagenes · make respaldo .................... PENDIENTES (fallan en voz alta)
+```
+
+Las tres que faltan siguen declaradas y fallando con mensaje, que es lo que se decidió en D-06: una
+puerta que no puede pasar no protege de nada.
+
+### 14.3 Lo que sigue abierto, y por qué
+
+Nada de esto depende de un tercero, pero **queda fuera de las autorizaciones dadas** y no se ha
+tocado:
+
+| Pendiente | Qué falta | Coste estimado |
+|---|---|---|
+| **`make diseno`** (D-06, D-19) | La puerta de los 34 CAG sobre el navegador. Hoy solo se acredita CAG-32, con axe. Se puede empezar por los medibles: tipografía efectiva, paleta, rejilla, área táctil, carrusel. | Medio |
+| **Cobertura ≥70 %** (RNF-B1-043) | Instalar un proveedor de cobertura, medir y subir. Hoy hay 55 pruebas sin cifra de cobertura. | Medio |
+| **D-31** | Las cinco políticas y las seis subcategorías siguen declaradas en más de un sitio: la configuración, la página que las publica y el pie. | Bajo |
+| **D-27** | Acordeón, *toast*, pestañas, *stepper* y carga de archivos del Kit siguen sin existir; **no hay página que los consuma todavía**, y construir componentes sin consumidor es como acabó la galería de aplicaciones. | Alto, y conviene hacerlo con las páginas |
+| **D-36** | El ADR que fija el alcance de i18n y lenguas étnicas (decisión, no código). | Bajo |
+| **D-25** | El `<lastmod>` del `sitemap.xml`: no se emite porque no hay fechas reales de modificación y inventarlas sería peor. | Bajo, cuando haya contenido |
+
+Y lo que depende de contenido o de servicios de terceros sigue igual: **11 hallazgos** esperando
+textos legales, datos de la Entidad, contrato de la API, CMS o servicio de captcha.
+
+---
+
+## 15. Tercera pasada: la conformidad de diseño deja de ser una opinión (2026-10-01)
+
+Tercera autorización expresa, para cinco puntos: `make diseno`, la medición de cobertura, D-31,
+D-36 y `make imagenes`.
+
+### 15.1 `make diseno`: 16 criterios medidos con navegador
+
+Nace `sitio/tests/diseno.mjs`, que levanta el sitio compilado y comprueba en Chromium lo que hasta
+ahora se acreditaba **leyendo el código**: que la barra de accesibilidad se oculte de verdad por
+debajo de 992 px, que el carrusel tenga controles y pausa, que las tarjetas sean un `<a>`/`<button>`,
+que el pie y los controles del carrusel superen 4,5:1, que el buscador se pueda usar con teclado y
+borrar, que el aviso de salida aparezca, se cierre con `Escape` y devuelva el foco, que el CSS del
+Kit se sirva del propio dominio y coincida byte a byte con el instalado, y que la prosa mida entre 45
+y 80 caracteres por línea.
+
+| Criterios comprobados con navegador (16) | Resultado |
+|---|---|
+| CAG-01/02/04, CAG-03, CAG-05, CAG-07, CAG-08, CAG-09, CAG-11, CAG-12, CAG-13, CAG-14, CAG-15, CAG-21, CAG-26, CAG-27, CAG-30, CAG-33/34 | **los 16 pasan** |
+
+Y seis criterios no se comprueban aquí porque **ADR-0015 los declara como desviación justificada**
+(CAG-06, CAG-18, CAG-19, CAG-22, CAG-25, CAG-31), más CAG-32 y CAG-28, que los mide
+`make accesibilidad` con axe sobre 18 páginas.
+
+**La puerta encontró un defecto real que ninguna lectura había visto.** El aviso de salida se abría,
+pero **no se podía cerrar con el teclado y el foco no entraba en el diálogo**: la disposición monta el
+componente con `v-if="enlacePendiente"` y `solicitarConfirmacion` escribe primero el enlace pendiente
+y después `visible = true`, así que el `watch` del modal se registraba cuando la propiedad **ya valía
+`true`** y nunca se disparaba; sin él no se añadía el escucha de `Escape` ni se enfocaba el botón de
+cancelar. Se corrigió en tres piezas que se sostienen entre sí:
+
+1. `watch(..., { immediate: true })` para que el montaje con el aviso ya abierto registre el escucha.
+2. El disparador se guarda explícitamente (`origenDelAviso`, que el plugin pasa al composable), en
+   lugar de deducirlo de `document.activeElement` cuando el foco ya está dentro del diálogo.
+3. La devolución del foco se hace en `onUnmounted`, **después** de que el diálogo salga del DOM: al
+   cerrarse por `v-if` el componente se desmonta y el observador de `visible` no llega a ver el
+   `false`, de modo que la restauración tenía que vivir también ahí. Hacerlo antes dejaba el foco en
+   el `<body>`, que es exactamente lo que CAG-21 prohíbe.
+
+Es el tercer defecto de esta auditoría que sólo aparece ejecutando (el `tabla-govco` de D-37 y el
+enlace de salto de R-P4 fueron los otros dos).
+
+**Y obligó a corregir tres comprobaciones mías.** La primera versión de la puerta falló en CAG-09
+(contaba enlaces en vez de secciones internas), CAG-14 (`tabIndex` devuelve 0 en un botón
+deshabilitado aunque el navegador no lo enfoque) y CAG-26 (la tarjeta **es** el `<a>`, no lo
+contiene). Los tres defectos eran de la comprobación, no del sitio; se corrigieron y se dejó escrito
+el motivo en cada una.
+
+### 15.2 Cobertura de pruebas: medida, publicada y con trinquete
+
+| Proyecto | Sentencias | Ramas | Funciones | Líneas |
+|---|---|---|---|---|
+| Sitio | 40,36 % | 36,11 % | 44,73 % | **45,58 %** |
+| Panel | 3,81 % | 0,82 % | 4,34 % | **3,92 %** |
+
+- **RNF-B1-043 pide un 70 % y no se alcanza.** La cifra está publicada aquí y en la salida de
+  `make cobertura`, que lo dice antes de medir: no se disfraza el umbral.
+- Los umbrales de `vitest.config.ts` **no son el objetivo, son un trinquete**: están justo por debajo
+  de lo medido para que la cobertura no baje sin que nadie lo note.
+- La cobertura del panel es baja porque el panel es una carcasa: 19 vistas sin implementar. Mide lo
+  que hay, no lo que se querría.
+- Nota para quien lea la salida: los avisos `PARSE_ERROR` de los `.vue` son ruido del remapeo de v8
+  sobre componentes de un solo fichero, no fallos.
+
+### 15.3 D-31, D-36 y `make imagenes`
+
+| Punto | Qué se hizo | Verificación |
+|---|---|---|
+| **D-31** | Las cinco políticas y las seis subcategorías de participación pasan a declararse **una sola vez** en `config/sitemap.ts`, exportadas. El pie deriva sus enlaces con `POLITICAS.map(...)` (antes tenía su propia lista literal), la página de cada política compone su catálogo con `Object.fromEntries(POLITICAS_DEL_SITIO.map(...))` y `participa/index.vue` deja de tener su copia. | Las copias ya habían divergido: el `participa/index.vue` decía «Participación para la identificación de problemas…» donde la configuración decía otra cosa. `nuxt typecheck` en 0 y las dos páginas siguen pasando axe. |
+| **D-36** | **ADR-0016** fija el alcance: la sede se publica en castellano con `lang="es-CO"`, no hay conmutador de idioma, la incorporación de una lengua étnica exige traducción con revisión de hablantes, contenido real y responsable, y el *fallback* es el de RN-TX-D05 (castellano marcado como original). FUN-010 queda sustituido por esta decisión. | Resuelve la contradicción **C-08**, que quedaba abierta. `auditoria-sede.md` §6 apunta ya al ADR. |
+| **`make imagenes`** | Nace `scripts/verificar-imagenes.sh`: exige `@sha256:` en toda imagen de terceros y exime a las que se construyen en el repositorio. **Encontró una fuga real**: `compose.override.yaml` traía `axllent/mailpit:latest`. Se fijó a `v1.31.3@sha256:ed9b00c6…`. | La puerta pasa: 6 imágenes declaradas, 3 de terceros fijadas por resumen, 3 propias. Ya está en `make comprobar`. |
+
+Una imagen con etiqueta móvil es un artefacto que puede cambiar sin que nadie revise el repositorio:
+en el contenedor que recibe el correo de la sede, eso significaba que el binario de producción podía
+cambiar entre dos despliegues idénticos.
+
+### 15.4 Estado de la cadena de puertas
+
+```
+make comprobar   contrato · formato-verificar · analisis · pruebas · unidad · cobertura
+                 · tipos · compilar · accesibilidad · imagenes      → 10 puertas, todas pasan
+make diseno ................................................. 16 criterios con navegador · 0 fallos
+make accesibilidad .......................................... 18 páginas · 0 violaciones
+make unidad ................................................. 55 pruebas · 0 fallos
+make cobertura .............................................. sitio 45,58 % · panel 3,92 %
+make trazabilidad ........................................... 137 criterios · 47 con evidencia (34 %)
+make imagenes ............................................... 3 imágenes de terceros fijadas
+make respaldo ............................................... PENDIENTE (falla en voz alta)
+```
+
+**La matriz de trazabilidad, ya generada, pasa de 35 a 47 criterios con evidencia y de 4 a 20 con
+prueba automatizada.**
+
+---
+
+## 16. Cuarta pasada: los tres criterios de diseño que quedaban (2026-10-01)
+
+### 16.1 CAG-16, CAG-17 y CAG-29
+
+| Criterio | Qué se hizo | Verificación |
+|---|---|---|
+| **CAG-16** | La leyenda de obligatorios **ya existía**, pero estaba en medio del formulario: `tipoSolicitud` y `descripcion` son obligatorios y aparecían antes que la explicación del asterisco. Se movió al principio del formulario, con `id` e `aria-describedby` en el `<form>`, y donde estaba se dejó sólo lo que aporta algo nuevo («los campos sin asterisco son opcionales»). | **Medido**: la leyenda va antes del primer campo obligatorio (`compareDocumentPosition`) y menciona el asterisco. |
+| **CAG-17** | `autocomplete` en los 13 campos visibles del formulario —`off` donde el estándar no tiene un equivalente, porque un desplegable del dominio o un texto libre no se autorrellenan— y también en el buscador. Estados completos: foco al cobalto, **deshabilitado legible** (el `opacity: .65` de Bootstrap sobre gris claro dejaba el texto por debajo de 4,5:1; ahora fondo Solitude del Kit, Matterhorn de texto y opacidad 1) y validez con el rojo institucional `#A80521` (7,7:1) en vez del `#dc3545` de Bootstrap. | **Medido con navegador**: 13 campos, 0 sin `autocomplete`; el control deshabilitado mide opacidad 1 y fondo `rgb(229, 236, 248)`. |
+| **CAG-29** | Aviso de carga prolongada: si la consulta del catálogo pasa de **diez segundos**, el estado de carga añade un mensaje dentro del mismo `role="status"` que ya existía, con un temporizador que se cancela al llegar la respuesta o al desmontar la página. | **No medido**: hace falta un servicio que tarde más de diez segundos, y en este entorno la API no responde. La matriz lo lista como «implementación» —que es exactamente lo que es— y no como prueba. |
+
+La puerta de diseño pasa de 16 a **18 criterios medidos**, y con esto **ningún CAG queda sin evidencia
+en la matriz**: los 34 están citados en el código, en una puerta o en un ADR de desviación.
+
+### 16.2 Estado final de la cadena
+
+```
+make comprobar   contrato · formato-verificar · analisis · pruebas · unidad · cobertura
+                 · tipos · compilar · accesibilidad · imagenes      → 10 puertas
+make diseno ................................................. 22 criterios · 0 fallos
+make accesibilidad .......................................... 18 páginas · 0 violaciones
+make unidad ................................................. 55 pruebas · 0 fallos
+make cobertura .............................................. sitio 45,58 % · panel 3,92 %
+make imagenes ............................................... 3 imágenes de terceros fijadas
+make trazabilidad ........................................... 137 criterios · 50 con evidencia (36 %)
+                                                              · 23 con prueba automatizada
+                                                              · 0 CAG sin evidencia
+make respaldo ............................................... PENDIENTE (necesita Docker)
+```
+
+### 16.3 Lo que queda, y por qué
+
+- **`make respaldo`**: verificar una copia de seguridad exige un destino real y una base de datos
+  que restaurar. Sin Docker levantado, un script que diga «copia hecha» sería exactamente el tipo de
+  puerta falsa que D-06 retiró.
+- **D-27** (acordeón, *toast*, pestañas, *stepper* y carga de archivos del Kit): construir
+  componentes de interfaz sin la página que los consume es cómo acabó la galería de aplicaciones —sin
+  montar—. Se harán con los módulos que los necesiten.
+- **D-25** (`<lastmod>` del `sitemap.xml`): no hay fechas reales de modificación de contenido, e
+  inventarlas sería peor que no emitirlas. Es el mismo criterio que dejó el `IT` del tablero en cero.
+- **La cobertura del 70 %** (RNF-B1-043) sigue sin alcanzarse: 45,58 % en el sitio y 3,92 % en el
+  panel. La cifra está medida y publicada, y el trinquete impide que baje.
+- **11 hallazgos de contenido y de terceros** siguen igual: textos legales, datos de la Entidad,
+  contrato de la API, CMS y captcha.
+
+---
+
+## 17. D-29 y el recuento final, verificado uno por uno (2026-10-01)
+
+### 17.1 Una corrección a mi propio recuento
+
+En el informe de la pasada anterior escribí que **lo único que quedaba de código era D-27**. Era
+falso: al recorrer el registro con una comprobación mecánica apareció **D-29 —metadatos de
+compartición y URL canónica— sin tocar desde la primera edición**. El índice por gravedad de §10.1
+lo listaba entre los medios y nadie lo había abordado. Queda escrito aquí porque un auditor que
+cuenta mal sus propios hallazgos está haciendo exactamente lo que critica.
+
+### 17.2 D-29, cerrado
+
+**El defecto.** El sitio no publicaba **ni una etiqueta `og:` ni un `<link rel="canonical">`**. Al
+compartir un enlace —WhatsApp, X, cualquier red social— la vista previa salía sin título y sin
+imagen, y sin decir de qué sede era; y los buscadores tenían que deducir por su cuenta la dirección
+canónica de cada página.
+
+**La corrección.** Un composable, `useMetadatosComparticion`, que se declara **una vez en la
+disposición** —que envuelve todas las páginas y se renderiza en el servidor, que es donde lo lee un
+rastreador— y que:
+
+- publica `og:title`, `og:site_name`, `og:locale` (`es_CO`), `og:type`, `og:image` (el logotipo real
+  de la Entidad, en URL absoluta), `og:image:alt` y `twitter:card`;
+- emite `<link rel="canonical">` y `og:url` con la URL absoluta de la página;
+- **toma el título del catálogo de rutas** (`config/sitemap.ts`), de modo que la vista previa y el
+  mapa del sitio dicen lo mismo en vez de que cada uno invente su rótulo;
+- deja que cada página lo afine: la ficha de un trámite comparte **su** nombre y su resumen del
+  contrato, y una política comparte su nombre y su propósito ya publicados;
+- **no declara canónica en el 404**: la dirección que acaba de fallar no es una dirección buena que
+  ofrecer a nadie;
+- usa el dominio declarado (`runtimeConfig.public.dominio`, el mismo que alimentan `robots.txt` y
+  `sitemap.xml`) y sólo si no lo hay cae a la cabecera `Host`, porque detrás de un proxy esa cabecera
+  puede traer el nombre interno del contenedor.
+
+**Lo que no se hizo, y por qué.** No se inventa `og:description`: sólo se emite cuando la página la
+declara. Escribir veinticinco textos promocionales para que la vista previa quede más bonita es el
+tipo de dato inventado que esta auditoría persigue; sin descripción, la vista previa muestra el
+título y el nombre de la sede, y las dos cosas son ciertas.
+
+**Verificación** (comprobación añadida a `make diseno`, que entonces pasó de 18 a 19 y hoy va en 20):
+
+```
+/accesibilidad  → canónica https://staging.santamarta.gov.co/accesibilidad · og:title
+                  «Declaración de accesibilidad» · og:image absoluta · og:locale es_CO
+/404            → sin canónica y sin og:url
+```
+
+**Un error por el camino, que conviene dejar escrito.** La primera versión llamaba a `useError()`
+dentro de un `computed`. Los composables de Nuxt que necesitan la instancia no se pueden invocar
+cuando el `computed` se evalúa, así que **todas las páginas respondían 500** con `NUXT_E1001`. El
+`typecheck` no lo vio —compila— y la comprobación de la puerta sí. Es el cuarto defecto de esta
+auditoría que sólo aparece ejecutando.
+
+### 17.3 Recuento final, con la comprobación de cada pieza
+
+Sobre los **59 elementos** del registro (52 hallazgos + 7 regresiones), verificados uno por uno
+contra el árbol:
+
+| Estado | Cuántos | Cuáles |
+|---|---|---|
+| **Cerrados en código y verificados** | **43** | 36 hallazgos + las 7 regresiones R-01…R-07 |
+| Parciales (parte depende de un tercero o de un acto humano) | 7 | D-03 sugerencias (servicio), D-08 ranking (analítica), D-19 cobertura del 70 %, D-23 declaración firmada, D-25 `<lastmod>` (fechas reales), D-32 tope del menú (CMS), D-33 (verificado en código, sin comprobación visual a 768 px) |
+| Bloqueados por contenido o servicios de terceros | 8 | D-07, D-10, D-13, D-15, D-17, D-18, D-44, D-46 |
+| Bloqueado por el contrato | 1 | **D-27**, sólo su mitad de confirmación: la pantalla con radicado necesita un backend que radique (§18) |
+
+**D-27 se resolvió en la mitad que se podía resolver** (§18): los pasos numerados y la línea de
+avance ya están, y la pantalla de confirmación con radicado queda bloqueada por el contrato. Con eso,
+**todos los elementos abiertos del registro dependen de contenido externo, de un servicio de
+terceros, de un acto humano o de la autenticación** —es decir, de nada que se pueda escribir aquí—,
+y el trabajo de código del objetivo está terminado.
+
+---
+
+## 18. D-27, mitad de pasos: el formulario largo se divide en pasos (2026-10-01)
+
+**El requisito, literal.** RF-B2-077 (Must) pide «procesos largos subdivididos en **pasos
+numerados**» y su criterio de aceptación describe el resultado: «Paso 1 de 5» **con los pasos
+pendientes identificables**. CAG-20 añade la línea de avance y admite dos caminos: «permitir saltar
+pasos libremente o bloquearlos según obligatoriedad». `Sección 3:360` fija el patrón de encabezado:
+«Wizard con migas (`Paso 1 de 4: Datos del solicitante`) y orden lógico de campos».
+
+**La decisión de diseño, y por qué.** Tres pasos, que no se inventan: el formulario ya tenía tres
+bloques con sentido propio —**Solicitud**, **Datos del solicitante** y **Autorización y envío**— y lo
+que faltaba era hacerlos visibles. Se eligió **salto libre** en vez de bloqueo: CAG-20 permite las
+dos, y bloquear un paso impide consultarlo antes de rellenarlo, que es justo lo que hace falta para
+decidir si el trámite es el que se busca.
+
+**Cómo queda.**
+
+- **Línea de avance** con `<ol>` de tres botones, encabezado «Paso N de 3: nombre», y el paso actual
+  marcado con `aria-current="step"`.
+- **El estado se dice en texto** —«actual», «completado», «pendiente»—, no sólo con color, porque el
+  color no lo lee todo el mundo. Contrastes medidos: cobalto sobre Solitude 7,13:1, Havelock Lue
+  sobre blanco 4,67:1, Matterhorn sobre blanco 8,59:1.
+- **«Completado» sale de la validación, no de la posición.** Fue un defecto de la primera versión:
+  saltar al paso 3 marcaba los anteriores como completados. Ahora un paso está completo cuando sus
+  campos son válidos, y saltar no cambia eso.
+- **Avanzar exige que el paso esté completo**: si no, se marcan los campos con `aria-invalid` y el
+  foco va al primero, igual que al enviar.
+- **Al cambiar de paso el foco va a la línea de avance**, para que quien navega con teclado no tenga
+  que recorrer la página otra vez.
+
+**Verificación** (`make diseno`, comprobación propia; la puerta pasa de 19 a **22 comprobaciones**):
+
+```
+«Paso 1 de 3: Solicitud» · 3 pasos (actual, pendiente, pendiente) · avanzar sin rellenar:
+frena y marca campos (foco en tipoSolicitud) · salto libre: sí
+estados tras saltar al 3: pendiente, pendiente, actual
+```
+
+**Dos defectos que aparecieron al revisarlo, y que la puerta ahora caza.**
+
+1. **Enviar desde el último paso con los anteriores incompletos no llevaba a ninguna parte.** Es el
+   precio del salto libre, que CAG-20 permite: los campos marcados están en un paso oculto
+   (`display: none`), el foco no se puede poner en un elemento que no se ve, y el botón de enviar
+   **parecía no hacer nada**. Ahora, si el primer fallo está en un paso anterior, se vuelve a ese paso
+   antes de enfocar el campo.
+2. **Avanzar marcaba en rojo los campos de los pasos siguientes.** `avanzar()` guardaba el resultado
+   de validar **todo** el formulario, así que al llegar al paso 2 sus campos ya aparecían inválidos
+   sin que nadie los hubiera tocado. Ahora sólo se marcan los fallos del paso que se está rellenando.
+
+**Lo que no se hizo.** La confirmación con **número de radicado** (RF-B1-083, Must): el formulario no
+radica, así que no hay radicado que mostrar y mostrarlo sería inventarlo. Es el mismo criterio con el
+que el tablero del panel se dejó en cero.
+
+---
+
+## 19. Revisión de mis propias afirmaciones (2026-10-01)
+
+Antes de dar por bueno el trabajo revisé lo que le había dicho a quien lo encargó. **Dos de mis
+afirmaciones eran falsas**, y las dos del mismo tipo: daban por cubierto lo que no lo estaba.
+
+### 19.1 Lo que estaba mal
+
+| Lo que dije | Lo que había |
+|---|---|
+| «Los cuatro defectos que sólo aparecieron ejecutando tienen su comprobación en `make diseno`» | **D-37 no tenía ninguna.** La corrección de la tabla del Kit se hizo antes de que existiera la puerta de diseño, y nadie la comprobaba: se podía volver a anidar mal sin que nada lo dijera. |
+| Que un 500 lo cazaría alguna puerta | **Un 5xx no fallaba ninguna.** La de accesibilidad marcaba la página como «no auditada» y seguía en verde: cuando todas las páginas devolvían 500, la puerta no dijo nada. Sólo se notó porque la de diseño no encontraba sus selectores. |
+
+**El recuento sí se sostiene.** Volví a derivarlo: 52 hallazgos + 7 regresiones = 59; abiertos 16
+(7 parciales + 8 de terceros + la confirmación de D-27); cerrados **43**. La cifra del mensaje de
+commit es correcta.
+
+### 19.2 Lo que se corrigió
+
+- **Comprobación de D-37** en `make diseno`, y no por clases: comprueba que el `thead` calcula
+  `position: sticky`, que es una regla de **descendencia** de `all.css` y por tanto sólo llega si la
+  clase está donde el Kit la espera.
+- **Un 5xx falla las dos puertas.** La de accesibilidad ya no lo omite; la de diseño lo dice con un
+  mensaje que distingue «no responde» de «responde 500» —averías distintas que llevan a sitios
+  distintos—.
+- **Comprobación de humo** en `make diseno`: ocho rutas que no pueden devolver 5xx.
+- **Las comprobaciones que daban por hecha la página abierta** ahora abren la suya. Se descubrió
+  porque dos fallaron solas al añadir una comprobación nueva delante: el carrusel se estaba midiendo
+  sobre `/pqrsd`.
+- **Dos defectos del wizard**, descritos en §18.
+
+### 19.3 La prueba de que las comprobaciones sirven
+
+Una comprobación que nunca ha fallado no está demostrada. Se reintrodujo cada defecto, se compiló y
+se ejecutó la puerta:
+
+| Defecto reintroducido | Resultado |
+|---|---|
+| `useError()` dentro de un `computed` (el `NUXT_E1001`) | `make accesibilidad` **falla**; `make diseno` **falla** con «El sitio responde 500 en …/: no se puede comprobar el diseño de una página que no se abre» |
+| `tabla-govco` devuelta al `<table>` | `make diseno` **falla en D-37**: «la clase está en `<TABLE>` · la `<table>` no la lleva: false · el thead calcula position: sin thead» |
+| Quitar el retorno al paso del fallo | `make diseno` **falla en CAG-20**: «enviar desde el último paso: NO vuelve al paso del fallo» |
+
+Los tres defectos se revirtieron después, y la puerta volvió a pasar: **22 comprobaciones, 0 fallos**.
+
+---
+
+## Cierre
+
+> **Actualización 2026-10-01.** Esta lista describe el estado al cerrar la edición tercera. Un
+> lote posterior de correcciones se verificó en la **sección 12**: el punto 4 quedó hecho (D-12) y
+> el 5 a medias (el banner y el modal existen, con lo que les falta en §12.2); los demás siguen
+> abiertos, y el lote introdujo siete defectos nuevos (R-01 a R-07). Léase esta lista junto con
+> aquella sección.
+
+**Lo que hay que hacer con este documento.** No es una lista de reproches: es el orden de trabajo
+que se deduce de él. Si solo pudieran hacerse diez cosas, serían estas, en este orden:
+
+1. **Quitar del panel las cifras simuladas y la afirmación de doble factor** (D-05, D-04). Es un
+   fichero y un comentario: mientras estén, la interfaz miente.
+2. **Escribir la primera prueba de accesibilidad con axe** (D-19). Desbloquea CAG-32, RNF-B1-014 y
+   convierte siete «no verificable» de esta auditoría en datos.
+3. **Alinear el `Makefile` con lo que existe y regenerar o retirar la matriz de trazabilidad**
+   (D-06). Un expediente que acredita pruebas inexistentes es peor que no tener expediente.
+4. **Poner el carrusel en pausa por defecto** (D-12) y **persistir la preferencia de
+   accesibilidad con el enlace al Centro de Relevo** (D-11): dos Must, dos ficheros.
+5. **Construir el banner de cookies** (D-01) y **el aviso de salida con su lista blanca** (D-02,
+   D-28): los dos requisitos legales de la carcasa que hoy no existen.
+6. **Decidir las 25 contradicciones de la sección 6** y escribir sus ADR. Sin eso, el próximo
+   equipo volverá a resolverlas a mano, una por una, y de forma distinta.
+7. **Publicar la declaración de conformidad de accesibilidad** con sus doce elementos (D-23): es
+   un requisito de la Resolución 1519 y hoy no existe.
+8. **Publicar las cinco políticas y enlazar la búsqueda real** (D-10, D-03): son las dos cosas que
+   cualquier ciudadano toca en su primera visita.
+9. **Convertir `/transparencia`, `/tramites` y `/noticias` en las secciones que el menú y el
+   `sitemap.xml` ya anuncian** (D-17): hoy el proyecto promete en el menú lo que no publica.
+10. **Terminar el panel** (D-15): autenticación, permisos por módulo, CMS y tablero ITA en cero.
+    Es el 45 % del producto y hoy es una carcasa de navegación.
+
+**Lo que este documento no dice.** No dice que el diseño esté mal hecho. Dice lo contrario: la
+carcasa del sitio público —barra, cabecera, menú, miga, pie, carrusel, contraste, reflujo— está
+resuelta con un rigor que no es habitual, y está resuelta **con las mediciones y los motivos
+escritos al lado de cada decisión**. Los 68 requisitos que no se cumplen se reparten en dos
+montones muy distintos: **43 porque la pieza no existe todavía** (contenido, contrato, CMS,
+back-office) y **11 porque lo construido contradice el requisito** —cookies, aviso de salida,
+buscador, autenticación, cifras simuladas, carrusel en marcha, barra sin memoria, tabla sin
+ordenamiento, enlaces visitados, identidad del panel y datos duplicados de la Entidad—. Ese
+segundo montón es el que se corrige esta semana; el primero es el proyecto.
+
+---
+
+*Auditoría de solo lectura: no se modificó ningún fichero de `sitio/`, `panel/`, `backend/`,
+`docs/`, `sede-electronica-doc/`, `vendor-src/` ni `contract/`. El único fichero escrito es este
+informe. La edición anterior queda disponible en el historial de Git
+(`git show d728457:auditoria-sede.md`).*
+
+
+
+
+
+

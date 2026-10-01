@@ -1,0 +1,84 @@
+/**
+ * Aviso de salida a sitio externo (RF-B1-071, RF-01-D03, RN-01-D03).
+ *
+ * Se prueba la **clasificación**, que es donde el aviso se equivoca de dos
+ * maneras opuestas: si trata como externo lo que no lo es, aparece un modal cada
+ * vez que alguien escribe un correo; y si trata como interno lo que sí lo es, el
+ * ciudadano sale de la sede sin que nadie le avise. Los dos casos están aquí,
+ * incluidos los que no se ven a simple vista (`mailto:`, `tel:` y las anclas,
+ * cuyo `hostname` está vacío y que la primera versión clasificaba como externos).
+ */
+import { describe, expect, it } from 'vitest'
+
+import { useAvisoSalida } from '../app/composables/useAvisoSalida'
+
+const { esEnlaceExterno, esDominioConfianza } = useAvisoSalida()
+
+describe('qué cuenta como salir de la sede', () => {
+  it('las rutas internas no son externas', () => {
+    expect(esEnlaceExterno('/tramites')).toBe(false)
+    expect(esEnlaceExterno('/politicas/uso-de-cookies')).toBe(false)
+  })
+
+  it('las anclas de la misma página no son externas', () => {
+    expect(esEnlaceExterno('#contenido-principal')).toBe(false)
+  })
+
+  it('un correo o un teléfono no son una salida: no llevan a otro sitio', () => {
+    expect(esEnlaceExterno('mailto:atencionalciudadano@santamarta.gov.co')).toBe(false)
+    expect(esEnlaceExterno('tel:+576054209600')).toBe(false)
+    expect(esEnlaceExterno('sms:+573001234567')).toBe(false)
+  })
+
+  it('una URL absoluta de otro dominio sí es una salida', () => {
+    expect(esEnlaceExterno('https://www.facebook.com/alcaldiasantamarta')).toBe(true)
+    expect(esEnlaceExterno('http://ejemplo.com')).toBe(true)
+  })
+
+  it('una cadena que no es una URL no se considera salida', () => {
+    expect(esEnlaceExterno('no soy una url')).toBe(false)
+  })
+})
+
+describe('lista blanca de dominios de confianza (RN-01-D03)', () => {
+  it('el ecosistema del Estado no dispara el aviso', () => {
+    expect(esDominioConfianza('https://www.gov.co/')).toBe(true)
+    expect(esDominioConfianza('https://secop.gov.co')).toBe(true)
+    expect(esDominioConfianza('https://suin.gov.co')).toBe(true)
+    expect(esDominioConfianza('https://carpetaciudadana.gov.co')).toBe(true)
+    expect(esDominioConfianza('https://www.dane.gov.co')).toBe(true)
+    expect(esDominioConfianza('https://www.colombia.co')).toBe(true)
+  })
+
+  it('un subdominio de un dominio de confianza también lo es', () => {
+    expect(esDominioConfianza('https://portal.secop.gov.co')).toBe(true)
+  })
+
+  it('un tercero no está en la lista', () => {
+    expect(esDominioConfianza('https://www.facebook.com')).toBe(false)
+    expect(esDominioConfianza('https://x.com')).toBe(false)
+  })
+
+  it('un dominio que sólo termina parecido no se cuela', () => {
+    // `falsogov.co` no es `gov.co`: la comprobación exige el punto de separación.
+    expect(esDominioConfianza('https://falsogov.co')).toBe(false)
+  })
+
+  it('el propio dominio de la sede siempre es de confianza', () => {
+    expect(esDominioConfianza(`https://${window.location.hostname}/tramites`)).toBe(true)
+  })
+})
+
+describe('la decisión completa', () => {
+  it('un enlace al Portal GOV.CO es externo pero no se avisa', () => {
+    const url = 'https://www.gov.co/'
+    expect(esEnlaceExterno(url)).toBe(true)
+    expect(esDominioConfianza(url)).toBe(true)
+  })
+
+  it('un enlace a una red social se avisa y se dice a quién se va', () => {
+    const url = 'https://www.instagram.com/alcaldiasantamarta'
+    expect(esEnlaceExterno(url)).toBe(true)
+    expect(esDominioConfianza(url)).toBe(false)
+  })
+})

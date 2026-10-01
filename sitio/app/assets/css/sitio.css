@@ -273,9 +273,119 @@ a:not(.btn):not([class*="btn-"]):hover {
   color: var(--govcolor-havelock-lue, #4672c8);
 }
 
+/* ============================================================================
+   Enlaces visitados (RF-B1-082)
+   ============================================================================
+
+   RF-B1-082 pide que el enlace visitado se distinga del no visitado «con color,
+   preferiblemente púrpura». La paleta del Kit es **cerrada** —los 21 tokens de
+   `all.css`— y no incluye ningún púrpura: el único candidato azul lavanda
+   (`--govcolor-portage`) da **2,62:1 sobre blanco** y no sirve como color de
+   texto. Inventar un color sería incumplir CAG-33 para cumplir un criterio de
+   segundo orden.
+
+   Se usa el gris **Matterhorn del propio Kit**, que da **8,59:1 sobre blanco** y
+   **6,77:1 sobre la banda celeste del pie**, y que se distingue del cobalto del
+   enlace por tono y saturación. Se midió también la relación entre los dos
+   colores (1,01:1), así que la diferencia **no** es de luminosidad: un enlace
+   visitado se ve gris y uno pendiente azul, que es exactamente lo que el
+   criterio pide.
+   ============================================================================ */
+
+a:not(.btn):not([class*="btn-"]):visited {
+  color: var(--govcolor-matterhorn, #4c4c4c);
+}
+
+a:not(.btn):not([class*="btn-"]):visited:hover {
+  color: var(--govcolor-havelock-lue, #4672c8);
+}
+
 /* Los enlaces dentro de la banda celeste del pie van en oscuro, como su texto. */
 .pie-pagina-govco .second-section a {
   color: #000;
+}
+
+/* Visitados dentro del pie: el mismo gris del Kit, que sobre esta banda da 6,77:1. */
+.pie-pagina-govco .second-section a:visited {
+  color: var(--govcolor-matterhorn, #4c4c4c);
+}
+
+.pie-pagina-govco .second-section a:visited:hover {
+  color: #000;
+}
+
+/* ============================================================================
+   Foco visible en todo el sitio (WCAG 2.4.7, CAG-10, RF-B1-048)
+   ============================================================================
+
+   El Kit estiliza el foco de SUS componentes, y Bootstrap 5.0.2 —la versión que
+   el Kit exige— no conoce `:focus-visible`, que llegó en la 5.2. Resultado: en un
+   enlace de texto, en un control propio o en un elemento con `tabindex`, el
+   indicador de foco quedaba a merced del navegador, y CAG-10 —que pide contraste
+   de foco— no se podía acreditar.
+
+   El contorno va en `currentColor` y no en cobalto fijo: así toma el color del
+   propio texto, que sobre el fondo de su contexto ya cumple 4,5:1, de modo que el
+   foco cumple el 3:1 que se le pide sin depender del fondo. Un cobalto fijo
+   desaparecería sobre las bandas cobalto —el pie, los controles del carrusel—.
+
+   `:where()` deja la especificidad en cero: cualquier regla del Kit o de un
+   componente que defina su propio foco sigue ganando, sin pelearse con ella. Y se
+   excluye `tabindex="-1"` porque ese es el destino del enlace de salto
+   (`#contenido-principal`), que no es un control y no debe dibujar un marco al
+   recibir el foco.
+   ============================================================================ */
+:where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: 0.1875rem solid currentColor;
+  outline-offset: 0.125rem;
+}
+
+/* ============================================================================
+   Espaciado de texto reforzado (WCAG 1.4.12, RF-B3-014)
+   ============================================================================
+
+   Aplica los valores que fija WCAG 1.4.12 —interlínea 1,5; entre letras 0,12 em;
+   entre palabras 0,16 em— a todo el documento. Sirve para dos cosas: es el ajuste
+   que RF-B3-014 pide, y al poder encenderse **demuestra que el diseño no pierde
+   contenido con esos valores**, que es lo que el criterio exige de verdad.
+
+   Los valores son los del criterio y no un gusto: se usan tal cual para que la
+   comprobación signifique algo.
+   ============================================================================ */
+.espaciado-govco {
+  line-height: 1.5;
+  letter-spacing: 0.12em;
+  word-spacing: 0.16em;
+}
+
+.espaciado-govco p,
+.espaciado-govco li,
+.espaciado-govco dd,
+.espaciado-govco blockquote,
+.espaciado-govco td,
+.espaciado-govco th {
+  line-height: 2;
+}
+
+/* ============================================================================
+   Medida de línea del contenido (RNF-B1-031, CAG-27, RF-B2-081)
+   ============================================================================
+
+   El contenido se limitaba con `col-lg-8` —unos 736 px dentro del contenedor de
+   1 140—, que a 16 px ronda los 90-100 caracteres por línea cuando el corpus
+   exige entre 60 y 80. Se acota la **prosa**, no la maquetación: se aplica a
+   párrafos y elementos de lista del contenido principal, y no a encabezados,
+   tablas, tarjetas ni a la rejilla, que necesitan el ancho completo.
+
+   `75ch` cae dentro del rango con cualquiera de las dos tipografías del Kit
+   (Verdana es ancha y Nunito Sans más estrecha), así que no hay que elegir un
+   número distinto por familia.
+   ============================================================================ */
+#contenido-principal p,
+#contenido-principal li,
+#contenido-principal dd,
+#contenido-principal blockquote {
+  max-width: 68ch;
 }
 
 /* ============================================================================
@@ -373,6 +483,46 @@ a:not(.btn):not([class*="btn-"]):hover {
 
 .form-check-input:checked {
   background-color: var(--govcolor-cobalt, #0943b5);
+  border-color: var(--govcolor-cobalt, #0943b5);
+}
+
+/*
+ * Estados de un control que Bootstrap no deja legibles (CAG-17: Default, Active,
+ * Focus, Disabled, Valid, Invalid).
+ *
+ *  - **Deshabilitado.** Bootstrap baja la opacidad a 0,65 sobre un fondo gris
+ *    claro, y el resultado queda por debajo de 4,5:1. Se fija un fondo del Kit,
+ *    un texto con contraste medido (Matterhorn sobre Solitude: 6,9:1) y opacidad
+ *    completa: deshabilitado no puede significar ilegible.
+ *  - **Válido / inválido.** El verde y el rojo de Bootstrap (#198754 y #dc3545)
+ *    son ajenos a la paleta y el verde no llega al 4,5:1 del texto. El borde y el
+ *    halo usan el rojo institucional (#A80521, 7,7:1) y el mensaje de error ya
+ *    lleva su propio color (`sitio.css`, `.error-campo`).
+ */
+.form-control:disabled,
+.form-select:disabled,
+.form-control[readonly] {
+  background-color: var(--govcolor-solitude, #e5ecf8);
+  border-color: var(--govcolor-silver, #cccccc);
+  color: var(--govcolor-matterhorn, #4c4c4c);
+  opacity: 1;
+}
+
+.form-control.is-invalid,
+.form-select.is-invalid,
+.form-check-input.is-invalid {
+  border-color: var(--govcolor-red, #a80521);
+}
+
+.form-control.is-invalid:focus,
+.form-select.is-invalid:focus,
+.form-check-input.is-invalid:focus {
+  border-color: var(--govcolor-red, #a80521);
+  box-shadow: 0 0 0 0.25rem rgba(168, 5, 33, 0.25);
+}
+
+.form-control.is-valid,
+.form-select.is-valid {
   border-color: var(--govcolor-cobalt, #0943b5);
 }
 

@@ -54,6 +54,36 @@
  */
 import { computed } from 'vue'
 
+import { POLITICAS } from '~/config/sitemap'
+
+/**
+ * Los mismos estados que gobierna la barra flotante de accesibilidad.
+ *
+ * Se repiten aquí porque la barra se oculta por debajo de 992 px (CAG-07) y eso
+ * dejaba sin ajuste de contraste ni de tamaño de letra a quien navega en tablet
+ * o en móvil, que es justo quien más lo necesita (RNF-07-D01, HU-07-D02). El pie
+ * está en todas las páginas y a cualquier ancho: es el sitio donde estos
+ * controles no pueden desaparecer.
+ */
+const {
+  preferencias,
+  alternarContraste,
+  alternarEspaciado,
+  moverLetra,
+  restablecer,
+  puedeAumentar,
+  puedeReducir,
+} = useAccesibilidad()
+
+/**
+ * El punto de revocación del consentimiento de cookies.
+ *
+ * RF-B1-008 exige que el consentimiento sea revocable «en cualquier momento», y
+ * cuando el banner se cierra no queda nada que pulsar. Este botón lo reabre con
+ * lo que el ciudadano hubiera elegido, para revisarlo o retirarlo.
+ */
+const { abrirBanner } = useConsentimientoCookies()
+
 /** Un dato de contacto del bloque de la sede. */
 interface DatoContacto {
   /** Etiqueta visible, con el nombre que le da la Resolución 1519 de 2020. */
@@ -156,9 +186,10 @@ const props = withDefaults(defineProps<Props>(), {
       telefonos: [
         { etiqueta: 'Teléfono conmutador', valor: '(+57) 605 420 9600' },
         { etiqueta: 'Línea gratuita', valor: '018000 955 532' },
-        // Se publica aunque hoy coincide con la línea de atención al ciudadano:
-        // es un canal exigido por FUN-014 y su ausencia incumple más que su
-        // repetición. Lo que hay que corregir es la duplicación, no el dato.
+        // Se publica porque es un canal exigido por FUN-014 y su ausencia
+        // incumple más que su repetición. Es el número propio de la línea
+        // anticorrupción —el conmutador es otro— y va con el indicativo del país
+        // porque no es una línea 018000 (RN-B1-017).
         { etiqueta: 'Línea anticorrupción', valor: '(+57) 605 4351719' },
       ],
       correos: [
@@ -201,34 +232,23 @@ const props = withDefaults(defineProps<Props>(), {
   // Mientras no existan las páginas, todas apuntan al contenido principal: un
   // destino real y anunciado, en lugar de cinco rutas inventadas que devolverían
   // 404 desde el pie de una sede electrónica.
-  // Las cinco políticas obligatorias de SEG-006 y el mapa del sitio ya tienen
-  // destino propio, así que apuntan a él. Mientras no lo tuvieron apuntaban al
-  // ancla del contenido, con un aviso visible: era preferible un destino real y
-  // anunciado que cinco rutas inventadas devolviendo 404 desde el pie.
-  //
-  // Al dejar de empezar por «#», `enlacesPendientes` deja de cumplirse y el
-  // aviso desaparece solo, sin que haya que tocar nada más.
+  /*
+   * Los enlaces del pie.
+   *
+   * Las cinco políticas se **derivan** de `config/sitemap.ts`, que es donde viven
+   * su slug, su rótulo y su estado de publicación. Antes estaban escritas aquí,
+   * allí y en la página de cada política, y ya habían divergido: mantener tres
+   * copias de la misma lista es la forma más barata de que un día el pie enlace a
+   * una política con un nombre que ya no existe (D-31).
+   *
+   * Los otros dos no son políticas y van escritos aquí, que es donde se decide
+   * qué más lleva el pie: la declaración de accesibilidad y el mapa del sitio.
+   */
   enlacesPie: () => [
-    { texto: 'Términos y condiciones de uso', a: '/politicas/terminos-y-condiciones-de-uso' },
-    { texto: 'Seguridad y privacidad', a: '/politicas/seguridad-y-privacidad' },
-    {
-      texto: 'Protección y tratamiento de datos personales',
-      a: '/politicas/proteccion-y-tratamiento-de-datos-personales',
-    },
-    { texto: 'Uso de cookies', a: '/politicas/uso-de-cookies' },
-    {
-      texto: 'Derechos de autor y uso sobre contenidos',
-      a: '/politicas/derechos-de-autor-y-uso-sobre-contenidos',
-    },
-    /*
-     * El enlace de accesibilidad va **en el pie**, y no es una preferencia de
-     * diseño: lo exige el Anexo 1 §4.3.2(c) —«disponer de un enlace de
-     * accesibilidad ubicado en el footer del home principal, en el que se deberán
-     * indicar las medidas adoptadas… para el cumplimiento de las disposiciones de
-     * accesibilidad»—. El sitio de la Alcaldía que estamos sustituyendo lo tiene
-     * en la cabecera y no en el pie, y su página de accesibilidad no declara nada;
-     * no repetimos ninguna de las dos cosas.
-     */
+    ...POLITICAS.map((politica) => ({
+      texto: politica.etiqueta,
+      a: `/politicas/${politica.slug}`,
+    })),
     { texto: 'Accesibilidad', a: '/accesibilidad' },
     { texto: 'Mapa del sitio', a: '/mapa-del-sitio' },
   ],
@@ -344,6 +364,96 @@ const contacto = computed<DatoContacto[]>(() => {
       <p v-if="enlacesPendientes" class="aviso-pendientes">
         {{ avisoEnlacesPendientes }}
       </p>
+
+      <!--
+        Revocación del consentimiento de cookies (RF-B1-008). El banner se cierra
+        cuando el ciudadano decide, y a partir de ahí no hay forma de cambiar de
+        opinión si no es desde un punto fijo como éste.
+      -->
+      <p class="configurar-cookies">
+        <button type="button" class="btn-govco link-btn-govco" @click="abrirBanner">
+          Configurar cookies
+        </button>
+      </p>
+
+      <!--
+        Los controles de accesibilidad, con etiqueta y a cualquier ancho. La barra
+        flotante es el atajo en escritorio; esto es la garantía de que la función
+        existe siempre.
+      -->
+      <section class="accesibilidad-pie" aria-labelledby="titulo-accesibilidad-pie">
+        <h3 id="titulo-accesibilidad-pie" class="subtitulo-pie">Accesibilidad</h3>
+
+        <ul class="lista-accesibilidad-pie">
+          <li>
+            <button
+              type="button"
+              class="btn-govco outline-btn-govco"
+              :aria-pressed="preferencias.contraste"
+              @click="alternarContraste"
+            >
+              {{ preferencias.contraste ? 'Quitar alto contraste' : 'Alto contraste' }}
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              class="btn-govco outline-btn-govco"
+              :disabled="!puedeReducir"
+              @click="moverLetra(-1)"
+            >
+              Reducir letra
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              class="btn-govco outline-btn-govco"
+              :disabled="!puedeAumentar"
+              @click="moverLetra(1)"
+            >
+              Aumentar letra
+            </button>
+          </li>
+          <li>
+            <button type="button" class="btn-govco outline-btn-govco" @click="restablecer">
+              Restablecer
+            </button>
+          </li>
+          <li>
+            <!--
+              Espaciado de texto reforzado (RF-B3-014, WCAG 1.4.12). Va aquí y no
+              en la barra flotante porque la barra se oculta por debajo de 992 px:
+              quien lee con dislexia o baja visión en un móvil tiene que poder
+              ajustarlo igual.
+            -->
+            <button
+              type="button"
+              class="btn-govco outline-btn-govco"
+              :aria-pressed="preferencias.espaciado"
+              @click="alternarEspaciado"
+            >
+              {{ preferencias.espaciado ? 'Quitar espaciado' : 'Más espaciado' }}
+            </button>
+          </li>
+          <li>
+            <!--
+              El Centro de Relevo atiende por video-llamada a la ciudadanía con
+              discapacidad auditiva. Es un dominio del Estado, así que el aviso de
+              salida no se interpone (RN-01-D03).
+            -->
+            <a
+              class="btn-govco link-btn-govco"
+              href="https://www.centroderelevo.gov.co"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Centro de Relevo: atención a la ciudadanía con discapacidad auditiva (abre en una pestaña nueva)"
+            >
+              Centro de Relevo
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
 
     <div class="second-section">
@@ -436,6 +546,39 @@ const contacto = computed<DatoContacto[]>(() => {
   color: var(--govcolor-matterhorn, #4c4c4c);
   font-family: 'Verdana-Regular', system-ui, sans-serif;
   font-size: 15px;
+}
+
+/*
+ * Bloque de accesibilidad del pie. Los controles van en fila y con salto de
+ * línea, no en una rejilla fija: son cinco botones de texto de ancho variable y
+ * en 320 px tienen que poder acomodarse sin desbordar.
+ */
+.accesibilidad-pie {
+  width: 100%;
+  margin-top: 1.5rem;
+}
+
+.lista-accesibilidad-pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * El Kit pone `display: flex` a todo párrafo del pie; de ahí que los controles se
+ * alineen a la izquierda con `align-items` explícito en lugar de heredar el
+ * centrado de la caja.
+ */
+.lista-accesibilidad-pie li {
+  display: flex;
+  align-items: center;
+}
+
+.lista-accesibilidad-pie .btn-govco {
+  min-height: 2.75rem;
 }
 
 /* El Kit no trae utilidad equivalente —no hay `visually-hidden` ni `sr-only` en

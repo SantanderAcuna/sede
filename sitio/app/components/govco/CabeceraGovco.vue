@@ -34,39 +34,27 @@
  *    esta cabecera espera que un `MenuNavegacionGovco` la siga; sin él, en
  *    escritorio se queda sin línea.
  *
- * El enlace de salto vive aquí y no en cada página porque tiene que ser lo
- * primero enfocable del documento en todas ellas (WCAG 2.4.1, CAG-08). Sus
- * clases `sr-only sr-only-focusable` son las que pide la norma, pero **no las
- * define ninguna hoja del sitio**: `all.css` no las trae y el Bootstrap que el
- * Kit da por hecho tampoco —Bootstrap 5 las renombró a `visually-hidden`—, de
- * modo que se implementan al final del archivo. Sin eso, el enlace quedaría
- * siempre visible encima de la cabecera.
- *
- * El destino del salto debe existir en la página (`id="contenido-principal"`) y
- * conviene que sea enfocable (`tabindex="-1"`): si no, hay navegadores que mueven
- * el foco al `<body>` y el salto no sirve de nada.
+ * **Aquí ya no está el enlace de salto.** Vivía en este componente, y como la
+ * cabecera se monta después de la barra superior y de la barra de accesibilidad,
+ * el primer tabulador de la página era el enlace a GOV.CO: el atajo llegaba tras
+ * ocho o nueve paradas, que es justo lo que existe para evitar (RF-B3-022 exige
+ * que sea el primer elemento tabulable). Se movió a la disposición, antes de
+ * `<BarraSuperior />`, junto con sus estilos `sr-only sr-only-focusable`.
  */
 interface Props {
   /** Ruta del logotipo de la Entidad. */
   logotipo?: string
   /** Texto alternativo del logotipo: es su nombre accesible, no un adorno. */
   logotipoAlt?: string
-  /** Destino del enlace de salto dentro de la página. */
-  destinoContenido?: string
 }
 
 const {
   logotipo = '/logo-entidad.png',
   logotipoAlt = 'Alcaldía Distrital de Santa Marta',
-  destinoContenido = '#contenido-principal',
 } = defineProps<Props>()
 </script>
 
 <template>
-  <a class="sr-only sr-only-focusable" :href="destinoContenido">
-    Saltar al contenido principal
-  </a>
-
   <div class="cabecera-govco">
     <div class="barra-inferior-govco">
       <div class="barra-logos-govco">
@@ -103,52 +91,6 @@ const {
 </template>
 
 <style scoped>
-/*
- * `sr-only` y `sr-only-focusable` sacan el elemento de la vista sin sacarlo del
- * árbol de accesibilidad, y lo devuelven a su sitio al recibir el foco. Se
- * implementan con `clip` y no con `display: none` a propósito: `display: none`
- * lo borraría también para quien usa lector de pantalla, y el enlace de salto
- * existe precisamente para esa persona.
- */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/*
- * Al aparecer tiene que leerse, y ahí arriba compite con la barra azul del
- * Estado y con la blanca de la cabecera: fondo claro, color institucional y
- * subrayado. Se queda en el flujo (`position: relative`, no `fixed`) para que
- * empuje la página hacia abajo mientras está visible, que es como se comporta un
- * enlace de salto y como lo espera quien lo usa.
- */
-.sr-only-focusable:active,
-.sr-only-focusable:focus {
-  position: relative;
-  z-index: 1100;
-  display: block;
-  width: auto;
-  height: auto;
-  padding: 0.75rem 1rem;
-  margin: 0;
-  overflow: visible;
-  clip: auto;
-  white-space: normal;
-  background-color: var(--govcolor-white, #ffffff);
-  color: var(--govcolor-cobalt, #0943b5);
-  font-family: 'Verdana-Bold', Verdana, sans-serif;
-  text-decoration: underline;
-  outline: 0.125rem solid var(--govcolor-cobalt, #0943b5);
-  outline-offset: -0.125rem;
-}
-
 .enlace-logotipo-govco {
   display: inline-flex;
   align-items: center;

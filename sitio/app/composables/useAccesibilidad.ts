@@ -19,24 +19,80 @@
  *     nada: es un stub. Aquí el botón aplica `contraste-govco`, nuestra clase, con
  *     un modo de alto contraste de verdad.
  *
- * El estado vive en `useState` para que sea el mismo en servidor y cliente: con
- * un `ref` suelto, la hidratación encontraría dos valores distintos.
+ *  3. **El espaciado de texto.** RF-B3-014 pide que el espaciado sea configurable,
+ *     y WCAG 1.4.12 (AA) exige que el contenido **no se pierda** cuando quien lee
+ *     impone interlínea 1,5, espaciado entre letras 0,12 em y entre palabras
+ *     0,16 em. Aquí se ofrece el ajuste —y de paso demuestra que el diseño aguanta
+ *     esos valores, que es la otra mitad del criterio— con una clase en la raíz.
+ *
+ * **Persistencia en localStorage (D-11).**
+ * ADR-0012 compromete que las preferencias de accesibilidad se guarden en
+ * `localStorage` para que sobrevivan entre sesiones. El estado vive en `useState`
+ * para consistencia SSR, pero se sincroniza con `localStorage` en el cliente.
  */
 import { computed, onMounted, watch } from 'vue'
 
 const LIMITE = 5
 const CLAVE = 'sede.accesibilidad'
+const CLAVE_LOCALSTORAGE = 'sede-accesibilidad'
 const PASO = 0.08
 
 interface Preferencias {
   contraste: boolean
   letra: number
+  /** Espaciado de texto reforzado (WCAG 1.4.12, RF-B3-014). */
+  espaciado: boolean
+}
+
+/** Valores por defecto cuando no hay preferencia guardada. */
+const VALORES_POR_DEFECTO: Preferencias = { contraste: false, letra: 0, espaciado: false }
+
+/**
+ * Lee las preferencias desde localStorage.
+ * Solo debe llamarse en el cliente; en SSR retorna los valores por defecto.
+ */
+function leerDeLocalStorage(): Preferencias {
+  if (!import.meta.client) return VALORES_POR_DEFECTO
+  try {
+    const guardadas = localStorage.getItem(CLAVE_LOCALSTORAGE)
+    if (guardadas) {
+      const parsed = JSON.parse(guardadas) as Partial<Preferencias>
+      // Validación mínima: asegurar que los valores son del tipo correcto
+      return {
+        contraste: typeof parsed.contraste === 'boolean' ? parsed.contraste : VALORES_POR_DEFECTO.contraste,
+        letra: typeof parsed.letra === 'number' ? parsed.letra : VALORES_POR_DEFECTO.letra,
+        espaciado:
+          typeof parsed.espaciado === 'boolean'
+            ? parsed.espaciado
+            : VALORES_POR_DEFECTO.espaciado,
+      }
+    }
+  } catch {
+    // Si localStorage falla o el JSON está corrupto, usar valores por defecto
+  }
+  return VALORES_POR_DEFECTO
+}
+
+/**
+ * Guarda las preferencias en localStorage.
+ * Solo debe llamarse en el cliente.
+ */
+function guardarEnLocalStorage(prefs: Preferencias): void {
+  if (!import.meta.client) return
+  try {
+    localStorage.setItem(CLAVE_LOCALSTORAGE, JSON.stringify(prefs))
+  } catch {
+    // Si localStorage falla (cuota, privado, etc.), continuar sin guardar
+  }
 }
 
 export function useAccesibilidad() {
-  const preferencias = useState<Preferencias>(CLAVE, () => ({ contraste: false, letra: 0 }))
+  // useState garantiza consistencia SSR: todas las páginas ven el mismo estado
+  // inicial durante la hidratación. Las preferencias reales se cargan de
+  // localStorage en onMounted.
+  const preferencias = useState<Preferencias>(CLAVE, () => VALORES_POR_DEFECTO)
 
-  /** Aplica las preferencias al documento. Sólo tiene sentido en el cliente. */
+  /** Aplica las preferencias al documento. Solo tiene sentido en el cliente. */
   function aplicar(): void {
     if (!import.meta.client) return
 
@@ -46,6 +102,7 @@ export function useAccesibilidad() {
     // las rejillas de la página.
     raiz.style.zoom =
       preferencias.value.letra === 0 ? '' : String(1 + preferencias.value.letra * PASO)
+    raiz.classList.toggle('espaciado-govco', preferencias.value.espaciado)
   }
 
   function alternarContraste(): void {
@@ -58,20 +115,37 @@ export function useAccesibilidad() {
     preferencias.value.letra = Math.max(-LIMITE, Math.min(LIMITE, siguiente))
   }
 
+  /** Enciende o apaga el espaciado de texto reforzado. */
+  function alternarEspaciado(): void {
+    preferencias.value.espaciado = !preferencias.value.espaciado
+  }
+
   function restablecer(): void {
-    preferencias.value = { contraste: false, letra: 0 }
+    preferencias.value = { contraste: false, letra: 0, espaciado: false }
   }
 
   const puedeAumentar = computed(() => preferencias.value.letra < LIMITE)
   const puedeReducir = computed(() => preferencias.value.letra > -LIMITE)
 
-  // Al montar hace falta aplicarlo: el servidor no tiene documento donde hacerlo.
-  onMounted(aplicar)
-  watch(preferencias, aplicar, { deep: true })
+  // Al montar cargar las preferencias guardadas y aplicarlas.
+  // useState ya provee el valor inicial (VALORES_POR_DEFECTO en SSR),
+  // pero en el cliente debemos sobreescribir con lo guardado en localStorage.
+  onMounted(() => {
+    const guardadas = leerDeLocalStorage()
+    preferencias.value = guardadas
+    aplicar()
+  })
+
+  // Cada vez que cambian las preferencias, guardarlas en localStorage.
+  watch(preferencias, (nuevas) => {
+    guardarEnLocalStorage(nuevas)
+    aplicar()
+  }, { deep: true })
 
   return {
     preferencias,
     alternarContraste,
+    alternarEspaciado,
     moverLetra,
     restablecer,
     puedeAumentar,

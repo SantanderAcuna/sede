@@ -6,6 +6,11 @@
  * autentica**, porque el módulo de identidad todavía no existe. Cuando llegue,
  * este formulario pasa a invocar el servicio real y a mostrar el error de la
  * API en `FormField`.
+ *
+ * Por eso mismo la pantalla **no puede afirmar que protege nada**. Publicaba una
+ * garantía de doble factor (Decreto 1078) que hoy es falsa —ni hay sesión ni hay
+ * segundo factor— y una promesa de seguridad incumplida es peor que el silencio.
+ * En su lugar va el aviso de abajo.
  */
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -54,10 +59,22 @@ const recordar = ref(false)
       </RouterLink>
     </div>
 
-    <BaseButton type="submit" block size="lg">Ingresar</BaseButton>
+    <BaseButton type="submit" block size="lg" disabled>Ingresar</BaseButton>
 
-    <p class="text-xs text-center text-ink-muted">
-      Sesión protegida con doble factor (Decreto 1078).
+    <!--
+      El botón queda deshabilitado porque no hay nada que enviar: un control que
+      se puede pulsar y no hace nada es una promesa que la interfaz no cumple.
+    -->
+    <p
+      class="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-200"
+      role="note"
+    >
+      <FaIcon icon="triangle-exclamation" class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>
+        Previsualización: el módulo de identidad todavía no está conectado, así que este
+        formulario no inicia sesión ni concede acceso. La autenticación con doble factor llegará
+        cuando ese módulo exista.
+      </span>
     </p>
   </form>
 </template>

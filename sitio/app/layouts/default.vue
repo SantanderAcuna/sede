@@ -15,6 +15,25 @@
  */
 import type { MenuPrincipal } from '~/types/menu'
 import type { NivelMigaDePan } from '~/components/govco/MigaDePanGovco.vue'
+import { menuPrincipal } from '~/config/sitemap'
+
+// Componentes globales de la auditoría (D-01, D-02)
+import BannerCookies from '~/components/BannerCookies.vue'
+import ModalAvisoSalida from '~/components/ModalAvisoSalida.vue'
+import { useAvisoSalida } from '~/composables/useAvisoSalida'
+import { useMetadatosComparticion } from '~/composables/useMetadatosComparticion'
+import GaleriaAplicacionesGovco from '~/components/govco/GaleriaAplicacionesGovco.vue'
+
+/*
+ * Metadatos de compartición y URL canónica (D-29). Se declaran aquí porque la
+ * disposición envuelve todas las páginas y se ejecuta también en el servidor,
+ * que es donde los lee un rastreador.
+ */
+useMetadatosComparticion()
+
+// Estado del modal de aviso de salida a sitio externo
+const { visible, enlacePendiente, origenDelAviso, confirmarNavegacion, cancelarNavegacion } =
+  useAvisoSalida()
 
 /**
  * El menú obligatorio de la Sede.
@@ -43,55 +62,17 @@ import type { NivelMigaDePan } from '~/components/govco/MigaDePanGovco.vue'
  * después de los tres menús mínimos obligatorios». PQRSD, Normativa y Noticias
  * son adicionales, así que van detrás de Participa.
  */
-const menu: MenuPrincipal = [
-  { etiqueta: 'Inicio', ruta: '/' },
-  { etiqueta: 'Transparencia y acceso información pública', ruta: '/transparencia' },
-  {
-    etiqueta: 'Atención y Servicios a la Ciudadanía',
-    subsecciones: [
-      {
-        titulo: 'Atención y Servicios a la Ciudadanía',
-        enlaces: [
-          { etiqueta: 'Trámites y servicios', ruta: '/tramites' },
-          { etiqueta: 'Canales de atención', ruta: '/atencion' },
-          { etiqueta: 'Realizar una petición', ruta: '/realizar-una-peticion' },
-          { etiqueta: 'Seguimiento de una solicitud', ruta: '/seguimiento' },
-        ],
-      },
-    ],
-  },
-  {
-    etiqueta: 'Participa',
-    subsecciones: [
-      {
-        titulo: 'Participa',
-        enlaces: [
-          {
-            etiqueta:
-              'Participación para la identificación de problemas y diagnóstico de necesidades',
-            ruta: '/participa/identificacion-de-problemas',
-          },
-          {
-            etiqueta: 'Planeación y/o presupuesto participativo',
-            ruta: '/participa/presupuesto-participativo',
-          },
-          {
-            etiqueta:
-              'Participación y consulta ciudadana de proyectos, normas, políticas o programas',
-            ruta: '/participa/consulta-ciudadana',
-          },
-          { etiqueta: 'Colaboración e innovación abierta', ruta: '/participa/innovacion-abierta' },
-          { etiqueta: 'Rendición de cuentas', ruta: '/participa/rendicion-de-cuentas' },
-          { etiqueta: 'Control ciudadano', ruta: '/participa/control-ciudadano' },
-        ],
-      },
-    ],
-  },
-
-  { etiqueta: 'PQRSD', ruta: '/pqrsd' },
-  { etiqueta: 'Normativa', ruta: '/normativa' },
-  { etiqueta: 'Noticias', ruta: '/noticias' },
-]
+/*
+ * El menú se toma de `config/sitemap.ts`, que es la fuente única de rutas,
+ * rótulos y estado de publicación del sitio.
+ *
+ * Antes esta lista se escribía aquí, y el mapa del sitio y el `sitemap.xml`
+ * llevaban cada uno la suya: tres listas que podían —y llegaron a— discrepar en
+ * nombres y en qué se anuncia al buscador. Con el menú derivado de la
+ * configuración, añadir una sección es tocar un solo fichero y los tres
+ * artefactos quedan de acuerdo sin que nadie tenga que acordarse (RF-B1-010).
+ */
+const menu: MenuPrincipal = menuPrincipal
 
 /**
  * Recorrido de la miga de pan, derivado de la ruta.
@@ -148,10 +129,64 @@ const migaDePan = computed<NivelMigaDePan[]>(() => {
 
   return niveles
 })
+
+/**
+ * Aplicaciones de la galería de la cabecera (RF-B3-068).
+ *
+ * Las tres que el Kit UI dibuja para la cabecera de la sede: Portal GOV.CO,
+ * Carpeta Ciudadana y CIIU.
+ *
+ * **Los destinos son los oficiales de cada servicio**, y no un dominio
+ * aproximado: la Carpeta Ciudadana es de los Servicios Ciudadanos Digitales
+ * (`carpetaciudadana.gov.co`, no el SECOP, que es contratación) y el CIIU lo
+ * publica el DANE (`dane.gov.co`, no la DIAN, que es impuestos). Un enlace
+ * institucional que lleva a otro organismo es peor que no tenerlo: el ciudadano
+ * cree estar en el sitio correcto y no lo está.
+ *
+ * Las tres son dominios de confianza en `useAvisoSalida`, así que no disparan el
+ * aviso de salida: son extensiones del ecosistema del Estado, no una salida a un
+ * tercero.
+ */
+const aplicacionesGaleria = [
+  {
+    id: 'portal-govco',
+    nombre: 'Portal del Estado Colombiano',
+    enlace: 'https://www.gov.co',
+    icono: 'govco' as const,
+  },
+  {
+    id: 'carpeta-ciudadana',
+    nombre: 'Carpeta Ciudadana',
+    enlace: 'https://carpetaciudadana.gov.co',
+    icono: 'carpeta' as const,
+  },
+  {
+    id: 'ciiu',
+    nombre: 'CIIU — Clasificación Industrial (DANE)',
+    enlace: 'https://www.dane.gov.co',
+    icono: 'ciiu' as const,
+  },
+]
 </script>
 
 <template>
   <div class="disposicion-sitio">
+    <!--
+      **El enlace de salto va el primero, y aquí.** RF-B3-022 lo exige literal:
+      «Primer Tab en cualquier página → aparece "Saltar al contenido principal"»,
+      y `Sección 3:148,252` lo repite («poner… como primer enlace de la página»).
+
+      Estaba dentro de la cabecera, y la cabecera se monta **después** de la barra
+      superior y de la barra de accesibilidad: el primer tabulador era el enlace a
+      GOV.CO y el atajo llegaba tras ocho o nueve paradas, que es justo lo que
+      existe para evitar. Medido con navegador real antes de moverlo (auditoría,
+      hallazgo R-P4). El destino sigue siendo `#contenido-principal`, que la
+      disposición declara más abajo con `tabindex="-1"`.
+    -->
+    <a class="sr-only sr-only-focusable" href="#contenido-principal">
+      Saltar al contenido principal
+    </a>
+
     <BarraSuperior />
     <BarraAccesibilidad />
 
@@ -164,27 +199,48 @@ const migaDePan = computed<NivelMigaDePan[]>(() => {
       Antes sólo estaba en la portada, así que desde cualquier otra página no
       había forma de buscar: había que volver al inicio primero.
     -->
-    <CabeceraGovco destino-contenido="#contenido-principal">
+    <CabeceraGovco>
       <template #buscador>
         <BuscadorGovco @buscar="alBuscar" />
       </template>
 
       <!--
         «Iniciar Sesión» en la cabecera, como la dibuja el Anexo 2.1 en su
-        página 6.
+        página 6. El anexo lo marca **opcional**.
 
-        **Lleva a la entrada que ya existe**, la del panel, en `/admin/acceso`.
-        No se inventa una pantalla de acceso de ciudadano que no está construida:
-        un botón que abre un formulario que no autentica es peor que no tenerlo,
-        porque el ciudadano cree haber iniciado sesión. Cuando exista el módulo de
-        identidad ciudadana, este enlace apuntará a su entrada.
+        **Lleva a la entrada del panel, en `/admin/acceso`**, que es la única
+        pantalla de acceso que existe. No se inventa una entrada de ciudadano que
+        no está construida, y la del panel declara que el módulo de identidad
+        todavía no está conectado: un botón que abre un formulario que finge
+        autenticar es peor que no tenerlo, porque el ciudadano cree haber
+        iniciado sesión.
+
+        Es un `NuxtLink` y no un `<a href>`: un enlace interno con `<a>` descarga
+        la aplicación entera y pierde el estado de navegación, que en una sede con
+        sesión y formularios a medias no es un detalle cosmético (D-22).
       -->
       <template #acciones>
-        <a class="enlace-sesion" href="/admin/acceso">Iniciar sesión</a>
+        <!-- Galería de aplicaciones (RF-B3-068) -->
+        <GaleriaAplicacionesGovco
+          :aplicaciones="aplicacionesGaleria"
+          etiqueta-boton="Abrir aplicaciones y servicios"
+          ayuda-boton="Acceso al Portal GOV.CO, Carpeta Ciudadana y CIIU."
+        />
+        <NuxtLink class="enlace-sesion" to="/admin/acceso">Iniciar sesión</NuxtLink>
       </template>
     </CabeceraGovco>
 
-    <MenuNavegacionGovco :items="menu" etiqueta-accesible="Menú principal de la Sede Electrónica" />
+    <!--
+      El buscador se pasa también al menú, en el hueco que el componente expone.
+      En escritorio el componente lo oculta —el buscador ya está en la cabecera— y
+      en móvil, con el menú desplegado, es la única forma de buscar sin cerrarlo:
+      el Kit sitúa ahí su buscador y aquí se respeta (D-50).
+    -->
+    <MenuNavegacionGovco :items="menu" etiqueta-accesible="Menú principal de la Sede Electrónica">
+      <template #buscador>
+        <BuscadorGovco @buscar="alBuscar" />
+      </template>
+    </MenuNavegacionGovco>
 
     <MigaDePanGovco :niveles="migaDePan" />
 
@@ -200,6 +256,19 @@ const migaDePan = computed<NivelMigaDePan[]>(() => {
 
     <PiePaginaGovco />
     <VolverArriba />
+
+    <!-- Componentes de la auditoría: banner de cookies y aviso de salida -->
+    <BannerCookies />
+    <ModalAvisoSalida
+      v-if="enlacePendiente"
+      :visible="visible"
+      :destino="enlacePendiente.url"
+      :nombre-destino="enlacePendiente.nombre"
+      :entidad-responsable="enlacePendiente.entidad"
+      :origen="origenDelAviso"
+      @confirmar="confirmarNavegacion"
+      @cancelar="cancelarNavegacion"
+    />
   </div>
 </template>
 
@@ -236,6 +305,55 @@ const migaDePan = computed<NivelMigaDePan[]>(() => {
   /* El pie queda abajo aunque la página tenga poco contenido, sin flotar a
      media altura. */
   min-height: 100vh;
+}
+
+/*
+ * `sr-only` y `sr-only-focusable` sacan el elemento de la vista sin sacarlo del
+ * árbol de accesibilidad, y lo devuelven a su sitio al recibir el foco. Son las
+ * clases que pide CAG-08, pero **no las define ninguna hoja cargada**: `all.css`
+ * no las trae y Bootstrap 5 las renombró a `visually-hidden`. Se implementan
+ * aquí, en la disposición, porque aquí vive ahora el enlace.
+ *
+ * Se hace con `clip` y no con `display: none` a propósito: `display: none` lo
+ * borraría también para quien usa lector de pantalla, y el enlace existe
+ * precisamente para esa persona.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * Al aparecer tiene que leerse, y ahí arriba compite con la barra azul del Estado
+ * y con la blanca de la cabecera. Se queda en el flujo (`position: relative`, no
+ * `fixed`) para que empuje la página hacia abajo mientras está visible, que es
+ * como se comporta un enlace de salto y como lo espera quien lo usa.
+ */
+.sr-only-focusable:active,
+.sr-only-focusable:focus {
+  position: relative;
+  z-index: 1100;
+  display: block;
+  width: auto;
+  height: auto;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  background-color: var(--govcolor-white, #ffffff);
+  color: var(--govcolor-cobalt, #0943b5);
+  font-family: 'Verdana-Bold', Verdana, sans-serif;
+  text-decoration: underline;
+  outline: 0.125rem solid var(--govcolor-cobalt, #0943b5);
+  outline-offset: -0.125rem;
 }
 
 #contenido-principal {

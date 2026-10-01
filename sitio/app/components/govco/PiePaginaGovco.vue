@@ -54,6 +54,33 @@
  */
 import { computed } from 'vue'
 
+import { POLITICAS } from '~/config/sitemap'
+
+/**
+ * La vía del pie a los ajustes de accesibilidad.
+ *
+ * **Publica un enlace, no un juego de controles.** Antes el pie repetía los seis
+ * ajustes de la barra flotante con otras palabras y otro orden, y las dos listas
+ * ya habían divergido: el pie ofrecía espaciado y la barra no, y «Restablecer» se
+ * llamaba distinto en cada sitio. Eso incumple CC7 —mismas acciones, mismo
+ * aspecto y mismo nombre— y multiplica los lugares donde arreglar un fallo.
+ *
+ * Ahora abre el **mismo panel** que el botón de la cabecera, porque la apertura es
+ * estado compartido en `useAccesibilidad`. Se sigue cumpliendo CC12 —vías
+ * distintas al mismo contenido— sin duplicar ni un control, y es la vía que
+ * sobrevive cuando la cabecera ya ha quedado fuera de pantalla.
+ */
+const { abrirPanel } = useAccesibilidad()
+
+/**
+ * El punto de revocación del consentimiento de cookies.
+ *
+ * RF-B1-008 exige que el consentimiento sea revocable «en cualquier momento», y
+ * cuando el banner se cierra no queda nada que pulsar. Este botón lo reabre con
+ * lo que el ciudadano hubiera elegido, para revisarlo o retirarlo.
+ */
+const { abrirBanner } = useConsentimientoCookies()
+
 /** Un dato de contacto del bloque de la sede. */
 interface DatoContacto {
   /** Etiqueta visible, con el nombre que le da la Resolución 1519 de 2020. */
@@ -156,9 +183,10 @@ const props = withDefaults(defineProps<Props>(), {
       telefonos: [
         { etiqueta: 'Teléfono conmutador', valor: '(+57) 605 420 9600' },
         { etiqueta: 'Línea gratuita', valor: '018000 955 532' },
-        // Se publica aunque hoy coincide con la línea de atención al ciudadano:
-        // es un canal exigido por FUN-014 y su ausencia incumple más que su
-        // repetición. Lo que hay que corregir es la duplicación, no el dato.
+        // Se publica porque es un canal exigido por FUN-014 y su ausencia
+        // incumple más que su repetición. Es el número propio de la línea
+        // anticorrupción —el conmutador es otro— y va con el indicativo del país
+        // porque no es una línea 018000 (RN-B1-017).
         { etiqueta: 'Línea anticorrupción', valor: '(+57) 605 4351719' },
       ],
       correos: [
@@ -201,34 +229,23 @@ const props = withDefaults(defineProps<Props>(), {
   // Mientras no existan las páginas, todas apuntan al contenido principal: un
   // destino real y anunciado, en lugar de cinco rutas inventadas que devolverían
   // 404 desde el pie de una sede electrónica.
-  // Las cinco políticas obligatorias de SEG-006 y el mapa del sitio ya tienen
-  // destino propio, así que apuntan a él. Mientras no lo tuvieron apuntaban al
-  // ancla del contenido, con un aviso visible: era preferible un destino real y
-  // anunciado que cinco rutas inventadas devolviendo 404 desde el pie.
-  //
-  // Al dejar de empezar por «#», `enlacesPendientes` deja de cumplirse y el
-  // aviso desaparece solo, sin que haya que tocar nada más.
+  /*
+   * Los enlaces del pie.
+   *
+   * Las cinco políticas se **derivan** de `config/sitemap.ts`, que es donde viven
+   * su slug, su rótulo y su estado de publicación. Antes estaban escritas aquí,
+   * allí y en la página de cada política, y ya habían divergido: mantener tres
+   * copias de la misma lista es la forma más barata de que un día el pie enlace a
+   * una política con un nombre que ya no existe (D-31).
+   *
+   * Los otros dos no son políticas y van escritos aquí, que es donde se decide
+   * qué más lleva el pie: la declaración de accesibilidad y el mapa del sitio.
+   */
   enlacesPie: () => [
-    { texto: 'Términos y condiciones de uso', a: '/politicas/terminos-y-condiciones-de-uso' },
-    { texto: 'Seguridad y privacidad', a: '/politicas/seguridad-y-privacidad' },
-    {
-      texto: 'Protección y tratamiento de datos personales',
-      a: '/politicas/proteccion-y-tratamiento-de-datos-personales',
-    },
-    { texto: 'Uso de cookies', a: '/politicas/uso-de-cookies' },
-    {
-      texto: 'Derechos de autor y uso sobre contenidos',
-      a: '/politicas/derechos-de-autor-y-uso-sobre-contenidos',
-    },
-    /*
-     * El enlace de accesibilidad va **en el pie**, y no es una preferencia de
-     * diseño: lo exige el Anexo 1 §4.3.2(c) —«disponer de un enlace de
-     * accesibilidad ubicado en el footer del home principal, en el que se deberán
-     * indicar las medidas adoptadas… para el cumplimiento de las disposiciones de
-     * accesibilidad»—. El sitio de la Alcaldía que estamos sustituyendo lo tiene
-     * en la cabecera y no en el pie, y su página de accesibilidad no declara nada;
-     * no repetimos ninguna de las dos cosas.
-     */
+    ...POLITICAS.map((politica) => ({
+      texto: politica.etiqueta,
+      a: `/politicas/${politica.slug}`,
+    })),
     { texto: 'Accesibilidad', a: '/accesibilidad' },
     { texto: 'Mapa del sitio', a: '/mapa-del-sitio' },
   ],
@@ -343,6 +360,29 @@ const contacto = computed<DatoContacto[]>(() => {
 
       <p v-if="enlacesPendientes" class="aviso-pendientes">
         {{ avisoEnlacesPendientes }}
+      </p>
+
+      <!--
+        Revocación del consentimiento de cookies (RF-B1-008). El banner se cierra
+        cuando el ciudadano decide, y a partir de ahí no hay forma de cambiar de
+        opinión si no es desde un punto fijo como éste.
+      -->
+      <p class="configurar-cookies">
+        <button type="button" class="btn-govco link-btn-govco" @click="abrirBanner">
+          Configurar cookies
+        </button>
+      </p>
+
+      <!--
+        La vía del pie a los ajustes de accesibilidad: **un enlace**, no un
+        segundo juego de controles. Abre el mismo panel que el botón de la
+        cabecera. El razonamiento completo está en el `script`, junto al
+        `useAccesibilidad()`.
+      -->
+      <p class="configurar-cookies">
+        <button type="button" class="btn-govco link-btn-govco" @click="abrirPanel">
+          Ajustes de accesibilidad
+        </button>
       </p>
     </div>
 

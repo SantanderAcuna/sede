@@ -8,7 +8,13 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "test:accesibilidad": "node tests/accesibilidad.mjs",
+    "test:contraste": "node tests/verificar-modos-contraste.mjs",
+    "test": "vitest",
+    "trazabilidad": "node scripts/trazabilidad.mjs",
+    "test:cobertura": "vitest run --coverage",
+    "test:diseno": "node tests/diseno.mjs"
   },
   "dependencies": {
     "nuxt": "^4.5.2",
@@ -19,6 +25,7 @@
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.19.0",
+    "@vitest/coverage-v8": "^5.0.3",
     "@vue/test-utils": "^2.5.1",
     "axe-core": "^4.13.0",
     "jsdom": "^30.1.1",

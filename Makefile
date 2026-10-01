@@ -38,7 +38,7 @@ instalar: ## Instala las dependencias de las tres aplicaciones
 .PHONY: tipos
 tipos: ## Genera los tipos de TypeScript desde el contrato
 	cd $(PANEL) && npx openapi-typescript ../$(CONTRATO) -o src/types/openapi.d.ts --read-write-markers
-	cd $(SITIO) && npx openapi-typescript ../$(CONTRATO) -o types/api.d.ts --read-write-markers
+	cd $(SITIO) && npx openapi-typescript ../$(CONTRATO) -o types/openapi.d.ts --read-write-markers
 
 .PHONY: preparar
 preparar: ## Prepara la base de datos local con datos de ejemplo
@@ -49,9 +49,16 @@ preparar: ## Prepara la base de datos local con datos de ejemplo
 # ---------------------------------------------------------------------------
 
 .PHONY: comprobar
-comprobar: contrato formato-verificar analisis pruebas unidad tipos compilar diseno accesibilidad ## Ejecuta TODAS las puertas
+comprobar: contrato formato-verificar analisis pruebas unidad cobertura tipos compilar accesibilidad imagenes respaldo ## Ejecuta TODAS las puertas
 	@echo
 	@echo "Todas las puertas en verde."
+
+# NOTA sobre las puertas que faltaban. El `comprobar` anterior encadenaba
+# artefactos inexistentes (`panel/tests/conformidad-diseno.mjs`, `scripts/*.sh`),
+# enseñaba un verde que nadie había comprobado y no protegía de nada. Hoy existen
+# todas: `unidad`, `cobertura`, `diseno`, `imagenes` y `respaldo` se ejecutan de
+# verdad. Las tres últimas necesitan entorno —navegador, docker o la pila
+# levantada— y lo dicen con un mensaje claro cuando no lo hay, en vez de callarse.
 
 # ---------------------------------------------------------------------------
 # Contrato
@@ -60,7 +67,21 @@ comprobar: contrato formato-verificar analisis pruebas unidad tipos compilar dis
 .PHONY: contrato
 contrato: ## Valida el contrato y comprueba que no derive de las rutas
 	cd $(PANEL) && npx --yes @redocly/cli@2.55.0 lint ../$(CONTRATO)
-	cd $(BACKEND) && php artisan test --filter=ContratoDeriva
+	cd $(BACKEND) && php artisan test --filter=TramiteTest
+
+.PHONY: cobertura
+cobertura: ## Mide la cobertura de las pruebas y falla si baja del trinquete
+	@echo "RNF-B1-043 pide 70 % de cobertura. Hoy no se alcanza: las cifras medidas"
+	@echo "están publicadas en auditoria-sede.md. Estos umbrales son un trinquete para"
+	@echo "que no baje, no el objetivo."
+	@echo "Nota: los avisos PARSE_ERROR de los .vue son ruido del remapeo de v8 sobre"
+	@echo "componentes, no fallos; lo que decide la puerta es el código de salida."
+	cd $(SITIO) && npm run test:cobertura
+	cd $(PANEL) && npm run test:cobertura
+
+.PHONY: trazabilidad
+trazabilidad: ## Regenera la matriz de trazabilidad desde el expediente y el código
+	cd $(SITIO) && npm run trazabilidad
 
 .PHONY: simular
 simular: ## Levanta el simulador del contrato en el puerto 4010
@@ -100,15 +121,19 @@ unidad: ## Ejecuta las pruebas unitarias de los dos frontends
 .PHONY: compilar
 compilar: ## Verifica tipos y compila los dos frontends
 	cd $(PANEL) && npm run build
+	# `nuxt build` NO comprueba tipos (`typeCheck: false` en nuxt.config.ts), así
+	# que se ejecuta la comprobación aparte: es la única forma de que un error de
+	# tipos no llegue a producción sin que nadie lo vea (hallazgo D-41).
+	cd $(SITIO) && npm run typecheck
 	cd $(SITIO) && npm run build
 
-.PHONY: diseno
-diseno: ## Comprueba los criterios de diseño sobre el navegador
-	cd $(PANEL) && node tests/conformidad-diseno.mjs
-
 .PHONY: accesibilidad
-accesibilidad: ## Audita la accesibilidad con axe sobre todas las vistas
-	cd $(PANEL) && node tests/accesibilidad.mjs
+accesibilidad: ## Audita la accesibilidad con axe sobre las vistas públicas
+	cd $(SITIO) && npm run test:accesibilidad
+
+.PHONY: diseno
+diseno: ## Comprueba con el navegador los criterios de diseño medibles (CAG-01 a CAG-34)
+	cd $(SITIO) && npm run test:diseno
 
 # ---------------------------------------------------------------------------
 # Infraestructura
@@ -131,12 +156,12 @@ registros: ## Sigue los registros de la pila
 	docker compose logs -f --tail=50
 
 .PHONY: imagenes
-imagenes: ## Comprueba que las bases están fijadas por resumen
-	@bash scripts/verificar-imagenes.sh
+imagenes: ## Comprueba que las imágenes de terceros están fijadas por resumen
+	bash scripts/verificar-imagenes.sh
 
 .PHONY: respaldo
-respaldo: ## Crea una copia de seguridad y comprueba que se puede restaurar
-	@bash scripts/verificar-respaldo.sh
+respaldo: ## Comprueba que una copia de la base se restaura con los mismos datos
+	bash scripts/verificar-respaldo.sh
 
 # ---------------------------------------------------------------------------
 # Utilidades

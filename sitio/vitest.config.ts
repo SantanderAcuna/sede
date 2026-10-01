@@ -21,16 +21,16 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     /*
      * La cobertura se mide sobre el código del producto, no sobre las pruebas ni
-     * sobre lo generado. RNF-B1-043 pide un 70 %: hoy no se alcanza y la cifra
-     * está publicada en la auditoría; lo que impide esta configuración es que
-     * baje sin que nadie lo note (el umbral es un trinquete, no el objetivo).
+     * sobre lo generado. RNF-B1-043 pide un 70 %: **se alcanza en líneas (95,5 %)**
+     * y también en sentencias (85,6 %). Estos umbrales están por debajo de lo
+     * medido a propósito: son un trinquete que impide bajar, no el objetivo.
      */
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'json-summary'],
       include: ['app/**/*.{ts,vue}'],
-      exclude: ['app/**/*.d.ts', 'app/config/**'],
-      thresholds: { statements: 40, branches: 36, functions: 44, lines: 45 },
+      exclude: ['app/**/*.d.ts'],
+      thresholds: { statements: 85, branches: 71, functions: 92, lines: 95 },
     },
   },
 })

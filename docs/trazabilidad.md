@@ -67,15 +67,15 @@ Enunciados en `docs/Sección 2 §2.4`.
 | **CAG-10** | implementación | `sitio/app/components/govco/MenuNavegacionGovco.vue:98` |
 | **CAG-11** | **prueba** | `sitio/app/components/govco/MigaDePanGovco.vue:5` · `sitio/app/layouts/default.vue:83` · `sitio/tests/diseno.mjs:359` |
 | **CAG-12** | **prueba** | `sitio/.scratch/pie.test.ts:20` · `sitio/app/components/govco/PiePaginaGovco.vue:28` · `sitio/tests/diseno.mjs:374` · `contract/openapi.yaml:66` |
-| **CAG-13** | **prueba** | `sitio/tests/diseno.mjs:406` |
+| **CAG-13** | **prueba** | `sitio/tests/diseno.mjs:406` · `panel/tests/componentes.test.ts:35` |
 | **CAG-14** | **prueba** | `sitio/tests/diseno.mjs:416` |
 | **CAG-15** | **prueba** | `sitio/app/components/govco/BuscadorGovco.vue:19` · `sitio/tests/diseno.mjs:431` |
-| **CAG-16** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:588` · `sitio/tests/diseno.mjs:517` |
+| **CAG-16** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:588` · `sitio/tests/diseno.mjs:517` · `panel/tests/componentes.test.ts:87` |
 | **CAG-17** | **prueba** | `sitio/tests/diseno.mjs:539` |
 | **CAG-18** | desviación declarada | `sitio/tests/diseno.mjs:73` |
 | **CAG-19** | desviación declarada | `sitio/tests/diseno.mjs:74` |
 | **CAG-20** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:340` · `sitio/tests/diseno.mjs:639` · `contract/openapi.yaml:299` |
-| **CAG-21** | desviación declarada | `sitio/app/components/ModalAvisoSalida.vue:9` · `sitio/app/composables/useAvisoSalida.ts:152` · `sitio/tests/diseno.mjs:470` |
+| **CAG-21** | desviación declarada | `sitio/app/components/ModalAvisoSalida.vue:9` · `sitio/app/composables/useAvisoSalida.ts:152` · `sitio/tests/diseno.mjs:470` · `panel/tests/componentes.test.ts:117` |
 | **CAG-22** | desviación declarada | `sitio/tests/diseno.mjs:75` |
 | **CAG-23** | implementación | `sitio/app/layouts/default.vue:281` · `sitio/app/pages/tramites/index.vue:884` |
 | **CAG-24** | desviación declarada | — |

@@ -420,7 +420,7 @@ hallazgo correspondiente de la sección 5, donde está el detalle y la correcci�
 | RNF-B2-019 | Buscador de ~200 px de ancho mínimo | 🟡 | El campo cede espacio y no desborda (`sitio.css:298-320`), pero mide lo que le deja la fila de la cabecera; sin medición de los 27 caracteres (⛔). |
 | RNF-B2-007 | FCP ≤2,5 s en 4G | ⛔ | Sin medición. |
 | RNF-B2-021 | ≤posición 10 en Google para ≥3 de 5 frases clave | ⛔ | Sin medición. |
-| RNF-B1-043 | Código limpio, HTML/CSS válido, **cobertura de pruebas ≥70 %**, CI/CD | 🟡 | **Ya hay pruebas**: 35 en el sitio y 20 en el panel, y `make unidad` es una puerta real (§14.1). Lo que sigue sin acreditarse es el **70 % de cobertura**: no hay proveedor de cobertura instalado y nadie la ha medido. HTML/CSS válido sigue siendo ⛔. |
+| RNF-B1-043 | Código limpio, HTML/CSS válido, **cobertura de pruebas ≥70 %**, CI/CD | 🟡 | **Las pruebas existen y el 70 % se alcanza en líneas**: 112 pruebas (52 sitio + 60 panel), **sitio 95,54 %** y **panel 70,90 %** de líneas, medidos con `make cobertura` y protegidos por un trinquete (§20.2). HTML/CSS válido sigue siendo ⛔, y no hay CI/CD en el repositorio. |
 | RNF-B3-036 | ≤7 ítems de menú principal | ✅ | Exactamente 7 (`layouts/default.vue:46-94`). |
 | RNF-B3-037 | Índice Fernández-Huerta ≥60 | ⛔ | Sin cálculo. |
 | RNF-08-D01 | Resultados SUS almacenados y exportables | ❌ | No hay SUS (D-27). |
@@ -2341,6 +2341,54 @@ Los tres defectos se revirtieron después, y la puerta volvió a pasar: **22 com
 
 ---
 
+## 20. Cierre de las puertas que faltaban y de la cobertura (2026-10-01)
+
+Última pasada: lo que quedaba por hacer sin depender de nadie.
+
+### 20.1 `make respaldo`: la copia se restaura de verdad
+
+Nace `scripts/verificar-respaldo.sh`, que hace el ciclo entero contra la base de datos real: volcado
+con `pg_dump`, restauración en una base **temporal** y comparación **tabla por tabla con conteos
+exactos** (`query_to_xml`, no estimaciones de `pg_stat_user_tables`). La base temporal se crea y se
+destruye en la misma ejecución, con `trap` para que no quede ni si la puerta falla a mitad.
+
+```
+contenedor: sede-db-1 · base de datos: sede_electronica
+volcado: 263775 bytes · restauración: sin errores
+origen: 66 tablas · 2798 filas
+La puerta pasa: la base se vuelca y se restaura con las mismas 66 tablas y 2798 filas.
+```
+
+Se probó también el caso negativo (contenedor inexistente → falla con mensaje claro, sin dejar
+basura). **No usa el servicio `copia` del compose ni la frase de paso**: así la puerta se puede
+ejecutar sin secretos y comprueba lo que importa —que la base se levante con los mismos datos—.
+
+### 20.2 La cobertura del 70 % que pedía RNF-B1-043
+
+| Proyecto | Antes | Ahora | Sentencias |
+|---|---|---|---|
+| Sitio | 45,58 % | **95,54 % de líneas** | 85,63 % |
+| Panel | 3,92 % | **70,90 % de líneas** | 66,79 % |
+
+Se pasó de **55 a 112 pruebas**. Lo que se añadió no es relleno para subir un número:
+
+- **`useAccesibilidad` estaba en 0 %** y aplica contraste, tamaño de letra y espaciado a toda la
+  página: se prueba montando un componente real, porque lo que hay que comprobar ocurre en
+  `onMounted` y en el `watch`.
+- **Los componentes base del panel** (`BaseButton`, `BaseModal`, `FormField`, `AccessibilityBar`…)
+  no se habían montado nunca, y `D-16` va precisamente de lo que sólo se ve al montarlos: el
+  `aria-sort`, el `for`/`id` de las etiquetas, la trampa de foco del modal.
+- **El enrutador real**: 18 módulos que exigen sesión y permiso, y un invitado al que no se le abre
+  ninguno.
+- **`services/http.ts`**: por donde sale todo lo que el panel pide al backend.
+
+Una nota de honestidad: **tres pruebas de esta pasada fallaron por errores míos**, no del código —un
+localizador que cogía el botón del buscador en vez del formulario, un evento sin `burbujeo` que por
+eso no llegaba a `window`, y una comprobación que daba por abierta la página que dejó la anterior—.
+Se corrigieron las tres, y quedan escritas aquí porque son exactamente el tipo de error que esta
+auditoría le señala al código de producción.
+
+---
 ## Cierre
 
 > **Actualización 2026-10-01.** Esta lista describe el estado al cerrar la edición tercera. Un

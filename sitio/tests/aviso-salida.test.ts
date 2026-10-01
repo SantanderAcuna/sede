@@ -8,7 +8,7 @@
  * incluidos los que no se ven a simple vista (`mailto:`, `tel:` y las anclas,
  * cuyo `hostname` está vacío y que la primera versión clasificaba como externos).
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { useAvisoSalida } from '../app/composables/useAvisoSalida'
 
@@ -80,5 +80,74 @@ describe('la decisión completa', () => {
     const url = 'https://www.instagram.com/alcaldiasantamarta'
     expect(esEnlaceExterno(url)).toBe(true)
     expect(esDominioConfianza(url)).toBe(false)
+  })
+})
+
+/**
+ * El estado del aviso: pedirlo, confirmarlo y cancelarlo.
+ *
+ * La clasificación de enlaces se prueba arriba; esto prueba lo que pasa cuando el
+ * aviso se pide y cuando se responde, que es donde vive el riesgo de navegar sin
+ * que nadie haya confirmado —o de no navegar después de confirmar—.
+ */
+describe('pedir, confirmar y cancelar el aviso', () => {
+  it('pedirlo deja el enlace pendiente con su nombre y su entidad', () => {
+    const { visible, enlacePendiente, solicitarConfirmacion } = useAvisoSalida()
+
+    solicitarConfirmacion('https://www.instagram.com/alcaldiasantamarta', true, null)
+
+    expect(visible.value).toBe(true)
+    expect(enlacePendiente.value?.url).toBe('https://www.instagram.com/alcaldiasantamarta')
+    // El nombre y la entidad salen del dominio, no de una lista escrita a mano.
+    expect(enlacePendiente.value?.nombre).toBeTruthy()
+    expect(enlacePendiente.value?.entidad).toBeTruthy()
+    expect(enlacePendiente.value?.nuevaPestana).toBe(true)
+  })
+
+  it('recuerda quién abrió el aviso, para devolverle el foco', () => {
+    const { origenDelAviso, solicitarConfirmacion } = useAvisoSalida()
+    const enlace = document.createElement('a')
+
+    solicitarConfirmacion('https://ejemplo.com', true, enlace)
+
+    expect(origenDelAviso.value).toBe(enlace)
+  })
+
+  it('confirmar abre el destino y cierra el aviso', () => {
+    const { visible, enlacePendiente, solicitarConfirmacion, confirmarNavegacion } = useAvisoSalida()
+    const abrir = vi.spyOn(window, 'open').mockReturnValue(null)
+
+    solicitarConfirmacion('https://ejemplo.com/destino', true, null)
+    confirmarNavegacion()
+
+    expect(abrir).toHaveBeenCalledWith('https://ejemplo.com/destino', '_blank', 'noopener,noreferrer')
+    expect(visible.value).toBe(false)
+    expect(enlacePendiente.value).toBeNull()
+    abrir.mockRestore()
+  })
+
+  it('cancelar cierra el aviso sin navegar a ninguna parte', () => {
+    const { visible, enlacePendiente, solicitarConfirmacion, cancelarNavegacion } = useAvisoSalida()
+    const abrir = vi.spyOn(window, 'open').mockReturnValue(null)
+
+    solicitarConfirmacion('https://ejemplo.com/destino', true, null)
+    cancelarNavegacion()
+
+    expect(abrir).not.toHaveBeenCalled()
+    expect(visible.value).toBe(false)
+    expect(enlacePendiente.value).toBeNull()
+    abrir.mockRestore()
+  })
+
+  it('confirmar sin nada pendiente no navega ni deja el aviso abierto', () => {
+    const { visible, confirmarNavegacion, cancelarNavegacion } = useAvisoSalida()
+    const abrir = vi.spyOn(window, 'open').mockReturnValue(null)
+
+    cancelarNavegacion()
+    confirmarNavegacion()
+
+    expect(abrir).not.toHaveBeenCalled()
+    expect(visible.value).toBe(false)
+    abrir.mockRestore()
   })
 })

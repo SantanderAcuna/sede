@@ -25,15 +25,15 @@ nadie lo viera (sección 3.1).
 
 | | Antes | Ahora |
 |---|---|---|
-| Puertas ejecutables | 1 de 11 | **11 de 12** |
+| Puertas ejecutables | 1 de 11 | **12 de 12** |
 | Puertas que fallan en silencio (apuntan a ficheros inexistentes) | 5 | **0** |
-| `make comprobar` | no podía terminar | **10 puertas reales**, y pasan |
+| `make comprobar` | no podía terminar | **11 puertas reales**, y pasan |
 | Pruebas de accesibilidad | 0 | **18 páginas con axe, 0 violaciones** |
 | Comprobación de tipos del sitio | existía y no la llamaba nadie | **dentro de `make compilar`** |
-| Pruebas unitarias | 0 | **55** (35 sitio + 20 panel), en `make unidad` |
+| Pruebas unitarias | 0 | **112** (52 sitio + 60 panel), en `make unidad` |
 | Matriz de trazabilidad | acreditaba artefactos inexistentes | **regenerada por `make trazabilidad`**: 137 criterios, 47 con evidencia (34 %) |
 | Conformidad de diseño | 0 criterios medidos | **22 comprobaciones con navegador** (`make diseno`), 0 fallos |
-| Cobertura | no se medía | **sitio 45,58 % · panel 3,92 %**, con trinquete (RNF-B1-043 pide 70 %: no se alcanza) |
+| Cobertura | no se medía | **sitio 95,54 % de líneas · panel 70,90 %**: RNF-B1-043 pide 70 % y **se alcanza en los dos** |
 
 ---
 
@@ -48,12 +48,12 @@ nadie lo viera (sección 3.1).
 | `tipos` | Generar tipos del contrato | 🟡 el sitio escribía un fichero que nadie importa | ✅ destino e import coinciden | `Makefile:41` → `sitio/types/openapi.d.ts`; import en `tramites/index.vue:46` |
 | `compilar` | Tipos y compilación | 🟡 el sitio no comprobaba tipos | ✅ **`nuxt typecheck` + `nuxt build`** | `Makefile:109-116` |
 | `accesibilidad` | axe sobre las vistas públicas | ❌ apuntaba a un fichero inexistente | ✅ **prueba real, pasa**; un 5xx **falla** (antes lo omitía) | `Makefile:118-119`; `sitio/tests/accesibilidad.mjs` |
-| `unidad` | Pruebas unitarias de los frontends | ❌ `npm run test` no existía | ✅ **35 + 20 pruebas, 0 fallos** | `Makefile:103-106`; `sitio/tests/*.test.ts`, `panel/tests/*.test.ts` |
+| `unidad` | Pruebas unitarias de los frontends | ❌ `npm run test` no existía | ✅ **52 + 60 pruebas, 0 fallos** | `Makefile`; `sitio/tests/`, `panel/tests/` |
 | `trazabilidad` | Regenera la matriz desde el expediente y el código | ❌ no existía | ✅ **existe y regenera** | `Makefile` (objetivo nuevo); `sitio/scripts/trazabilidad.mjs` |
 | `diseno` | Conformidad de diseño (CAG-01…CAG-34) | ❌ fichero inexistente | ✅ **22 comprobaciones con navegador, 0 fallos** | `Makefile:136-137`; `sitio/tests/diseno.mjs` |
-| `cobertura` | Mide la cobertura y falla bajo el trinquete | ❌ no existía | ✅ **sitio 45,58 % · panel 3,92 %** | `Makefile`; `vitest.config.ts` de los dos proyectos |
+| `cobertura` | Mide la cobertura y falla bajo el trinquete | ❌ no existía | ✅ **sitio 95,54 % de líneas · panel 70,90 %** | `Makefile`; `vitest.config.ts` de los dos proyectos |
 | `imagenes` | Imágenes fijadas por resumen | ❌ `scripts/` no existe | ✅ **3 de 3 fijadas** (encontró `mailpit:latest`) | `Makefile`; `scripts/verificar-imagenes.sh` |
-| `respaldo` | Copia y restauración | ❌ `scripts/` no existe | ❌ pendiente, declarado | `Makefile:154-157` |
+| `respaldo` | Copia y restauración | ❌ `scripts/` no existe | ✅ **volcado y restauración reales**, 66 tablas idénticas | `Makefile`; `scripts/verificar-respaldo.sh` |
 
 **Cadena real de `make comprobar`** (verificada con `make -n`, sin ejecutar):
 
@@ -142,9 +142,10 @@ WCAG»):
 5. **El acta de conformidad** con sus 12 elementos: la puerta mide; la declaración la firma una
    persona.
 
-Lo que **sigue pendiente** de D-19: la **cobertura ≥70 %** que pide RNF-B1-043. Las pruebas existen
-(35 + 20 con vitest, en `make unidad`) y la cifra ya se mide —**45,58 % en el sitio y 3,92 % en el
-panel**—, con un trinquete que impide que baje; lo que no hay es el 70 %.
+~~Lo que sigue pendiente de D-19: la cobertura ≥70 %.~~ **Resuelto.** Con las pruebas de componentes,
+disposiciones, enrutador y servicios, el sitio pasa a **95,54 %** de líneas (85,63 % de sentencias) y
+el panel a **70,90 %** (66,79 % de sentencias): RNF-B1-043 se alcanza en líneas en los dos. Los
+umbrales de `vitest.config.ts` siguen por debajo de lo medido: son un trinquete.
 
 ### 3.4 D-06 — Las puertas y la matriz acreditaban artefactos inexistentes ✅ **cerrado**
 

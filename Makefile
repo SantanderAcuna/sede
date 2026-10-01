@@ -49,17 +49,16 @@ preparar: ## Prepara la base de datos local con datos de ejemplo
 # ---------------------------------------------------------------------------
 
 .PHONY: comprobar
-comprobar: contrato formato-verificar analisis pruebas unidad cobertura tipos compilar accesibilidad imagenes ## Ejecuta TODAS las puertas
+comprobar: contrato formato-verificar analisis pruebas unidad cobertura tipos compilar accesibilidad imagenes respaldo ## Ejecuta TODAS las puertas
 	@echo
 	@echo "Todas las puertas en verde."
 
-# NOTA sobre las puertas que faltan. El `comprobar` anterior encadenaba además
-# `diseno` y `respaldo`, que invocaban artefactos inexistentes
-# (`sitio/tests/diseno.mjs` y `scripts/verificar-respaldo.sh`). Una puerta que no puede
-# pasar no protege de nada: enseñaba un verde que nadie había comprobado. Siguen
-# fuera de la cadena —marcadas como pendientes y fallando en voz alta— hasta que
-# sus artefactos existan. `unidad` ya volvió: las pruebas de los dos frontends
-# existen desde el cierre de D-19.
+# NOTA sobre las puertas que faltaban. El `comprobar` anterior encadenaba
+# artefactos inexistentes (`panel/tests/conformidad-diseno.mjs`, `scripts/*.sh`),
+# enseñaba un verde que nadie había comprobado y no protegía de nada. Hoy existen
+# todas: `unidad`, `cobertura`, `diseno`, `imagenes` y `respaldo` se ejecutan de
+# verdad. Las tres últimas necesitan entorno —navegador, docker o la pila
+# levantada— y lo dicen con un mensaje claro cuando no lo hay, en vez de callarse.
 
 # ---------------------------------------------------------------------------
 # Contrato
@@ -161,9 +160,8 @@ imagenes: ## Comprueba que las imágenes de terceros están fijadas por resumen
 	bash scripts/verificar-imagenes.sh
 
 .PHONY: respaldo
-respaldo: ## PENDIENTE: copia de seguridad y prueba de restauración
-	@echo "Pendiente: falta scripts/verificar-respaldo.sh (ver auditoria-sede.md, D-06)."
-	@exit 1
+respaldo: ## Comprueba que una copia de la base se restaura con los mismos datos
+	bash scripts/verificar-respaldo.sh
 
 # ---------------------------------------------------------------------------
 # Utilidades

@@ -7,25 +7,23 @@
  * el cuerpo a propósito: quien llegue por un buscador o por un enlace directo
  * tiene que poder ver qué contiene la sección sin abrir el menú.
  */
+import { SUBCATEGORIAS_PARTICIPA } from '~/config/sitemap'
+
 useHead({ title: 'Participa · Sede Electrónica' })
 
-const SUBCATEGORIAS = [
-  {
-    ruta: '/participa/identificacion-de-problemas',
-    titulo: 'Identificación de problemas y diagnóstico de necesidades',
-  },
-  {
-    ruta: '/participa/presupuesto-participativo',
-    titulo: 'Planeación y/o presupuesto participativo',
-  },
-  {
-    ruta: '/participa/consulta-ciudadana',
-    titulo: 'Consulta ciudadana de proyectos, normas, políticas o programas',
-  },
-  { ruta: '/participa/innovacion-abierta', titulo: 'Colaboración e innovación abierta' },
-  { ruta: '/participa/rendicion-de-cuentas', titulo: 'Rendición de cuentas' },
-  { ruta: '/participa/control-ciudadano', titulo: 'Control ciudadano' },
-]
+/**
+ * Las seis subcategorías de participación.
+ *
+ * **No se declaran aquí.** Salen de `config/sitemap.ts`, la misma lista que
+ * construye el menú y el `sitemap.xml`: la que había en este archivo decía
+ * «Participación para la identificación de problemas…» donde la configuración
+ * decía «Identificación de problemas…», y una de las dos iba a quedarse atrás sin
+ * que nadie lo notara (D-31).
+ */
+const SUBCATEGORIAS = SUBCATEGORIAS_PARTICIPA.map((subcategoria) => ({
+  ruta: subcategoria.ruta,
+  titulo: subcategoria.etiqueta,
+}))
 </script>
 
 <template>
@@ -41,17 +39,17 @@ const SUBCATEGORIAS = [
 
     <ul class="list-unstyled">
       <li v-for="subcategoria in SUBCATEGORIAS" :key="subcategoria.ruta" class="mb-2">
-        <a :href="subcategoria.ruta">{{ subcategoria.titulo }}</a>
+        <NuxtLink :to="subcategoria.ruta">{{ subcategoria.titulo }}</NuxtLink>
       </li>
     </ul>
 
     <h2 class="h4 mt-5 mb-3">Portales</h2>
     <p class="mb-0">
-      <a href="/portales">Portales de programas transversales</a>
+      <NuxtLink to="/portales">Portales de programas transversales</NuxtLink>
     </p>
 
     <p class="mt-4 mb-0">
-      <a class="btn btn-outline-primary" href="/">Volver a la portada</a>
+      <NuxtLink class="btn btn-outline-primary" to="/">Volver a la portada</NuxtLink>
     </p>
   </div>
 </template>

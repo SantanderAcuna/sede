@@ -1,58 +1,81 @@
 <script setup lang="ts">
 /**
- * Inicio del panel: tablero ejecutivo.
+ * Inicio del panel: tablero interno.
  *
- * Las cifras son **de maqueta**: los módulos que las alimentan todavía no
- * existen en el contrato (`/entidad`, `/tramites`, `/tramites/{slug}`). Se
- * sustituirán por datos reales cuando cada módulo publique su recurso.
+ * **Arranca en cero y no publica cifras simuladas** (RF-B1-078). Aquí había un
+ * recuento de PQRSD, de plazos por vencer, de trámites y un porcentaje de
+ * cumplimiento del ITA, además de una insignia que daba el sistema por operativo
+ * y un panel de salud con servicios marcados como correctos: todo inventado. Un
+ * funcionario no puede distinguir esa maqueta de un dato real, y si el panel
+ * llega a producción la Entidad publica indicadores falsos de su propio
+ * cumplimiento.
+ *
+ * Mientras los módulos no estén conectados, cada hueco se declara vacío. No es
+ * un tablero a medias: es el único estado que se puede afirmar sin mentir.
  */
+import EmptyState from '@/components/feedback/EmptyState.vue'
 import KpiCard from '@/components/base/KpiCard.vue'
 import BaseBadge from '@/components/base/BaseBadge.vue'
 
 const hoy = new Date().toLocaleDateString('es-CO', { dateStyle: 'long' })
+
+/**
+ * Indicadores del tablero. Se enumeran con el módulo que los alimentará para
+ * que el estado vacío diga exactamente qué falta, y no un «sin datos» mudo que
+ * obligue a adivinar si el sistema está roto o simplemente no existe todavía.
+ */
+const indicadores = [
+  { label: 'PQRSD activas', fuente: 'el módulo de PQRSD' },
+  { label: 'Por vencer', fuente: 'el módulo de PQRSD' },
+  { label: 'Trámites SUIT', fuente: 'el catálogo de trámites' },
+  { label: 'Cumplimiento ITA', fuente: 'el validador de publicación' },
+]
 </script>
 
 <template>
   <div class="space-y-6">
-    <header class="flex items-center justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-900">Dashboard ejecutivo</h1>
-        <p class="text-sm text-slate-500">Resumen operativo del sistema · {{ hoy }}</p>
-      </div>
-      <BaseBadge variant="gov" dot>Sistema operativo</BaseBadge>
+    <header>
+      <h1 class="text-2xl font-bold text-slate-900">Dashboard</h1>
+      <p class="text-sm text-slate-500">Tablero interno del sistema · {{ hoy }}</p>
     </header>
 
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Indicadores">
-      <KpiCard label="PQRSD activas" :value="287" :delta="12" trend="up" hint="vs. mes anterior" variant="gov" />
-      <KpiCard label="Por vencer" :value="34" :delta="-8" trend="down" hint="próximas 48h" variant="warning" />
-      <KpiCard label="Trámites SUIT" :value="1842" :delta="5" trend="up" hint="este mes" variant="success" />
-      <KpiCard label="Cumplimiento ITA" value="94%" :delta="3" trend="up" hint="criterios MIPG" variant="gov" />
+      <!--
+        Sin `:value` numérico ni `:delta`: no hay serie que comparar. La tarjeta
+        conserva su forma para que el hueco sea visible, pero su contenido dice
+        que no hay dato en vez de rellenarlo.
+      -->
+      <KpiCard
+        v-for="indicador in indicadores"
+        :key="indicador.label"
+        :label="indicador.label"
+        value="Sin datos"
+        :hint="`${indicador.fuente} no está conectado`"
+      />
     </section>
 
     <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div class="lg:col-span-2 rounded-2xl bg-white ring-1 ring-slate-200 p-5">
-        <h2 class="text-base font-semibold text-slate-900">Tendencia PQRSD (últimos 30 días)</h2>
-        <p class="text-sm text-slate-500 mb-4">Recibidas vs. respondidas</p>
-        <div class="h-64 grid place-items-center text-slate-600 text-sm bg-slate-50 rounded-lg">
-          [Gráfica · pendiente de la serie de datos]
-        </div>
+      <div class="lg:col-span-2 rounded-2xl bg-white ring-1 ring-slate-200">
+        <EmptyState
+          title="Sin datos: PQRSD"
+          subtitle="El módulo de PQRSD todavía no está conectado, así que no hay serie que dibujar. El tablero no estima ni interpola cifras."
+        />
       </div>
+
       <div class="rounded-2xl bg-white ring-1 ring-slate-200 p-5">
-        <h2 class="text-base font-semibold text-slate-900">Salud del sistema</h2>
-        <ul class="mt-3 space-y-3 text-sm">
-          <li class="flex items-center justify-between">
-            <span class="text-slate-600">API Gateway</span><BaseBadge variant="success" dot>OK</BaseBadge>
-          </li>
-          <li class="flex items-center justify-between">
-            <span class="text-slate-600">SIGMI Bus</span><BaseBadge variant="success" dot>OK</BaseBadge>
-          </li>
-          <li class="flex items-center justify-between">
-            <span class="text-slate-600">Conector RNEC</span><BaseBadge variant="warning" dot>Lento</BaseBadge>
-          </li>
-          <li class="flex items-center justify-between">
-            <span class="text-slate-600">Firma electrónica</span><BaseBadge variant="success" dot>OK</BaseBadge>
-          </li>
-        </ul>
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-base font-semibold text-slate-900">Salud del sistema</h2>
+          <BaseBadge variant="neutral" dot>No disponible</BaseBadge>
+        </div>
+        <!--
+          Antes este bloque daba por buenos servicios que todavía no existen,
+          con un semáforo inventado. Un semáforo inventado es la peor forma del
+          dato falso: parece verificado.
+        -->
+        <EmptyState
+          title="Sin sondas conectadas"
+          subtitle="Ninguno de los servicios que alimentarán este panel está monitorizado, así que no se publica ningún estado de servicio."
+        />
       </div>
     </section>
   </div>

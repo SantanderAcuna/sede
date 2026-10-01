@@ -123,6 +123,10 @@ interface DatosDelFormulario {
   confirmacionCorreo: string
   telefono: string
   direccion: string
+  /** Canal por el que la Entidad debe notificar la respuesta (RF-B1-031). */
+  canalRespuesta: string
+  /** Dependencia a la que se dirige la solicitud (RF-B1-031). */
+  dependencia: string
   autorizacion: boolean
 }
 
@@ -142,6 +146,8 @@ const datos = reactive<DatosDelFormulario>({
   confirmacionCorreo: '',
   telefono: '',
   direccion: '',
+  canalRespuesta: '',
+  dependencia: '',
   autorizacion: false,
 })
 
@@ -199,6 +205,7 @@ type Campo =
   | 'numeroDocumento'
   | 'correo'
   | 'confirmacionCorreo'
+  | 'canalRespuesta'
   | 'autorizacion'
 
 const errores = ref<Partial<Record<Campo, string>>>({})
@@ -213,6 +220,7 @@ const CAMPOS_CON_AYUDA: readonly Campo[] = [
   'descripcion',
   'correo',
   'confirmacionCorreo',
+  'canalRespuesta',
   'autorizacion',
 ]
 
@@ -220,7 +228,84 @@ const CAMPOS_CON_AYUDA: readonly Campo[] = [
 const FORMA_DE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** Longitud mínima de la descripción, para que no se envíe una sola palabra. */
+/**
+ * Canales por los que se puede notificar la respuesta.
+ *
+ * Los cinco salen de RN-04-D05 y RF-04-D05 (Ley 1437/2011, arts. 56, 67 y 69):
+ * «correo procesal, SMS, correo certificado, edicto o físico», con preferencia
+ * del electrónico cuando hay dirección autorizada. No se inventa ninguno.
+ */
+const CANALES_DE_RESPUESTA: readonly { valor: string; etiqueta: string }[] = [
+  { valor: 'correo', etiqueta: 'Correo electrónico' },
+  { valor: 'sms', etiqueta: 'Mensaje de texto (SMS)' },
+  { valor: 'certificado', etiqueta: 'Correo certificado' },
+  { valor: 'aviso', etiqueta: 'Notificación por aviso o edicto' },
+  { valor: 'fisico', etiqueta: 'Dirección física de notificación' },
+]
+
+/**
+ * Dependencias a las que se puede dirigir la solicitud.
+ *
+ * **El catálogo no lo puede escribir este proyecto.** Lo dice el propio corpus:
+ * «Secretaría Jurídica debe proveer la lista» (`_bd/_extraccion/03-servicios-tramites.md:460`)
+ * y la única dependencia documentada como destino por defecto es el *Despacho del
+ * Alcalde* (pregunta abierta A-11 del módulo 04). Se declara aquí la que está
+ * documentada, y el día que la Entidad entregue su catálogo se amplía esta lista
+ * y nada más: el desplegable se construye a partir de ella.
+ */
+const DEPENDENCIAS: readonly string[] = ['Despacho del Alcalde']
+
 const MINIMO_DE_DESCRIPCION = 10
+
+/**
+ * Tope del objeto de la solicitud.
+ *
+ * **2.000 caracteres, y no 4.000 como decía antes esta página.** Lo fija
+ * RF-B1-031 («objeto (≤2.000 car.)») y lo repiten RF-04-D04 y HU-04-D06, que
+ * además piden contador y bloqueo al superarlo. El límite anterior era el doble
+ * del normativo: un formulario que acepta lo que la norma no admite traslada el
+ * problema a quien después tiene que radicarlo.
+ */
+const MAXIMO_DE_DESCRIPCION = 2000
+
+/** Cuántos caracteres lleva escritos el objeto, para el contador. */
+const caracteresDelObjeto = computed<number>(() => datos.descripcion.length)
+
+/* ==========================================================================
+   Adjuntos (RF-B1-031, RF-B1-033, RN-B1-010)
+   ==========================================================================
+
+   **Sin restricciones técnicas, y es obligatorio que sea así.** RN-B1-010 y
+   RF-B1-033 lo dicen con la Constitución detrás: el formulario no puede limitar
+   formatos, tamaños ni cantidad, porque el derecho de petición (art. 23 CP) no
+   admite que la herramienta decida qué se puede pedir. Por eso el campo no lleva
+   `accept`, no comprueba tamaños y no corta la lista —y hay una comprobación en
+   `make diseno` que falla si alguien las añade—.
+
+   La contradicción C-01 del módulo 04 sigue abierta: la implementación actual de
+   la Alcaldía limita a PDF/JPG/PNG y 10 MB, y eso es un incumplimiento concreto.
+   Aquí no se copia.
+*/
+const refAdjuntos = ref<HTMLInputElement | null>(null)
+const adjuntos = ref<File[]>([])
+
+function agregarAdjuntos(evento: Event): void {
+  const entrada = evento.target as HTMLInputElement
+  adjuntos.value = [...adjuntos.value, ...Array.from(entrada.files ?? [])]
+  // Se vacía el campo para que volver a elegir el mismo archivo dispare `change`.
+  if (refAdjuntos.value) refAdjuntos.value.value = ''
+}
+
+function quitarAdjunto(indice: number): void {
+  adjuntos.value = adjuntos.value.filter((_, posicion) => posicion !== indice)
+}
+
+/** Peso legible para la lista: informa, nunca bloquea. */
+function pesoLegible(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 function idAyuda(campo: Campo): string {
   return `ayuda-${campo}`
@@ -273,6 +358,10 @@ function validar(): Partial<Record<Campo, string>> {
 
   if (datos.descripcion.trim().length < MINIMO_DE_DESCRIPCION) {
     fallos.descripcion = `Escriba su solicitud con al menos ${MINIMO_DE_DESCRIPCION} caracteres.`
+  } else if (datos.descripcion.length > MAXIMO_DE_DESCRIPCION) {
+    // `maxlength` ya lo impide al escribir; esta comprobación cubre lo que no
+    // pasa por el teclado —un programa, un pegado sin soporte del atributo—.
+    fallos.descripcion = `El objeto de la solicitud no puede pasar de ${MAXIMO_DE_DESCRIPCION} caracteres.`
   }
 
   // En la modalidad anónima no se pide ningún dato de identificación, así que no
@@ -315,6 +404,12 @@ function validar(): Partial<Record<Campo, string>> {
 
   if (datos.confirmacionCorreo.trim() === '') {
     fallos.confirmacionCorreo = 'Escriba otra vez el correo electrónico.'
+  }
+
+  // Sin canal no hay por dónde notificar la respuesta, y notificar es la mitad
+  // del derecho de petición: se pide, pero sólo en la modalidad con identidad.
+  if (esPersonal.value && datos.canalRespuesta === '') {
+    fallos.canalRespuesta = 'Escoja cómo quiere que le notifiquemos la respuesta.'
   } else if (datos.confirmacionCorreo.trim() !== datos.correo.trim()) {
     fallos.confirmacionCorreo = 'Los dos correos electrónicos no coinciden.'
   }
@@ -335,6 +430,112 @@ const refAvisoDeEnvio = ref<HTMLElement | null>(null)
 
 /** Si ya se intentó enviar y el aviso de que no se radica nada está a la vista. */
 const intentoDeEnvio = ref(false)
+
+/* ==========================================================================
+   Pasos del formulario (RF-B2-077, CAG-20, Sección 3:360)
+   ==========================================================================
+
+   RF-B2-077 (Must) pide que un proceso largo se subdivida en **pasos numerados**
+   y su criterio de aceptación describe exactamente esto: «Paso 1 de 5» con los
+   pasos pendientes identificables. CAG-20 añade la línea de avance y permite
+   **saltar los pasos libremente**, que es la opción elegida aquí: bloquear un
+   paso sin poder mirarlo obliga a rellenarlo a ciegas.
+
+   El formulario ya tenía tres bloques con sentido propio —solicitud, datos del
+   solicitante y autorización—, así que los pasos no se inventan: se hacen
+   visibles. Cada paso se valida antes de dejar avanzar, para no enviar a nadie al
+   final con campos vacíos detrás.
+*/
+interface PasoDelFormulario {
+  /** Nombre del paso, tal y como lo lee quien lo usa. */
+  nombre: string
+  /** Campos que se comprueban antes de dejar salir de este paso. */
+  campos: readonly Campo[]
+}
+
+const PASOS: readonly PasoDelFormulario[] = [
+  { nombre: 'Solicitud', campos: ['tipoSolicitud', 'descripcion'] },
+  {
+    nombre: 'Datos del solicitante',
+    campos: [
+      'tipoPersona',
+      'razonSocial',
+      'primerNombre',
+      'primerApellido',
+      'tipoDocumento',
+      'numeroDocumento',
+      'correo',
+      'confirmacionCorreo',
+      'canalRespuesta',
+    ],
+  },
+  { nombre: 'Autorización y envío', campos: ['autorizacion'] },
+]
+
+const totalPasos = PASOS.length
+const pasoActual = ref(0)
+
+/**
+ * Un paso está completo cuando sus campos son válidos, **no** cuando queda a la
+ * izquierda del actual. La diferencia importa desde que CAG-20 permite saltar
+ * libremente: saltar al último paso no convierte en completados los anteriores, y
+ * decir lo contrario sería mentir en la línea de avance.
+ */
+const validacion = computed<Partial<Record<Campo, string>>>(() => validar())
+
+function pasoCompleto(indice: number): boolean {
+  const campos = PASOS[indice]?.campos ?? []
+  return campos.every((campo) => !validacion.value[campo])
+}
+const pasoVigente = computed<PasoDelFormulario | undefined>(() => PASOS[pasoActual.value])
+/** Destino del foco al cambiar de paso: sin él, el teclado se queda perdido. */
+const refLineaDePasos = ref<HTMLElement | null>(null)
+
+function irAPaso(indice: number): void {
+  if (indice < 0 || indice >= totalPasos) return
+  pasoActual.value = indice
+  void nextTick(() => refLineaDePasos.value?.focus())
+}
+
+/** Salta a un paso concreto desde la línea de avance (CAG-20 lo permite). */
+function saltarAPaso(indice: number): void {
+  irAPaso(indice)
+}
+
+/**
+ * Avanza sólo si el paso actual está completo. Si no lo está, se muestran los
+ * errores y el foco va al primer campo marcado, igual que al enviar: el paso no
+ * se cierra «a medias» ni se deja avanzar en silencio.
+ */
+function avanzar(): void {
+  const delPaso = new Set<Campo>(PASOS[pasoActual.value]?.campos ?? [])
+  const todos = validar()
+
+  /*
+   * Sólo se marcan los fallos **del paso que se está rellenando**. Marcar los de
+   * los pasos siguientes —que están ocultos— haría que aparecieran ya en rojo al
+   * llegar a ellos, antes de que nadie los haya tocado.
+   */
+  errores.value = Object.fromEntries(
+    Object.entries(todos).filter(([campo]) => delPaso.has(campo as Campo)),
+  ) as Partial<Record<Campo, string>>
+
+  const falla = Object.keys(errores.value).length > 0
+
+  if (falla) {
+    intentoDeEnvio.value = false
+    void nextTick(() => {
+      refFormulario.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+    })
+    return
+  }
+
+  irAPaso(pasoActual.value + 1)
+}
+
+function retroceder(): void {
+  irAPaso(pasoActual.value - 1)
+}
 
 /**
  * Al cambiar de modalidad se descartan los errores acumulados: los campos que se
@@ -361,6 +562,21 @@ async function enviar(): Promise<void> {
 
   if (Object.keys(errores.value).length > 0) {
     intentoDeEnvio.value = false
+
+    /*
+      Si el primer fallo está en un paso **anterior** —cosa posible porque CAG-20
+      permite saltar libremente— hay que llevar a la persona a ese paso antes de
+      enfocar. Los campos marcados están ocultos (`display: none`), el foco no se
+      puede poner en un elemento que no se ve, y el botón de enviar parecería no
+      hacer nada. Lo cazó la comprobación de la puerta, no el typecheck.
+    */
+    const pasoConFallo = PASOS.findIndex((paso) =>
+      paso.campos.some((campo) => errores.value[campo] !== undefined),
+    )
+    if (pasoConFallo >= 0 && pasoConFallo !== pasoActual.value) {
+      pasoActual.value = pasoConFallo
+    }
+
     await nextTick()
     /*
       El foco va al primer control marcado como inválido. Sin esto, quien navega
@@ -410,8 +626,101 @@ async function enviar(): Promise<void> {
       </p>
     </div>
 
-    <form ref="refFormulario" class="formulario-pqrsd" novalidate @submit.prevent="enviar">
-      <h2 class="h3 mt-5">Solicitud</h2>
+    <form
+      ref="refFormulario"
+      class="formulario-pqrsd"
+      novalidate
+      aria-describedby="leyenda-obligatorios"
+      @submit.prevent="enviar"
+    >
+      <!--
+        Línea de avance (CAG-20) con el patrón «Paso N de M» que fija
+        `Sección 3:360`. Los pasos son botones —se puede saltar a cualquiera— y
+        cada uno dice en texto si está completado, es el actual o está pendiente:
+        el estado no se transmite sólo con color.
+      -->
+      <!--
+        Línea de avance (CAG-20) con el patrón «Paso N de M» que fija
+        `Sección 3:360`. Los pasos son botones —se puede saltar a cualquiera— y el
+        estado de cada uno se distingue **sin depender del color**: el completado
+        lleva una marca dibujada, el actual va relleno y en negrita, y el pendiente
+        queda en contorno. El estado va además en texto para quien usa lector de
+        pantalla, oculto a la vista porque dentro de la línea sería ruido.
+      -->
+      <nav
+        ref="refLineaDePasos"
+        class="pasos-formulario"
+        tabindex="-1"
+        :aria-label="`Paso ${pasoActual + 1} de ${totalPasos}: ${pasoVigente?.nombre ?? ''}`"
+      >
+        <!--
+          «Paso N de M: Nombre», con los dos puntos y el espacio: es el patrón
+          literal que fija `Sección 3:360` («Paso 1 de 4: Datos del solicitante»),
+          y la puerta de diseño lo comprueba tal cual.
+        -->
+        <p class="pasos-encabezado">
+          <span class="pasos-cuenta">Paso {{ pasoActual + 1 }} de {{ totalPasos }}: </span>
+          <strong class="pasos-titulo">{{ pasoVigente?.nombre }}</strong>
+        </p>
+
+        <ol class="pasos-lista">
+          <li v-for="(paso, indice) in PASOS" :key="paso.nombre" class="pasos-item">
+            <button
+              type="button"
+              class="paso"
+              :class="{
+                'paso-actual': indice === pasoActual,
+                'paso-hecho': indice !== pasoActual && pasoCompleto(indice),
+              }"
+              :aria-current="indice === pasoActual ? 'step' : undefined"
+              @click="saltarAPaso(indice)"
+            >
+              <span class="paso-marca" aria-hidden="true">
+                <svg
+                  v-if="indice !== pasoActual && pasoCompleto(indice)"
+                  class="paso-marca-icono"
+                  viewBox="0 0 20 20"
+                  focusable="false"
+                >
+                  <path
+                    d="M4.6 10.4l3.5 3.5 7.3-7.8"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <template v-else>{{ indice + 1 }}</template>
+              </span>
+              <span class="paso-nombre">{{ paso.nombre }}</span>
+              <span class="paso-estado solo-lectores">
+                {{
+                  indice === pasoActual
+                    ? 'actual'
+                    : pasoCompleto(indice)
+                      ? 'completado'
+                      : 'pendiente'
+                }}
+              </span>
+            </button>
+          </li>
+        </ol>
+      </nav>
+
+      <div v-show="pasoActual === 0" class="paso-contenido">
+        <h2 class="h3 mt-4">Solicitud</h2>
+
+      <!--
+        CAG-16: la leyenda que explica el asterisco, **antes** del primer campo.
+        Sin ella, el asterisco es un símbolo que cada quien interpreta como puede.
+        Los asteriscos van con `aria-hidden` porque quien usa lector de pantalla
+        ya oye «obligatorio»: el campo lleva el atributo `required`, así que el
+        símbolo es para quien ve, y repetirlo sería ruido.
+      -->
+      <p id="leyenda-obligatorios" class="leyenda-obligatorios">
+        Los campos marcados con <span class="asterisco" aria-hidden="true">*</span> son obligatorios.
+      </p>
 
       <div class="row">
         <div class="col-lg-8">
@@ -422,6 +731,7 @@ async function enviar(): Promise<void> {
 
             <select
               id="tipoSolicitud"
+                autocomplete="off"
               v-model="datos.tipoSolicitud"
               class="form-select"
               required
@@ -463,19 +773,85 @@ async function enviar(): Promise<void> {
 
             <textarea
               id="descripcion"
+                autocomplete="off"
               v-model="datos.descripcion"
               class="form-control"
               rows="6"
-              maxlength="4000"
+              :maxlength="MAXIMO_DE_DESCRIPCION"
               required
               :aria-invalid="invalido('descripcion')"
               :aria-describedby="descritoPor('descripcion')"
             ></textarea>
 
-            <p :id="idAyuda('descripcion')" class="texto-ayuda">
-              Escriba lo que solicita con el detalle que necesite para que pueda
-              entenderse y responderse. Máximo 4000 caracteres.
-            </p>
+            <div class="objeto-ayuda">
+              <p :id="idAyuda('descripcion')" class="texto-ayuda">
+                Escriba lo que solicita con el detalle que necesite para que pueda
+                entenderse y responderse.
+              </p>
+              <!--
+                Contador en vivo (HU-04-D06). Se anuncia con `aria-live` sólo al
+                acercarse al tope, para no interrumpir a cada tecla; el número se
+                lee siempre que se consulte el campo, porque está descrito por él.
+              -->
+              <p
+                class="objeto-contador"
+                :class="{ 'objeto-contador-lleno': caracteresDelObjeto > MAXIMO_DE_DESCRIPCION * 0.9 }"
+                aria-hidden="true"
+              >
+                {{ caracteresDelObjeto.toLocaleString('es-CO') }} /
+                {{ MAXIMO_DE_DESCRIPCION.toLocaleString('es-CO') }}
+              </p>
+            </div>
+
+            <!-- ================= Documentos que acompañan la solicitud ================= -->
+            <!--
+              **El campo no lleva `accept`, ni tope de tamaño, ni límite de cantidad.**
+              No es un olvido: RN-B1-010 y RF-B1-033 prohíben que el formulario ponga
+              restricciones técnicas a la radicación (art. 23 CP), y `make diseno`
+              comprueba que siguen sin estar.
+            -->
+            <div class="mb-4 mt-4">
+              <label class="form-label" for="adjuntos">
+                Documentos que acompañan la solicitud
+              </label>
+
+              <input
+                id="adjuntos"
+                ref="refAdjuntos"
+                type="file"
+                multiple
+                class="form-control"
+                aria-describedby="ayuda-adjuntos"
+                @change="agregarAdjuntos"
+              />
+
+              <p id="ayuda-adjuntos" class="texto-ayuda">
+                Puede adjuntar los archivos que necesite, en cualquier formato y sin
+                límite de cantidad: el derecho de petición no admite restricciones
+                técnicas. El único límite es el del servidor que los reciba, que no
+                rechaza por formato ni por nombre.
+              </p>
+              <p class="texto-ayuda">
+                Mientras este formulario no radique, los archivos
+                <strong>no salen de su equipo</strong>: se quedan aquí y desaparecen al
+                recargar la página.
+              </p>
+
+              <ul v-if="adjuntos.length > 0" class="lista-adjuntos">
+                <li v-for="(archivo, indice) in adjuntos" :key="`${archivo.name}-${indice}`">
+                  <span class="adjunto-nombre">{{ archivo.name }}</span>
+                  <span class="adjunto-peso">{{ pesoLegible(archivo.size) }}</span>
+                  <button
+                    type="button"
+                    class="adjunto-quitar"
+                    :aria-label="`Quitar el archivo ${archivo.name}`"
+                    @click="quitarAdjunto(indice)"
+                  >
+                    Quitar
+                  </button>
+                </li>
+              </ul>
+            </div>
 
             <p
               v-if="errores.descripcion"
@@ -530,13 +906,45 @@ async function enviar(): Promise<void> {
           respuesta se envía directamente a su correo electrónico o dirección física,
           según corresponda.
         </p>
-        <p v-if="!esPersonal" class="mb-0 mt-2">
-          En la modalidad <strong>anónima</strong> no se recopila ninguno de esos datos.
+        <div v-if="!esPersonal" class="mt-3">
+          <p class="mb-2">
+            En la modalidad <strong>anónima</strong> no se recopila ninguno de esos datos.
+          </p>
+
+          <!--
+            RF-B1-032 pide un aviso «sobre garantías y limitaciones del anonimato
+            (georreferenciación, IP, metadata, navegador privado) y limitación de
+            respuesta». Es lo que sigue, y se dice entero: un anonimato prometido a
+            medias es peor que ninguno, porque quien lo cree escribe lo que no
+            escribiría.
+          -->
+          <p class="mb-2">
+            <strong>Qué protege el anonimato y qué no.</strong> La Entidad no le pedirá
+            nombre, documento ni correo, y tramitará la solicitud sin ellos; tampoco
+            solicita su ubicación. Ahora bien, el anonimato no es absoluto: la conexión
+            puede dejar rastro de la <strong>dirección IP</strong>, de la fecha y la hora,
+            del <strong>navegador</strong> y de los <strong>metadatos</strong> de los
+            archivos que adjunte. Si necesita un anonimato mayor, use una conexión que no
+            lo identifique y el modo privado del navegador.
+          </p>
+
+          <p class="mb-0">
+            Y una consecuencia práctica: <strong>sin datos de contacto no hay forma de
+            responderle personalmente</strong>. Podrá seguir el estado con el número de
+            radicado, pero la respuesta no se le podrá notificar.
+          </p>
+        </div>
+      </div>
+
+        <p class="pasos-navegacion">
+          <button type="button" class="btn-govco fill-btn-govco" @click="avanzar">
+            Continuar a «Datos del solicitante»
+          </button>
         </p>
       </div>
 
-      <!-- ================= Datos del solicitante ================= -->
-      <h2 class="h3 mt-5">Datos del solicitante</h2>
+      <div v-show="pasoActual === 1" class="paso-contenido">
+        <h2 class="h3 mt-4">Datos del solicitante</h2>
 
       <div class="row">
         <div class="col-lg-10">
@@ -544,10 +952,14 @@ async function enviar(): Promise<void> {
             A continuación completa tus datos para darte respuesta a tu solicitud
           </p>
 
-          <p class="leyenda-obligatorios">
-            <strong>Los campos en asterisco (*) son obligatorios</strong>. Los demás son
-            opcionales.
-          </p>
+          <!--
+            La leyenda de obligatorios está al principio del formulario, no aquí:
+            los dos primeros campos ya son obligatorios y quien rellenaba el
+            formulario se encontraba el asterisco antes que su explicación
+            (CAG-16). Aquí se recuerda sólo lo que aporta algo nuevo: que lo no
+            marcado es opcional.
+          -->
+          <p class="leyenda-obligatorios">Los campos sin asterisco son opcionales.</p>
         </div>
       </div>
 
@@ -561,6 +973,7 @@ async function enviar(): Promise<void> {
 
             <select
               id="tipoPersona"
+                autocomplete="off"
               v-model="datos.tipoPersona"
               class="form-select"
               required
@@ -704,6 +1117,7 @@ async function enviar(): Promise<void> {
 
               <select
                 id="tipoDocumento"
+                  autocomplete="off"
                 v-model="datos.tipoDocumento"
                 class="form-select"
                 required
@@ -737,6 +1151,7 @@ async function enviar(): Promise<void> {
 
               <input
                 id="numeroDocumento"
+                  autocomplete="off"
                 v-model="datos.numeroDocumento"
                 class="form-control"
                 type="text"
@@ -838,6 +1253,80 @@ async function enviar(): Promise<void> {
                 autocomplete="street-address"
               />
             </div>
+
+            <!-- ================= Canal de respuesta ================= -->
+            <div class="mb-4">
+              <label class="form-label" for="canalRespuesta">
+                ¿Cómo quiere que le notifiquemos la respuesta?
+                <span class="asterisco" aria-hidden="true">*</span>
+              </label>
+
+              <select
+                id="canalRespuesta"
+                v-model="datos.canalRespuesta"
+                class="form-select"
+                autocomplete="off"
+                required
+                :aria-invalid="invalido('canalRespuesta')"
+                :aria-describedby="descritoPor('canalRespuesta')"
+              >
+                <option value="">Escoger</option>
+                <option
+                  v-for="canal in CANALES_DE_RESPUESTA"
+                  :key="canal.valor"
+                  :value="canal.valor"
+                >
+                  {{ canal.etiqueta }}
+                </option>
+              </select>
+
+              <p :id="idAyuda('canalRespuesta')" class="texto-ayuda">
+                La notificación electrónica tiene preferencia cuando hay una dirección
+                autorizada; si no, se usa el canal que escoja aquí.
+              </p>
+
+              <p
+                v-if="errores.canalRespuesta"
+                :id="idError('canalRespuesta')"
+                class="error-campo"
+                role="alert"
+              >
+                {{ errores.canalRespuesta }}
+              </p>
+            </div>
+
+            <!-- ================= Dependencia destinataria ================= -->
+            <div class="mb-4">
+              <label class="form-label" for="dependencia">
+                Dependencia a la que se dirige
+              </label>
+
+              <select
+                id="dependencia"
+                v-model="datos.dependencia"
+                class="form-select"
+                autocomplete="off"
+              >
+                <option value="">Que la Entidad la asigne</option>
+                <option v-for="dependencia in DEPENDENCIAS" :key="dependencia" :value="dependencia">
+                  {{ dependencia }}
+                </option>
+              </select>
+
+              <!--
+                Se dice lo que falta en lugar de inventar un organigrama. El catálogo
+                de dependencias lo tiene que entregar la Entidad (Secretaría Jurídica
+                «debe proveer la lista», `_bd/_extraccion/03-servicios-tramites.md:460`);
+                hoy sólo está documentado el Despacho del Alcalde como destino por
+                defecto (A-11 del módulo 04).
+              -->
+              <p class="texto-ayuda">
+                Puede dejarlo en blanco y la Entidad la dirige a quien corresponda. El
+                catálogo completo de dependencias está pendiente de publicación, así que
+                hoy sólo se ofrece el despacho del alcalde; el formulario no inventa el
+                resto del organigrama.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -862,11 +1351,25 @@ async function enviar(): Promise<void> {
         </div>
       </div>
 
+        <p class="pasos-navegacion">
+          <button type="button" class="btn-govco outline-btn-govco" @click="retroceder">
+            Volver a «Solicitud»
+          </button>
+          <button type="button" class="btn-govco fill-btn-govco" @click="avanzar">
+            Continuar a «Autorización y envío»
+          </button>
+        </p>
+      </div>
+
+      <div v-show="pasoActual === 2" class="paso-contenido">
+        <h2 class="h3 mt-4">Autorización y envío</h2>
+
       <!-- Autorización del tratamiento de datos -->
       <div v-if="esPersonal" class="mb-4">
         <div class="form-check">
           <input
             id="autorizacion"
+            autocomplete="off"
             v-model="datos.autorizacion"
             class="form-check-input"
             type="checkbox"
@@ -907,7 +1410,10 @@ async function enviar(): Promise<void> {
         Recuerde: al pulsar este botón <strong>no se radica ninguna solicitud</strong>.
       </p>
 
-      <p class="mb-0">
+      <p class="pasos-navegacion">
+        <button type="button" class="btn-govco outline-btn-govco" @click="retroceder">
+          Volver a «Datos del solicitante»
+        </button>
         <button
           class="btn-govco fill-btn-govco boton-enviar"
           type="submit"
@@ -916,6 +1422,7 @@ async function enviar(): Promise<void> {
           Enviar la solicitud
         </button>
       </p>
+      </div>
     </form>
 
     <!--
@@ -984,13 +1491,20 @@ async function enviar(): Promise<void> {
   Aviso de radicación. Mismos tokens y mismo criterio de contraste que el aviso de
   `SeccionEnPreparacion`: el amarillo institucional del Kit (`--govcolor-vis-vis`)
   con el Matterhorn para el texto da 7,6:1, por encima del 4,5:1 que exige
-  WCAG 2.1 AA. El filete izquierdo lleva el azul de la Entidad.
+  WCAG 2.1 AA.
+
+  **Sin filete lateral.** Antes llevaba una barra de 6 px a la izquierda, que es el
+  recurso que hace que un aviso parezca una plantilla: el amarillo entero y un
+  borde completo de 1 px —Matterhorn al 35 %, que es un token del Kit y no un color
+  nuevo— dicen lo mismo sin el tic. Lo que separa este aviso del informativo es el
+  amarillo, que está reservado para lo que impide terminar.
 */
 .aviso-radicacion {
   margin-top: 1.5rem;
   margin-bottom: 2rem;
   padding: 1rem 1.25rem;
-  border-left: 6px solid var(--govcolor-cobalt, #0943b5);
+  border: 1px solid rgba(76, 76, 76, 0.35);
+  border-radius: 0.25rem;
   background-color: var(--govcolor-vis-vis, #fee697);
   color: var(--govcolor-matterhorn, #4c4c4c);
 }
@@ -999,12 +1513,14 @@ async function enviar(): Promise<void> {
   Aviso de tratamiento de datos. El azul claro es el token `--govcolor-solitude`
   del Kit, que con el Matterhorn para el texto da 7,2:1: es un aviso informativo
   y no debe competir con el amarillo, que está reservado para lo que impide
-  terminar.
+  terminar. El borde completo va en el cobalto de la Entidad al 25 %, del mismo
+  token, en lugar del filete lateral que llevaba.
 */
 .aviso-datos {
   margin-top: 1.5rem;
   padding: 1rem 1.25rem;
-  border-left: 4px solid var(--govcolor-cobalt, #0943b5);
+  border: 1px solid rgba(9, 67, 181, 0.25);
+  border-radius: 0.25rem;
   background-color: var(--govcolor-solitude, #e5ecf8);
   color: var(--govcolor-matterhorn, #4c4c4c);
 }
@@ -1093,5 +1609,263 @@ button.btn-govco.boton-enviar {
   min-height: 2.75rem;
   padding-left: 1.5rem;
   padding-right: 1.5rem;
+}
+
+/* ==========================================================================
+   Línea de avance del formulario (RF-B2-077, CAG-20, Sección 3:360)
+   ==========================================================================
+
+   Es una **línea**, no tres píldoras sueltas: los pasos van en fila, unidos por
+   un conector, y el que se está rellenando se distingue por tres cosas a la vez
+   —relleno, peso de letra y el número— para que no dependa del color. El
+   completado lleva una marca dibujada; el pendiente, sólo contorno.
+
+   Área de pulsación de 44 px por paso (CAG-23) y contraste medido: blanco sobre
+   cobalto 8,46:1 en el paso actual, cobalto sobre blanco 8,46:1 en el completado,
+   Matterhorn sobre blanco 8,59:1 en el pendiente.
+*/
+.pasos-formulario {
+  margin: 1.5rem 0 2rem;
+}
+
+.pasos-encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  /* El hueco visual lo da el `gap`; el espacio del texto se queda porque es lo
+     que hace que el encabezado diga literalmente «Paso N de M: Nombre». */
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.pasos-cuenta {
+  color: var(--govcolor-matterhorn, #4c4c4c);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pasos-titulo {
+  color: var(--govcolor-cobalt, #0943b5);
+  font-family: 'Nunito_Sans-Bold', system-ui, sans-serif;
+  font-size: 1.125rem;
+}
+
+.pasos-lista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  padding-left: 0;
+  margin-bottom: 0;
+  list-style: none;
+}
+
+.pasos-item {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  min-width: 0;
+}
+
+/* El conector entre pasos: lo que convierte los botones en una línea. */
+.pasos-item + .pasos-item::before {
+  content: '';
+  flex: 0 0 1.25rem;
+  height: 0.125rem;
+  background-color: var(--govcolor-silver, #cccccc);
+}
+
+.paso {
+  display: inline-flex;
+  /*
+   * Base 0: lo que se reparte por igual es el **item** de cada paso, que es lo
+   * que fija dónde cae cada marcador. Con `auto`, el paso actual —que va en
+   * negrita— crecía un poco más y los marcadores dejaban de estar a la misma
+   * distancia. El botón de dentro mide lo que le deja el conector (20 px en los
+   * pasos 2 y 3), y eso no se nota porque lo que se lee como línea son los
+   * marcadores.
+   */
+  flex: 1 1 0;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.875rem;
+  border: 0.125rem solid var(--govcolor-silver, #cccccc);
+  border-radius: 0.5rem;
+  background-color: var(--govcolor-white, #ffffff);
+  color: var(--govcolor-matterhorn, #4c4c4c);
+  font-family: 'Nunito_Sans-Regular', system-ui, sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.25;
+  text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.paso:hover {
+  border-color: var(--govcolor-havelock-lue, #4672c8);
+}
+
+.paso-marca {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0.125rem solid currentColor;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.paso-marca-icono {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.paso-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paso-hecho {
+  border-color: var(--govcolor-cobalt, #0943b5);
+  color: var(--govcolor-cobalt, #0943b5);
+}
+
+.paso-actual {
+  border-color: var(--govcolor-cobalt, #0943b5);
+  background-color: var(--govcolor-solitude, #e5ecf8);
+  color: var(--govcolor-cobalt, #0943b5);
+  font-family: 'Nunito_Sans-Bold', system-ui, sans-serif;
+}
+
+/* El marcador del paso actual va relleno: es la señal que no depende del color. */
+.paso-actual .paso-marca {
+  border-color: var(--govcolor-cobalt, #0943b5);
+  background-color: var(--govcolor-cobalt, #0943b5);
+  color: var(--govcolor-white, #ffffff);
+}
+
+.paso-hecho .paso-marca {
+  border-color: var(--govcolor-cobalt, #0943b5);
+}
+
+/*
+ * En pantallas estrechas la línea completa no cabe sin apretujar los nombres, y
+ * el encabezado ya dice en qué paso se está. Se queda la línea de marcadores
+ * —que es lo que da la posición— y los nombres se ocultan: el nombre del paso
+ * actual sigue visible arriba.
+ */
+@media (max-width: 767.98px) {
+  .paso-nombre {
+    display: none;
+  }
+
+  .paso {
+    justify-content: center;
+    padding: 0.5rem 0.625rem;
+  }
+}
+
+/* Texto sólo para lectores de pantalla: el estado de cada paso, fuera de la vista. */
+.solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pasos-navegacion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0;
+}
+
+/*
+ * La ayuda del objeto y su contador, en la misma fila: el contador se consulta
+ * mientras se escribe, así que vive pegado al campo y no al final del bloque.
+ */
+.objeto-ayuda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.objeto-ayuda .texto-ayuda {
+  flex: 1 1 18rem;
+}
+
+/* La lista de archivos elegidos: nombre, peso y un botón para quitarlos. */
+.lista-adjuntos {
+  padding-left: 0;
+  margin: 1rem 0 0;
+  list-style: none;
+}
+
+.lista-adjuntos li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--govcolor-silver, #cccccc);
+  border-radius: 0.25rem;
+}
+
+.lista-adjuntos li + li {
+  margin-top: 0.5rem;
+}
+
+.adjunto-nombre {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--govcolor-matterhorn, #4c4c4c);
+}
+
+.adjunto-peso {
+  flex: none;
+  color: var(--govcolor-matterhorn, #4c4c4c);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 44 px de área de pulsación (CAG-23), con el texto delante para el nombre accesible. */
+.adjunto-quitar {
+  flex: none;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.75rem;
+  border: 0.125rem solid var(--govcolor-cobalt, #0943b5);
+  border-radius: 1.5rem;
+  background-color: var(--govcolor-white, #ffffff);
+  color: var(--govcolor-cobalt, #0943b5);
+  font-size: 0.875rem;
+}
+
+.objeto-contador {
+  flex: none;
+  margin: 0.375rem 0 0;
+  color: var(--govcolor-matterhorn, #4c4c4c);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Al acercarse al tope, el contador avisa; el color va acompañado del número. */
+.objeto-contador-lleno {
+  color: var(--govcolor-red, #a80521);
+  font-weight: 700;
 }
 </style>

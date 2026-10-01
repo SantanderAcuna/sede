@@ -15,5 +15,9 @@
   ],
   "theme_color": "#0943B5",
   "background_color": "#ffffff",
-  "display": "standalone"
+  "display": "standalone",
+  "lang": "es-CO",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/"
 }

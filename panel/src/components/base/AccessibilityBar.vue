@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 
 const props = withDefaults(defineProps<{
   storageKey?: string;
@@ -15,6 +15,12 @@ const contrast = ref(false);
 const dark    = ref(false);
 const spacing = ref(false);
 const pct     = computed(() => Math.round(scale.value * 100) + '%');
+
+const panelRef = ref<HTMLElement | null>(null);
+const botonRef = ref<HTMLButtonElement | null>(null);
+
+/** A quién devolver el foco al cerrar. Normalmente es el botón que abrió. */
+let disparador: HTMLElement | null = null;
 
 function apply() {
   // Zoom — scale the entire viewport
@@ -52,6 +58,17 @@ const inc   = () => (scale.value = Math.min(1.5, +(scale.value + 0.1).toFixed(1)
 const dec   = () => (scale.value = Math.max(0.8, +(scale.value - 0.1).toFixed(1)));
 const reset = () => { scale.value = 1; contrast.value = false; dark.value = false; spacing.value = false; };
 
+/**
+ * Cierre con Escape. Un panel que se abre con un botón y sólo se cierra
+ * pulsando fuera deja sin salida a quien navega con teclado (WCAG 2.1.2).
+ */
+function onKey(e: KeyboardEvent) {
+  if (e.key === 'Escape' && open.value) {
+    e.preventDefault();
+    open.value = false;
+  }
+}
+
 // Close on outside click
 const rootEl = ref<HTMLElement | null>(null);
 function onDocClick(e: MouseEvent) {
@@ -61,6 +78,22 @@ function onDocClick(e: MouseEvent) {
 }
 onMounted(() => document.addEventListener('click', onDocClick, true));
 onUnmounted(() => document.removeEventListener('click', onDocClick, true));
+onMounted(() => window.addEventListener('keydown', onKey));
+onUnmounted(() => window.removeEventListener('keydown', onKey));
+
+// El foco entra al panel al abrirlo y vuelve al botón al cerrarlo: si se queda
+// donde estaba, Tab recorre la página por detrás de un panel que tapa la vista.
+watch(open, async (abierto) => {
+  if (abierto) {
+    const activo = document.activeElement;
+    disparador = activo instanceof HTMLElement && activo !== document.body ? activo : botonRef.value;
+    await nextTick();
+    panelRef.value?.focus();
+    return;
+  }
+  if (disparador?.isConnected) disparador.focus();
+  disparador = null;
+});
 </script>
 
 <template>
@@ -72,7 +105,10 @@ onUnmounted(() => document.removeEventListener('click', onDocClick, true));
     <Transition name="a11y-panel">
       <div
         v-if="open"
-        class="w-64 rounded-xl bg-white shadow-lg ring-1 ring-slate-200 p-4"
+        id="panel-accesibilidad"
+        ref="panelRef"
+        tabindex="-1"
+        class="w-64 rounded-xl bg-white shadow-lg ring-1 ring-slate-200 p-4 focus:outline-none"
         :class="side === 'left' ? 'ml-2' : 'mr-2'"
         role="dialog"
         aria-label="Opciones de accesibilidad"
@@ -84,7 +120,8 @@ onUnmounted(() => document.removeEventListener('click', onDocClick, true));
             Accesibilidad
           </h3>
           <button
-            class="grid h-6 w-6 place-items-center rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            type="button"
+            class="grid h-11 w-11 place-items-center rounded text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             aria-label="Cerrar panel"
             @click="open = false"
           >
@@ -99,6 +136,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick, true));
           </span>
           <div class="flex items-center gap-2">
             <button
+              type="button"
               class="flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 py-1.5 text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition-colors"
               :disabled="scale <= 0.8"
               aria-label="Reducir texto"
@@ -109,6 +147,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick, true));
             </button>
             <span class="w-12 text-center text-sm font-semibold text-slate-700">{{ pct }}</span>
             <button
+              type="button"
               class="flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 py-1.5 text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition-colors"
               :disabled="scale >= 1.5"
               aria-label="Aumentar texto"
@@ -122,6 +161,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick, true));
 
         <!-- High contrast -->
         <button
+          type="button"
           class="mb-2 flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
           role="switch"
           :aria-checked="contrast"
@@ -144,6 +184,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick, true));
 
         <!-- Dark mode -->
         <button
+          type="button"
           class="mb-2 flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
           role="switch"
           :aria-checked="dark"
@@ -166,6 +207,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick, true));
 
         <!-- Text spacing -->
         <button
+          type="button"
           class="mb-3 flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
           role="switch"
           :aria-checked="spacing"
@@ -188,6 +230,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick, true));
 
         <!-- Reset -->
         <button
+          type="button"
           class="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors"
           @click="reset"
         >
@@ -199,9 +242,12 @@ onUnmounted(() => document.removeEventListener('click', onDocClick, true));
 
     <!-- Trigger -->
     <button
+      ref="botonRef"
+      type="button"
       class="grid h-11 w-11 place-items-center bg-gov-blue text-white shadow-md transition-colors hover:bg-gov-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue focus-visible:ring-offset-2"
       :class="side === 'left' ? 'rounded-r-xl' : 'rounded-l-xl'"
       :aria-expanded="open"
+      aria-controls="panel-accesibilidad"
       :aria-label="open ? 'Cerrar opciones de accesibilidad' : 'Abrir opciones de accesibilidad'"
       @click="open = !open"
     >

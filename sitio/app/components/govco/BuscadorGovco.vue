@@ -109,6 +109,7 @@ function alSalirFoco(evento: FocusEvent): void {
         v-model="termino"
         class="input-search-basic-govco"
         type="text"
+        autocomplete="off"
         :placeholder="placeholder"
         @keydown.esc.prevent="alPulsarTecla"
       >
@@ -163,5 +164,141 @@ function alSalirFoco(evento: FocusEvent): void {
   padding: 0;
   border: 0;
   white-space: nowrap;
+}
+
+/**
+ * Estilos del buscador - cumplimiento CC4, CC5, CC17
+ *
+ * CC4: Texto e imágenes ampliables hasta 200% sin deformación.
+ *      Tamaño base mínimo: 16px / 12pt
+ * CC5: Contraste de color suficiente (4.5:1 texto normal, 3:1 componentes UI)
+ * CC17: Foco visible con contraste mínimo 3:1
+ */
+
+/* Campo de entrada - tamaño base mínimo 16px (CC4) */
+.input-search-basic-govco {
+  flex: 1;
+  min-width: 0;
+  height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-bottom: 0.125rem solid #767676;
+  background-color: transparent;
+  color: #1a1a1a;
+  font-family: 'Nunito_Sans-Regular', system-ui, sans-serif;
+  font-size: 1rem; /* 16px mínimo - CC4 */
+  line-height: 1.5;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+/* Placeholder con contraste 4.5:1 (CC5) */
+.input-search-basic-govco::placeholder {
+  color: #4a4a4a;
+  opacity: 1;
+}
+
+/* Foco en el campo - indicador visible (CC17) */
+.input-search-basic-govco:focus {
+  border-bottom-color: #00ade7;
+  border-bottom-width: 0.1875rem;
+}
+
+/* Botón de limpiar */
+.btn-clean-basic-govco {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #767676;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.btn-clean-basic-govco.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Hover del botón limpiar */
+.btn-clean-basic-govco:hover {
+  color: #1a1a1a;
+}
+
+/* Foco visible en botón limpiar - CC17 (contraste 3:1) */
+.btn-clean-basic-govco:focus-visible {
+  outline: 0.125rem solid #00ade7;
+  outline-offset: 0.125rem;
+  border-radius: 50%;
+}
+
+/* Línea decorativa */
+.line-basic-govco {
+  width: 0;
+  height: 0.125rem;
+  background-color: #00ade7;
+  transition: width 0.2s ease;
+}
+
+.line-basic-govco.active {
+  width: 1.5rem;
+}
+
+/* Botón de búsqueda */
+.btn-search-basic-govco {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  color: #00ade7;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Hover del botón buscar */
+.btn-search-basic-govco:hover {
+  background-color: var(--govcolor-solitude, #e5ecf8);
+  border-radius: 50%;
+}
+
+/* Foco visible en botón buscar - CC17 (contraste 3:1) */
+.btn-search-basic-govco:focus-visible {
+  outline: 0.1875rem solid var(--govcolor-cobalt, #0943b5);
+  outline-offset: 0.125rem;
+  border-radius: 50%;
+}
+
+/* Estado activo del contenedor (cuando tiene foco) - CC17 */
+.container-govco.active .input-search-basic-govco {
+  border-bottom-color: var(--govcolor-cobalt, #0943b5);
+}
+
+/* Escalado al 200% sin deformación - CC4 */
+@media (max-width: 576px) {
+  .input-search-basic-govco {
+    font-size: 1rem; /* 16px mínimo en móvil también */
+  }
+}
+
+/* El icono de la lupa del Kit se muestra con clase govco-search */
+:deep(.govco-search) {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* El icono de X del Kit */
+:deep(.govco-times) {
+  width: 1rem;
+  height: 1rem;
 }
 </style>

@@ -18,6 +18,10 @@
  * política de derechos de autor no existe—, así que inventar aquí un texto legal
  * sería lo último que conviene hacer.
  */
+/** El catálogo canónico: slug, rótulo y estado de publicación (fuente única). */
+import { POLITICAS as POLITICAS_DEL_SITIO } from '~/config/sitemap'
+import { useMetadatosComparticion } from '~/composables/useMetadatosComparticion'
+
 interface Politica {
   /** Nombre con el que la política se publica y se enlaza desde el pie. */
   titulo: string
@@ -26,36 +30,44 @@ interface Politica {
 }
 
 /**
- * El catálogo. Los slugs están en castellano, sin tildes y con guiones, como el
- * resto de las direcciones del sitio.
+ * Lo que dirá cada política. **La prosa vive aquí**: es contenido de esta página
+ * y nadie más lo necesita.
+ *
+ * Lo que **no** vive aquí es el slug ni el nombre con el que se enlaza. Eso se
+ * declara una sola vez en `config/sitemap.ts` —que es también quien decide si la
+ * política se anuncia al buscador— y lo consumen el pie y el `sitemap.xml`. Antes
+ * estaba escrito en los tres sitios a la vez, que es la forma más barata de que un
+ * día el pie llame a una política de una manera y esta página de otra (D-31).
  */
-const POLITICAS: Record<string, Politica> = {
-  'terminos-y-condiciones-de-uso': {
-    titulo: 'Términos y condiciones de uso',
-    proposito:
-      'Las condiciones que rigen el uso de este sitio y de los servicios digitales de la Entidad, y las obligaciones de quien los utiliza.',
-  },
-  'seguridad-y-privacidad': {
-    titulo: 'Seguridad y privacidad',
-    proposito:
-      'Las medidas con las que la Entidad protege la información del sitio y la privacidad de quien lo usa, y el tratamiento que da a los registros de acceso.',
-  },
-  'proteccion-y-tratamiento-de-datos-personales': {
-    titulo: 'Protección y tratamiento de datos personales',
-    proposito:
-      'La política de tratamiento de datos personales de la Entidad conforme a la Ley 1581 de 2012: finalidades, derechos de los titulares y el procedimiento para ejercerlos.',
-  },
-  'uso-de-cookies': {
-    titulo: 'Uso de cookies',
-    proposito:
-      'Qué cookies usa el sitio, con qué finalidad y durante cuánto tiempo, y cómo se administra el consentimiento de quien navega.',
-  },
-  'derechos-de-autor-y-uso-sobre-contenidos': {
-    titulo: 'Derechos de autor y uso sobre contenidos',
-    proposito:
-      'La titularidad de los contenidos publicados y las condiciones en que pueden reutilizarse, con la licencia que los acompaña y la forma de citarlos.',
-  },
+const PROPOSITOS: Record<string, string> = {
+  'terminos-y-condiciones-de-uso':
+    'Las condiciones que rigen el uso de este sitio y de los servicios digitales de la Entidad, y las obligaciones de quien los utiliza.',
+  'seguridad-y-privacidad':
+    'Las medidas con las que la Entidad protege la información del sitio y la privacidad de quien lo usa, y el tratamiento que da a los registros de acceso.',
+  'proteccion-y-tratamiento-de-datos-personales':
+    'La política de tratamiento de datos personales de la Entidad conforme a la Ley 1581 de 2012: finalidades, derechos de los titulares y el procedimiento para ejercerlos.',
+  'uso-de-cookies':
+    'Qué cookies usa el sitio, con qué finalidad y durante cuánto tiempo, y cómo se administra el consentimiento de quien navega.',
+  'derechos-de-autor-y-uso-sobre-contenidos':
+    'La titularidad de los contenidos publicados y las condiciones en que pueden reutilizarse, con la licencia que los acompaña y la forma de citarlos.',
 }
+
+/**
+ * El catálogo que sirve esta página: el slug y el nombre salen de la fuente única
+ * y aquí sólo se les añade la prosa. Así es imposible que esta página publique una
+ * política que el pie no enlace, o al revés.
+ */
+const POLITICAS: Record<string, Politica> = Object.fromEntries(
+  POLITICAS_DEL_SITIO.map((politica) => [
+    politica.slug,
+    {
+      titulo: politica.etiqueta,
+      proposito:
+        PROPOSITOS[politica.slug] ??
+        'La Entidad publicará aquí el documento de esta política con su acto administrativo de adopción.',
+    },
+  ]),
+)
 
 const ruta = useRoute()
 
@@ -87,6 +99,16 @@ useHead({
       ? 'Políticas del sitio · Sede Electrónica'
       : `${politica.value.titulo} · Sede Electrónica`,
   ),
+})
+
+/*
+ * La vista previa de una política compartida dice cuál es (D-29). La descripción
+ * es la misma que la página publica como propósito: no se escribe una nueva para
+ * la ocasión.
+ */
+useMetadatosComparticion({
+  titulo: () => politica.value?.titulo ?? 'Políticas del sitio',
+  descripcion: () => politica.value?.proposito,
 })
 
 /**

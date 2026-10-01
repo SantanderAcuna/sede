@@ -794,4 +794,11 @@ onBeforeUnmount(() => {
     display: none;
   }
 }
+
+/* El hover/foco de las etiquetas padre en celeste vive en sitio.css —fuera del
+   scope de este componente— porque el `<a class="nav-link">` es descendiente
+   del `<nav class="menu-govco">` raíz con scope, y cualquier intento de
+   sobreescribir desde aquí termina en selectores que Vue reescribe de forma
+   que no encuentran el blanco. Con la regla global en sitio.css basta con
+   igualar la especificidad del Kit (0,3,1) y cargar después. */
 </style>

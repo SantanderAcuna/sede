@@ -123,6 +123,10 @@ interface DatosDelFormulario {
   confirmacionCorreo: string
   telefono: string
   direccion: string
+  /** Canal por el que la Entidad debe notificar la respuesta (RF-B1-031). */
+  canalRespuesta: string
+  /** Dependencia a la que se dirige la solicitud (RF-B1-031). */
+  dependencia: string
   autorizacion: boolean
 }
 
@@ -142,6 +146,8 @@ const datos = reactive<DatosDelFormulario>({
   confirmacionCorreo: '',
   telefono: '',
   direccion: '',
+  canalRespuesta: '',
+  dependencia: '',
   autorizacion: false,
 })
 
@@ -199,6 +205,7 @@ type Campo =
   | 'numeroDocumento'
   | 'correo'
   | 'confirmacionCorreo'
+  | 'canalRespuesta'
   | 'autorizacion'
 
 const errores = ref<Partial<Record<Campo, string>>>({})
@@ -213,6 +220,7 @@ const CAMPOS_CON_AYUDA: readonly Campo[] = [
   'descripcion',
   'correo',
   'confirmacionCorreo',
+  'canalRespuesta',
   'autorizacion',
 ]
 
@@ -220,6 +228,33 @@ const CAMPOS_CON_AYUDA: readonly Campo[] = [
 const FORMA_DE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** Longitud mínima de la descripción, para que no se envíe una sola palabra. */
+/**
+ * Canales por los que se puede notificar la respuesta.
+ *
+ * Los cinco salen de RN-04-D05 y RF-04-D05 (Ley 1437/2011, arts. 56, 67 y 69):
+ * «correo procesal, SMS, correo certificado, edicto o físico», con preferencia
+ * del electrónico cuando hay dirección autorizada. No se inventa ninguno.
+ */
+const CANALES_DE_RESPUESTA: readonly { valor: string; etiqueta: string }[] = [
+  { valor: 'correo', etiqueta: 'Correo electrónico' },
+  { valor: 'sms', etiqueta: 'Mensaje de texto (SMS)' },
+  { valor: 'certificado', etiqueta: 'Correo certificado' },
+  { valor: 'aviso', etiqueta: 'Notificación por aviso o edicto' },
+  { valor: 'fisico', etiqueta: 'Dirección física de notificación' },
+]
+
+/**
+ * Dependencias a las que se puede dirigir la solicitud.
+ *
+ * **El catálogo no lo puede escribir este proyecto.** Lo dice el propio corpus:
+ * «Secretaría Jurídica debe proveer la lista» (`_bd/_extraccion/03-servicios-tramites.md:460`)
+ * y la única dependencia documentada como destino por defecto es el *Despacho del
+ * Alcalde* (pregunta abierta A-11 del módulo 04). Se declara aquí la que está
+ * documentada, y el día que la Entidad entregue su catálogo se amplía esta lista
+ * y nada más: el desplegable se construye a partir de ella.
+ */
+const DEPENDENCIAS: readonly string[] = ['Despacho del Alcalde']
+
 const MINIMO_DE_DESCRIPCION = 10
 
 /**
@@ -235,6 +270,42 @@ const MAXIMO_DE_DESCRIPCION = 2000
 
 /** Cuántos caracteres lleva escritos el objeto, para el contador. */
 const caracteresDelObjeto = computed<number>(() => datos.descripcion.length)
+
+/* ==========================================================================
+   Adjuntos (RF-B1-031, RF-B1-033, RN-B1-010)
+   ==========================================================================
+
+   **Sin restricciones técnicas, y es obligatorio que sea así.** RN-B1-010 y
+   RF-B1-033 lo dicen con la Constitución detrás: el formulario no puede limitar
+   formatos, tamaños ni cantidad, porque el derecho de petición (art. 23 CP) no
+   admite que la herramienta decida qué se puede pedir. Por eso el campo no lleva
+   `accept`, no comprueba tamaños y no corta la lista —y hay una comprobación en
+   `make diseno` que falla si alguien las añade—.
+
+   La contradicción C-01 del módulo 04 sigue abierta: la implementación actual de
+   la Alcaldía limita a PDF/JPG/PNG y 10 MB, y eso es un incumplimiento concreto.
+   Aquí no se copia.
+*/
+const refAdjuntos = ref<HTMLInputElement | null>(null)
+const adjuntos = ref<File[]>([])
+
+function agregarAdjuntos(evento: Event): void {
+  const entrada = evento.target as HTMLInputElement
+  adjuntos.value = [...adjuntos.value, ...Array.from(entrada.files ?? [])]
+  // Se vacía el campo para que volver a elegir el mismo archivo dispare `change`.
+  if (refAdjuntos.value) refAdjuntos.value.value = ''
+}
+
+function quitarAdjunto(indice: number): void {
+  adjuntos.value = adjuntos.value.filter((_, posicion) => posicion !== indice)
+}
+
+/** Peso legible para la lista: informa, nunca bloquea. */
+function pesoLegible(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 function idAyuda(campo: Campo): string {
   return `ayuda-${campo}`
@@ -333,6 +404,12 @@ function validar(): Partial<Record<Campo, string>> {
 
   if (datos.confirmacionCorreo.trim() === '') {
     fallos.confirmacionCorreo = 'Escriba otra vez el correo electrónico.'
+  }
+
+  // Sin canal no hay por dónde notificar la respuesta, y notificar es la mitad
+  // del derecho de petición: se pide, pero sólo en la modalidad con identidad.
+  if (esPersonal.value && datos.canalRespuesta === '') {
+    fallos.canalRespuesta = 'Escoja cómo quiere que le notifiquemos la respuesta.'
   } else if (datos.confirmacionCorreo.trim() !== datos.correo.trim()) {
     fallos.confirmacionCorreo = 'Los dos correos electrónicos no coinciden.'
   }
@@ -389,6 +466,7 @@ const PASOS: readonly PasoDelFormulario[] = [
       'numeroDocumento',
       'correo',
       'confirmacionCorreo',
+      'canalRespuesta',
     ],
   },
   { nombre: 'Autorización y envío', campos: ['autorizacion'] },
@@ -725,6 +803,56 @@ async function enviar(): Promise<void> {
               </p>
             </div>
 
+            <!-- ================= Documentos que acompañan la solicitud ================= -->
+            <!--
+              **El campo no lleva `accept`, ni tope de tamaño, ni límite de cantidad.**
+              No es un olvido: RN-B1-010 y RF-B1-033 prohíben que el formulario ponga
+              restricciones técnicas a la radicación (art. 23 CP), y `make diseno`
+              comprueba que siguen sin estar.
+            -->
+            <div class="mb-4 mt-4">
+              <label class="form-label" for="adjuntos">
+                Documentos que acompañan la solicitud
+              </label>
+
+              <input
+                id="adjuntos"
+                ref="refAdjuntos"
+                type="file"
+                multiple
+                class="form-control"
+                aria-describedby="ayuda-adjuntos"
+                @change="agregarAdjuntos"
+              />
+
+              <p id="ayuda-adjuntos" class="texto-ayuda">
+                Puede adjuntar los archivos que necesite, en cualquier formato y sin
+                límite de cantidad: el derecho de petición no admite restricciones
+                técnicas. El único límite es el del servidor que los reciba, que no
+                rechaza por formato ni por nombre.
+              </p>
+              <p class="texto-ayuda">
+                Mientras este formulario no radique, los archivos
+                <strong>no salen de su equipo</strong>: se quedan aquí y desaparecen al
+                recargar la página.
+              </p>
+
+              <ul v-if="adjuntos.length > 0" class="lista-adjuntos">
+                <li v-for="(archivo, indice) in adjuntos" :key="`${archivo.name}-${indice}`">
+                  <span class="adjunto-nombre">{{ archivo.name }}</span>
+                  <span class="adjunto-peso">{{ pesoLegible(archivo.size) }}</span>
+                  <button
+                    type="button"
+                    class="adjunto-quitar"
+                    :aria-label="`Quitar el archivo ${archivo.name}`"
+                    @click="quitarAdjunto(indice)"
+                  >
+                    Quitar
+                  </button>
+                </li>
+              </ul>
+            </div>
+
             <p
               v-if="errores.descripcion"
               :id="idError('descripcion')"
@@ -778,9 +906,34 @@ async function enviar(): Promise<void> {
           respuesta se envía directamente a su correo electrónico o dirección física,
           según corresponda.
         </p>
-        <p v-if="!esPersonal" class="mb-0 mt-2">
-          En la modalidad <strong>anónima</strong> no se recopila ninguno de esos datos.
-        </p>
+        <div v-if="!esPersonal" class="mt-3">
+          <p class="mb-2">
+            En la modalidad <strong>anónima</strong> no se recopila ninguno de esos datos.
+          </p>
+
+          <!--
+            RF-B1-032 pide un aviso «sobre garantías y limitaciones del anonimato
+            (georreferenciación, IP, metadata, navegador privado) y limitación de
+            respuesta». Es lo que sigue, y se dice entero: un anonimato prometido a
+            medias es peor que ninguno, porque quien lo cree escribe lo que no
+            escribiría.
+          -->
+          <p class="mb-2">
+            <strong>Qué protege el anonimato y qué no.</strong> La Entidad no le pedirá
+            nombre, documento ni correo, y tramitará la solicitud sin ellos; tampoco
+            solicita su ubicación. Ahora bien, el anonimato no es absoluto: la conexión
+            puede dejar rastro de la <strong>dirección IP</strong>, de la fecha y la hora,
+            del <strong>navegador</strong> y de los <strong>metadatos</strong> de los
+            archivos que adjunte. Si necesita un anonimato mayor, use una conexión que no
+            lo identifique y el modo privado del navegador.
+          </p>
+
+          <p class="mb-0">
+            Y una consecuencia práctica: <strong>sin datos de contacto no hay forma de
+            responderle personalmente</strong>. Podrá seguir el estado con el número de
+            radicado, pero la respuesta no se le podrá notificar.
+          </p>
+        </div>
       </div>
 
         <p class="pasos-navegacion">
@@ -1099,6 +1252,80 @@ async function enviar(): Promise<void> {
                 type="text"
                 autocomplete="street-address"
               />
+            </div>
+
+            <!-- ================= Canal de respuesta ================= -->
+            <div class="mb-4">
+              <label class="form-label" for="canalRespuesta">
+                ¿Cómo quiere que le notifiquemos la respuesta?
+                <span class="asterisco" aria-hidden="true">*</span>
+              </label>
+
+              <select
+                id="canalRespuesta"
+                v-model="datos.canalRespuesta"
+                class="form-select"
+                autocomplete="off"
+                required
+                :aria-invalid="invalido('canalRespuesta')"
+                :aria-describedby="descritoPor('canalRespuesta')"
+              >
+                <option value="">Escoger</option>
+                <option
+                  v-for="canal in CANALES_DE_RESPUESTA"
+                  :key="canal.valor"
+                  :value="canal.valor"
+                >
+                  {{ canal.etiqueta }}
+                </option>
+              </select>
+
+              <p :id="idAyuda('canalRespuesta')" class="texto-ayuda">
+                La notificación electrónica tiene preferencia cuando hay una dirección
+                autorizada; si no, se usa el canal que escoja aquí.
+              </p>
+
+              <p
+                v-if="errores.canalRespuesta"
+                :id="idError('canalRespuesta')"
+                class="error-campo"
+                role="alert"
+              >
+                {{ errores.canalRespuesta }}
+              </p>
+            </div>
+
+            <!-- ================= Dependencia destinataria ================= -->
+            <div class="mb-4">
+              <label class="form-label" for="dependencia">
+                Dependencia a la que se dirige
+              </label>
+
+              <select
+                id="dependencia"
+                v-model="datos.dependencia"
+                class="form-select"
+                autocomplete="off"
+              >
+                <option value="">Que la Entidad la asigne</option>
+                <option v-for="dependencia in DEPENDENCIAS" :key="dependencia" :value="dependencia">
+                  {{ dependencia }}
+                </option>
+              </select>
+
+              <!--
+                Se dice lo que falta en lugar de inventar un organigrama. El catálogo
+                de dependencias lo tiene que entregar la Entidad (Secretaría Jurídica
+                «debe proveer la lista», `_bd/_extraccion/03-servicios-tramites.md:460`);
+                hoy sólo está documentado el Despacho del Alcalde como destino por
+                defecto (A-11 del módulo 04).
+              -->
+              <p class="texto-ayuda">
+                Puede dejarlo en blanco y la Entidad la dirige a quien corresponda. El
+                catálogo completo de dependencias está pendiente de publicación, así que
+                hoy sólo se ofrece el despacho del alcalde; el formulario no inventa el
+                resto del organigrama.
+              </p>
             </div>
           </div>
         </div>
@@ -1579,6 +1806,53 @@ button.btn-govco.boton-enviar {
 
 .objeto-ayuda .texto-ayuda {
   flex: 1 1 18rem;
+}
+
+/* La lista de archivos elegidos: nombre, peso y un botón para quitarlos. */
+.lista-adjuntos {
+  padding-left: 0;
+  margin: 1rem 0 0;
+  list-style: none;
+}
+
+.lista-adjuntos li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--govcolor-silver, #cccccc);
+  border-radius: 0.25rem;
+}
+
+.lista-adjuntos li + li {
+  margin-top: 0.5rem;
+}
+
+.adjunto-nombre {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--govcolor-matterhorn, #4c4c4c);
+}
+
+.adjunto-peso {
+  flex: none;
+  color: var(--govcolor-matterhorn, #4c4c4c);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 44 px de área de pulsación (CAG-23), con el texto delante para el nombre accesible. */
+.adjunto-quitar {
+  flex: none;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.75rem;
+  border: 0.125rem solid var(--govcolor-cobalt, #0943b5);
+  border-radius: 1.5rem;
+  background-color: var(--govcolor-white, #ffffff);
+  color: var(--govcolor-cobalt, #0943b5);
+  font-size: 0.875rem;
 }
 
 .objeto-contador {

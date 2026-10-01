@@ -18,6 +18,14 @@
  * genera recorriendo el disco.
  */
 
+/*
+ * Las nueve categorías de transparencia se importan del módulo ligero en vez de
+ * escribirse aquí: es la única declaración de sus nombres y sus direcciones, así
+ * que añadir una categoría nueva no exige acordarse de este archivo. Estaban
+ * publicadas y sin anunciar, lo que las hacía invisibles para los buscadores.
+ */
+import { ORDEN_CATEGORIAS, rutaDeCategoria } from '~/types/transparencia-indice'
+
 /** Una dirección publicada y, si se conoce, la fecha de su último cambio real. */
 interface Direccion {
   ruta: string
@@ -37,8 +45,7 @@ const paginas: Direccion[] = [
   { ruta: '/transparencia', prioridad: 0.9, frecuencia: 'weekly' },
   { ruta: '/tramites', prioridad: 0.9, frecuencia: 'weekly' },
   { ruta: '/atencion', prioridad: 0.8, frecuencia: 'monthly' },
-  { ruta: '/participa', prioridad: 0.8, frecuencia: 'monthly' },
-  { ruta: '/normativa', prioridad: 0.7, frecuencia: 'weekly' },
+  { ruta: '/participa', prioridad: 0.8, frecuencia: 'monthly' },  { ruta: '/normativa', prioridad: 0.7, frecuencia: 'weekly' },
   { ruta: '/noticias', prioridad: 0.7, frecuencia: 'daily' },
   { ruta: '/pqrsd', prioridad: 0.8, frecuencia: 'monthly' },
   { ruta: '/realizar-una-peticion', prioridad: 0.8, frecuencia: 'monthly' },
@@ -92,6 +99,13 @@ export default defineEventHandler((evento): string => {
 
   const todas: Direccion[] = [
     ...paginas,
+    // Las nueve categorías, cada una indexable por separado: un ciudadano busca
+    // «contratación» o «presupuesto», no «transparencia».
+    ...ORDEN_CATEGORIAS.map((slug) => ({
+      ruta: rutaDeCategoria(slug),
+      prioridad: 0.6,
+      frecuencia: 'weekly' as const,
+    })),
     ...subcategoriasParticipa.map((slug) => ({
       ruta: `/participa/${slug}`,
       prioridad: 0.6,

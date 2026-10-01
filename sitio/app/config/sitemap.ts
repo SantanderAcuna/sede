@@ -183,7 +183,7 @@ const RUTAS_SUELTAS: RutaPublica[] = [
   {
     ruta: '/transparencia',
     etiqueta: 'Transparencia y acceso a la información pública',
-    etiquetaMenu: 'Transparencia y acceso información pública',
+    etiquetaMenu: 'Transparencia',
     publicada: PUBLICADAS.transparencia,
     orden: 1,
     prioridadSitemap: 0.9,
@@ -345,10 +345,10 @@ export const menuPrincipal: ItemMenu[] = [
   { etiqueta: etiquetaMenuDe('/'), ruta: '/' },
   { etiqueta: etiquetaMenuDe('/transparencia'), ruta: '/transparencia' },
   {
-    etiqueta: 'Atención y Servicios a la Ciudadanía',
+    etiqueta: 'Atención al ciudadano',
     subsecciones: [
       {
-        titulo: 'Atención y Servicios a la Ciudadanía',
+        titulo: 'Atención al ciudadano',
         enlaces: [
           { etiqueta: etiquetaMenuDe('/tramites'), ruta: '/tramites' },
           { etiqueta: etiquetaMenuDe('/atencion'), ruta: '/atencion' },

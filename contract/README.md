@@ -36,6 +36,12 @@ Por cada recurso se declaran **exactamente tres** esquemas:
 | `<Recurso>Collection` | La colección paginada |
 | `<Recurso>Input` | El cuerpo de las peticiones de escritura |
 
+Un recurso declara además los esquemas que su `<Recurso>Item` **compone** —en Trámites,
+`TramiteCategoria`, `TramiteRequisito`, `TramiteDocumento`, `TramitePaso` y
+`TramiteProcedencia`—. No son esquemas del recurso: son partes de él, y por eso no cuentan
+como uno de los tres. Los tres sólo existen cuando el recurso tiene colección y escritura:
+`Entidad` declara `EntidadItem` y nada más porque no se lista ni se escribe.
+
 ## Reglas de autoría
 
 | Regla | Convención |

@@ -14,11 +14,19 @@
 # una actualización de la versión de Node no se revisa igual que un parche de una
 # biblioteca de utilidades.
 
+# TODAS las entradas fijan `target-branch: develop`, y no es un detalle: sin esa
+# línea Dependabot apunta a la rama por defecto (`main`) y las actualizaciones
+# SALTAN el circuito. Todo lo demás entra por `develop`, se verifica en `staging` y
+# sólo entonces llega a `main`; una subida de dependencia puede romper una
+# construcción —lo hizo: `typescript@7` deja la instalación en rojo— así que tiene
+# que recorrer el mismo camino que el resto, no aparecer directamente en `main`.
+
 version: 2
 
 updates:
   # --- Dependencias de JavaScript ---------------------------------------------
   - package-ecosystem: npm
+    target-branch: develop
     directory: /panel
     schedule:
       interval: weekly
@@ -34,6 +42,7 @@ updates:
     labels: [dependencias]
 
   - package-ecosystem: npm
+    target-branch: develop
     directory: /sitio
     schedule:
       interval: weekly
@@ -47,6 +56,7 @@ updates:
 
   # --- Dependencias de PHP -----------------------------------------------------
   - package-ecosystem: composer
+    target-branch: develop
     directory: /backend
     schedule:
       interval: weekly
@@ -65,6 +75,7 @@ updates:
   # bloquea una construcción. Así apareció `libexpat` 2.8.4-r0 con una
   # vulnerabilidad ALTA.
   - package-ecosystem: docker
+    target-branch: develop
     directories:
       - /docker/app
       - /docker/nginx
@@ -81,6 +92,7 @@ updates:
   # nunca se actualiza sola, que es justo lo que se quiere, pero también significa
   # que sin esto se queda atrás para siempre.
   - package-ecosystem: github-actions
+    target-branch: develop
     directory: /
     schedule:
       interval: weekly

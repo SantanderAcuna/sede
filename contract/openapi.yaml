@@ -133,9 +133,9 @@ paths:
       summary: Catálogo de trámites y servicios
       description: |
         Devuelve los trámites **publicados**. Un trámite sin alguno de sus seis
-        atributos obligatorios no se publica, de modo que lo que devuelve esta
-        operación siempre está completo.
-      x-status: pending
+        atributos obligatorios —o sin su ficha en GOV.CO— no se publica, de modo
+        que lo que devuelve esta operación siempre está completo.
+      x-status: implemented
       x-criterios: [FUN-001, FUN-021, FUN-022, RN-01]
       parameters:
         - $ref: '#/components/parameters/Pagina'
@@ -155,14 +155,7 @@ paths:
           description: Colección paginada de trámites
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedEnvelope'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items: { $ref: '#/components/schemas/TramiteItem' }
+              schema: { $ref: '#/components/schemas/TramiteCollection' }
               examples:
                 paginada:
                   summary: Primera página de trámites
@@ -172,18 +165,109 @@ paths:
                     data:
                       - id: 1
                         type: tramites
-                        slug: certificado-de-residencia
-                        nombre: Certificado de residencia
-                        resumen: Acredita el domicilio del solicitante en el Distrito.
-                        modalidad: en_linea
-                        tiene_costo: gratuito
-                        tiempo_solucion_dias: 5
+                        slug: impuesto-predial-unificado
+                        nombre: Impuesto predial unificado
+                        resumen: Pago que todo propietario, poseedor o quien disfrute del bien ajeno debe realizar sobre los bienes inmuebles ubicados en la jurisdicción del Distrito.
+                        url_ficha_gov_co: https://www.gov.co/ficha-tramites-y-servicios/T2621
+                        modalidad: parcialmente_en_linea
+                        tiene_costo: con_costo
+                        costo:
+                          tiene_costo: con_costo
+                          tipo_valor: avaluo_liquidacion
+                          valor: null
+                          moneda: Pesos ($)
+                          url_pago: https://impuestos.santamarta.gov.co:8443/autoservicios.jsf
+                          descripcion: De acuerdo con el avalúo catastral del predio y el Estatuto Tributario Distrital del Acuerdo 004 del 2016, el pago se puede realizar con PSE y con tarjeta débito.
+                          cuentas:
+                            - entidad: Banco de Bogotá
+                              tipo_cuenta: AHORROS
+                              titular: D.T.C.H Santa Marta
+                              numero_cuenta: '070091897'
+                              codigo_recaudo: null
+                        tiempo_solucion_dias: 1
                         canal_inicio: propio
-                        url_inicio: /tramites/certificado-de-residencia/iniciar
-                        consulta_estado: /seguimiento
-                        categoria:
-                          slug: certificados
-                          nombre: Certificados
+                        url_inicio: https://impuestos.santamarta.gov.co:8443/autoservicios.jsf
+                        consulta_estado: /seguimiento?radicado=…
+                        resultado: Formulario o factura del impuesto predial con sello de pago
+                        perfiles: [Ciudadano, Extranjero, Empresa privada, Entidad pública]
+                        requisitos:
+                          - tipo: solicitud
+                            descripcion: Presentar la solicitud por la web o en la ventanilla.
+                            obligatorio: true
+                            canal: web
+                            url: https://impuestos.santamarta.gov.co:8443/autoservicios.jsf
+                          - tipo: verificacion_institucional
+                            descripcion: Ser propietario o poseedor de un bien inmueble en el Municipio de Santa Marta.
+                            obligatorio: true
+                          - tipo: documento
+                            descripcion: Cédula de ciudadanía
+                            obligatorio: true
+                            cantidad: 1
+                            unidad_cantidad: Original(es)
+                          - tipo: pago
+                            descripcion: Pagar el impuesto liquidado sobre el avalúo del predio.
+                            obligatorio: true
+                            nota: El importe se calcula con el avalúo catastral y el Acuerdo 004 de 2016.
+                        documentos:
+                          - nombre: Ficha oficial del trámite en GOV.CO (SUIT)
+                            url: https://www.gov.co/ficha-tramites-y-servicios/T2621
+                            formato: HTML
+                        puntos_atencion:
+                          - nombre: Dirección de Impuestos
+                            direccion: Calle 14 N 2-49 Primer Piso
+                            horario: Lunes a viernes de 8:00 a 11:30 am y 2:00 a 5:30 pm
+                            telefono: null
+                            municipio: Santa Marta
+                            departamento: Magdalena
+                            latitud: null
+                            longitud: null
+                        normativa:
+                          - tipo: Acuerdo
+                            numero: '004'
+                            anio: 2016
+                            articulos: articulo 27, 40
+                            url: null
+                            url_descarga: https://tramites1.suit.gov.co/registro-web/suit_descargar_archivo?A=79463
+                        canales_consulta_estado:
+                          - canal: sede
+                            habilitado: false
+                            nombre: Seguimiento de la Sede Electrónica
+                            url: /seguimiento
+                            correo: null
+                            telefono: null
+                            horario: null
+                          - canal: presencial
+                            habilitado: true
+                            nombre: Dirección de Impuestos
+                            url: null
+                            correo: null
+                            telefono: null
+                            horario: Lunes a viernes de 8:00 a 11:30 am y 2:00 a 5:30 pm
+                        categoria: null
+                        procedencia:
+                          fuente: SUIT — Función Pública (entidad 0043)
+                          url: https://www.funcionpublica.gov.co/es/suit/buscador-de-tramites
+                          obtenido_en: '2026-09-30'
+                          nota: null
+                          api: https://api-interno.www.gov.co/api/ficha-tramites-y-servicios/
+                          origen_por_campo:
+                            nombre: fuente
+                            resumen: fuente
+                            modalidad: fuente
+                            tiene_costo: fuente
+                            costo: fuente
+                            tiempo_solucion_dias: derivado
+                            canal_inicio: derivado
+                            consulta_estado: entidad
+                            requisitos: fuente
+                            normativa: fuente
+                            puntos_atencion: fuente
+                          derivados:
+                            - campo: tiempo_solucion_dias
+                              regla: 'El término lo declara la fuente como «2 HORA(S)» y se publica en 1 día hábil: una jornada son 8 horas.'
+                            - campo: canal_inicio
+                              regla: 'El trámite en línea vive en un dominio de la Entidad, así que el canal de inicio es propio.'
+                          faltantes: []
                     meta:
                       current_page: 1
                       from: 1
@@ -211,7 +295,7 @@ paths:
         La ficha declara siempre sus seis atributos obligatorios: modalidad,
         costo, tiempo de solución, canal de inicio, mecanismo de consulta del
         estado y documentos o requisitos.
-      x-status: pending
+      x-status: implemented
       x-criterios: [FUN-021, FUN-023, FUN-024, CAG-20]
       parameters:
         - name: slug
@@ -298,7 +382,11 @@ components:
       properties:
         success: { type: boolean }
         message: { type: [string, 'null'] }
-        data: { type: [object, 'null'] }
+        # `data` es objeto en un recurso individual y arreglo en una colección;
+        # declararlo sólo como objeto dejaba inválida toda respuesta de
+        # colección, porque `PaginatedEnvelope` compone este esquema y a la vez
+        # exige que `data` sea un arreglo.
+        data: { type: [object, array, 'null'] }
         errors: { type: [object, 'null'] }
 
     PaginatedEnvelope:
@@ -406,46 +494,160 @@ components:
         - nombre
         - modalidad
         - tiene_costo
+        - costo
         - tiempo_solucion_dias
         - canal_inicio
+        - consulta_estado
+        - requisitos
+        - url_ficha_gov_co
       description: |
         Los seis atributos obligatorios de un trámite son `modalidad`,
         `tiene_costo`, `tiempo_solucion_dias`, `canal_inicio`, `consulta_estado`
         y `requisitos`. Sin ellos el trámite no se publica, de modo que los campos
         marcados como requeridos siempre viajan.
+
+        La misma regla alcanza a `url_ficha_gov_co`: el Anexo 2.1 de la Guía de
+        diseño para sedes electrónicas hace que el nombre del trámite lleve a su
+        ficha en GOV.CO, y un trámite sin ficha no tiene a dónde llevar. No se
+        publica, exactamente igual que este contrato no publica un recurso al que
+        le falte un atributo obligatorio.
+
+        # Lo que la ficha añade a los seis atributos
+
+        El §9.1 de la misma Guía hace de la actualización de esta información en el
+        SUIT **requisito para integrarse a Gov.co**. Publicar los seis atributos en
+        una frase cada uno no alcanza para eso: el ciudadano necesita saber dónde
+        se inicia el trámite, dónde se pregunta por él, qué documentos lleva
+        encima y qué norma lo obliga, y ninguno de esos cuatro cabe en un rótulo
+        de una línea. De ahí los cuatro bloques que acompañan a los seis:
+
+        | Bloque | Para qué |
+        |---|---|
+        | `requisitos` | Cinco naturalezas distintas, no una lista de frases |
+        | `puntos_atencion` | Dónde ir, con la dirección y el horario oficiales |
+        | `canales_consulta_estado` | Por dónde preguntar, y si ese canal ya atiende |
+        | `normativa` | La norma que faculta la exigencia |
+
+        Ninguno de ellos sustituye a un atributo obligatorio: los acompañan. Un
+        trámite con sus seis atributos y sin normativa se publica —la exigencia de
+        la Guía es sobre los seis—; uno al que le falte `modalidad` no se publica
+        aunque traiga la dirección exacta de la ventanilla.
+
+        # La procedencia, campo por campo
+
+        `procedencia` deja de decir sólo de dónde salió el trámite y pasa a decir
+        **qué salió de la fuente, qué se derivó con qué regla y qué falta**. La
+        razón es la de siempre, aplicada un nivel más abajo: cuando la fuente no
+        declara el término en días, publicarlo convertido sin decir que se convirtió
+        deja un dato que parece declarado y no lo está. Un solo campo de procedencia
+        para todo el trámite no puede contar eso; uno por campo, sí.
       properties:
         id: { type: integer }
         type: { type: string, const: tramites }
         slug: { type: string }
         nombre: { type: string }
         resumen: { type: [string, 'null'] }
+        url_ficha_gov_co: { type: string, format: uri }
+        procedencia: { $ref: '#/components/schemas/TramiteProcedencia' }
         modalidad:
           type: string
           enum: [en_linea, parcialmente_en_linea, presencial]
         tiene_costo:
           type: string
           enum: [gratuito, con_costo]
+          description: |
+            El segundo atributo obligatorio, con el nombre que le da la Guía. Es la
+            respuesta de una línea que el ciudadano lee de un vistazo, y por eso no
+            desaparece al estructurarse `costo`.
+
+            **`costo.tiene_costo` repite este campo, y es deliberado.** El bloque
+            `costo` tiene que poder leerse solo —quien dibuja el apartado de pago
+            no debería tener que mirar fuera de él para saber si el trámite es
+            gratuito—, y este campo tiene que seguir en la raíz porque es el nombre
+            con el que el atributo obligatorio viaja y con el que ya lo leen los
+            clientes. Los dos salen de la misma columna del catálogo en la misma
+            respuesta, así que no pueden discrepar; lo que no se hace es dejar que
+            los escriba una petición.
         costo:
-          type: [string, 'null']
-          description: Importe en formato decimal. Lo fija el catálogo, nunca la petición.
+          $ref: '#/components/schemas/TramiteCosto'
         tiempo_solucion_dias: { type: integer, minimum: 0 }
         canal_inicio:
           type: string
           enum: [propio, portal_nacional]
         url_inicio: { type: [string, 'null'] }
-        consulta_estado: { type: [string, 'null'] }
+        consulta_estado: { type: string }
         requisitos:
           type: array
           items: { $ref: '#/components/schemas/TramiteRequisito' }
         documentos:
           type: array
           items: { $ref: '#/components/schemas/TramiteDocumento' }
-        categoria: { $ref: '#/components/schemas/TramiteCategoria' }
+
+        # --- Lo que acompaña a los seis atributos (§9.1 de la Guía) -----------
+
+        perfiles:
+          type: array
+          description: |
+            A quién está dirigido el trámite, con los nombres que declara la fuente
+            —«Ciudadano», «Extranjero», «Empresa privada», «Entidad pública»—. No es
+            una lista de relleno: hay requisitos que sólo aplican a un perfil, y
+            quien lee la ficha necesita saber si el suyo está entre ellos.
+          items: { type: string, maxLength: 60 }
+        resultado:
+          type: [string, 'null']
+          description: |
+            Qué obtiene quien adelanta el trámite, tal como lo declara la fuente
+            —«Formulario o factura del impuesto predial con sello de pago»—. Va
+            aparte de `resumen` porque no es lo mismo para qué sirve el trámite que
+            qué entrega a cambio.
+        puntos_atencion:
+          type: array
+          description: |
+            Dónde se atiende presencialmente, con la dirección y el horario
+            oficiales. **Sólo el dato institucional**: el nombre del punto, su
+            dirección y su horario. Ni el nombre de un funcionario ni su teléfono
+            entran aquí, vengan o no de una API pública (Ley 1581 de 2012).
+          items: { $ref: '#/components/schemas/TramitePuntoAtencion' }
+        normativa:
+          type: array
+          description: |
+            La norma que faculta al trámite. Es lo que permite al ciudadano
+            discutir una exigencia con el texto delante en vez de con la palabra
+            de quien lo atiende.
+          items: { $ref: '#/components/schemas/TramiteNorma' }
+        canales_consulta_estado:
+          type: array
+          description: |
+            Por dónde se puede preguntar por el estado de una solicitud. Cada canal
+            declara si **ya atiende** (`habilitado`): la sede anuncia el suyo —la
+            consulta por radicado en `/seguimiento`— y lo declara no habilitado
+            mientras el expediente electrónico no exista. Declarar el canal sin
+            fingir el servicio es el punto entero del campo.
+          items: { $ref: '#/components/schemas/TramiteCanalConsulta' }
+        categoria:
+          description: |
+            La fuente oficial de la que se siembra el catálogo no clasifica los
+            trámites por categoría. Mientras la Entidad no las declare, el campo
+            viaja en `null`: inventar la clasificación sería tan falso como
+            inventar el trámite.
+          oneOf:
+            - $ref: '#/components/schemas/TramiteCategoria'
+            - type: 'null'
         pasos:
           type: array
           items: { $ref: '#/components/schemas/TramitePaso' }
         publicado_en: { type: [string, 'null'], format: date-time, readOnly: true }
         actualizado_en: { type: [string, 'null'], format: date-time, readOnly: true }
+
+    TramiteCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/TramiteItem' }
 
     TramiteCategoria:
       type: object
@@ -454,12 +656,159 @@ components:
         slug: { type: string }
         nombre: { type: string }
 
+    # Un requisito del trámite, con la naturaleza que la fuente le declara.
+    #
+    # No es texto libre, y esa es toda la decisión. La ficha oficial distingue
+    # cinco cosas que el ciudadano necesita separadas y que un párrafo mezclaría:
+    # un documento que hay que llevar encima, una condición que hay que cumplir
+    # sin aportar nada, una solicitud que se presenta por un canal, un formulario
+    # que hay que diligenciar y un pago que hay que hacer. Publicarlas como una
+    # lista de frases obligaría a quien lee a interpretar cuál es cuál, y a la
+    # sede a no poder comprobar que están todas.
+    #
+    # Los campos de detalle son opcionales y dependen de `tipo`: un documento
+    # lleva `cantidad` y `unidad_cantidad`; una solicitud o un formulario llevan
+    # `canal` y, si el canal es web, `url`; si es correo, `correo`. Un
+    # `verificacion_institucional` no lleva ninguno de ellos porque no hay nada
+    # que aportar: o se cumple la condición o no se cumple.
     TramiteRequisito:
       type: object
-      required: [descripcion]
+      required: [tipo, descripcion]
       properties:
-        descripcion: { type: string }
+        tipo:
+          type: string
+          enum: [documento, verificacion_institucional, solicitud, formulario, pago]
+        descripcion: { type: string, maxLength: 500 }
         obligatorio: { type: boolean, default: true }
+        # Sólo `documento`: cuántos ejemplares y en qué forma se aportan.
+        cantidad: { type: [integer, 'null'], minimum: 0 }
+        unidad_cantidad: { type: [string, 'null'], maxLength: 40 }
+        # Cualquiera de las cinco naturalezas: la salvedad que la fuente añade.
+        nota: { type: [string, 'null'], maxLength: 500 }
+        # Sólo `solicitud` y `formulario`.
+        canal: { type: [string, 'null'], enum: [web, presencial, correo, telefonico, null] }
+        url: { type: [string, 'null'], format: uri }
+        correo: { type: [string, 'null'], format: email }
+
+    # El costo del trámite.
+    #
+    # Deja de ser un decimal suelto, y no es una preferencia de forma: la ficha
+    # oficial **no siempre declara un importe**. Para el impuesto predial devuelve
+    # `Valor: null` junto a `TipoValor: "AVALUO_LIQUIDACION"`, es decir un costo
+    # que se calcula a partir del avalúo del predio. Un decimal no puede
+    # representar eso, y rellenarlo con cero sería peor que dejarlo nulo: el
+    # ciudadano leería «$0» donde la Entidad dice «depende de su predio», y sobre
+    # esa lectura decide si paga o no. Por eso el tipo del valor viaja junto al
+    # valor, y `valor` sólo se llena cuando la fuente declara un importe.
+    #
+    # Es lo que hace que este bloque sea un dato y no un adorno: `tipo_valor` sin
+    # `valor` es un costo calculado y se declara como tal; `valor` sin
+    # `tipo_valor` no debería ocurrir, y el cliente lo trata como importe fijo.
+    TramiteCosto:
+      type: object
+      required: [tiene_costo]
+      properties:
+        tiene_costo: { type: string, enum: [gratuito, con_costo] }
+        tipo_valor:
+          type: [string, 'null']
+          enum: [fijo, smlv, avaluo_liquidacion, rango, null]
+          description: |
+            Cómo se determina el importe. `avaluo_liquidacion` y `rango` significan
+            que **no hay un número que publicar** y que `valor` viaja nulo a
+            propósito; `smlv` significa que la fuente lo expresa en salarios
+            mínimos y `valor` trae esa cantidad, no pesos.
+        valor:
+          type: [string, 'null']
+          maxLength: 30
+          description: |
+            El importe declarado, como texto y nunca como número: es la forma en
+            que la fuente lo entrega, y convertir «2» a un decimal obligaría a
+            decidir una moneda y unos decimales que la fuente no declara.
+        moneda: { type: [string, 'null'], maxLength: 20 }
+        url_pago: { type: [string, 'null'], format: uri }
+        descripcion: { type: [string, 'null'], maxLength: 1000 }
+        cuentas:
+          type: array
+          description: |
+            Las cuentas en las que la Entidad recauda, cuando la fuente las
+            declara. Son cuentas institucionales de la Entidad, no de una persona,
+            y son lo que permite pagar cuando no hay pasarela contratada. **No
+            convierten esto en una pasarela**: el contrato publica el canal, no
+            cobra.
+          items: { $ref: '#/components/schemas/TramiteCuentaBancaria' }
+
+    # Una cuenta de recaudo de la Entidad.
+    #
+    # Se publica tal como la fuente la declara. El titular es la Entidad —«D.T.C.H
+    # Santa Marta»— y por eso no es un dato personal; una cuenta a nombre de una
+    # persona no entra aquí, y la ingesta no la publica.
+    TramiteCuentaBancaria:
+      type: object
+      required: [entidad, numero_cuenta]
+      properties:
+        entidad: { type: string, maxLength: 120 }
+        tipo_cuenta: { type: [string, 'null'], maxLength: 40 }
+        titular: { type: [string, 'null'], maxLength: 120 }
+        numero_cuenta: { type: string, maxLength: 40 }
+        codigo_recaudo: { type: [string, 'null'], maxLength: 40 }
+
+    # Un punto de atención presencial del trámite.
+    #
+    # **Sólo el dato institucional.** El nombre del punto, su dirección, su horario
+    # y sus coordenadas. Ni el nombre de un funcionario ni su teléfono viajan en
+    # este esquema aunque la fuente los traiga: la Ley 1581 de 2012 no admite
+    # excepciones por venir de una API pública, y una sede electrónica que publica
+    # el móvil de un empleado lo está publicando igual que si lo hubiera escrito a
+    # mano. `telefono` existe para la línea institucional del punto —la que la
+    # Entidad declara como suya— y no para un número personal.
+    TramitePuntoAtencion:
+      type: object
+      required: [nombre, direccion]
+      properties:
+        nombre: { type: string, maxLength: 160 }
+        direccion: { type: string, maxLength: 240 }
+        horario: { type: [string, 'null'], maxLength: 240 }
+        telefono: { type: [string, 'null'], maxLength: 40 }
+        municipio: { type: [string, 'null'], maxLength: 120 }
+        departamento: { type: [string, 'null'], maxLength: 120 }
+        latitud: { type: [number, 'null'], minimum: -90, maximum: 90 }
+        longitud: { type: [number, 'null'], minimum: -180, maximum: 180 }
+
+    # Una norma que faculta el trámite.
+    TramiteNorma:
+      type: object
+      required: [tipo]
+      properties:
+        tipo: { type: string, maxLength: 120 }
+        numero: { type: [string, 'null'], maxLength: 40 }
+        anio: { type: [integer, 'null'], minimum: 1800, maximum: 2200 }
+        articulos: { type: [string, 'null'], maxLength: 240 }
+        url: { type: [string, 'null'], format: uri }
+        url_descarga: { type: [string, 'null'], format: uri }
+
+    # Un canal por el que se puede consultar el estado de una solicitud.
+    #
+    # `habilitado` es el campo que impide que esto sea una promesa. La sede
+    # electrónica anuncia su propio canal —la consulta por radicado— y lo declara
+    # **no habilitado** mientras el expediente electrónico no exista: el ciudadano
+    # ve que el canal está previsto y que todavía no atiende, en vez de pulsar un
+    # formulario que no consulta nada. Un canal declarado y no habilitado es
+    # información; uno declarado y fingido es una llamada perdida.
+    TramiteCanalConsulta:
+      type: object
+      required: [canal, habilitado]
+      properties:
+        canal:
+          type: string
+          enum: [sede, presencial, telefonico, web, correo, otro]
+        habilitado:
+          type: boolean
+          description: Si el canal ya atiende hoy. `false` es un dato, no un hueco.
+        nombre: { type: [string, 'null'], maxLength: 160 }
+        url: { type: [string, 'null'] }
+        correo: { type: [string, 'null'], format: email }
+        telefono: { type: [string, 'null'], maxLength: 40 }
+        horario: { type: [string, 'null'], maxLength: 240 }
 
     TramiteDocumento:
       type: object
@@ -477,18 +826,106 @@ components:
         titulo: { type: string }
         descripcion: { type: [string, 'null'] }
 
+    # La procedencia de los datos de un trámite.
+    #
+    # Existe por una razón concreta y no de estilo: el catálogo se siembra desde
+    # la fuente oficial del Estado —SUIT, a través de GOV.CO— y quien lee la sede
+    # tiene derecho a saber de dónde salió lo que se le publica y cuándo se
+    # obtuvo (Ley 1712 de 2014, artículo 11.b). Publicar un dato sembrado como si
+    # la Entidad lo hubiera ratificado es la misma clase de mentira que publicar
+    # un trámite inventado, y sin este campo la sede no puede distinguir los dos
+    # casos ni el ciudadano puede comprobarlos.
+    #
+    # Es opcional a propósito: un trámite cargado a mano en el CMS no tiene
+    # fuente externa que declarar, y obligarlo a inventar una sería peor que su
+    # ausencia.
+    TramiteProcedencia:
+      type: object
+      required: [fuente, obtenido_en]
+      properties:
+        fuente: { type: string, maxLength: 120 }
+        url: { type: [string, 'null'], format: uri }
+        obtenido_en: { type: string, format: date }
+        nota: { type: [string, 'null'], maxLength: 500 }
+        api:
+          type: [string, 'null']
+          description: |
+            El servicio del que se copiaron los datos, cuando no son los del
+            catálogo sino los de la ficha. Se publica para que la procedencia se
+            pueda **repetir**: sin la dirección exacta, «lo saqué de GOV.CO» no es
+            una afirmación comprobable.
+
+            **Esto no es un contrato que gov.co imponga a la Entidad.** Es un
+            servicio público de contenido que GOV.CO no documenta ni ofrece como
+            servicio: de él se copia la **forma** de los datos, y ninguna de sus
+            condiciones se hereda como obligación. La obligación de la Entidad es
+            con la Guía de la Resolución 2893 y con el SUIT, no con esta API.
+        origen_por_campo:
+          type: object
+          description: |
+            Por cada campo del trámite, de dónde salió. Los valores posibles son
+            `fuente` —lo declara el origen tal cual—, `derivado` —lo calculó la
+            ingesta con una regla que se declara en `derivados`—, `entidad` —lo
+            puso la Entidad, y no viene de ninguna fuente externa— y `ausente` —el
+            origen no lo declara—.
+
+            Las claves son los nombres de los campos de `TramiteItem`, en la misma
+            grafía. Se declaran las que tienen algo que contar; un campo que no
+            aparece aquí no está en discusión.
+          additionalProperties:
+            type: string
+            enum: [fuente, derivado, entidad, ausente]
+        derivados:
+          type: array
+          description: |
+            Los campos que la ingesta calculó, con la regla que aplicó. Existe
+            porque un dato derivado y no declarado es un dato que parece de la
+            fuente: convertir «2 HORA(S)» en un día de término está bien mientras
+            se diga que se convirtió y con qué.
+          items: { $ref: '#/components/schemas/TramiteDerivacion' }
+        faltantes:
+          type: array
+          description: |
+            Los campos que el origen no declara y por los que la Entidad todavía
+            tiene que responder. Un catálogo a medias que no dice dónde está a
+            medias es peor que uno incompleto declarado.
+          items: { type: string, maxLength: 60 }
+
+    TramiteDerivacion:
+      type: object
+      required: [campo, regla]
+      properties:
+        campo: { type: string, maxLength: 60 }
+        regla: { type: string, maxLength: 500 }
+
     TramiteInput:
       type: object
-      required: [nombre, modalidad, tiene_costo, tiempo_solucion_dias, canal_inicio]
+      required:
+        - nombre
+        - modalidad
+        - tiene_costo
+        - tiempo_solucion_dias
+        - canal_inicio
+        - consulta_estado
+        - url_ficha_gov_co
       properties:
         nombre: { type: string, maxLength: 200 }
         slug: { type: string, maxLength: 160 }
         resumen: { type: [string, 'null'], maxLength: 500 }
+        url_ficha_gov_co: { type: string, format: uri, maxLength: 500 }
         modalidad: { type: string, enum: [en_linea, parcialmente_en_linea, presencial] }
         tiene_costo: { type: string, enum: [gratuito, con_costo] }
-        costo: { type: [string, 'null'], maxLength: 30 }
+        costo:
+          description: |
+            Misma forma que en la lectura, para que lo que se escribe y lo que se
+            publica no sean dos vocabularios. Es nulo mientras nadie lo declare: un
+            trámite cargado a mano puede no tener todavía el costo detallado, y
+            estrenarlo con ceros sería publicar un precio que nadie fijó.
+          oneOf:
+            - $ref: '#/components/schemas/TramiteCosto'
+            - type: 'null'
         tiempo_solucion_dias: { type: integer, minimum: 0 }
         canal_inicio: { type: string, enum: [propio, portal_nacional] }
         url_inicio: { type: [string, 'null'], maxLength: 500 }
-        consulta_estado: { type: [string, 'null'], maxLength: 500 }
+        consulta_estado: { type: string, maxLength: 500 }
         categoria_slug: { type: [string, 'null'], maxLength: 120 }

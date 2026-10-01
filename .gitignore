@@ -85,3 +85,9 @@ id_ed25519*
 # queda en el historial de forma permanente, aunque después se borre.
 /pass.md
 /accesos.local.md
+
+# La base SQLite de desarrollo. Se crea con `make preparar`; nunca se versiona:
+# es un artefacto local y puede contener datos de prueba.
+backend/sede
+backend/*.sqlite
+backend/database/*.sqlite

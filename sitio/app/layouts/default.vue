@@ -15,6 +15,7 @@
  */
 import type { MenuPrincipal } from '~/types/menu'
 import type { NivelMigaDePan } from '~/components/govco/MigaDePanGovco.vue'
+import { CATEGORIAS_INDICE, ORDEN_CATEGORIAS, rutaDeCategoria } from '~/types/transparencia-indice'
 
 /**
  * El menú obligatorio de la Sede.
@@ -110,11 +111,36 @@ function alBuscar(termino: string): void {
   enrutador.push({ path: '/buscar', query: { q: termino } })
 }
 
+/**
+ * Los destinos que la miga de pan conoce **además** de los del menú.
+ *
+ * Hacen falta porque el menú sólo despliega las secciones que él mismo nombra, y
+ * hay páginas cuya ruta cuelga de una sección del menú sin estar en él: las
+ * nueve categorías de la sección de Transparencia, que son `/transparencia` más
+ * un segmento. Sin declararlas aquí, `nombreDeLaSeccion` resuelve
+ * `/transparencia/contratacion` por el prefijo `/transparencia` y la última
+ * miga repite el nombre de su padre en vez de nombrar la página en la que se
+ * está, que es justo lo que una miga de pan sirve para decir.
+ *
+ * Se leen del índice ligero de la sección —`~/types/transparencia-indice`, nueve
+ * rótulos— y **no** del inventario completo, que pesa más de cien kilobytes:
+ * esta disposición se carga en todas las páginas del sitio y no tiene por qué
+ * arrastrar los más de trescientos documentos de Transparencia para escribir
+ * nueve nombres.
+ */
+const destinosDeDetalle = ORDEN_CATEGORIAS.map((slug) => ({
+  ruta: rutaDeCategoria(slug),
+  etiqueta: CATEGORIAS_INDICE[slug].nombre,
+}))
+
 /** Todos los destinos del menú, en un solo nivel, para poder buscarlos. */
-const destinosDelMenu = menu.flatMap((item) => [
-  ...(item.ruta ? [{ ruta: item.ruta, etiqueta: item.etiqueta }] : []),
-  ...(item.subsecciones ?? []).flatMap((sub) => sub.enlaces),
-])
+const destinosDelMenu = [
+  ...menu.flatMap((item) => [
+    ...(item.ruta ? [{ ruta: item.ruta, etiqueta: item.etiqueta }] : []),
+    ...(item.subsecciones ?? []).flatMap((sub) => sub.enlaces),
+  ]),
+  ...destinosDeDetalle,
+]
 
 /**
  * El nombre de la sección a la que pertenece una ruta. Se busca el prefijo más

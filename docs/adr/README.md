@@ -422,6 +422,27 @@ sería falso; callarlos dejaría la matriz de trazabilidad mintiendo por omisió
    declarada: si alguno se incorpora, la verificación falla y obliga a
    satisfacer su criterio.
 
+   > **Corrección (auditoría, 2026-10-01).** Esta declaración **ha caducado en dos
+   > de sus cinco puntos**, y se deja escrito en lugar de borrarlo porque una
+   > desviación sólo vale mientras sea cierta:
+   >
+   > - **CAG-21 ya aplica.** `components/ModalAvisoSalida.vue` abre un modal para
+   >   el aviso de salida a sitio externo, que RF-B1-071 exige. Cumple CAG-21
+   >   (cierra con `Esc`, cierra pulsando fuera, uno a la vez) y añade trampa y
+   >   devolución del foco, que el criterio no pedía pero RF-B3-017 sí.
+   > - **CAG-24 ya aplica.** `pages/pqrsd.vue` publica la tabla de términos legales
+   >   del CPACA. La tabla está en `pdrsd.vue:222` desde antes de esta corrección,
+   >   así que la afirmación «no publica tablas» era falsa cuando se escribió.
+   > - CAG-19, CAG-22 y CAG-25 siguen sin aplicar, pero **§2.5 del expediente los
+   >   exige en Trámites, Detalle y Notificaciones**, páginas que aún no existen:
+   >   cuando se construyan, estos «no aplica» caducan también y hay que
+   >   implementar sus componentes. Es una contradicción entre este ADR y §2.5
+   >   que conviene resolver antes de construir esas páginas.
+   >
+   > Además, la evidencia que este ADR cita —`frontend/tests/conformidad-diseno.mjs`
+   > y `make trazabilidad`— **no existe en el repositorio**: ver el aviso de
+   > `docs/trazabilidad.md` y la auditoría (§3.3, D-06).
+
 4. **La superficie semántica verde del Kit: no se adopta.** El *toast*
    de éxito del propio Kit combina `--govcolor-green` (#158361) con la superficie
    `#CDE6DF` y rinde **3,61:1**, por debajo del 4,5:1 que exige WCAG 1.4.3. La
@@ -465,3 +486,66 @@ modales: CAG-21 no aplica», «La sede declara una sola lengua y no ofrece un
 conmutador de idioma falso (CAG-06)» y «Ninguna lista nativa supera los 12
 elementos que este ADR fija como umbral (CAG-18)». La matriz de trazabilidad
 lista los 34 criterios de diseño con evidencia: `make trazabilidad`.
+
+---
+
+## ADR-0016 — Alcance de idioma: castellano, con la ruta de lenguas étnicas declarada
+
+**Estado:** Aceptada
+
+**Contexto.** La sede se publica en castellano y no ofrece conmutador de idioma.
+Esa decisión estaba tomada **en el código** —`BarraSuperior.vue` explica por qué
+no dibuja el botón que el Kit sí trae— pero no estaba escrita en ninguna parte, y
+esa ausencia dejaba tres cosas colgando:
+
+1. **CAG-06** («si la sede ofrece un conmutador de idioma, tiene que funcionar»)
+   se daba por omitido sin que ningún documento lo declarara.
+2. **FUN-010** y la GUIA Maestra piden «enlaces de traducción» en la barra
+   superior, así que el expediente se contradecía consigo mismo (contradicción
+   **C-08**, sin resolver hasta ahora).
+3. **RN-TX-D05** (fallback al castellano marcando que es el texto original) y
+   **RNF-TX-D02** (soporte de traducción, marcado como *Could* y diferido) existen
+   en el corpus como requisitos diferidos, y un requisito diferido sin decisión
+   escrita es un requisito que vuelve cada seis meses.
+
+El marco que hay que respetar: el artículo 10 de la Constitución y la Ley 1381 de
+2010 reconocen las lenguas nativas y piden garantizar su uso; el Decreto 1078 de
+2015 (gobierno digital) y la Resolución 1519 de 2020 hablan de accesibilidad y
+usabilidad, no de obligar a traducir el contenido legal. Y una traducción
+automática de un término legal con apariencia oficial es **peor que no
+ofrecerla**: crea obligaciones donde no las hay.
+
+**Decisión.**
+
+1. **La sede se publica en castellano**, declarado con `lang="es-CO"` en el
+   documento. No se ofrece conmutador de idioma.
+2. **No se maqueta para un solo idioma de forma irreversible.** Las cadenas
+   visibles viven en los componentes y en `config/sitemap.ts`, no incrustadas en
+   plantillas generadas ni duplicadas por idioma, de modo que incorporar un
+   segundo idioma es añadir un catálogo de mensajes y una ruta de entrada, no
+   reescribir el sitio.
+3. **La incorporación de una lengua étnica requiere tres condiciones**, y no
+   antes: traducción hecha por traductores reconocidos con revisión de la
+   comunidad hablante; una persona responsable del contenido en esa lengua; y
+   contenido real que traducir. La sede **no** traducirá automáticamente
+   contenido legal ni de trámites.
+4. **Cuando exista un segundo idioma, el fallback es el de RN-TX-D05**: si falta
+   la traducción de un contenido, se muestra el castellano **marcado como texto
+   original** en esa misma página, nunca una página vacía ni una mezcla sin
+   avisar.
+5. **FUN-010 queda sustituido por esta decisión.** El expediente debe corregir su
+   enunciado: pedir «enlaces de traducción» en la barra superior de una sede que
+   declara una sola lengua es pedir un enlace que no lleva a ninguna parte, que
+   es exactamente el defecto que CAG-06 prohíbe.
+
+**Consecuencias.** C-08 queda resuelta en la dirección que el propio corpus
+recomendaba (la decisión sustituye a FUN-010 y a CAG-06, no convive con ellos).
+Se retira la ambigüedad sobre RNF-TX-D02: se acepta como *Could* diferido, con la
+ruta de entrada definida en el punto 3. El coste lo asume quien traduzca, y es el
+coste correcto: una sede de una autoridad distrital no puede publicar en modo
+experimental en la lengua de una comunidad sin hablantes que lo revisen.
+
+**Evidencia.** `sitio/nuxt.config.ts` (`htmlAttrs.lang = 'es-CO'`),
+`sitio/app/components/govco/BarraSuperior.vue` (por qué no hay botón),
+`sitio/app/config/sitemap.ts` (rótulos en un solo sitio). La contradicción C-08 de
+`auditoria-sede.md` §6 apunta aquí.

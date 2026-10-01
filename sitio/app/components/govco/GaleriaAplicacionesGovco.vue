@@ -261,7 +261,7 @@ onBeforeUnmount(() => document.removeEventListener('click', alPulsarFuera))
 
         <div v-show="abierto" class="anclaje-panel-govco" :style="estiloAnclaje">
           <div :id="idPanel" ref="panel" class="dropdown-menu dropdown-menu-candy-box-govco">
-            <h6 class="dropdown-title dropdown-title-govco">{{ titulo }}</h6>
+            <h6 class="dropdown-title-govco">{{ titulo }}</h6>
             <ul class="dropdown-item-menu-ul">
               <li
                 v-for="(aplicacion, indice) in aplicaciones"

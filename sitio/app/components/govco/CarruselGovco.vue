@@ -40,6 +40,9 @@
  *    exactamente 1280 px de ancho, recoloca el bloque con `transform`.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+// `NuxtLink` se importa para poder elegirlo dinámicamente con `<component :is>`:
+// el destino de una diapositiva puede ser una ruta del sitio o una URL externa.
+import { NuxtLink } from '#components'
 
 export interface DiapositivaCarrusel {
   /** Identificador estable: es la `:key` de la lista. */
@@ -69,6 +72,15 @@ interface PropsCarrusel {
 /** El mismo corte que usa `windowSizeCarrusel()` del Kit. */
 const UMBRAL_ESTRECHO = 652
 
+/**
+ * Un destino es interno si es una ruta del sitio. `//` se excluye porque una
+ * «ruta» que empieza por doble barra es en realidad una URL de otro dominio.
+ */
+function esEnlaceInterno(destino: string | undefined): boolean {
+  if (!destino) return false
+  return destino.startsWith('/') && !destino.startsWith('//')
+}
+
 const props = withDefaults(defineProps<PropsCarrusel>(), {
   // Diapositivas de ejemplo —las imágenes son los marcadores del propio Kit— para
   // que el componente se pueda ver solo. El contenido real llega por props.
@@ -95,7 +107,12 @@ const props = withDefaults(defineProps<PropsCarrusel>(), {
       alt: 'Imagen de ejemplo 3 (sustituir por su descripción real)',
     },
   ],
-  autoplay: true,
+  // Por defecto, el carrusel comienza PAUSADO. El criterio RF-B1-042 exige que
+  // los controles incluyan Play/Stop y que la pausa sea el estado inicial; el
+  // criterio RF-B1-051 (WCAG) refuerza que el movimiento automático respeta la
+  // preferencia del sistema (prefers-reduced-motion). Arrancar reproduciendo sin
+  // que el usuario lo pida explícitamenteincumple ambos.
+  autoplay: false,
   intervalo: 6000,
   etiqueta: 'Carrusel de imágenes destacadas',
 })
@@ -232,9 +249,23 @@ onBeforeUnmount(() => {
         aria-roledescription="diapositiva"
         :aria-label="`${indice + 1} de ${total}`"
       >
-        <a v-if="diapositiva.enlace" :href="diapositiva.enlace">
+        <!--
+          La imagen enlaza con `NuxtLink` cuando el destino es una ruta del sitio
+          y con `<a>` cuando es una URL externa. Un `<a href="/algo">` interno
+          descarga la aplicación entera en lugar de navegar dentro de ella, y en
+          una sede con formularios a medio diligenciar eso se nota (D-22).
+        -->
+        <component
+          :is="esEnlaceInterno(diapositiva.enlace) ? NuxtLink : 'a'"
+          v-if="diapositiva.enlace"
+          v-bind="
+            esEnlaceInterno(diapositiva.enlace)
+              ? { to: diapositiva.enlace }
+              : { href: diapositiva.enlace, target: '_blank', rel: 'noopener noreferrer' }
+          "
+        >
           <img :src="diapositiva.imagen" :alt="diapositiva.alt">
-        </a>
+        </component>
         <img v-else :src="diapositiva.imagen" :alt="diapositiva.alt">
 
         <div v-if="diapositiva.titulo || diapositiva.descripcion" class="leyenda-carrusel">
@@ -267,7 +298,7 @@ onBeforeUnmount(() => {
       <div class="control-start-pause">
         <button
           type="button"
-          class="controls active"
+          class="active"
           :class="reproduciendo ? 'pause' : 'start'"
           :aria-label="reproduciendo ? 'Pausar la reproducción automática' : 'Reanudar la reproducción automática'"
           @click="alternarReproduccion"

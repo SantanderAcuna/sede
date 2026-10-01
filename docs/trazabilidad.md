@@ -1,232 +1,250 @@
 # Matriz de trazabilidad de la Sede Electrónica
 
-> **Documento generado.** No se edita a mano: se produce con `npm run trazabilidad`
-> a partir del contrato OpenAPI, de las pruebas y de las vistas. Cualquier cambio en
-> esos artefactos se refleja aquí en la siguiente ejecución.
+> **Documento generado.** No se edita a mano: se produce con `make trazabilidad`
+> (`npm run trazabilidad` desde `sitio/`), que lee el expediente, el contrato OpenAPI y el
+> código, y escribe lo que encuentra. Última generación: **2026-10-01**.
 
-## Cómo leer esta matriz
+## Qué mide esta matriz, y qué no
 
-- **Operaciones**: endpoints del contrato que declaran el criterio en `x-criterios`.
-- **Pruebas**: pruebas que citan el criterio en su documentación y, por tanto, lo acreditan.
-- **Interfaz**: vistas que aplican el criterio.
-- **Estado**: `implementado` cuando al menos una operación del criterio tiene
-  `x-status: implemented` en el contrato.
+Mide **trazabilidad**: para cada criterio del expediente, dónde hay algo que lo trabaja.
+Los estados son cuatro y conviene no confundirlos:
+
+| Estado | Significado |
+|---|---|
+| **prueba** | Hay una prueba automatizada que cita el criterio. Es el estado más fuerte de esta matriz. |
+| **implementación** | El criterio se cita en el código del producto (sitio, panel o backend), sin prueba que lo acredite. |
+| **desviación declarada** | Un ADR explica por qué no aplica o por qué se aparta del criterio. |
+| **sin evidencia** | Nadie lo ha tocado, o nadie lo ha citado. Es la lista de trabajo. |
+
+> ⚠️ **Esto no es una declaración de conformidad.** Una cita en un comentario acredita que
+> alguien trabajó el criterio; no acredita que se cumpla. La conformidad la miden las puertas
+> que ejecutan el producto: `make accesibilidad` (axe sobre el sitio construido y
+> `make compilar` (tipos y compilación de los dos frontends). La versión anterior de este
+> documento daba por acreditados 122 de 140 criterios citando pruebas de un árbol de carpetas
+> que no existe en este repositorio; esa cifra no era verificable y se retiró.
 
 ## Resumen
 
-| Grupo | Criterios con evidencia |
-|---|---|
-| Accesibilidad (Sección 3) | 6 |
-| Diseño (Sección 2) | 34 |
-| Funcionalidad (Sección 5) | 60 |
-| Obligaciones derivadas (Sección 1) | 14 |
-| Marco normativo (Sección 1) | 3 |
-| Requisitos técnicos (Sección 1) | 5 |
-| Seguridad (Sección 4) | 18 |
-| **Total** | **140** |
+| Familia | Criterios | Con prueba | Con evidencia | Desviación declarada | Sin evidencia |
+|---|---|---|---|---|---|
+| **CAG** — Diseño | 34 | 22 | 33 | 10 | 0 |
+| **FUN** — Funcionalidad | 60 | 1 | 14 | 2 | 44 |
+| **SEG** — Seguridad | 18 | 1 | 2 | 0 | 16 |
+| **RT** — Requisitos técnicos | 5 | 0 | 0 | 0 | 5 |
+| **O** — Obligaciones derivadas | 14 | 0 | 1 | 0 | 13 |
+| **ACC** — Accesibilidad (citados sin enunciado) | 6 | 0 | 0 | 0 | 6 |
+| **Total** | **137** | **24** | **50** | **12** | **84** |
 
+Cobertura de trazabilidad: **36 %** de los criterios tiene algo que los trabaja. Los que tienen prueba automatizada son **24**.
 
-**Cobertura: 122 de 140 criterios del expediente tienen evidencia (87 %).**
+Las columnas **no suman el total** a propósito: un criterio puede estar citado en el código *y* declarado como desviación en un ADR (CAG-06, por ejemplo, se omite con motivo y además aparece en los comentarios del componente que lo explica). La columna que hay que vigilar es la última.
 
-Operaciones del contrato: **41** (41 implementadas).
+## Operaciones del contrato
 
-## Accesibilidad (Sección 3)
+| Método | Ruta | Criterios declarados (`x-criterios`) | Estado (`x-status`) |
+|---|---|---|---|
+| GET | `/entidad` | FUN-007, FUN-009, FUN-014, FUN-015, SEG-006, CAG-12 | pending |
+| GET | `/tramites` | FUN-001, FUN-021, FUN-022, RN-01 | implemented |
+| GET | `/tramites/{slug}` | FUN-021, FUN-023, FUN-024, CAG-20 | implemented |
 
-| Criterio | Operaciones | Pruebas | Interfaz | Estado |
-|---|---|---|---|---|
-| **ACC-001** | — | — | — | pendiente |
-| **ACC-002** | — | — | `components/govco/BarraAccesibilidad.vue` | cubierto por pruebas o interfaz |
-| **ACC-003** | — | — | — | pendiente |
-| **ACC-004** | — | — | — | pendiente |
-| **ACC-007** | — | — | — | pendiente |
-| **ACC-008** | — | — | — | pendiente |
+El contrato declara **3 operaciones**, de las cuales **3** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
 
-## Diseño (Sección 2)
+## CAG — Diseño
 
-| Criterio | Operaciones | Pruebas | Interfaz | Estado |
-|---|---|---|---|---|
-| **CAG-01** | — | `frontend/tests/conformidad-diseno.mjs::Carrusel: ningún controlador se solapa con el fondo de la imagen (CAG-01)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: los controladores viven en una banda propia fuera del área de imagen (CAG-01)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: cada controlador se distingue del fondo por sí mismo (CAG-01)` | `components/govco/CarruselGovco.vue`<br>`views/publico/InicioView.vue` | cubierto por pruebas o interfaz |
-| **CAG-02** | — | `frontend/tests/conformidad-diseno.mjs::El inicio publica el carrusel que exige el Kit (CAG-02)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: al menos dos diapositivas (CAG-02)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: indicadores de posición por diapositiva (CAG-02)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: flechas anterior y siguiente (CAG-02)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: controles de reproducir y pausar (CAG-02)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: la flecha avanza la diapositiva y sincroniza los indicadores (CAG-02)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: el control de reproducción alterna pausa y reproducción (CAG-02)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: los enlaces de las diapositivas ocultas salen del orden de tabulación (CAG-02)` | `components/govco/CarruselGovco.vue`<br>`views/publico/InicioView.vue` | cubierto por pruebas o interfaz |
-| **CAG-03** | — | `frontend/tests/conformidad-diseno.mjs::Carrusel: contraste del panel de la diapositiva ≥ 4.5:1 (CAG-03)` | `components/govco/CarruselGovco.vue`<br>`views/publico/InicioView.vue` | cubierto por pruebas o interfaz |
-| **CAG-04** | — | `frontend/tests/conformidad-diseno.mjs::Carrusel: toda imagen declara texto alternativo (CAG-04)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: declara aria-roledescription (CAG-04)`<br>`frontend/tests/conformidad-diseno.mjs::Carrusel: declara aria-label propio (CAG-04)` | `components/govco/CarruselGovco.vue`<br>`views/publico/InicioView.vue` | cubierto por pruebas o interfaz |
-| **CAG-05** | — | `frontend/tests/conformidad-shell.mjs::Barra superior enlaza a GOV.CO (CAG-05)` | `components/govco/BarraSuperior.vue`<br>`layouts/LayoutPublico.vue` | cubierto por pruebas o interfaz |
-| **CAG-06** | — | `frontend/tests/conformidad-diseno.mjs::La sede declara una sola lengua y no ofrece un conmutador de idioma falso (CAG-06)` | `components/govco/BarraSuperior.vue`<br>`layouts/LayoutPublico.vue` | cubierto por pruebas o interfaz |
-| **CAG-07** | — | `frontend/tests/conformidad-diseno.mjs::Barra de accesibilidad visible desde lg y oculta por debajo (CAG-07)`<br>`frontend/tests/conformidad-shell.mjs::Barra de accesibilidad presente (CAG-07)` | `components/govco/BarraAccesibilidad.vue`<br>`layouts/LayoutPublico.vue` | cubierto por pruebas o interfaz |
-| **CAG-08** | — | `frontend/tests/conformidad-shell.mjs::Enlace «Saltar al contenido principal» (CAG-08)` | `components/govco/CabeceraEntidad.vue`<br>`components/govco/SaltarAlContenido.vue` | cubierto por pruebas o interfaz |
-| **CAG-09** | `GET /menus/{ubicacion}` | `backend/tests/Feature/Sede/ConformidadSedeTest.php::el_menu_principal_respeta_los_limites_de_items_y_niveles`<br>`frontend/tests/conformidad-diseno.mjs::El menú nunca supera siete ítems principales (CAG-09)` | `components/govco/MenuNavegacion.vue`<br>`layouts/LayoutPublico.vue` | implementado |
-| **CAG-10** | `GET /menus/{ubicacion}` | `frontend/tests/conformidad-diseno.mjs::El menú principal declara aria-label (CAG-10)`<br>`frontend/tests/conformidad-shell.mjs::Menú con aria-label (CAG-10)` | `components/govco/MenuNavegacion.vue`<br>`layouts/LayoutPublico.vue` | implementado |
-| **CAG-11** | — | `frontend/tests/conformidad-diseno.mjs::La miga de pan está presente en todas las secciones menos el inicio (CAG-11)`<br>`frontend/tests/conformidad-shell.mjs::Miga de pan ausente en el inicio (CAG-11)`<br>`frontend/tests/conformidad-shell.mjs::Miga de pan presente en secciones (CAG-11)` | `components/govco/MigaDePan.vue`<br>`layouts/LayoutPublico.vue` | cubierto por pruebas o interfaz |
-| **CAG-12** | `GET /sedes` | `backend/tests/Feature/Api/CatalogoApiTest.php::la_entidad_entrega_los_datos_del_pie_de_pagina`<br>`frontend/tests/conformidad-diseno.mjs::Ningún elemento del pie desborda la banda Cobalt del Kit (CAG-12)`<br>`frontend/tests/conformidad-diseno.mjs::Ningún elemento del pie desborda la tarjeta del Kit (CAG-12)`<br>`frontend/tests/conformidad-diseno.mjs::Los créditos del pie quedan alineados con el título de la tarjeta (CAG-12)`<br>`frontend/tests/conformidad-diseno.mjs::El pie publica el logo GOV.CO, la marca país Colombia-CO y el logo de la entidad (CAG-12, FUN-014)` | `layouts/LayoutPublico.vue` | implementado |
-| **CAG-13** | — | `frontend/tests/conformidad-diseno.mjs::Todo control sin texto declara aria-label (CAG-13)` | — | cubierto por pruebas o interfaz |
-| **CAG-14** | — | `frontend/tests/conformidad-diseno.mjs::Los botones deshabilitados usan el atributo disabled y salen del orden de tabulación (CAG-14)` | — | cubierto por pruebas o interfaz |
-| **CAG-15** | — | `frontend/tests/conformidad-diseno.mjs::La cabecera publica el buscador general (CAG-15)`<br>`frontend/tests/conformidad-diseno.mjs::El buscador tiene marcador claro (CAG-15)`<br>`frontend/tests/conformidad-diseno.mjs::El buscador usa el campo del Kit y no el control por defecto del navegador (CAG-15)`<br>`frontend/tests/conformidad-diseno.mjs::El buscador permite borrar el contenido escrito (CAG-15)`<br>`frontend/tests/conformidad-diseno.mjs::El buscador también está disponible en móvil, dentro del menú (CAG-15)` | `components/govco/BuscadorSede.vue`<br>`components/govco/CabeceraEntidad.vue`<br>`components/govco/MenuNavegacion.vue` | cubierto por pruebas o interfaz |
-| **CAG-16** | — | `frontend/tests/conformidad-diseno.mjs::El formulario explica el asterisco de obligatorio (CAG-16)`<br>`frontend/tests/conformidad-diseno.mjs::Todo campo obligatorio tiene etiqueta asociada (CAG-16)` | — | cubierto por pruebas o interfaz |
-| **CAG-17** | — | `frontend/tests/conformidad-diseno.mjs::El buscador desactiva el autocompletado del navegador (CAG-17)`<br>`frontend/tests/conformidad-diseno.mjs::El límite de cada campo se identifica con al menos 3:1 (CAG-17, WCAG 1.4.11)` | — | cubierto por pruebas o interfaz |
-| **CAG-18** | — | `frontend/tests/conformidad-diseno.mjs::Ninguna lista nativa supera los 12 elementos que este ADR fija como umbral (CAG-18)` | — | cubierto por pruebas o interfaz |
-| **CAG-19** | — | `frontend/tests/conformidad-diseno.mjs::La sede no usa campos de calendario: CAG-19 no aplica` | — | cubierto por pruebas o interfaz |
-| **CAG-20** | `GET /tramites/{slug}` | `frontend/tests/conformidad-diseno.mjs::La ficha del trámite publica la línea de avance con sus pasos (CAG-20)` | `views/publico/TramiteDetalleView.vue` | implementado |
-| **CAG-21** | — | `frontend/tests/conformidad-diseno.mjs::La sede no abre modales: CAG-21 no aplica` | — | cubierto por pruebas o interfaz |
-| **CAG-22** | — | `frontend/tests/conformidad-diseno.mjs::La sede no emite notificaciones toast: CAG-22 no aplica` | — | cubierto por pruebas o interfaz |
-| **CAG-23** | — | `frontend/tests/conformidad-diseno.mjs::Objetivos táctiles de al menos 44 × 44 px en móvil (CAG-23)`<br>`frontend/tests/conformidad-shell.mjs::Objetivos táctiles ≥ 44 px (CAG-23)` | `components/govco/AvisoPrivacidad.vue`<br>`views/publico/TramitesView.vue` | cubierto por pruebas o interfaz |
-| **CAG-24** | — | `frontend/tests/conformidad-diseno.mjs::La sede no publica tablas: CAG-24 no aplica` | — | cubierto por pruebas o interfaz |
-| **CAG-25** | — | `frontend/tests/conformidad-diseno.mjs::La sede no usa acordeones: CAG-25 no aplica` | — | cubierto por pruebas o interfaz |
-| **CAG-26** | `GET /bloques`<br>`GET /tramites/{slug}` | `frontend/tests/conformidad-diseno.mjs::Cada tarjeta va dentro de un enlace o botón y su acción no supera dos palabras (CAG-26)` | `views/publico/InicioView.vue`<br>`views/publico/TramiteDetalleView.vue` | implementado |
-| **CAG-27** | — | `frontend/tests/conformidad-diseno.mjs::Tipografía conforme a la escala del Kit UI 9.2 (CAG-27)`<br>`frontend/tests/conformidad-diseno.mjs::Ningún texto se justifica (CAG-27)` | — | cubierto por pruebas o interfaz |
-| **CAG-28** | — | `frontend/tests/conformidad-diseno.mjs::Todo el texto visible alcanza el contraste mínimo de WCAG 1.4.3 (CAG-28)`<br>`frontend/tests/conformidad-shell.mjs::Contraste del texto ≥ 4.5:1 (CAG-28)` | — | cubierto por pruebas o interfaz |
-| **CAG-29** | — | `frontend/tests/conformidad-diseno.mjs::Las vistas que esperan datos anuncian la espera (CAG-29)` | `components/govco/IndicadorCarga.vue` | cubierto por pruebas o interfaz |
-| **CAG-30** | — | `frontend/tests/conformidad-diseno.mjs::El botón «volver arriba» aparece en la esquina inferior derecha y se anuncia (CAG-30)` | `components/govco/VolverArriba.vue`<br>`layouts/LayoutPublico.vue` | cubierto por pruebas o interfaz |
-| **CAG-31** | — | `frontend/tests/conformidad-diseno.mjs::La galería de aplicaciones vive en la barra superior (CAG-31)`<br>`frontend/tests/conformidad-diseno.mjs::La galería anuncia su estado con aria-expanded (CAG-31)`<br>`frontend/tests/conformidad-diseno.mjs::El menú de la galería se rotula con aria-labelledby (CAG-31)`<br>`frontend/tests/conformidad-diseno.mjs::La galería ofrece los servicios transversales de GOV.CO (CAG-31)`<br>`frontend/tests/conformidad-diseno.mjs::La galería abre con Enter (CAG-31)`<br>`frontend/tests/conformidad-diseno.mjs::La galería muestra el icono y la etiqueta de cada aplicación (CAG-31)`<br>`frontend/tests/conformidad-diseno.mjs::La galería cierra con Esc (CAG-31)` | `components/govco/BarraSuperior.vue`<br>`components/govco/GaleriaAplicaciones.vue` | cubierto por pruebas o interfaz |
-| **CAG-32** | — | `frontend/tests/accesibilidad.mjs::Las vistas públicas no presentan hallazgos críticos ni serios de axe-core sobre WCAG 2.1 AA y la Resolución 1519 de 2020 (CAG-32)`<br>`frontend/tests/accesibilidad.mjs::Ninguna vista pública presenta hallazgos de buenas prácticas en axe-core (CAG-32)` | — | cubierto por pruebas o interfaz |
-| **CAG-33** | — | `frontend/tests/conformidad-diseno.mjs::La paleta efectiva usa solo tokens --govcolor-* del Kit (CAG-33)` | — | cubierto por pruebas o interfaz |
-| **CAG-34** | — | `frontend/tests/conformidad-diseno.mjs::El Kit UI se sirve desde la copia local del repositorio (CAG-34)` | — | cubierto por pruebas o interfaz |
+Enunciados en `docs/Sección 2 §2.4`.
 
-## Funcionalidad (Sección 5)
+| Criterio | Estado | Evidencia (fichero:línea) |
+|---|---|---|
+| **CAG-01** | desviación declarada | `sitio/app/components/govco/CarruselGovco.vue:25` · `sitio/tests/diseno.mjs:2` |
+| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:206` |
+| **CAG-03** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:29` · `sitio/tests/diseno.mjs:245` |
+| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/tests/diseno.mjs:206` |
+| **CAG-05** | **prueba** | `sitio/tests/diseno.mjs:282` |
+| **CAG-06** | desviación declarada | `sitio/app/components/govco/BarraSuperior.vue:11` · `sitio/scripts/trazabilidad.mjs:251` · `sitio/tests/diseno.mjs:72` |
+| **CAG-07** | **prueba** | `sitio/app/components/govco/BotonAccesibilidad.vue:34` · `sitio/app/components/govco/PanelAccesibilidad.vue:38` · `sitio/tests/diseno.mjs:292` |
+| **CAG-08** | **prueba** | `sitio/app/layouts/default.vue:9` · `sitio/tests/diseno.mjs:445` |
+| **CAG-09** | **prueba** | `sitio/app/components/govco/MenuNavegacionGovco.vue:91` · `sitio/app/config/sitemap.ts:8` · `sitio/tests/diseno.mjs:462` · `sitio/tests/sitemap.test.ts:11` |
+| **CAG-10** | implementación | `sitio/app/components/govco/MenuNavegacionGovco.vue:98` |
+| **CAG-11** | **prueba** | `sitio/app/components/govco/MigaDePanGovco.vue:5` · `sitio/app/layouts/default.vue:83` · `sitio/tests/diseno.mjs:481` |
+| **CAG-12** | **prueba** | `sitio/.scratch/pie.test.ts:20` · `sitio/app/components/govco/PiePaginaGovco.vue:28` · `sitio/tests/diseno.mjs:496` · `contract/openapi.yaml:66` |
+| **CAG-13** | **prueba** | `sitio/tests/diseno.mjs:528` · `panel/tests/componentes.test.ts:35` |
+| **CAG-14** | **prueba** | `sitio/tests/diseno.mjs:538` |
+| **CAG-15** | **prueba** | `sitio/app/components/govco/BuscadorGovco.vue:19` · `sitio/tests/diseno.mjs:553` |
+| **CAG-16** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:588` · `sitio/tests/diseno.mjs:639` · `panel/tests/componentes.test.ts:87` |
+| **CAG-17** | **prueba** | `sitio/tests/diseno.mjs:661` |
+| **CAG-18** | desviación declarada | `sitio/tests/diseno.mjs:73` |
+| **CAG-19** | desviación declarada | `sitio/tests/diseno.mjs:74` |
+| **CAG-20** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:340` · `sitio/tests/diseno.mjs:761` · `contract/openapi.yaml:299` |
+| **CAG-21** | desviación declarada | `sitio/app/components/ModalAvisoSalida.vue:9` · `sitio/app/composables/useAvisoSalida.ts:152` · `sitio/tests/diseno.mjs:592` · `panel/tests/componentes.test.ts:117` |
+| **CAG-22** | desviación declarada | `sitio/tests/diseno.mjs:75` |
+| **CAG-23** | implementación | `sitio/app/layouts/default.vue:332` · `sitio/app/pages/tramites/index.vue:884` |
+| **CAG-24** | desviación declarada | — |
+| **CAG-25** | desviación declarada | `sitio/tests/diseno.mjs:76` |
+| **CAG-26** | **prueba** | `sitio/app/components/govco/TarjetaInformacionGovco.vue:10` · `sitio/tests/diseno.mjs:693` |
+| **CAG-27** | **prueba** | `sitio/tests/diseno.mjs:719` |
+| **CAG-28** | **prueba** | `sitio/tests/accesibilidad.mjs:2` · `sitio/tests/diseno.mjs:910` |
+| **CAG-29** | **prueba** | `sitio/app/pages/tramites/index.vue:340` · `sitio/tests/diseno.mjs:906` |
+| **CAG-30** | **prueba** | `sitio/tests/diseno.mjs:741` |
+| **CAG-31** | **prueba** | `sitio/app/components/govco/GaleriaAplicacionesGovco.vue:14` · `sitio/tests/diseno.mjs:77` |
+| **CAG-32** | **prueba** | `sitio/tests/accesibilidad.mjs:2` · `sitio/tests/diseno.mjs:13` |
+| **CAG-33** | desviación declarada | `sitio/nuxt.config.ts:58` · `sitio/tests/diseno.mjs:868` |
+| **CAG-34** | desviación declarada | `sitio/tests/diseno.mjs:2` |
 
-| Criterio | Operaciones | Pruebas | Interfaz | Estado |
-|---|---|---|---|---|
-| **FUN-001** | `GET /tramites`<br>`GET /buscar` | `backend/tests/Feature/Api/CatalogoApiTest.php::el_catalogo_publica_tramites_completos`<br>`backend/tests/Feature/Api/CatalogoApiTest.php::los_tramites_en_linea_apuntan_al_portal_govco`<br>`backend/tests/Feature/Sede/ConformidadSedeTest.php::la_busqueda_interna_encuentra_sin_tildes` | `components/govco/BuscadorSede.vue`<br>`components/govco/MenuNavegacion.vue`<br>`views/publico/BuscarView.vue`<br>`views/publico/TramitesView.vue` | implementado |
-| **FUN-002** | `GET /buscar` | — | `views/publico/BuscarView.vue`<br>`views/publico/NoEncontradoView.vue` | implementado |
-| **FUN-003** | — | — | `components/govco/MenuNavegacion.vue` | cubierto por pruebas o interfaz |
-| **FUN-004** | `POST /radicados`<br>`POST /pqrsd` | — | — | implementado |
-| **FUN-005** | — | — | — | pendiente |
-| **FUN-006** | — | — | — | pendiente |
-| **FUN-007** | `GET /entidad` | — | — | implementado |
-| **FUN-008** | — | — | `components/govco/BarraSuperior.vue` | cubierto por pruebas o interfaz |
-| **FUN-009** | `GET /entidad` | — | — | implementado |
-| **FUN-010** | `GET /menus/{ubicacion}` | — | — | implementado |
-| **FUN-011** | `GET /menus/{ubicacion}`<br>`POST /auth/login`<br>`GET /auth/me` | — | `components/govco/CabeceraEntidad.vue`<br>`layouts/LayoutPublico.vue` | implementado |
-| **FUN-012** | `GET /menus/{ubicacion}` | `backend/tests/Feature/Api/CatalogoApiTest.php::el_menu_principal_respeta_limites`<br>`backend/tests/Feature/Sede/ConformidadSedeTest.php::el_menu_principal_respeta_los_limites_de_items_y_niveles`<br>`frontend/tests/conformidad-shell.mjs::Menú con máximo 7 ítems (FUN-012)` | `components/govco/MenuNavegacion.vue`<br>`layouts/LayoutPublico.vue` | implementado |
-| **FUN-013** | `GET /bloques` | — | `views/publico/InicioView.vue` | implementado |
-| **FUN-014** | `GET /entidad`<br>`GET /dependencias` | `backend/tests/Feature/Api/CatalogoApiTest.php::la_entidad_entrega_los_datos_del_pie_de_pagina`<br>`frontend/tests/conformidad-diseno.mjs::El pie publica el logo GOV.CO, la marca país Colombia-CO y el logo de la entidad (CAG-12, FUN-014)` | `components/govco/PieDePagina.vue`<br>`layouts/LayoutPublico.vue`<br>`views/publico/MapaSitioView.vue` | implementado |
-| **FUN-015** | `GET /entidad`<br>`GET /buscar` | `backend/tests/Feature/Sede/ConformidadSedeTest.php::el_pie_de_pagina_enlaza_las_politicas_obligatorias` | — | implementado |
-| **FUN-016** | `GET /contenidos/{tipo}`<br>`GET /transparencia` | — | `views/publico/TransparenciaView.vue` | implementado |
-| **FUN-017** | `GET /transparencia` | `backend/tests/Feature/Sede/ConformidadSedeTest.php::la_transparencia_solo_expone_contenido_publicado_y_vigente` | `views/publico/TransparenciaView.vue` | implementado |
-| **FUN-018** | `GET /contenidos/{tipo}/{slug}`<br>`GET /transparencia` | — | `views/publico/TransparenciaView.vue` | implementado |
-| **FUN-019** | `GET /contenidos/{tipo}`<br>`GET /transparencia` | `backend/tests/Feature/Sede/ConformidadSedeTest.php::la_transparencia_solo_expone_contenido_publicado_y_vigente` | `views/publico/ContenidoDetalleView.vue`<br>`views/publico/NoticiasView.vue`<br>`views/publico/TransparenciaView.vue` | implementado |
-| **FUN-020** | `GET /contenidos/{tipo}`<br>`GET /transparencia` | — | `views/publico/TransparenciaView.vue` | implementado |
-| **FUN-021** | `GET /tramites`<br>`GET /tramites/{slug}` | `backend/tests/Feature/Api/CatalogoApiTest.php::la_ficha_del_tramite_declara_los_seis_atributos`<br>`backend/tests/Feature/Api/RadicacionTest.php::no_se_puede_radicar_un_tramite_inexistente`<br>`backend/tests/Feature/Sede/ConformidadSedeTest.php::todo_tramite_publicado_declara_los_seis_atributos_obligatorios` | `views/publico/RadicacionView.vue`<br>`views/publico/TramiteDetalleView.vue`<br>`views/publico/TramitesView.vue` | implementado |
-| **FUN-022** | `GET /categorias-tramite`<br>`GET /tramites` | — | `views/publico/TramitesView.vue` | implementado |
-| **FUN-023** | `GET /tramites`<br>`GET /tramites/{slug}` | `backend/tests/Feature/Api/CatalogoApiTest.php::los_tramites_en_linea_apuntan_al_portal_govco`<br>`backend/tests/Feature/Sede/ConformidadSedeTest.php::los_tramites_en_linea_direccionan_a_govco`<br>`frontend/tests/conformidad-shell.mjs::Ficha direcciona a gov.co en trámite en línea (FUN-023)` | `views/publico/TramiteDetalleView.vue` | implementado |
-| **FUN-024** | `GET /tramites/{slug}`<br>`POST /radicados`<br>`GET /seguimiento`<br>`GET /pqrsd/{numero}`<br>`GET /mi-cuenta/resumen`<br>`GET /mis-radicados` | `backend/tests/Feature/Api/RadicacionTest.php::una_pqrsd_valida_se_radica_con_acuse_y_numero` | `views/publico/SeguimientoView.vue`<br>`views/publico/TramiteDetalleView.vue` | implementado |
-| **FUN-025** | `GET /canales-atencion`<br>`GET /sedes`<br>`GET /tramites/{slug}`<br>`POST /pqrsd`<br>`GET /pqrsd/tipos`<br>`GET /mis-pqrsd` | `backend/tests/Feature/Api/RadicacionTest.php::una_pqrsd_valida_se_radica_con_acuse_y_numero` | `views/publico/AtencionView.vue`<br>`views/publico/PqrsdView.vue` | implementado |
-| **FUN-026** | `GET /contenidos/{tipo}`<br>`GET /participacion/portales` | — | `views/publico/InicioView.vue`<br>`views/publico/NoticiasView.vue`<br>`views/publico/ParticipaView.vue` | implementado |
-| **FUN-027** | `GET /participacion/portales` | — | `views/publico/ParticipaView.vue` | implementado |
-| **FUN-028** | `GET /contenidos/{tipo}`<br>`GET /contenidos/{tipo}/{slug}` | — | `views/publico/ContenidoDetalleView.vue`<br>`views/publico/NoticiasView.vue` | implementado |
-| **FUN-029** | `POST /radicados`<br>`POST /pqrsd` | `backend/tests/Feature/Api/RadicacionTest.php::sin_autorizacion_de_datos_no_se_radica`<br>`frontend/tests/flujo-pqrsd.mjs::Sin autorizar los datos, la sede lo impide y lo explica (FUN-029)` | `components/govco/AvisoPrivacidad.vue`<br>`views/publico/PqrsdView.vue` | implementado |
-| **FUN-030** | `GET /captcha`<br>`POST /pqrsd` | `backend/tests/Feature/Api/RadicacionTest.php::sin_captcha_valido_no_se_radica` | `components/govco/CaptchaSede.vue`<br>`views/publico/PqrsdView.vue` | implementado |
-| **FUN-031** | `POST /radicados` | — | `views/publico/PqrsdView.vue` | implementado |
-| **FUN-032** | `POST /radicados` | — | `views/publico/PqrsdView.vue` | implementado |
-| **FUN-033** | — | — | `components/govco/AvisoPrivacidad.vue`<br>`views/publico/PqrsdView.vue` | cubierto por pruebas o interfaz |
-| **FUN-034** | — | — | `components/govco/AvisoCookies.vue`<br>`layouts/LayoutPublico.vue`<br>`views/publico/AccesibilidadView.vue` | cubierto por pruebas o interfaz |
-| **FUN-035** | `GET /seguimiento`<br>`POST /pqrsd`<br>`GET /pqrsd/{numero}`<br>`GET /mi-cuenta/resumen`<br>`GET /mis-radicados`<br>`GET /mis-pqrsd` | `backend/tests/Feature/Api/RadicacionTest.php::el_ciudadano_consulta_el_estado_de_su_solicitud`<br>`frontend/tests/flujo-pqrsd.mjs::El ciudadano consulta su expediente por radicado (FUN-035)` | `views/publico/SeguimientoView.vue` | implementado |
-| **FUN-036** | `GET /verificar/{codigo}`<br>`GET /seguimiento`<br>`GET /mis-documentos` | — | `views/publico/SeguimientoView.vue` | implementado |
-| **FUN-037** | `POST /pqrsd`<br>`GET /notificaciones`<br>`PATCH /mi-cuenta/preferencias` | `backend/tests/Feature/Api/PanelCiudadanoTest.php::el_ciudadano_no_puede_desactivar_los_canales_obligatorios`<br>`backend/tests/Feature/Api/RadicacionTest.php::la_radicacion_genera_el_acuse_por_los_canales_obligatorios` | — | implementado |
-| **FUN-038** | `GET /notificaciones`<br>`PATCH /notificaciones/{id}/leida` | `backend/tests/Feature/Api/PanelCiudadanoTest.php::el_ciudadano_no_puede_desactivar_los_canales_obligatorios`<br>`backend/tests/Feature/Api/RadicacionTest.php::la_radicacion_genera_el_acuse_por_los_canales_obligatorios` | — | implementado |
-| **FUN-039** | `GET /notificaciones/{id}/acuse`<br>`POST /webhooks/correo-certificado` | `backend/tests/Feature/Api/CorreoCertificadoTest.php::el_acto_administrativo_sale_por_correo_certificado`<br>`backend/tests/Feature/Api/CorreoCertificadoTest.php::reenviar_el_mismo_acuse_no_duplica_la_constancia`<br>`backend/tests/Feature/Api/CorreoCertificadoTest.php::el_ciudadano_consulta_la_constancia_de_su_notificacion`<br>`backend/tests/Feature/Api/CorreoCertificadoTest.php::un_ciudadano_no_ve_el_acuse_de_otro` | — | implementado |
-| **FUN-040** | `GET /mis-pagos`<br>`POST /pagos` | `backend/tests/Feature/Api/PagosTest.php::un_tramite_gratuito_no_genera_orden_de_pago` | — | implementado |
-| **FUN-041** | `GET /mis-pagos`<br>`GET /pagos/{referencia}` | — | — | implementado |
-| **FUN-042** | `POST /pagos`<br>`POST /webhooks/pse` | `backend/tests/Feature/Api/PagosTest.php::un_tramite_gratuito_no_genera_orden_de_pago`<br>`backend/tests/Feature/Api/PagosTest.php::una_notificacion_aprobada_deja_el_pago_conciliado`<br>`backend/tests/Feature/Api/PagosTest.php::reenviar_la_misma_notificacion_no_duplica_el_pago` | — | implementado |
-| **FUN-043** | `GET /mi-cuenta/resumen`<br>`GET /mis-radicados` | — | — | implementado |
-| **FUN-044** | `GET /mi-cuenta/datos`<br>`PATCH /mi-cuenta/datos`<br>`PATCH /mi-cuenta/preferencias` | `backend/tests/Feature/Api/PanelCiudadanoTest.php::el_ciudadano_actualiza_su_contacto_pero_no_su_identidad` | — | implementado |
-| **FUN-045** | `GET /mis-documentos`<br>`GET /mi-cuenta/portabilidad` | `backend/tests/Feature/Api/PanelCiudadanoTest.php::el_ciudadano_puede_exportar_sus_documentos_en_formato_abierto`<br>`backend/tests/Feature/Sede/DatosAbiertosTest.php::el_ciudadano_se_lleva_su_conjunto_completo`<br>`backend/tests/Feature/Sede/DatosAbiertosTest.php::el_conjunto_no_incluye_datos_de_otro_ciudadano`<br>`backend/tests/Feature/Sede/DatosAbiertosTest.php::el_csv_sale_por_tablas_y_en_formato_usable`<br>`backend/tests/Feature/Sede/DatosAbiertosTest.php::la_portabilidad_exige_autenticacion`<br>`backend/tests/Feature/Sede/DatosAbiertosTest.php::un_asunto_con_separador_no_rompe_el_archivo` | — | implementado |
-| **FUN-046** | `GET /notificaciones`<br>`PATCH /notificaciones/{id}/leida`<br>`GET /notificaciones/{id}/acuse` | `backend/tests/Feature/Api/CorreoCertificadoTest.php::el_ciudadano_consulta_la_constancia_de_su_notificacion` | — | implementado |
-| **FUN-047** | — | — | — | pendiente |
-| **FUN-048** | `GET /pqrsd/tipos` | — | — | implementado |
-| **FUN-049** | — | — | — | pendiente |
-| **FUN-050** | — | — | — | pendiente |
-| **FUN-051** | — | — | — | pendiente |
-| **FUN-052** | — | — | — | pendiente |
-| **FUN-053** | — | `backend/tests/Feature/Sede/DisponibilidadTest.php::la_sonda_deja_constancia_de_lo_que_encontro`<br>`backend/tests/Feature/Sede/DisponibilidadTest.php::la_medicion_usa_el_mismo_diagnostico_que_el_balanceador`<br>`backend/tests/Feature/Sede/DisponibilidadTest.php::la_disponibilidad_se_calcula_de_lo_registrado`<br>`backend/tests/Feature/Sede/DisponibilidadTest.php::por_debajo_del_objetivo_el_informe_falla`<br>`backend/tests/Feature/Sede/DisponibilidadTest.php::sin_mediciones_no_se_declara_cumplido_el_objetivo`<br>`backend/tests/Feature/Sede/DisponibilidadTest.php::solo_se_cuenta_la_ventana_pedida`<br>`backend/tests/Feature/Sede/DisponibilidadTest.php::una_caida_larga_se_distingue_de_muchas_cortas`<br>`backend/tests/Feature/Sede/DisponibilidadTest.php::el_objetivo_es_configurable` | — | cubierto por pruebas o interfaz |
-| **FUN-054** | — | `backend/tests/Feature/Sede/ExpedientePreservacionTest.php::un_expediente_sellado_se_reconoce_integro`<br>`backend/tests/Feature/Sede/ExpedientePreservacionTest.php::alterar_el_contenido_del_expediente_se_detecta`<br>`backend/tests/Feature/Sede/ExpedientePreservacionTest.php::la_verificacion_avisa_cuando_algo_se_altero`<br>`backend/tests/Feature/Sede/ExpedientePreservacionTest.php::un_expediente_sin_sellar_no_se_declara_alterado`<br>`backend/tests/Feature/Sede/ExpedientePreservacionTest.php::la_retencion_se_cuenta_desde_el_cierre`<br>`backend/tests/Feature/Sede/ExpedientePreservacionTest.php::un_expediente_sin_cerrar_no_tiene_plazo`<br>`backend/tests/Feature/Sede/ExpedientePreservacionTest.php::un_expediente_sin_serie_no_tiene_plazo`<br>`backend/tests/Feature/Sede/ExpedientePreservacionTest.php::vencida_la_retencion_el_expediente_admite_disposicion`<br>`backend/tests/Feature/Sede/ExpedientePreservacionTest.php::un_expediente_en_plazo_no_se_puede_destruir`<br>`backend/tests/Feature/Sede/ExpedientePreservacionTest.php::un_expediente_fuera_de_plazo_si_puede_destruirse`<br>`backend/tests/Feature/Sede/ExpedientePreservacionTest.php::el_informe_agrupa_por_disposicion_final` | — | cubierto por pruebas o interfaz |
-| **FUN-055** | — | `scripts/verificar-respaldo.mjs::El plan de contingencia está documentado (FUN-055)`<br>`scripts/verificar-respaldo.mjs::La contingencia remite a los canales oficiales de reporte (FUN-055)`<br>`scripts/verificar-respaldo.mjs::La contingencia preserva la evidencia antes de reconstruir (FUN-055)`<br>`scripts/verificar-respaldo.mjs::La versión anterior se recupera desplegando su etiqueta (FUN-055)` | — | cubierto por pruebas o interfaz |
-| **FUN-056** | — | `scripts/verificar-respaldo.mjs::La copia está programada y no sólo configurada (FUN-056)`<br>`scripts/verificar-respaldo.mjs::La retención se aplica de forma programada (FUN-056)`<br>`scripts/verificar-respaldo.mjs::La salud de las copias se vigila (FUN-056)`<br>`scripts/verificar-respaldo.mjs::La copia se verifica al crearla (FUN-056)`<br>`scripts/verificar-respaldo.mjs::Las copias no se guardan dentro de lo que se copia (FUN-056)`<br>`scripts/verificar-respaldo.mjs::La copia se crea sin errores (FUN-056)`<br>`scripts/verificar-respaldo.mjs::La copia queda en el disco configurado (FUN-056)`<br>`scripts/verificar-respaldo.mjs::La copia se puede abrir (FUN-056)`<br>`scripts/verificar-respaldo.mjs::La copia contiene el volcado de la base de datos (FUN-056)`<br>`scripts/verificar-respaldo.mjs::Se crea la base de verificación (FUN-056)`<br>`scripts/verificar-respaldo.mjs::El volcado se restaura íntegro, sin detenerse en el primer error (FUN-056)`<br>`scripts/verificar-respaldo.mjs::Lo restaurado tiene las mismas filas que el original (FUN-056)`<br>`scripts/verificar-respaldo.mjs::El contenido del último expediente viaja en la copia (FUN-056)`<br>`scripts/verificar-respaldo.mjs::El procedimiento de restauración está escrito donde se busca (FUN-056)`<br>`scripts/verificar-respaldo.mjs::El plan advierte de la clave de cifrado, que no viaja en la copia (FUN-056)`<br>`scripts/verificar-respaldo.mjs::La base de verificación se retira al terminar (FUN-056)` | — | cubierto por pruebas o interfaz |
-| **FUN-057** | — | `backend/tests/Feature/Seguridad/ErroresTest.php::un_recurso_inexistente_no_revela_la_implementacion`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::una_ruta_inexistente_responde_como_un_recurso_inexistente`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::un_metodo_no_permitido_se_explica_sin_exponer_nada`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::los_errores_de_validacion_dicen_que_corregir`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::un_error_inesperado_no_entrega_la_traza`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::la_sede_no_disponible_se_explica_sin_nombrar_su_infraestructura`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::sin_sesion_el_mensaje_dice_que_hacer`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::toda_respuesta_de_error_se_puede_correlacionar`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::el_motor_sigue_en_pie_despues_de_entradas_hostiles`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::un_error_no_altera_la_cuenta_del_ciudadano` | `views/publico/NoEncontradoView.vue` | cubierto por pruebas o interfaz |
-| **FUN-058** | — | `backend/tests/Feature/Sede/ContenidoVigenciaTest.php::el_contenido_programado_se_publica_cuando_llega_su_hora`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::el_contenido_rige_desde_la_fecha_programada`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::el_contenido_programado_para_despues_no_se_adelanta`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::un_contenido_programado_incompleto_no_se_publica`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::publicar_exige_que_la_ficha_este_completa`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::la_comprobacion_enumera_todo_lo_que_falta`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::publicar_deja_fijada_la_proxima_revision`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::la_revision_vencida_se_pone_en_conocimiento`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::revisar_aplaza_la_siguiente_revision`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::un_borrador_no_entra_en_la_revision`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::fuera_de_su_ventana_el_contenido_no_se_muestra`<br>`backend/tests/Feature/Sede/ContenidoVigenciaTest.php::el_plazo_de_revision_es_configurable` | — | cubierto por pruebas o interfaz |
-| **FUN-059** | `GET /transparencia`<br>`GET /mi-cuenta/portabilidad` | `backend/tests/Feature/Sede/DatosAbiertosTest.php::el_ciudadano_se_lleva_su_conjunto_completo`<br>`backend/tests/Feature/Sede/DatosAbiertosTest.php::el_contenido_publicado_declara_su_licencia`<br>`backend/tests/Feature/Sede/DatosAbiertosTest.php::la_licencia_declarada_manda_sobre_la_de_la_entidad`<br>`backend/tests/Feature/Sede/DatosAbiertosTest.php::la_entidad_puede_cambiar_su_licencia` | — | implementado |
-| **FUN-060** | — | `scripts/verificar-infra.mjs::Toda petición HTTP se redirige de forma permanente a HTTPS (FUN-060, SEG-001, SEG-001-RT-05)`<br>`scripts/verificar-infra.mjs::El punto de entrada declara a la aplicación el esquema, el nombre y el puerto públicos (FUN-060, SEG-001)`<br>`scripts/verificar-infra.mjs::La aplicación cree lo que el punto de entrada declara sobre el origen (FUN-060, SEG-001)`<br>`scripts/verificar-infra.mjs::En vivo: HTTP redirige de forma permanente a HTTPS (FUN-060, SEG-001, SEG-001-RT-05)` | — | cubierto por pruebas o interfaz |
+## FUN — Funcionalidad
 
-## Obligaciones derivadas (Sección 1)
+Enunciados en `docs/Sección 5 §5.3.1`.
 
-| Criterio | Operaciones | Pruebas | Interfaz | Estado |
-|---|---|---|---|---|
-| **O-01** | — | `scripts/verificar-infra.mjs::En vivo: cualquier nombre llega a la misma sede y no a un sitio distinto (O-01)` | — | cubierto por pruebas o interfaz |
-| **O-02** | — | — | — | pendiente |
-| **O-03** | `GET /canales-atencion` | — | — | implementado |
-| **O-04** | `GET /auth/identidad/autorizacion` | `backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::sin_proveedor_configurado_la_sede_lo_dice_en_lugar_de_ofrecer_un_boton_que_no_lleva_a_ninguna_parte`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::el_ciudadano_que_vuelve_del_proveedor_entra_con_su_sesion_abierta`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::la_identidad_verificada_se_vincula_con_la_cuenta_que_ya_existe_para_ese_documento`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::una_cuenta_de_funcionario_con_ese_documento_no_se_vincula_jamas`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::un_estado_que_no_corresponde_a_este_navegador_no_inicia_sesion`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::un_estado_ya_usado_no_vuelve_a_iniciar_sesion`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::un_estado_vencido_no_inicia_sesion`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::la_identidad_se_toma_del_punto_de_usuario_y_no_del_identificador_sin_verificar`<br>`backend/tests/Feature/Seguridad/ProveedorSimuladoTest.php::el_recorrido_completo_del_ingreso_federado_funciona_con_el_simulador`<br>`backend/tests/Feature/Seguridad/ProveedorSimuladoTest.php::un_codigo_que_la_sede_no_firmo_no_sirve_para_entrar`<br>`backend/tests/Feature/Seguridad/ProveedorSimuladoTest.php::el_simulador_no_existe_en_produccion` | — | implementado |
-| **O-05** | `GET /auth/identidad/autorizacion` | `backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::sin_proveedor_configurado_la_sede_lo_dice_en_lugar_de_ofrecer_un_boton_que_no_lleva_a_ninguna_parte`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::el_ciudadano_que_vuelve_del_proveedor_entra_con_su_sesion_abierta` | — | implementado |
-| **O-06** | — | — | — | pendiente |
-| **O-07** | — | `backend/tests/Feature/Sede/ExpedientePreservacionTest.php::alterar_el_contenido_del_expediente_se_detecta` | — | cubierto por pruebas o interfaz |
-| **O-08** | — | `backend/tests/Feature/Api/PagosTest.php::una_notificacion_aprobada_deja_el_pago_conciliado` | — | cubierto por pruebas o interfaz |
-| **O-09** | — | — | — | pendiente |
-| **O-10** | `GET /verificar/{codigo}` | — | — | implementado |
-| **O-11** | — | — | — | pendiente |
-| **O-12** | — | — | — | pendiente |
-| **O-13** | — | `backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::la_consulta_de_los_datos_propios_queda_registrada`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::los_cambios_sobre_datos_personales_dejan_rastro` | — | cubierto por pruebas o interfaz |
-| **O-14** | — | `scripts/verificar-infra.mjs::El contrato de la API se publica con la sede en su dirección canónica (O-14)`<br>`scripts/verificar-infra.mjs::En vivo: el contrato publicado es el mismo que valida la puerta de contrato (O-14)` | — | cubierto por pruebas o interfaz |
+| Criterio | Estado | Evidencia (fichero:línea) |
+|---|---|---|
+| **FUN-001** | implementación | `contract/openapi.yaml:139` |
+| **FUN-002** | sin evidencia | — |
+| **FUN-003** | sin evidencia | — |
+| **FUN-004** | sin evidencia | — |
+| **FUN-005** | sin evidencia | — |
+| **FUN-006** | sin evidencia | — |
+| **FUN-007** | implementación | `contract/openapi.yaml:66` |
+| **FUN-008** | desviación declarada | — |
+| **FUN-009** | implementación | `contract/openapi.yaml:66` |
+| **FUN-010** | desviación declarada | — |
+| **FUN-011** | implementación | `sitio/app/layouts/default.vue:228` · `sitio/app/pages/index.vue:146` |
+| **FUN-012** | **prueba** | `sitio/app/config/sitemap.ts:338` · `sitio/app/types/menu.ts:10` · `sitio/tests/sitemap.test.ts:58` |
+| **FUN-013** | implementación | `sitio/app/components/SeccionEnPreparacion.vue:5` · `sitio/app/pages/index.vue:9` · `sitio/app/pages/noticias.vue:5` · `sitio/app/pages/portales.vue:5` · +3 |
+| **FUN-014** | implementación | `sitio/.scratch/pie.test.ts:50` · `sitio/app/components/govco/PiePaginaGovco.vue:186` · `contract/openapi.yaml:66` |
+| **FUN-015** | implementación | `contract/openapi.yaml:66` |
+| **FUN-016** | sin evidencia | — |
+| **FUN-017** | sin evidencia | — |
+| **FUN-018** | sin evidencia | — |
+| **FUN-019** | sin evidencia | — |
+| **FUN-020** | sin evidencia | — |
+| **FUN-021** | implementación | `contract/openapi.yaml:139` |
+| **FUN-022** | implementación | `contract/openapi.yaml:139` |
+| **FUN-023** | implementación | `contract/openapi.yaml:299` |
+| **FUN-024** | implementación | `contract/openapi.yaml:299` |
+| **FUN-025** | sin evidencia | — |
+| **FUN-026** | implementación | `sitio/app/pages/noticias.vue:3` |
+| **FUN-027** | implementación | `sitio/app/pages/portales.vue:3` |
+| **FUN-028** | sin evidencia | — |
+| **FUN-029** | sin evidencia | — |
+| **FUN-030** | sin evidencia | — |
+| **FUN-031** | sin evidencia | — |
+| **FUN-032** | sin evidencia | — |
+| **FUN-033** | sin evidencia | — |
+| **FUN-034** | sin evidencia | — |
+| **FUN-035** | sin evidencia | — |
+| **FUN-036** | sin evidencia | — |
+| **FUN-037** | sin evidencia | — |
+| **FUN-038** | sin evidencia | — |
+| **FUN-039** | sin evidencia | — |
+| **FUN-040** | sin evidencia | — |
+| **FUN-041** | sin evidencia | — |
+| **FUN-042** | sin evidencia | — |
+| **FUN-043** | sin evidencia | — |
+| **FUN-044** | sin evidencia | — |
+| **FUN-045** | sin evidencia | — |
+| **FUN-046** | sin evidencia | — |
+| **FUN-047** | sin evidencia | — |
+| **FUN-048** | sin evidencia | — |
+| **FUN-049** | sin evidencia | — |
+| **FUN-050** | sin evidencia | — |
+| **FUN-051** | sin evidencia | — |
+| **FUN-052** | sin evidencia | — |
+| **FUN-053** | sin evidencia | — |
+| **FUN-054** | sin evidencia | — |
+| **FUN-055** | sin evidencia | — |
+| **FUN-056** | sin evidencia | — |
+| **FUN-057** | sin evidencia | — |
+| **FUN-058** | sin evidencia | — |
+| **FUN-059** | sin evidencia | — |
+| **FUN-060** | sin evidencia | — |
 
-## Marco normativo (Sección 1)
+## SEG — Seguridad
 
-| Criterio | Operaciones | Pruebas | Interfaz | Estado |
-|---|---|---|---|---|
-| **RN-01** | — | `backend/tests/Feature/Api/CatalogoApiTest.php::el_catalogo_publica_tramites_completos` | — | cubierto por pruebas o interfaz |
-| **RN-02** | — | `scripts/verificar-infra.mjs::Ningún servicio de datos se publica al host, que es la regla de denegación por omisión del cortafuegos (SEG-002, SEG-002-RN-02)` | — | cubierto por pruebas o interfaz |
-| **RN-03** | — | `scripts/verificar-infra.mjs::La red de datos está segmentada y no es alcanzable desde fuera de la pila (SEG-002, SEG-002-RN-03)` | — | cubierto por pruebas o interfaz |
+Enunciados en `docs/Sección 4 §4.3`.
 
-## Requisitos técnicos (Sección 1)
+| Criterio | Estado | Evidencia (fichero:línea) |
+|---|---|---|
+| **SEG-001** | sin evidencia | — |
+| **SEG-002** | sin evidencia | — |
+| **SEG-003** | sin evidencia | — |
+| **SEG-004** | sin evidencia | — |
+| **SEG-005** | sin evidencia | — |
+| **SEG-006** | implementación | `sitio/.scratch/pie.test.ts:4` · `sitio/app/components/govco/PiePaginaGovco.vue:155` · `sitio/app/config/sitemap.ts:293` · `sitio/app/pages/politicas/[slug].vue:3` · +1 |
+| **SEG-007** | sin evidencia | — |
+| **SEG-008** | sin evidencia | — |
+| **SEG-009** | sin evidencia | — |
+| **SEG-010** | sin evidencia | — |
+| **SEG-011** | sin evidencia | — |
+| **SEG-012** | sin evidencia | — |
+| **SEG-013** | sin evidencia | — |
+| **SEG-014** | sin evidencia | — |
+| **SEG-015** | sin evidencia | — |
+| **SEG-016** | sin evidencia | — |
+| **SEG-017** | sin evidencia | — |
+| **SEG-018** | **prueba** | `backend/tests/Feature/SaludTest.php:15` |
 
-| Criterio | Operaciones | Pruebas | Interfaz | Estado |
-|---|---|---|---|---|
-| **RT-01** | `GET /auth/identidad/autorizacion` | `backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::sin_proveedor_configurado_la_sede_lo_dice_en_lugar_de_ofrecer_un_boton_que_no_lleva_a_ninguna_parte`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::el_ciudadano_que_vuelve_del_proveedor_entra_con_su_sesion_abierta` | — | implementado |
-| **RT-02** | — | `scripts/verificar-infra.mjs::Se admiten TLS 1.2 y 1.3 y ningún protocolo anterior (SEG-001, SEG-001-RT-02)`<br>`scripts/verificar-infra.mjs::Sólo se ofrecen cifrados AEAD y ninguno obsoleto (SEG-001, SEG-001-RT-02)` | — | cubierto por pruebas o interfaz |
-| **RT-03** | — | — | — | pendiente |
-| **RT-04** | — | `scripts/verificar-infra.mjs::HSTS se declara por un año o más (SEG-001, SEG-012, SEG-001-RT-04)` | — | cubierto por pruebas o interfaz |
-| **RT-05** | — | `scripts/verificar-infra.mjs::Toda petición HTTP se redirige de forma permanente a HTTPS (FUN-060, SEG-001, SEG-001-RT-05)`<br>`scripts/verificar-infra.mjs::En vivo: HTTP redirige de forma permanente a HTTPS (FUN-060, SEG-001, SEG-001-RT-05)` | — | cubierto por pruebas o interfaz |
+## RT — Requisitos técnicos
 
-## Seguridad (Sección 4)
+Enunciados en `docs/Sección 4 §4.3`.
 
-| Criterio | Operaciones | Pruebas | Interfaz | Estado |
-|---|---|---|---|---|
-| **SEG-001** | — | `scripts/verificar-infra.mjs::Toda petición HTTP se redirige de forma permanente a HTTPS (FUN-060, SEG-001, SEG-001-RT-05)`<br>`scripts/verificar-infra.mjs::Se admiten TLS 1.2 y 1.3 y ningún protocolo anterior (SEG-001, SEG-001-RT-02)`<br>`scripts/verificar-infra.mjs::Sólo se ofrecen cifrados AEAD y ninguno obsoleto (SEG-001, SEG-001-RT-02)`<br>`scripts/verificar-infra.mjs::HSTS se declara por un año o más (SEG-001, SEG-012, SEG-001-RT-04)`<br>`scripts/verificar-infra.mjs::No se reutilizan sesiones TLS entre clientes (SEG-001)`<br>`scripts/verificar-infra.mjs::Se declara la comprobación de revocación del certificado (SEG-001)`<br>`scripts/verificar-infra.mjs::El punto de entrada declara a la aplicación el esquema, el nombre y el puerto públicos (FUN-060, SEG-001)`<br>`scripts/verificar-infra.mjs::La aplicación cree lo que el punto de entrada declara sobre el origen (FUN-060, SEG-001)`<br>`scripts/verificar-infra.mjs::No se envía HPKP, retirado y riesgo de disponibilidad (SEG-001, ADR-0008)`<br>`scripts/verificar-infra.mjs::En vivo: HTTP redirige de forma permanente a HTTPS (FUN-060, SEG-001, SEG-001-RT-05)`<br>`scripts/verificar-infra.mjs::En vivo: el documento principal viaja con HSTS (SEG-001)`<br>`scripts/verificar-infra.mjs::En vivo: la sede atiende TLS 1.2 (SEG-001)`<br>`scripts/verificar-infra.mjs::En vivo: la sede atiende TLS 1.3 (SEG-001)`<br>`scripts/verificar-infra.mjs::En vivo: el servidor rechaza TLS 1.0 (SEG-001)`<br>`scripts/verificar-infra.mjs::En vivo: un cifrado no AEAD se rechaza (SEG-001)` | — | cubierto por pruebas o interfaz |
-| **SEG-002** | — | `scripts/verificar-infra.mjs::Sólo el punto de entrada publica puertos en el host (SEG-002)`<br>`scripts/verificar-infra.mjs::El punto de entrada publica exactamente HTTP y HTTPS (SEG-002)`<br>`scripts/verificar-infra.mjs::Ningún servicio de datos se publica al host, que es la regla de denegación por omisión del cortafuegos (SEG-002, SEG-002-RN-02)`<br>`scripts/verificar-infra.mjs::La red de datos está segmentada y no es alcanzable desde fuera de la pila (SEG-002, SEG-002-RN-03)`<br>`scripts/verificar-infra.mjs::El archivo que publica puertos internos se declara exclusivo de desarrollo (SEG-002)` | — | cubierto por pruebas o interfaz |
-| **SEG-003** | `GET /captcha`<br>`POST /radicados`<br>`GET /seguimiento`<br>`POST /auth/login`<br>`POST /webhooks/pse` | `backend/tests/Feature/Api/CorreoCertificadoTest.php::un_acuse_sin_firma_valida_no_se_registra`<br>`backend/tests/Feature/Api/PagosTest.php::una_notificacion_sin_firma_valida_se_rechaza`<br>`backend/tests/Feature/Api/RadicacionTest.php::el_captcha_no_puede_reutilizarse` | `components/govco/CaptchaSede.vue` | implementado |
-| **SEG-004** | `POST /auth/login`<br>`POST /auth/logout`<br>`GET /auth/identidad/autorizacion` | `backend/tests/Feature/Api/PanelCiudadanoTest.php::la_cuenta_se_bloquea_tras_cinco_intentos_fallidos`<br>`backend/tests/Feature/Api/PanelCiudadanoTest.php::el_inicio_de_sesion_esta_limitado_por_cuenta`<br>`backend/tests/Feature/Api/PanelCiudadanoTest.php::el_cierre_de_sesion_revoca_la_sesion`<br>`backend/tests/Feature/Seguridad/EndurecimientoTest.php::el_envio_repetido_de_solicitudes_se_frena`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::el_inicio_del_flujo_esta_limitado_por_origen` | — | implementado |
-| **SEG-005** | `POST /auth/login`<br>`POST /auth/logout`<br>`GET /auth/me` | `backend/tests/Feature/Api/PanelCiudadanoTest.php::la_sesion_no_expone_el_documento_completo`<br>`backend/tests/Feature/Seguridad/EndurecimientoTest.php::la_cookie_de_sesion_lleva_los_flags_de_seguridad` | — | implementado |
-| **SEG-006** | `GET /entidad` | `backend/tests/Feature/Sede/ConformidadSedeTest.php::el_pie_de_pagina_enlaza_las_politicas_obligatorias`<br>`frontend/tests/conformidad-shell.mjs::Pie: cinco políticas obligatorias (SEG-006)` | `components/govco/PieDePagina.vue`<br>`layouts/LayoutPublico.vue` | implementado |
-| **SEG-007** | — | `backend/tests/Feature/Seguridad/EndurecimientoTest.php::los_metodos_http_peligrosos_se_rechazan`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::un_metodo_no_permitido_se_explica_sin_exponer_nada` | — | cubierto por pruebas o interfaz |
-| **SEG-008** | — | `scripts/verificar-infra.mjs::Aplicación y servidor web no escriben ni escalan privilegios (SEG-008)`<br>`scripts/verificar-infra.mjs::Nginx conserva sólo las capacidades que necesita (SEG-008)`<br>`scripts/verificar-infra.mjs::Nginx escribe en memoria y no en el sistema de archivos (SEG-008)`<br>`scripts/verificar-infra.mjs::La imagen de la aplicación se ejecuta como usuario sin privilegios UID 10001 (SEG-008)`<br>`scripts/verificar-infra.mjs::La imagen final no conserva herramientas de construcción (SEG-008)` | — | cubierto por pruebas o interfaz |
-| **SEG-009** | `POST /radicados`<br>`POST /pagos`<br>`POST /webhooks/pse` | `backend/tests/Feature/Api/CorreoCertificadoTest.php::un_acuse_sin_firma_valida_no_se_registra`<br>`backend/tests/Feature/Api/PagosTest.php::el_valor_lo_determina_el_catalogo_y_no_la_peticion`<br>`backend/tests/Feature/Api/PagosTest.php::una_notificacion_sin_firma_valida_se_rechaza` | — | implementado |
-| **SEG-010** | — | `backend/tests/Feature/Seguridad/InyeccionTest.php::el_buscador_no_se_deja_inyectar`<br>`backend/tests/Feature/Seguridad/InyeccionTest.php::el_catalogo_no_se_deja_inyectar_por_sus_filtros`<br>`backend/tests/Feature/Seguridad/InyeccionTest.php::el_orden_de_una_lista_se_resuelve_por_lista_blanca`<br>`backend/tests/Feature/Seguridad/InyeccionTest.php::las_credenciales_hostiles_no_llegan_al_sql`<br>`backend/tests/Feature/Seguridad/InyeccionTest.php::ningun_sql_crudo_interpola_un_valor_recibido`<br>`backend/tests/Feature/Seguridad/InyeccionTest.php::toda_consulta_cruda_enlaza_sus_valores` | — | cubierto por pruebas o interfaz |
-| **SEG-011** | — | `backend/tests/Feature/Api/CatalogoApiTest.php::el_error_generico_no_expone_detalles_tecnicos`<br>`backend/tests/Feature/Api/CatalogoApiTest.php::un_error_no_controlado_no_expone_la_traza`<br>`backend/tests/Feature/Api/PanelCiudadanoTest.php::el_error_de_credenciales_no_revela_si_la_cuenta_existe`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::sin_sesion_y_sin_pedir_json_la_respuesta_sigue_siendo_un_401`<br>`backend/tests/Feature/Seguridad/ErroresTest.php::fuera_de_la_api_una_ruta_protegida_envia_a_la_portada`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::la_identidad_se_toma_del_punto_de_usuario_y_no_del_identificador_sin_verificar` | `views/publico/NoEncontradoView.vue`<br>`views/publico/VerificarView.vue` | cubierto por pruebas o interfaz |
-| **SEG-012** | — | `backend/tests/Feature/Seguridad/EndurecimientoTest.php::el_servidor_envia_las_cabeceras_de_seguridad_exigidas`<br>`backend/tests/Feature/Seguridad/EndurecimientoTest.php::no_se_envia_public_key_pins`<br>`backend/tests/Feature/Seguridad/EndurecimientoTest.php::el_auditor_xss_obsoleto_esta_desactivado`<br>`scripts/verificar-infra.mjs::HSTS se declara por un año o más (SEG-001, SEG-012, SEG-001-RT-04)`<br>`scripts/verificar-infra.mjs::El documento principal incluye las cabeceras de seguridad (SEG-012)`<br>`scripts/verificar-infra.mjs::El archivo de cabeceras no se aplica a toda la configuración (SEG-012)`<br>`scripts/verificar-infra.mjs::En vivo: el documento principal lleva todas las cabeceras de seguridad (SEG-012)`<br>`scripts/verificar-infra.mjs::En vivo: el documento principal no repite cabeceras de seguridad (SEG-012)`<br>`scripts/verificar-infra.mjs::En vivo: las respuestas de la aplicación no llevan dos políticas de contenido (SEG-012)` | — | cubierto por pruebas o interfaz |
-| **SEG-013** | — | `backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::toda_respuesta_trae_el_identificador_de_correlacion`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::el_identificador_recibido_se_respeta`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::un_identificador_con_saltos_de_linea_se_descarta`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::el_codigo_de_seguimiento_del_error_es_el_de_la_peticion`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::la_entrada_correcta_queda_en_el_registro_de_seguridad`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::el_intento_fallido_queda_registrado_sin_la_contrasena`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::el_intento_contra_una_cuenta_bloqueada_queda_registrado`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::la_consulta_de_los_datos_propios_queda_registrada`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::el_intento_de_leer_una_notificacion_ajena_queda_registrado`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::los_cambios_sobre_datos_personales_dejan_rastro`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::la_auditoria_no_guarda_credenciales`<br>`backend/tests/Feature/Seguridad/RegistroSeguridadTest.php::el_canal_de_seguridad_conserva_doce_meses` | — | cubierto por pruebas o interfaz |
-| **SEG-014** | — | `backend/tests/Feature/Sede/ConformidadSedeTest.php::los_datos_personales_se_exponen_enmascarados` | — | cubierto por pruebas o interfaz |
-| **SEG-015** | — | `scripts/verificar-vulnerabilidades.mjs::Las dependencias de producción de PHP no tienen avisos de seguridad (SEG-015)`<br>`scripts/verificar-vulnerabilidades.mjs::Las dependencias de producción del frontend no tienen vulnerabilidades graves (SEG-015)`<br>`scripts/verificar-vulnerabilidades.mjs::El código no tiene hallazgos de seguridad de severidad alta (SEG-015)`<br>`scripts/verificar-vulnerabilidades.mjs::El análisis estático no deja hallazgos informativos pendientes (SEG-015)`<br>`scripts/verificar-vulnerabilidades.mjs::El escaneo dinámico no encuentra riesgos sin revisar (SEG-015)` | — | cubierto por pruebas o interfaz |
-| **SEG-016** | `POST /auth/login`<br>`PATCH /mi-cuenta/datos` | `backend/tests/Feature/Sede/ConformidadSedeTest.php::solo_los_funcionarios_activos_administran_la_sede`<br>`backend/tests/Feature/Seguridad/IdentidadDigitalTest.php::una_cuenta_de_funcionario_con_ese_documento_no_se_vincula_jamas` | — | implementado |
-| **SEG-017** | — | `scripts/verificar-imagenes.mjs::Toda imagen base y toda acción ajena están fijadas por resumen o por confirmación (SEG-017)`<br>`scripts/verificar-imagenes.mjs::Se publica el inventario de las cuatro imágenes de la sede (SEG-017)` | — | cubierto por pruebas o interfaz |
-| **SEG-018** | — | `backend/tests/Feature/Api/SaludTest.php::la_sonda_de_vida_responde_y_no_expone_datos_de_la_sede`<br>`backend/tests/Feature/Api/SaludTest.php::la_preparacion_confirma_los_componentes_de_la_sede`<br>`backend/tests/Feature/Api/SaludTest.php::la_preparacion_senala_el_componente_caido_sin_revelar_el_motivo`<br>`backend/tests/Feature/Api/SaludTest.php::la_sonda_de_vida_responde_aunque_una_dependencia_este_caida`<br>`scripts/verificar-infra.mjs::Las sondas de contenedor leen variables que existen dentro del contenedor (SEG-018)`<br>`scripts/verificar-infra.mjs::La aplicación publica las sondas de salud y preparación (SEG-018)`<br>`scripts/verificar-infra.mjs::La sonda de salud sólo se atiende desde la red interna (SEG-018)`<br>`scripts/verificar-infra.mjs::La sonda de preparación sólo se atiende desde la red interna (SEG-018)`<br>`scripts/verificar-infra.mjs::Las sondas quedan fuera de la API versionada (SEG-018)`<br>`scripts/verificar-infra.mjs::La salud del contenedor se mide con las sondas de la sede (SEG-018)`<br>`scripts/verificar-infra.mjs::En vivo: la sonda de salud responde desde la red interna (SEG-018)`<br>`scripts/verificar-infra.mjs::En vivo: la sonda de preparación responde desde la red interna (SEG-018)`<br>`scripts/verificar-infra.mjs::En vivo: todos los servicios con sonda se declaran sanos (SEG-018)` | — | cubierto por pruebas o interfaz |
+| Criterio | Estado | Evidencia (fichero:línea) |
+|---|---|---|
+| **RT-01** | sin evidencia | — |
+| **RT-02** | sin evidencia | — |
+| **RT-03** | sin evidencia | — |
+| **RT-04** | sin evidencia | — |
+| **RT-05** | sin evidencia | — |
 
-## Criterios sin evidencia registrada
+## O — Obligaciones derivadas
 
-Los siguientes criterios del expediente aún no tienen artefacto que los acredite.
-El listado es la lista de trabajo pendiente, y su reducción es la medida de avance
-hacia la conformidad completa.
+Enunciados en `docs/Sección 1`.
 
-- **ACC-001**
-- **ACC-003**
-- **ACC-004**
-- **ACC-007**
-- **ACC-008**
-- **FUN-005**
-- **FUN-006**
-- **FUN-047**
-- **FUN-049**
-- **FUN-050**
-- **FUN-051**
-- **FUN-052**
-- **O-02**
-- **O-06**
-- **O-09**
-- **O-11**
-- **O-12**
-- **RT-03**
+| Criterio | Estado | Evidencia (fichero:línea) |
+|---|---|---|
+| **O-01** | implementación | `sitio/app/pages/[...ruta].vue:11` |
+| **O-02** | sin evidencia | — |
+| **O-03** | sin evidencia | — |
+| **O-04** | sin evidencia | — |
+| **O-05** | sin evidencia | — |
+| **O-06** | sin evidencia | — |
+| **O-07** | sin evidencia | — |
+| **O-08** | sin evidencia | — |
+| **O-09** | sin evidencia | — |
+| **O-10** | sin evidencia | — |
+| **O-11** | sin evidencia | — |
+| **O-12** | sin evidencia | — |
+| **O-13** | sin evidencia | — |
+| **O-14** | sin evidencia | — |
 
+## ACC — Accesibilidad (citados sin enunciado)
+
+Enunciados en `(sin definir)`.
+
+| Criterio | Estado | Evidencia (fichero:línea) |
+|---|---|---|
+| **ACC-001** | sin evidencia | — |
+| **ACC-002** | sin evidencia | — |
+| **ACC-003** | sin evidencia | — |
+| **ACC-004** | sin evidencia | — |
+| **ACC-007** | sin evidencia | — |
+| **ACC-008** | sin evidencia | — |
+
+## Criterios sin evidencia
+
+La lista de trabajo, por familia. Es la cifra que hay que bajar:
+
+- **FUN** (44): FUN-002, FUN-003, FUN-004, FUN-005, FUN-006, FUN-016, FUN-017, FUN-018, FUN-019, FUN-020, FUN-025, FUN-028, FUN-029, FUN-030, FUN-031, FUN-032, FUN-033, FUN-034, FUN-035, FUN-036, FUN-037, FUN-038, FUN-039, FUN-040, FUN-041, FUN-042, FUN-043, FUN-044, FUN-045, FUN-046, FUN-047, FUN-048, FUN-049, FUN-050, FUN-051, FUN-052, FUN-053, FUN-054, FUN-055, FUN-056, FUN-057, FUN-058, FUN-059, FUN-060
+- **SEG** (16): SEG-001, SEG-002, SEG-003, SEG-004, SEG-005, SEG-007, SEG-008, SEG-009, SEG-010, SEG-011, SEG-012, SEG-013, SEG-014, SEG-015, SEG-016, SEG-017
+- **RT** (5): RT-01, RT-02, RT-03, RT-04, RT-05
+- **O** (13): O-02, O-03, O-04, O-05, O-06, O-07, O-08, O-09, O-10, O-11, O-12, O-13, O-14
+- **ACC** (6): ACC-001, ACC-002, ACC-003, ACC-004, ACC-007, ACC-008
+
+## Cómo se genera
+
+```bash
+make trazabilidad            # o: cd sitio && npm run trazabilidad
+```
+
+El generador (`sitio/scripts/trazabilidad.mjs`) lee el universo de criterios de las
+secciones del expediente, busca cada identificador en `sitio/`, `panel/`, `backend/` y
+`contract/`, y escribe este documento. **No inventa**: lo que no encuentra aparece como
+«sin evidencia».

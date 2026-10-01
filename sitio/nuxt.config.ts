@@ -14,7 +14,12 @@ export default defineNuxtConfig({
   // Renderizado en servidor. Es la razón de ser de esta aplicación.
   ssr: true,
 
-  modules: ['@pinia/nuxt'],
+  /*
+   * Sin módulos de estado. Aquí se registraba `@pinia/nuxt` y el sitio no tiene
+   * ni una tienda: el estado compartido —accesibilidad, consentimiento de
+   * cookies— se resuelve con `useState` de Nuxt, que ya viene con el framework.
+   * Era una dependencia con su runtime cargado a cambio de nada (D-35).
+   */
 
   // Los componentes se usan por su nombre, sin el prefijo de la carpeta.
   //
@@ -35,7 +40,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       // El sitio está íntegramente en castellano, y se declara.
-      htmlAttrs: { lang: 'es' },
+      htmlAttrs: { lang: 'es-CO' }, // Colombia: lo declara ADR-0016
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -89,9 +94,31 @@ export default defineNuxtConfig({
       // La URL de la API la pone el entorno. En producción el sitio y la API
       // comparten origen, así que la ruta relativa es suficiente.
       apiUrl: process.env.SEDE_API_URL ?? '/api/v1',
+      // Lo consumen `robots.txt`, `sitemap.xml` y la URL canónica: detrás de un
+      // proxy, el `Host` que llega al servidor puede ser el interno del
+      // contenedor, y una canónica que anuncie `http://app:3000/` sería peor que
+      // no declarar ninguna (D-29).
       dominio: process.env.SEDE_DOMINIO ?? 'staging.santamarta.gov.co',
+      // Sólo un despliegue que se declare explícitamente indexable lo es. Un
+      // entorno de pruebas que se indexe compite en los buscadores con la sede
+      // real y, peor, publica como oficiales las secciones que aún dicen «en
+      // preparación». El valor lo consumen `robots.txt` y `X-Robots-Tag`.
+      indexable: process.env.SEDE_INDEXABLE === 'true',
     },
   },
+
+  /*
+   * Marcado de indexación por entorno.
+   *
+   * `X-Robots-Tag` es la cabecera que los rastreadores respetan cuando no pueden
+   * leer el `robots.txt` (o cuando llegan por un enlace directo), así que se
+   * envía junto con él y desde la misma variable: una sola decisión, dos
+   * mecanismos. En producción no se envía nada y manda el `robots.txt`.
+   */
+  routeRules:
+    process.env.SEDE_INDEXABLE === 'true'
+      ? {}
+      : { '/**': { headers: { 'X-Robots-Tag': 'noindex, nofollow' } } },
 
   nitro: {
     // Sin mapas de código: revelarían la estructura del servidor.
@@ -100,8 +127,10 @@ export default defineNuxtConfig({
   },
 
   typescript: {
-    // La comprobación de tipos es una puerta aparte, no algo que se cuele en la
-    // compilación de cada cambio.
+    // La comprobación de tipos no se cuela en cada compilación, pero SÍ es una
+    // puerta: `make compilar` ejecuta `nuxt typecheck` aparte. Tenerla apagada
+    // aquí sin ejecutarla en ninguna otra parte convertía cualquier error de
+    // tipos en invisible (hallazgo D-41).
     typeCheck: false,
     strict: true,
   },

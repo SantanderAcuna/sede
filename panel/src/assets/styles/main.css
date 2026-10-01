@@ -25,6 +25,41 @@
     color: #fff;
     font-size: 12px;
   }
+
+  /* «Saltar al contenido principal» (RF-B3-022).
+     Se oculta RECORTÁNDOLO, nunca con `display:none` ni `visibility:hidden`:
+     un elemento que no se pinta tampoco recibe el foco, y el enlace dejaría de
+     existir para quien navega con teclado, que es justo su destinatario. Es la
+     misma técnica que usa el sitio público (allí la aporta Bootstrap). */
+  .salto-contenido {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .salto-contenido:focus {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0.5rem 1rem;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-gov-blue);
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+  }
 }
 
 @media print { .no-print { display: none !important; } }

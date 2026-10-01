@@ -43,7 +43,11 @@ services:
   # Correo de mentira. Todo lo que la sede envíe se puede leer aquí y no sale
   # de la máquina.
   correo:
-    image: axllent/mailpit:latest
+    # Fijada por versión **y** por resumen: `latest` es una etiqueta móvil y este
+    # contenedor recibe el correo de la sede, aunque sea de mentira. Cambiar de
+    # versión es un cambio deliberado, no un efecto de volver a levantar el entorno
+    # (lo comprueba `make imagenes`).
+    image: axllent/mailpit:v1.31.3@sha256:ed9b00c609e77e99c79b93f1178255ebc271868920f2c69a8d166bd5634ed10d
     restart: unless-stopped
     networks: [backend]
     ports:

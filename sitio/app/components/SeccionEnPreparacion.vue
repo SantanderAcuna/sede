@@ -37,7 +37,7 @@ defineProps<{
         </div>
 
         <p class="mt-4 mb-0">
-          <a class="btn btn-outline-primary" href="/">Volver a la portada</a>
+          <NuxtLink class="btn btn-outline-primary" to="/">Volver a la portada</NuxtLink>
         </p>
       </div>
     </div>

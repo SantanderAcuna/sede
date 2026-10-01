@@ -222,6 +222,20 @@ const FORMA_DE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 /** Longitud mínima de la descripción, para que no se envíe una sola palabra. */
 const MINIMO_DE_DESCRIPCION = 10
 
+/**
+ * Tope del objeto de la solicitud.
+ *
+ * **2.000 caracteres, y no 4.000 como decía antes esta página.** Lo fija
+ * RF-B1-031 («objeto (≤2.000 car.)») y lo repiten RF-04-D04 y HU-04-D06, que
+ * además piden contador y bloqueo al superarlo. El límite anterior era el doble
+ * del normativo: un formulario que acepta lo que la norma no admite traslada el
+ * problema a quien después tiene que radicarlo.
+ */
+const MAXIMO_DE_DESCRIPCION = 2000
+
+/** Cuántos caracteres lleva escritos el objeto, para el contador. */
+const caracteresDelObjeto = computed<number>(() => datos.descripcion.length)
+
 function idAyuda(campo: Campo): string {
   return `ayuda-${campo}`
 }
@@ -273,6 +287,10 @@ function validar(): Partial<Record<Campo, string>> {
 
   if (datos.descripcion.trim().length < MINIMO_DE_DESCRIPCION) {
     fallos.descripcion = `Escriba su solicitud con al menos ${MINIMO_DE_DESCRIPCION} caracteres.`
+  } else if (datos.descripcion.length > MAXIMO_DE_DESCRIPCION) {
+    // `maxlength` ya lo impide al escribir; esta comprobación cubre lo que no
+    // pasa por el teclado —un programa, un pegado sin soporte del atributo—.
+    fallos.descripcion = `El objeto de la solicitud no puede pasar de ${MAXIMO_DE_DESCRIPCION} caracteres.`
   }
 
   // En la modalidad anónima no se pide ningún dato de identificación, así que no
@@ -543,18 +561,32 @@ async function enviar(): Promise<void> {
         cada uno dice en texto si está completado, es el actual o está pendiente:
         el estado no se transmite sólo con color.
       -->
+      <!--
+        Línea de avance (CAG-20) con el patrón «Paso N de M» que fija
+        `Sección 3:360`. Los pasos son botones —se puede saltar a cualquiera— y el
+        estado de cada uno se distingue **sin depender del color**: el completado
+        lleva una marca dibujada, el actual va relleno y en negrita, y el pendiente
+        queda en contorno. El estado va además en texto para quien usa lector de
+        pantalla, oculto a la vista porque dentro de la línea sería ruido.
+      -->
       <nav
         ref="refLineaDePasos"
         class="pasos-formulario"
         tabindex="-1"
         :aria-label="`Paso ${pasoActual + 1} de ${totalPasos}: ${pasoVigente?.nombre ?? ''}`"
       >
+        <!--
+          «Paso N de M: Nombre», con los dos puntos y el espacio: es el patrón
+          literal que fija `Sección 3:360` («Paso 1 de 4: Datos del solicitante»),
+          y la puerta de diseño lo comprueba tal cual.
+        -->
         <p class="pasos-encabezado">
-          <strong>Paso {{ pasoActual + 1 }} de {{ totalPasos }}:</strong>
-          {{ pasoVigente?.nombre }}
+          <span class="pasos-cuenta">Paso {{ pasoActual + 1 }} de {{ totalPasos }}: </span>
+          <strong class="pasos-titulo">{{ pasoVigente?.nombre }}</strong>
         </p>
+
         <ol class="pasos-lista">
-          <li v-for="(paso, indice) in PASOS" :key="paso.nombre">
+          <li v-for="(paso, indice) in PASOS" :key="paso.nombre" class="pasos-item">
             <button
               type="button"
               class="paso"
@@ -565,9 +597,26 @@ async function enviar(): Promise<void> {
               :aria-current="indice === pasoActual ? 'step' : undefined"
               @click="saltarAPaso(indice)"
             >
-              <span class="paso-numero" aria-hidden="true">{{ indice + 1 }}</span>
+              <span class="paso-marca" aria-hidden="true">
+                <svg
+                  v-if="indice !== pasoActual && pasoCompleto(indice)"
+                  class="paso-marca-icono"
+                  viewBox="0 0 20 20"
+                  focusable="false"
+                >
+                  <path
+                    d="M4.6 10.4l3.5 3.5 7.3-7.8"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <template v-else>{{ indice + 1 }}</template>
+              </span>
               <span class="paso-nombre">{{ paso.nombre }}</span>
-              <span class="paso-estado">
+              <span class="paso-estado solo-lectores">
                 {{
                   indice === pasoActual
                     ? 'actual'
@@ -650,16 +699,31 @@ async function enviar(): Promise<void> {
               v-model="datos.descripcion"
               class="form-control"
               rows="6"
-              maxlength="4000"
+              :maxlength="MAXIMO_DE_DESCRIPCION"
               required
               :aria-invalid="invalido('descripcion')"
               :aria-describedby="descritoPor('descripcion')"
             ></textarea>
 
-            <p :id="idAyuda('descripcion')" class="texto-ayuda">
-              Escriba lo que solicita con el detalle que necesite para que pueda
-              entenderse y responderse. Máximo 4000 caracteres.
-            </p>
+            <div class="objeto-ayuda">
+              <p :id="idAyuda('descripcion')" class="texto-ayuda">
+                Escriba lo que solicita con el detalle que necesite para que pueda
+                entenderse y responderse.
+              </p>
+              <!--
+                Contador en vivo (HU-04-D06). Se anuncia con `aria-live` sólo al
+                acercarse al tope, para no interrumpir a cada tecla; el número se
+                lee siempre que se consulte el campo, porque está descrito por él.
+              -->
+              <p
+                class="objeto-contador"
+                :class="{ 'objeto-contador-lleno': caracteresDelObjeto > MAXIMO_DE_DESCRIPCION * 0.9 }"
+                aria-hidden="true"
+              >
+                {{ caracteresDelObjeto.toLocaleString('es-CO') }} /
+                {{ MAXIMO_DE_DESCRIPCION.toLocaleString('es-CO') }}
+              </p>
+            </div>
 
             <p
               v-if="errores.descripcion"
@@ -1200,13 +1264,20 @@ async function enviar(): Promise<void> {
   Aviso de radicación. Mismos tokens y mismo criterio de contraste que el aviso de
   `SeccionEnPreparacion`: el amarillo institucional del Kit (`--govcolor-vis-vis`)
   con el Matterhorn para el texto da 7,6:1, por encima del 4,5:1 que exige
-  WCAG 2.1 AA. El filete izquierdo lleva el azul de la Entidad.
+  WCAG 2.1 AA.
+
+  **Sin filete lateral.** Antes llevaba una barra de 6 px a la izquierda, que es el
+  recurso que hace que un aviso parezca una plantilla: el amarillo entero y un
+  borde completo de 1 px —Matterhorn al 35 %, que es un token del Kit y no un color
+  nuevo— dicen lo mismo sin el tic. Lo que separa este aviso del informativo es el
+  amarillo, que está reservado para lo que impide terminar.
 */
 .aviso-radicacion {
   margin-top: 1.5rem;
   margin-bottom: 2rem;
   padding: 1rem 1.25rem;
-  border-left: 6px solid var(--govcolor-cobalt, #0943b5);
+  border: 1px solid rgba(76, 76, 76, 0.35);
+  border-radius: 0.25rem;
   background-color: var(--govcolor-vis-vis, #fee697);
   color: var(--govcolor-matterhorn, #4c4c4c);
 }
@@ -1215,12 +1286,14 @@ async function enviar(): Promise<void> {
   Aviso de tratamiento de datos. El azul claro es el token `--govcolor-solitude`
   del Kit, que con el Matterhorn para el texto da 7,2:1: es un aviso informativo
   y no debe competir con el amarillo, que está reservado para lo que impide
-  terminar.
+  terminar. El borde completo va en el cobalto de la Entidad al 25 %, del mismo
+  token, en lugar del filete lateral que llevaba.
 */
 .aviso-datos {
   margin-top: 1.5rem;
   padding: 1rem 1.25rem;
-  border-left: 4px solid var(--govcolor-cobalt, #0943b5);
+  border: 1px solid rgba(9, 67, 181, 0.25);
+  border-radius: 0.25rem;
   background-color: var(--govcolor-solitude, #e5ecf8);
   color: var(--govcolor-matterhorn, #4c4c4c);
 }
@@ -1310,73 +1383,130 @@ button.btn-govco.boton-enviar {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
 }
-</style>
 
 /* ==========================================================================
    Línea de avance del formulario (RF-B2-077, CAG-20, Sección 3:360)
    ==========================================================================
 
-   Los pasos son botones, no una barra decorativa: CAG-20 permite saltar entre
-   ellos y saltar es lo que deja consultar un paso antes de rellenarlo. El estado
-   de cada uno —actual, completado, pendiente— se dice **en texto**, no sólo con
-   color, porque el color no lo lee todo el mundo.
+   Es una **línea**, no tres píldoras sueltas: los pasos van en fila, unidos por
+   un conector, y el que se está rellenando se distingue por tres cosas a la vez
+   —relleno, peso de letra y el número— para que no dependa del color. El
+   completado lleva una marca dibujada; el pendiente, sólo contorno.
 
-   Contrastes medidos sobre su fondo: cobalto sobre Solitude 7,13:1 (paso actual),
-   Havelock Lue sobre blanco 4,67:1 (completado), Matterhorn sobre blanco 8,59:1
-   (pendiente). Los tres pasan el 4,5:1 de texto normal y el 3:1 del indicador de
-   foco.
+   Área de pulsación de 44 px por paso (CAG-23) y contraste medido: blanco sobre
+   cobalto 8,46:1 en el paso actual, cobalto sobre blanco 8,46:1 en el completado,
+   Matterhorn sobre blanco 8,59:1 en el pendiente.
 */
 .pasos-formulario {
-  margin: 1.5rem 0 0;
+  margin: 1.5rem 0 2rem;
 }
 
 .pasos-encabezado {
-  margin-bottom: 0.75rem;
-  font-size: 1.0625rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  /* El hueco visual lo da el `gap`; el espacio del texto se queda porque es lo
+     que hace que el encabezado diga literalmente «Paso N de M: Nombre». */
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.pasos-cuenta {
+  color: var(--govcolor-matterhorn, #4c4c4c);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pasos-titulo {
+  color: var(--govcolor-cobalt, #0943b5);
+  font-family: 'Nunito_Sans-Bold', system-ui, sans-serif;
+  font-size: 1.125rem;
 }
 
 .pasos-lista {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  align-items: stretch;
   padding-left: 0;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0;
   list-style: none;
+}
+
+.pasos-item {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  min-width: 0;
+}
+
+/* El conector entre pasos: lo que convierte los botones en una línea. */
+.pasos-item + .pasos-item::before {
+  content: '';
+  flex: 0 0 1.25rem;
+  height: 0.125rem;
+  background-color: var(--govcolor-silver, #cccccc);
 }
 
 .paso {
   display: inline-flex;
+  /*
+   * Base 0: lo que se reparte por igual es el **item** de cada paso, que es lo
+   * que fija dónde cae cada marcador. Con `auto`, el paso actual —que va en
+   * negrita— crecía un poco más y los marcadores dejaban de estar a la misma
+   * distancia. El botón de dentro mide lo que le deja el conector (20 px en los
+   * pasos 2 y 3), y eso no se nota porque lo que se lee como línea son los
+   * marcadores.
+   */
+  flex: 1 1 0;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.625rem;
+  min-width: 0;
   min-height: 2.75rem;
-  padding: 0.375rem 0.875rem;
+  padding: 0.5rem 0.875rem;
   border: 0.125rem solid var(--govcolor-silver, #cccccc);
-  border-radius: 1.5rem;
+  border-radius: 0.5rem;
   background-color: var(--govcolor-white, #ffffff);
   color: var(--govcolor-matterhorn, #4c4c4c);
   font-family: 'Nunito_Sans-Regular', system-ui, sans-serif;
   font-size: 0.9375rem;
+  line-height: 1.25;
   text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.paso-numero {
+.paso:hover {
+  border-color: var(--govcolor-havelock-lue, #4672c8);
+}
+
+.paso-marca {
   display: inline-grid;
+  flex: none;
   place-items: center;
   width: 1.75rem;
   height: 1.75rem;
   border: 0.125rem solid currentColor;
   border-radius: 50%;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 
-.paso-estado {
-  font-size: 0.8125rem;
-  text-decoration: underline;
+.paso-marca-icono {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.paso-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .paso-hecho {
-  border-color: var(--govcolor-havelock-lue, #4672c8);
-  color: var(--govcolor-havelock-lue, #4672c8);
+  border-color: var(--govcolor-cobalt, #0943b5);
+  color: var(--govcolor-cobalt, #0943b5);
 }
 
 .paso-actual {
@@ -1386,6 +1516,47 @@ button.btn-govco.boton-enviar {
   font-family: 'Nunito_Sans-Bold', system-ui, sans-serif;
 }
 
+/* El marcador del paso actual va relleno: es la señal que no depende del color. */
+.paso-actual .paso-marca {
+  border-color: var(--govcolor-cobalt, #0943b5);
+  background-color: var(--govcolor-cobalt, #0943b5);
+  color: var(--govcolor-white, #ffffff);
+}
+
+.paso-hecho .paso-marca {
+  border-color: var(--govcolor-cobalt, #0943b5);
+}
+
+/*
+ * En pantallas estrechas la línea completa no cabe sin apretujar los nombres, y
+ * el encabezado ya dice en qué paso se está. Se queda la línea de marcadores
+ * —que es lo que da la posición— y los nombres se ocultan: el nombre del paso
+ * actual sigue visible arriba.
+ */
+@media (max-width: 767.98px) {
+  .paso-nombre {
+    display: none;
+  }
+
+  .paso {
+    justify-content: center;
+    padding: 0.5rem 0.625rem;
+  }
+}
+
+/* Texto sólo para lectores de pantalla: el estado de cada paso, fuera de la vista. */
+.solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .pasos-navegacion {
   display: flex;
   flex-wrap: wrap;
@@ -1393,3 +1564,34 @@ button.btn-govco.boton-enviar {
   margin-top: 1.5rem;
   margin-bottom: 0;
 }
+
+/*
+ * La ayuda del objeto y su contador, en la misma fila: el contador se consulta
+ * mientras se escribe, así que vive pegado al campo y no al final del bloque.
+ */
+.objeto-ayuda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.objeto-ayuda .texto-ayuda {
+  flex: 1 1 18rem;
+}
+
+.objeto-contador {
+  flex: none;
+  margin: 0.375rem 0 0;
+  color: var(--govcolor-matterhorn, #4c4c4c);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Al acercarse al tope, el contador avisa; el color va acompañado del número. */
+.objeto-contador-lleno {
+  color: var(--govcolor-red, #a80521);
+  font-weight: 700;
+}
+</style>

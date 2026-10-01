@@ -220,6 +220,16 @@ const props = withDefaults(defineProps<Props>(), {
       texto: 'Derechos de autor y uso sobre contenidos',
       a: '/politicas/derechos-de-autor-y-uso-sobre-contenidos',
     },
+    /*
+     * El enlace de accesibilidad va **en el pie**, y no es una preferencia de
+     * diseño: lo exige el Anexo 1 §4.3.2(c) —«disponer de un enlace de
+     * accesibilidad ubicado en el footer del home principal, en el que se deberán
+     * indicar las medidas adoptadas… para el cumplimiento de las disposiciones de
+     * accesibilidad»—. El sitio de la Alcaldía que estamos sustituyendo lo tiene
+     * en la cabecera y no en el pie, y su página de accesibilidad no declara nada;
+     * no repetimos ninguna de las dos cosas.
+     */
+    { texto: 'Accesibilidad', a: '/accesibilidad' },
     { texto: 'Mapa del sitio', a: '/mapa-del-sitio' },
   ],
   avisoEnlacesPendientes:

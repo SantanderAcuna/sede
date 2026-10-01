@@ -20,7 +20,7 @@
  * pero un número de días suelto —sin la norma que lo fija ni las excepciones que
  * lo acortan o lo amplían— se lee como una promesa y puede hacer que alguien
  * pierda un derecho por confiar en él. En el apartado «Términos de respuesta» se
- * explica de dónde depende el término y por qué no se publica aquí una cifra.
+ * publica los términos del artículo 14 del CPACA, con la norma a la vista.
  * Cuando el módulo esté integrado, cada acuse de recibo dirá el término que le
  * corresponde a esa solicitud concreta, que es el único sitio donde se puede
  * afirmar sin riesgo.
@@ -204,13 +204,75 @@ const tipos: TipoDeSolicitud[] = [
           tipo de solicitud y de la materia, y lo fija la ley.
         </p>
 
+        <!--
+          Los términos salen del artículo 14 del CPACA (Ley 1437 de 2011), en su
+          texto vigente. Se publican con la norma a la vista porque un plazo sin
+          la norma que lo establece —y sin las excepciones que lo acortan o lo
+          amplían— se lee como una promesa, y una promesa equivocada sobre un
+          término legal puede costarle a alguien un derecho.
+
+          Antes esta página no publicaba ninguna cifra, y era lo correcto
+          mientras no tuviéramos el texto de la norma: los 30, 20 y 35 días que
+          circulan vienen del Decreto 491 de 2020, que estaba derogado por la Ley
+          2207 de 2022 y que además fijaba plazos ampliados por la emergencia
+          sanitaria, no los base. Publicarlos habría sido un error con
+          consecuencias para el ciudadano.
+        -->
+        <div class="table-responsive">
+          <table class="tabla-govco">
+            <caption class="text2-govco">
+              Términos para resolver las peticiones, según el artículo 14 del Código
+              de Procedimiento Administrativo y de lo Contencioso Administrativo
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Tipo de petición</th>
+                <th scope="col">Término para resolver</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Regla general</th>
+                <td>Quince (15) días siguientes a su recepción</td>
+              </tr>
+              <tr>
+                <th scope="row">Peticiones de documentos y de información</th>
+                <td>Diez (10) días</td>
+              </tr>
+              <tr>
+                <th scope="row">Consultas sobre las materias a cargo de la Entidad</th>
+                <td>Treinta (30) días</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="mt-3">
+          Estos términos se cuentan <strong>desde la recepción</strong> de la
+          solicitud, y son días hábiles. La ley prevé además dos reglas que conviene
+          conocer:
+        </p>
+
+        <ul>
+          <li>
+            <strong>Si la petición es de documentos o de información</strong> y no se
+            responde dentro de los diez días, para todos los efectos legales
+            <strong>se entiende aceptada</strong>: la Entidad ya no podrá negar la
+            entrega, y las copias deben entregarse dentro de los tres (3) días
+            siguientes.
+          </li>
+          <li>
+            <strong>Si excepcionalmente no se puede resolver en plazo</strong>, la
+            Entidad debe informarlo <strong>antes</strong> de que venza, explicando
+            los motivos y señalando una fecha razonable, que no puede exceder
+            <strong>el doble</strong> del término inicial.
+          </li>
+        </ul>
+
         <p>
-          Por eso esta página no publica un número de días. Un plazo sin la norma que
-          lo establece —y sin las excepciones que lo acortan o lo amplían— se lee como
-          una promesa, y una promesa equivocada sobre un término legal puede costarle
-          a alguien un derecho. Cuando el módulo de radicación esté integrado, el
-          acuse de recibo de cada solicitud indicará el término que le corresponde, y
-          aquí se publicará la relación completa con la norma en que se apoya cada uno.
+          Para peticiones distintas de las anteriores puede aplicar un término
+          especial fijado por otra ley, que en ese caso prevalece sobre la regla
+          general.
         </p>
 
         <h2 class="h3 mt-5">Qué puede hacer hoy</h2>

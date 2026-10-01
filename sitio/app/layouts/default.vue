@@ -35,6 +35,14 @@ import type { NivelMigaDePan } from '~/components/govco/MigaDePanGovco.vue'
  *  - **Opción 2 (megamenú):** hasta **4 secciones internas** por ítem, con sus
  *    subsecciones. Participa lleva las seis que fija el §4.1.2.3.
  */
+/*
+ * El orden no es estético: lo fija el Anexo 2 §4.1.2.
+ *
+ * Los tres menús mínimos obligatorios son **Transparencia, Servicios a la
+ * Ciudadanía y Participa**, y las opciones adicionales «deberán estar ubicadas
+ * después de los tres menús mínimos obligatorios». PQRSD, Normativa y Noticias
+ * son adicionales, así que van detrás de Participa.
+ */
 const menu: MenuPrincipal = [
   { etiqueta: 'Inicio', ruta: '/' },
   { etiqueta: 'Transparencia y acceso información pública', ruta: '/transparencia' },
@@ -52,9 +60,6 @@ const menu: MenuPrincipal = [
       },
     ],
   },
-  { etiqueta: 'PQRSD', ruta: '/pqrsd' },
-  { etiqueta: 'Normativa', ruta: '/normativa' },
-  { etiqueta: 'Noticias', ruta: '/noticias' },
   {
     etiqueta: 'Participa',
     subsecciones: [
@@ -82,6 +87,10 @@ const menu: MenuPrincipal = [
       },
     ],
   },
+
+  { etiqueta: 'PQRSD', ruta: '/pqrsd' },
+  { etiqueta: 'Normativa', ruta: '/normativa' },
+  { etiqueta: 'Noticias', ruta: '/noticias' },
 ]
 
 /**

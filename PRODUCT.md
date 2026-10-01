@@ -96,7 +96,8 @@ seguimiento de peticiones (PQRSD).
 > **Nota:** esta tabla reproduce el registro **tal y como se encontró** —son los hallazgos antes de
 > corregirlos— y por eso varios ya no describen el estado del código. El estado actual, hallazgo por
 > hallazgo y con su verificación, está en `auditoria-sede.md` (§13 a §19): de los 59 elementos del
-> registro (52 hallazgos y 7 regresiones) quedan **43 cerrados**.
+> registro (52 hallazgos y 7 regresiones) quedan **44 cerrados y 15 abiertos**, con el motivo de
+> cada uno en `auditoria-sede.md` §21.
 
 ### 🔴 Bloqueantes (6)
 

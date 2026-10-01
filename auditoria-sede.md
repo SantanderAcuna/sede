@@ -2229,16 +2229,15 @@ contra el árbol:
 
 | Estado | Cuántos | Cuáles |
 |---|---|---|
-| **Cerrados en código y verificados** | **43** | 36 hallazgos + las 7 regresiones R-01…R-07 |
-| Parciales (parte depende de un tercero o de un acto humano) | 7 | D-03 sugerencias (servicio), D-08 ranking (analítica), D-19 cobertura del 70 %, D-23 declaración firmada, D-25 `<lastmod>` (fechas reales), D-32 tope del menú (CMS), D-33 (verificado en código, sin comprobación visual a 768 px) |
+| **Cerrados en código y verificados** | **44** | 37 hallazgos + las 7 regresiones R-01…R-07 |
+| Parciales (parte depende de un tercero o de un acto humano) | 6 | D-03 sugerencias (servicio), D-08 ranking (analítica), D-23 declaración firmada, D-25 `<lastmod>` (fechas reales), D-32 tope del menú (CMS), D-33 (verificado en código, sin comprobación visual a 768 px) |
 | Bloqueados por contenido o servicios de terceros | 8 | D-07, D-10, D-13, D-15, D-17, D-18, D-44, D-46 |
 | Bloqueado por el contrato | 1 | **D-27**, sólo su mitad de confirmación: la pantalla con radicado necesita un backend que radique (§18) |
 
-**D-27 se resolvió en la mitad que se podía resolver** (§18): los pasos numerados y la línea de
-avance ya están, y la pantalla de confirmación con radicado queda bloqueada por el contrato. Con eso,
-**todos los elementos abiertos del registro dependen de contenido externo, de un servicio de
-terceros, de un acto humano o de la autenticación** —es decir, de nada que se pueda escribir aquí—,
-y el trabajo de código del objetivo está terminado.
+**D-27 se resolvió en la mitad que se podía resolver** (§18) y **D-19 quedó cerrado** con las 112
+pruebas y la cobertura de §20.2. Con eso, **todos los elementos abiertos del registro dependen de
+contenido externo, de un servicio de terceros, de un acto humano o de la autenticación** —es decir,
+de nada que se pueda escribir aquí—. El detalle exacto, al cierre, está en §21.
 
 ---
 
@@ -2308,9 +2307,10 @@ afirmaciones eran falsas**, y las dos del mismo tipo: daban por cubierto lo que 
 | «Los cuatro defectos que sólo aparecieron ejecutando tienen su comprobación en `make diseno`» | **D-37 no tenía ninguna.** La corrección de la tabla del Kit se hizo antes de que existiera la puerta de diseño, y nadie la comprobaba: se podía volver a anidar mal sin que nada lo dijera. |
 | Que un 500 lo cazaría alguna puerta | **Un 5xx no fallaba ninguna.** La de accesibilidad marcaba la página como «no auditada» y seguía en verde: cuando todas las páginas devolvían 500, la puerta no dijo nada. Sólo se notó porque la de diseño no encontraba sus selectores. |
 
-**El recuento sí se sostiene.** Volví a derivarlo: 52 hallazgos + 7 regresiones = 59; abiertos 16
-(7 parciales + 8 de terceros + la confirmación de D-27); cerrados **43**. La cifra del mensaje de
-commit es correcta.
+**El recuento de entonces se sostenía.** Se volvió a derivar: 52 hallazgos + 7 regresiones = 59;
+abiertos 16 (7 parciales + 8 de terceros + la confirmación de D-27); cerrados **43**. Con el cierre
+posterior de D-19 —112 pruebas y la cobertura de §20.2— el recuento final es **44 cerrados y 15
+abiertos** (§21).
 
 ### 19.2 Lo que se corrigió
 
@@ -2387,6 +2387,65 @@ localizador que cogía el botón del buscador en vez del formulario, un evento s
 eso no llegaba a `window`, y una comprobación que daba por abierta la página que dejó la anterior—.
 Se corrigieron las tres, y quedan escritas aquí porque son exactamente el tipo de error que esta
 auditoría le señala al código de producción.
+
+---
+
+## 21. Lo que queda al cierre, y por qué (2026-10-01)
+
+**Recuento final: 44 de los 59 elementos del registro cerrados y verificados; 15 abiertos**, y
+ninguno de los 15 se puede resolver escribiendo código aquí. Esta sección existe porque en el
+informe anterior se dijo «11 hallazgos de contenido y de terceros» y **esa cifra era imprecisa**: el
+número exacto es **13**, más los dos que se detallan aparte. Se corrige aquí, que es donde tiene que
+estar.
+
+### 21.1 D-27, sólo la confirmación con radicado — ⛔ bloqueada por el contrato
+
+La mitad de pasos está cerrada (§18). Lo que falta es la pantalla de resultado de **RF-B1-083**
+(Must): número de radicado, próximos pasos y tiempo estimado.
+
+**No se puede hacer hoy**: el formulario de petición **no radica** —no hay backend que reciba la
+solicitud—, así que **no existe ningún radicado que mostrar**. Una pantalla de confirmación sería un
+número inventado, que es el defecto de D-05 y de D-23 otra vez. **Bloqueada por el contrato**, no por
+decisión de diseño.
+
+### 21.2 Los trece hallazgos que dependen de contenido o de un tercero
+
+| # | Hallazgo | Qué falta | De quién depende |
+|---|---|---|---|
+| 1 | **D-03** Buscador | Sugerencias mientras se escribe y tolerancia a erratas | Servicio de sugerencias |
+| 2 | **D-07** Noticias | Que la portada publique noticias | Contenido de la Entidad |
+| 3 | **D-08** Portada por tareas | El ranking de «más solicitados» | Analítica de uso |
+| 4 | **D-10** Políticas | El documento de las cinco políticas y su acto de adopción | Textos legales de la Entidad |
+| 5 | **D-13** Adjuntos y captcha | Adjuntar archivos y captcha en los formularios | Backend y servicio de captcha |
+| 6 | **D-15** Módulos del panel | Los 18 módulos que hoy son un marcador | CMS y backend |
+| 7 | **D-17** Secciones vacías | Las seis secciones obligatorias que dicen «en preparación» | Contenido de la Entidad |
+| 8 | **D-18** Datos de la Entidad | Que los datos vengan del contrato en vez de estar a mano | `GET /entidad`, que no existe en el contrato |
+| 9 | **D-23** Declaración de conformidad | Firmarla y publicarla con sus doce elementos | Acto humano: la Entidad |
+| 10 | **D-25** `sitemap.xml` | El `<lastmod>` de cada página | Fechas reales de modificación del contenido |
+| 11 | **D-32** Tope del menú | Que el límite se aplique al publicar, no en el navegador | CMS |
+| 12 | **D-44** `/servicios` y `/tramites` | Unificar dos nombres para el mismo destino | Decisión de contenido de la Entidad |
+| 13 | **D-46** Logotipo | Un único activo canónico con sus derivados | Activo oficial de la Entidad |
+
+Los dos que quedan fuera de esa lista:
+
+- **D-27** (arriba): bloqueado por el contrato.
+- **D-33** (panel responsive): **el código está hecho y verificado** —menú móvil, barra que se
+  desplaza, `aria-expanded`—, pero la comprobación **visual** a 768 px no se puede hacer hoy: la
+  guardia de sesión impide abrir el panel sin una autenticación que todavía no existe. Es una
+  verificación pendiente, no un defecto pendiente, y así está declarado.
+
+### 21.3 De RNF-B1-043: HTML/CSS válido y CI/CD
+
+La cobertura del 70 % **sí se alcanza** desde §20.2 (sitio 95,54 % de líneas, panel 70,90 %). Lo que
+sigue **sin acreditarse** del mismo requisito es lo otro:
+
+- **HTML y CSS válidos.** No hay validador en la cadena. El sitio construido pasa axe, y eso mide
+  accesibilidad, no validez de marcado. Añadirlo es una puerta más —`html-validate` o el validador del
+  W3C sobre las 18 páginas— y no se ha hecho.
+- **CI/CD.** No hay integración continua en el repositorio: las puertas existen y se ejecutan a mano
+  (`make comprobar`), pero nadie las ejecuta en cada propuesta de cambio. Hasta que eso exista, una
+  puerta depende de que alguien se acuerde de llamarla, que es exactamente el problema que D-06
+  describía al principio.
 
 ---
 ## Cierre

@@ -133,9 +133,9 @@ paths:
       summary: Catálogo de trámites y servicios
       description: |
         Devuelve los trámites **publicados**. Un trámite sin alguno de sus seis
-        atributos obligatorios no se publica, de modo que lo que devuelve esta
-        operación siempre está completo.
-      x-status: pending
+        atributos obligatorios —o sin su ficha en GOV.CO— no se publica, de modo
+        que lo que devuelve esta operación siempre está completo.
+      x-status: implemented
       x-criterios: [FUN-001, FUN-021, FUN-022, RN-01]
       parameters:
         - $ref: '#/components/parameters/Pagina'
@@ -155,14 +155,7 @@ paths:
           description: Colección paginada de trámites
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedEnvelope'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items: { $ref: '#/components/schemas/TramiteItem' }
+              schema: { $ref: '#/components/schemas/TramiteCollection' }
               examples:
                 paginada:
                   summary: Primera página de trámites
@@ -175,15 +168,26 @@ paths:
                         slug: certificado-de-residencia
                         nombre: Certificado de residencia
                         resumen: Acredita el domicilio del solicitante en el Distrito.
+                        url_ficha_gov_co: https://www.gov.co/ficha-tramites-y-servicios/T66256
+                        procedencia:
+                          fuente: SUIT — Función Pública (entidad 0043)
+                          url: https://www.funcionpublica.gov.co/es/suit/buscador-de-tramites
+                          obtenido_en: '2026-09-30'
+                          nota: null
                         modalidad: en_linea
                         tiene_costo: gratuito
                         tiempo_solucion_dias: 5
                         canal_inicio: propio
                         url_inicio: /tramites/certificado-de-residencia/iniciar
-                        consulta_estado: /seguimiento
-                        categoria:
-                          slug: certificados
-                          nombre: Certificados
+                        consulta_estado: /seguimiento?radicado=…
+                        requisitos:
+                          - descripcion: Los que declara la ficha oficial del trámite en GOV.CO.
+                            obligatorio: true
+                        documentos:
+                          - nombre: Ficha oficial del trámite en GOV.CO (SUIT)
+                            url: https://www.gov.co/ficha-tramites-y-servicios/T66256
+                            formato: HTML
+                        categoria: null
                     meta:
                       current_page: 1
                       from: 1
@@ -211,7 +215,7 @@ paths:
         La ficha declara siempre sus seis atributos obligatorios: modalidad,
         costo, tiempo de solución, canal de inicio, mecanismo de consulta del
         estado y documentos o requisitos.
-      x-status: pending
+      x-status: implemented
       x-criterios: [FUN-021, FUN-023, FUN-024, CAG-20]
       parameters:
         - name: slug
@@ -298,7 +302,11 @@ components:
       properties:
         success: { type: boolean }
         message: { type: [string, 'null'] }
-        data: { type: [object, 'null'] }
+        # `data` es objeto en un recurso individual y arreglo en una colección;
+        # declararlo sólo como objeto dejaba inválida toda respuesta de
+        # colección, porque `PaginatedEnvelope` compone este esquema y a la vez
+        # exige que `data` sea un arreglo.
+        data: { type: [object, array, 'null'] }
         errors: { type: [object, 'null'] }
 
     PaginatedEnvelope:
@@ -408,17 +416,28 @@ components:
         - tiene_costo
         - tiempo_solucion_dias
         - canal_inicio
+        - consulta_estado
+        - requisitos
+        - url_ficha_gov_co
       description: |
         Los seis atributos obligatorios de un trámite son `modalidad`,
         `tiene_costo`, `tiempo_solucion_dias`, `canal_inicio`, `consulta_estado`
         y `requisitos`. Sin ellos el trámite no se publica, de modo que los campos
         marcados como requeridos siempre viajan.
+
+        La misma regla alcanza a `url_ficha_gov_co`: el Anexo 2.1 de la Guía de
+        diseño para sedes electrónicas hace que el nombre del trámite lleve a su
+        ficha en GOV.CO, y un trámite sin ficha no tiene a dónde llevar. No se
+        publica, exactamente igual que este contrato no publica un recurso al que
+        le falte un atributo obligatorio.
       properties:
         id: { type: integer }
         type: { type: string, const: tramites }
         slug: { type: string }
         nombre: { type: string }
         resumen: { type: [string, 'null'] }
+        url_ficha_gov_co: { type: string, format: uri }
+        procedencia: { $ref: '#/components/schemas/TramiteProcedencia' }
         modalidad:
           type: string
           enum: [en_linea, parcialmente_en_linea, presencial]
@@ -433,19 +452,37 @@ components:
           type: string
           enum: [propio, portal_nacional]
         url_inicio: { type: [string, 'null'] }
-        consulta_estado: { type: [string, 'null'] }
+        consulta_estado: { type: string }
         requisitos:
           type: array
           items: { $ref: '#/components/schemas/TramiteRequisito' }
         documentos:
           type: array
           items: { $ref: '#/components/schemas/TramiteDocumento' }
-        categoria: { $ref: '#/components/schemas/TramiteCategoria' }
+        categoria:
+          description: |
+            La fuente oficial de la que se siembra el catálogo no clasifica los
+            trámites por categoría. Mientras la Entidad no las declare, el campo
+            viaja en `null`: inventar la clasificación sería tan falso como
+            inventar el trámite.
+          oneOf:
+            - $ref: '#/components/schemas/TramiteCategoria'
+            - type: 'null'
         pasos:
           type: array
           items: { $ref: '#/components/schemas/TramitePaso' }
         publicado_en: { type: [string, 'null'], format: date-time, readOnly: true }
         actualizado_en: { type: [string, 'null'], format: date-time, readOnly: true }
+
+    TramiteCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/TramiteItem' }
 
     TramiteCategoria:
       type: object
@@ -477,18 +514,48 @@ components:
         titulo: { type: string }
         descripcion: { type: [string, 'null'] }
 
+    # La procedencia de los datos de un trámite.
+    #
+    # Existe por una razón concreta y no de estilo: el catálogo se siembra desde
+    # la fuente oficial del Estado —SUIT, a través de GOV.CO— y quien lee la sede
+    # tiene derecho a saber de dónde salió lo que se le publica y cuándo se
+    # obtuvo (Ley 1712 de 2014, artículo 11.b). Publicar un dato sembrado como si
+    # la Entidad lo hubiera ratificado es la misma clase de mentira que publicar
+    # un trámite inventado, y sin este campo la sede no puede distinguir los dos
+    # casos ni el ciudadano puede comprobarlos.
+    #
+    # Es opcional a propósito: un trámite cargado a mano en el CMS no tiene
+    # fuente externa que declarar, y obligarlo a inventar una sería peor que su
+    # ausencia.
+    TramiteProcedencia:
+      type: object
+      required: [fuente, obtenido_en]
+      properties:
+        fuente: { type: string, maxLength: 120 }
+        url: { type: [string, 'null'], format: uri }
+        obtenido_en: { type: string, format: date }
+        nota: { type: [string, 'null'], maxLength: 500 }
+
     TramiteInput:
       type: object
-      required: [nombre, modalidad, tiene_costo, tiempo_solucion_dias, canal_inicio]
+      required:
+        - nombre
+        - modalidad
+        - tiene_costo
+        - tiempo_solucion_dias
+        - canal_inicio
+        - consulta_estado
+        - url_ficha_gov_co
       properties:
         nombre: { type: string, maxLength: 200 }
         slug: { type: string, maxLength: 160 }
         resumen: { type: [string, 'null'], maxLength: 500 }
+        url_ficha_gov_co: { type: string, format: uri, maxLength: 500 }
         modalidad: { type: string, enum: [en_linea, parcialmente_en_linea, presencial] }
         tiene_costo: { type: string, enum: [gratuito, con_costo] }
         costo: { type: [string, 'null'], maxLength: 30 }
         tiempo_solucion_dias: { type: integer, minimum: 0 }
         canal_inicio: { type: string, enum: [propio, portal_nacional] }
         url_inicio: { type: [string, 'null'], maxLength: 500 }
-        consulta_estado: { type: [string, 'null'], maxLength: 500 }
+        consulta_estado: { type: string, maxLength: 500 }
         categoria_slug: { type: [string, 'null'], maxLength: 120 }

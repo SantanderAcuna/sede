@@ -15,26 +15,36 @@
  * hacer scroll», que es la razón de que todo lo que va por encima de la lista
  * —título, selector de grupo, filtros y contador— sea deliberadamente compacto.
  *
- * **Por qué el catálogo está vacío.** No es un olvido ni un hueco de maqueta: la
- * Entidad todavía no ha entregado sus trámites y el sistema de gestión de
- * contenidos no está hecho. El contrato ya define `GET /tramites`
- * (`contract/openapi.yaml`) y el backend todavía no lo sirve, así que hoy no hay
- * ningún catálogo que consultar. Un trámite inventado no es relleno: es un
- * procedimiento con requisitos, costo y plazo que nadie ha aprobado, y el
- * ciudadano decide sobre esa información como si fuera oficial. Inventarlo en una
- * sede electrónica es publicar información oficial falsa. Por eso aquí se publica
- * **la interfaz completa con su estado vacío honesto**, y no una galería de
- * ejemplo.
+ * **De dónde sale el catálogo.** De `GET /tramites` del contrato
+ * (`contract/openapi.yaml`), que es la única fuente de verdad del intercambio
+ * entre el backend y el sitio. Lo que la galería dibuja es lo que esa operación
+ * devuelve, y nada más: un trámite no es relleno, es un procedimiento con
+ * requisitos, costo y plazo, y el ciudadano decide sobre esa información como si
+ * fuera oficial. Inventarlo en una sede electrónica es publicar información
+ * oficial falsa, así que aquí sólo se publica lo que la Entidad tiene publicado.
  *
- * El filtro, el buscador, el contador y la paginación **funcionan de verdad**
- * sobre la lista: en cuanto la lista tenga elementos, todo lo demás ya trabaja.
+ * **La paginación y la búsqueda son del servidor, y el contrato lo dice.** El
+ * contrato declara `page` y `per_page` —con 100 como máximo— y devuelve el sobre
+ * `meta` con las siete claves del paginador, así que la página pide **una página
+ * cada vez** en lugar de traerse el catálogo entero para trocearlo aquí: con 123
+ * trámites publicados, y un catálogo que crece, traerse todo en cada visita para
+ * enseñar seis es pagar por lo que no se ve. Por la misma razón `buscar` y
+ * `categoria` viajan como parámetros: filtrar en el navegador sobre la página
+ * recibida devolvería «0 resultados» para un trámite que sí existe en la página
+ * siguiente, que es peor que no ofrecer el filtro. El repositorio del backend
+ * busca además contra el texto normalizado —sin tildes—, de modo que quien
+ * escribe «areas» encuentra «áreas».
  *
- * **Cómo entra el catálogo.** Cuando la Entidad entregue los datos, esta
- * constante se sustituye por la lectura del catálogo publicado —
- * `useAsyncData('tramites', () => $fetch('/api/v1/tramites'))` sobre
- * `GET /tramites` del contrato — mapeando cada elemento de la API a
- * `TramiteCatalogo`. Nada más de esta página hay que tocar.
+ * **Los tres estados se distinguen, y ninguno miente.** Si la API no responde,
+ * la página lo dice y ofrece reintentar; no cae, y sobre todo no finge un vacío:
+ * «todavía no hay trámites publicados» es un enunciado sobre la Entidad, y
+ * decirlo cuando lo que pasa es que el servidor no contesta sería mentir. Los
+ * dos vacíos que ya existían siguen separados por la misma razón: que la Entidad
+ * no tenga nada publicado en el grupo es un hecho suyo, y que una búsqueda no
+ * encuentre nada es un hecho del filtro.
  */
+import type { components } from '~~/types/openapi'
+
 useHead({
   title: 'Trámites y servicios · Sede Electrónica',
   meta: [
@@ -75,14 +85,50 @@ interface Grupo {
   descripcion: string
 }
 
+interface CategoriaCatalogo {
+  slug: string
+  nombre: string
+}
+
+/**
+ * Un trámite del contrato, tal como viaja por la API.
+ *
+ * Es el tipo generado desde `contract/openapi.yaml` —el archivo no se escribe a
+ * mano— para que la forma del elemento no se pueda desincronizar del contrato
+ * sin que el compilador lo diga.
+ */
+type TramiteApi = components['schemas']['TramiteItem']
+
+/**
+ * Lo que esta página lee del sobre de `GET /tramites`.
+ *
+ * Las dos claves que se usan —los elementos y el paginador— son las del
+ * contrato, tomadas del mismo archivo generado. El sobre **no** se declara con
+ * `TramiteCollection` por un defecto medido de la generación: `ApiEnvelope.data`
+ * está declarado como `object | array | null` y `TramiteCollection` compone tres
+ * esquemas que vuelven a redeclararlo, así que para TypeScript `data` acaba
+ * siendo `unknown[]` y cada elemento habría que forzarlo con un `as` —que es
+ * justo lo que aquí no se quiere—. Declarar sólo lo que se lee deja el resto del
+ * sobre donde tiene que estar: en el contrato.
+ */
+interface RespuestaCatalogo {
+  data: TramiteApi[]
+  meta: components['schemas']['PageMeta']
+}
+
 /** Un elemento de la galería. */
 interface TramiteCatalogo {
   /** Identificador estable del catálogo; es la clave de la lista. */
   slug: string
-  grupo: GrupoCatalogo
   nombre: string
   descripcion: string
-  categoria: CategoriaCatalogo
+  /**
+   * Clasificación del trámite, si la Entidad la ha declarado. Es **opcional** y
+   * no un valor de relleno: el contrato la declara nula mientras la Entidad no
+   * la declare, y ponerle una inventada aquí sería tan falso como inventarse el
+   * trámite.
+   */
+  categoria?: CategoriaCatalogo
   /**
    * Ficha del elemento en GOV.CO (SUIT). **Obligatoria por el Anexo**: es el
    * destino del clic en el nombre. Un elemento sin ficha en GOV.CO no se
@@ -95,14 +141,15 @@ interface TramiteCatalogo {
   urlTramiteEnLinea?: string
 }
 
-interface CategoriaCatalogo {
-  slug: string
-  nombre: string
-}
-
 interface EstadoVacio {
   titulo: string
   detalle: string
+  /**
+   * Si el vacío habla de la Entidad —no hay nada publicado— o del filtro —la
+   * búsqueda no encontró nada—. El aviso amarillo institucional se reserva para
+   * el primero.
+   */
+  esPublicacion: boolean
 }
 
 /** Hueco de la paginación: o un número de página o los puntos suspensivos. */
@@ -139,12 +186,18 @@ const GRUPOS: Record<GrupoCatalogo, Grupo> = {
 const ORDEN_GRUPOS: readonly GrupoCatalogo[] = ['tramites', 'opa', 'consultas']
 
 /**
- * El catálogo. Hoy vacío, y a propósito: ver la cabecera de este archivo. Todo
- * lo que hay debajo —filtro por categoría, buscador, contador, paginación—
- * trabaja sobre esta lista, así que la página ya está lista para recibir los
- * datos.
+ * Los grupos que el catálogo público sirve hoy.
+ *
+ * `GET /tramites` no tiene parámetro de grupo —el contrato no declara ninguno— y
+ * la fuente oficial de la que la Entidad siembra su catálogo, SUIT, sólo
+ * clasifica trámites: lo que esa operación devuelve son trámites y nada más. Los
+ * otros dos grupos que el Anexo manda visualizar —OPA y consultas de acceso a
+ * información pública— no tienen todavía nada que publicar, y la página lo dice
+ * con su estado vacío en vez de repartirles una clasificación que la Entidad no
+ * ha declarado. Cuando el contrato tenga con qué distinguirlos, esta constante
+ * es lo único que hay que cambiar aquí.
  */
-const catalogo: TramiteCatalogo[] = []
+const GRUPOS_PUBLICADOS: readonly GrupoCatalogo[] = ['tramites']
 
 /**
  * Seis elementos por página. Es el tamaño con el que el catálogo no se convierte
@@ -152,6 +205,9 @@ const catalogo: TramiteCatalogo[] = []
  * compacta —título, descripción y botón— la primera cabe holgadamente por
  * encima del pliegue de una pantalla de 800 px de alto, que es lo que el Anexo
  * exige («se visualice al menos un resultado sin necesidad de hacer scroll»).
+ *
+ * Viaja como `per_page` en cada petición: el troceado lo hace el servidor, no el
+ * navegador.
  */
 const TAMANO_PAGINA = 6
 
@@ -184,65 +240,162 @@ const pagina = ref(1)
 const claveBuscador = ref(0)
 
 // ---------------------------------------------------------------------------
+// Lectura del catálogo
+// ---------------------------------------------------------------------------
+
+/**
+ * La URL base de la API. En producción el sitio y la API comparten origen, así
+ * que la ruta relativa que trae `runtimeConfig` basta; cuando no, se apunta al
+ * origen donde esté la API. Se le quita la barra final para no acabar pidiendo
+ * `//tramites`.
+ */
+const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
+
+/** Si el grupo activo es uno de los que el catálogo público sirve hoy. */
+const grupoPublicado = computed<boolean>(() => GRUPOS_PUBLICADOS.includes(grupoActivo.value))
+
+/**
+ * La colección vacía con la que responde un grupo que el catálogo todavía no
+ * sirve, sin gastar una petición: la respuesta está decidida de antemano. `path`
+ * va vacío porque no hay petición que lo haya producido; el resto son los
+ * valores que el contrato da a una colección sin elementos.
+ */
+const COLECCION_VACIA: RespuestaCatalogo = {
+  data: [],
+  meta: {
+    current_page: 1,
+    from: null,
+    last_page: 1,
+    path: '',
+    per_page: TAMANO_PAGINA,
+    to: null,
+    total: 0,
+  },
+}
+
+/**
+ * `useRequestFetch` y no `$fetch` a secas: durante el renderizado en servidor
+ * resuelve la ruta relativa contra la petición en curso, y la URL por defecto del
+ * sitio —`/api/v1`— es relativa, porque en producción el sitio y la API comparten
+ * origen. Con `$fetch` a secas, el servidor no tendría contra qué resolverla.
+ */
+const traer = useRequestFetch()
+
+/**
+ * El catálogo: una petición por página, término y categoría.
+ *
+ * El contrato declara `page`, `per_page`, `buscar` y `categoria`, así que el
+ * troceado y el filtrado los hace el servidor. Traerse el catálogo entero para
+ * hacerlo aquí sería hacer el trabajo dos veces —y la segunda con la copia peor:
+ * la que no ve lo que no se ha traído—.
+ */
+const { data, status, refresh } = await useAsyncData<RespuestaCatalogo>(
+  'tramites-catalogo',
+  async () => {
+    if (!grupoPublicado.value) return COLECCION_VACIA
+
+    const consulta: Record<string, string | number> = {
+      page: pagina.value,
+      per_page: TAMANO_PAGINA,
+    }
+    // Una cadena vacía no es un filtro: el contrato la trata como ausente. No se
+    // manda igualmente porque una URL con `?buscar=` afirma que alguien buscó, y
+    // el servidor devolvería el catálogo entero bajo esa apariencia.
+    if (terminoAplicado.value !== '') consulta.buscar = terminoAplicado.value
+    if (categoriaElegida.value !== '') consulta.categoria = categoriaElegida.value
+
+    return await traer<RespuestaCatalogo>(`${urlApi}/tramites`, { query: consulta })
+  },
+  { watch: [pagina, terminoAplicado, categoriaElegida, grupoActivo] },
+)
+
+// ---------------------------------------------------------------------------
 // Derivados
 // ---------------------------------------------------------------------------
 
 const grupo = computed<Grupo>(() => GRUPOS[grupoActivo.value])
 
-/** Elementos del grupo activo, antes de filtrar. */
-const delGrupo = computed<TramiteCatalogo[]>(() =>
-  catalogo.filter((elemento) => elemento.grupo === grupoActivo.value),
+/** Los elementos de la página recibida, ya en la forma que usa la galería. */
+const elementos = computed<TramiteCatalogo[]>(() => (data.value?.data ?? []).map(aCatalogo))
+
+/** El total de la consulta entera —no el de la página—, tal como lo da el sobre. */
+const totalResultados = computed<number>(() => data.value?.meta.total ?? 0)
+
+const totalPaginas = computed<number>(() => Math.max(1, data.value?.meta.last_page ?? 1))
+
+/** La página pedida, siempre dentro del total: al filtrar puede quedar fuera. */
+const paginaActual = computed<number>(() => Math.min(Math.max(pagina.value, 1), totalPaginas.value))
+
+/**
+ * Mientras se pide una página nueva —o al cambiar el término— lo que hay en
+ * `data` es todavía la respuesta anterior: enseñarla junto al recuento nuevo
+ * sería decir que ese recuento describe esa lista. Por eso la carga ocupa el
+ * sitio de la galería en vez de convivir con ella.
+ */
+const cargando = computed<boolean>(() => status.value === 'pending' || status.value === 'idle')
+
+const fallo = computed<boolean>(() => status.value === 'error')
+
+/**
+ * Sin respuesta buena no hay páginas que ofrecer. La paginación se sigue
+ * dibujando —el Anexo la pide como parte del mecanismo de acceso— pero con los
+ * dos extremos apagados, en vez de invitar a pulsar sobre un catálogo que no se
+ * ha podido leer.
+ */
+const hayAnterior = computed<boolean>(
+  () => !cargando.value && !fallo.value && paginaActual.value > 1,
+)
+
+const haySiguiente = computed<boolean>(
+  () => !cargando.value && !fallo.value && paginaActual.value < totalPaginas.value,
 )
 
 /**
- * Categorías que ofrece el desplegable: las que de verdad tienen elementos en el
- * grupo activo. No se declara ninguna lista de categorías —el Anexo no las fija
- * y la Entidad no las ha entregado—, así que el desplegable no puede ofrecer
- * una categoría que no exista.
+ * Las categorías que ofrece el desplegable.
+ *
+ * El contrato permite filtrar por `categoria`, pero **no tiene ninguna operación
+ * que las enumere**: la única fuente son los elementos ya recibidos, y por eso
+ * esta lista es parcial —sólo puede ofrecer las categorías que declaren los
+ * elementos de las páginas ya consultadas—. Se van **acumulando**, además,
+ * porque derivarlas sólo de la respuesta en curso haría que elegir una categoría
+ * borrara del desplegable todas las demás —la respuesta filtrada ya no las
+ * trae—, que es justo lo contrario de lo que un desplegable sirve.
+ *
+ * Enumerarlas todas exigiría traerse el catálogo entero en cada visita, que es
+ * exactamente lo que la paginación del servidor evita; lo que hace falta es una
+ * operación del contrato que las liste —o un `meta` que las traiga—. Mientras no
+ * exista, esto es lo único que se puede ofrecer sin inventar ni pagar de más.
+ *
+ * Hoy no aparece ninguna, y no es un hueco: el propio contrato lo dice —«la
+ * fuente oficial de la que se siembra el catálogo no clasifica los trámites por
+ * categoría»—, así que el desplegable ofrece «Todas las categorías» y nada más.
+ * La lista no se inventa: se enseña la que la Entidad declare.
  */
-const categorias = computed<CategoriaCatalogo[]>(() => {
-  const porSlug = new Map<string, CategoriaCatalogo>()
-  for (const elemento of delGrupo.value) {
-    if (!porSlug.has(elemento.categoria.slug)) {
-      porSlug.set(elemento.categoria.slug, elemento.categoria)
+const categorias = ref<CategoriaCatalogo[]>([])
+
+watch(
+  elementos,
+  (lista) => {
+    const porSlug = new Map(categorias.value.map((categoria) => [categoria.slug, categoria]))
+    let nueva = false
+    for (const elemento of lista) {
+      const categoria = elemento.categoria
+      if (categoria !== undefined && !porSlug.has(categoria.slug)) {
+        porSlug.set(categoria.slug, categoria)
+        nueva = true
+      }
     }
-  }
-  return [...porSlug.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-})
-
-/**
- * Resultados tras aplicar categoría y término. El término se compara sin
- * mayúsculas ni tildes porque el ciudadano escribe «tramite» y el catálogo dice
- * «trámite»; exigirle la tilde para encontrar lo que busca sería una barrera de
- * accesibilidad, no un filtro. Se busca en nombre y descripción, igual que el
- * parámetro `buscar` del contrato.
- */
-const resultados = computed<TramiteCatalogo[]>(() => {
-  const buscado = normalizar(terminoAplicado.value)
-  return delGrupo.value.filter((elemento) => {
-    if (categoriaElegida.value !== '' && elemento.categoria.slug !== categoriaElegida.value) {
-      return false
+    if (nueva) {
+      categorias.value = [...porSlug.values()].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, 'es'),
+      )
     }
-    if (buscado === '') return true
-    return (
-      normalizar(elemento.nombre).includes(buscado) ||
-      normalizar(elemento.descripcion).includes(buscado)
-    )
-  })
-})
+  },
+  { immediate: true },
+)
 
-const totalPaginas = computed(() => Math.max(1, Math.ceil(resultados.value.length / TAMANO_PAGINA)))
-
-/** La página pedida, siempre dentro del total: al filtrar puede quedar fuera. */
-const paginaActual = computed(() => Math.min(Math.max(pagina.value, 1), totalPaginas.value))
-
-const resultadosDeLaPagina = computed<TramiteCatalogo[]>(() => {
-  const desde = (paginaActual.value - 1) * TAMANO_PAGINA
-  return resultados.value.slice(desde, desde + TAMANO_PAGINA)
-})
-
-/** Nombre de la categoría elegida, si sigue existiendo en el grupo activo. */
-const nombreCategoriaElegida = computed(() => {
+/** Nombre de la categoría elegida, si sigue existiendo entre las conocidas. */
+const nombreCategoriaElegida = computed<string>(() => {
   const encontrada = categorias.value.find((categoria) => categoria.slug === categoriaElegida.value)
   return encontrada?.nombre ?? ''
 })
@@ -261,9 +414,17 @@ const hayFiltros = computed(
  * Va en una línea y no en dos —el recuento arriba y el tramo visible debajo—
  * porque cada línea de más por encima de la lista empuja el primer resultado
  * fuera de la pantalla, que es lo que el Anexo prohíbe.
+ *
+ * El total y el tramo son los del sobre —`meta.total`, `meta.from`, `meta.to`—
+ * y no los de la lista dibujada: con la paginación en el servidor, «de 6» sería
+ * el número de la página, y al ciudadano lo que le interesa saber es cuántos
+ * trámites hay en total.
  */
 const resumenResultados = computed<string>(() => {
-  const total = resultados.value.length
+  if (cargando.value) return 'Cargando el catálogo…'
+  if (fallo.value) return 'No se pudo cargar el catálogo de trámites.'
+
+  const total = totalResultados.value
   const clausulas: string[] = []
   if (terminoAplicado.value !== '') clausulas.push(`para «${terminoAplicado.value}»`)
   if (nombreCategoriaElegida.value !== '') {
@@ -274,27 +435,35 @@ const resumenResultados = computed<string>(() => {
 
   if (total <= 1) return `${cuenta}${contexto} en ${grupo.value.nombre}.`
 
-  const desde = (paginaActual.value - 1) * TAMANO_PAGINA + 1
-  const hasta = Math.min(paginaActual.value * TAMANO_PAGINA, total)
+  const desde = data.value?.meta.from ?? 1
+  const hasta = data.value?.meta.to ?? total
   return `Mostrando ${desde} a ${hasta} de ${cuenta}${contexto} en ${grupo.value.nombre}.`
 })
 
 /**
  * El estado vacío dice dos cosas distintas según por qué no hay nada, y no se
- * confunden: que el catálogo no esté publicado es un hecho de la Entidad; que
- * una búsqueda no encuentre nada es un hecho del filtro.
+ * confunden: que la Entidad no tenga nada publicado es un hecho de la Entidad;
+ * que una búsqueda no encuentre nada es un hecho del filtro.
+ *
+ * El primero alcanza también al grupo que el catálogo público todavía no sirve
+ * —hoy OPA y consultas—: ahí lo cierto es que no hay nada publicado, no que una
+ * búsqueda haya fallado.
  */
 const estadoVacio = computed<EstadoVacio>(() => {
-  if (delGrupo.value.length === 0) {
+  const sinPublicar = !grupoPublicado.value || (!hayFiltros.value && totalResultados.value === 0)
+
+  if (sinPublicar) {
     return {
       titulo: 'Todavía no hay trámites publicados en esta sección.',
       detalle:
-        'Aquí se publicarán los trámites, los OPA y las consultas de acceso a información pública con la ficha de cada uno: qué es, quién puede solicitarlo, requisitos, costo, tiempo de respuesta y el enlace para iniciarlo. Mientras la Entidad no entregue el catálogo, esta sede no publica ninguno: un trámite inventado daría por ciertos unos requisitos, un costo y un plazo que nadie ha aprobado.',
+        'Esta sección publica lo que la Entidad tiene disponible, con la ficha de cada uno: qué es, quién puede solicitarlo, requisitos, costo, tiempo de respuesta y el enlace para iniciarlo. Mientras no haya nada publicado aquí, la sede no muestra ningún trámite de ejemplo: uno inventado daría por ciertos unos requisitos, un costo y un plazo que nadie ha aprobado.',
+      esPublicacion: true,
     }
   }
   return {
     titulo: 'No hay resultados para esta búsqueda.',
     detalle: 'Pruebe con otras palabras, elija otra categoría o limpie los filtros.',
+    esPublicacion: false,
   }
 })
 
@@ -327,20 +496,43 @@ const paginasVisibles = computed<HuecoPaginacion[]>(() => {
 })
 
 // ---------------------------------------------------------------------------
-// Acciones
+// Mapeo del contrato a la galería
 // ---------------------------------------------------------------------------
 
 /**
- * Texto comparable: sin tildes y en minúsculas. Se usa `normalize('NFD')` y se
- * quitan los diacríticos que la descomposición deja sueltos.
+ * Lo que el contrato deja en blanco: `null`, la clave ausente y la cadena vacía
+ * dicen lo mismo —que no hay valor— y en la galería los tres son la misma cosa,
+ * `undefined`. Así el botón «Trámite en línea» se decide con una sola
+ * comprobación y no con tres.
  */
-function normalizar(texto: string): string {
+function opcional(texto: string | null | undefined): string | undefined {
+  if (texto === null || texto === undefined || texto === '') return undefined
   return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
 }
+
+/**
+ * Un trámite del contrato, en la forma que usa la galería.
+ *
+ * El contrato viaja en `snake_case` —es el intercambio HTTP— y la página trabaja
+ * en `camelCase`, así que esta función es la única frontera entre los dos. Es
+ * una traducción de nombres y nada más: no completa huecos, no inventa
+ * categorías y no rellena `url_inicio`. Lo que el catálogo no trae, no se
+ * dibuja.
+ */
+function aCatalogo(elemento: TramiteApi): TramiteCatalogo {
+  return {
+    slug: elemento.slug,
+    nombre: elemento.nombre,
+    descripcion: elemento.resumen ?? '',
+    categoria: elemento.categoria ?? undefined,
+    urlFichaGovCo: elemento.url_ficha_gov_co,
+    urlTramiteEnLinea: opcional(elemento.url_inicio),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Acciones
+// ---------------------------------------------------------------------------
 
 /** Cambiar de filtro devuelve a la primera página: la actual puede no existir ya. */
 function alBuscar(termino: string): void {
@@ -377,6 +569,15 @@ function limpiarFiltros(): void {
 
 function irAPagina(numero: number): void {
   pagina.value = Math.min(Math.max(numero, 1), totalPaginas.value)
+}
+
+/**
+ * Volver a pedir el catálogo después de un fallo, con los mismos filtros y la
+ * misma página: es lo que el ciudadano espera de un «Reintentar», y no que le
+ * devuelva la primera página de todo.
+ */
+function reintentar(): void {
+  void refresh()
 }
 </script>
 
@@ -471,9 +672,40 @@ function irAPagina(numero: number): void {
       </button>
     </div>
 
+    <!--
+      Los resultados, y lo que ocupa su sitio cuando no los hay. Los tres estados
+      van separados y en este orden: la carga tapa la galería —lo que hay en
+      `data` mientras se pide una página nueva es la respuesta anterior, y su
+      recuento ya no describe lo que se está pidiendo—, el fallo se declara en
+      vez de disfrazarse de vacío, y sólo con una respuesta buena y sin elementos
+      se habla de vacío.
+    -->
+    <p v-if="cargando" class="estado-vacio mt-2">Cargando el catálogo…</p>
+
+    <!--
+      Que la API no conteste no es que no haya trámites. Se dice lo que ha pasado
+      —la sede no pudo leer su catálogo— y se ofrece volver a intentarlo, en vez
+      de dejar al ciudadano creyendo que la Entidad no tiene nada publicado. Va
+      con `role="alert"` para que se anuncie en cuanto aparece.
+    -->
+    <div v-else-if="fallo" class="estado-vacio estado-vacio-error mt-2" role="alert">
+      <p class="estado-vacio-titulo mb-2">No se pudo cargar el catálogo de trámites.</p>
+      <p class="mb-2">
+        La sede no pudo consultar el catálogo publicado en este momento. No es que no
+        haya trámites: es que no se pudieron leer.
+      </p>
+      <button
+        type="button"
+        class="btn btn-govco outline-btn-govco btn-catalogo"
+        @click="reintentar"
+      >
+        Reintentar
+      </button>
+    </div>
+
     <!-- Galería de resultados. -->
-    <ul v-if="resultadosDeLaPagina.length > 0" class="lista-resultados mt-2" role="list">
-      <li v-for="elemento in resultadosDeLaPagina" :key="elemento.slug" class="resultado">
+    <ul v-else-if="elementos.length > 0" class="lista-resultados mt-2" role="list">
+      <li v-for="elemento in elementos" :key="elemento.slug" class="resultado">
         <!--
           El nombre lleva a la ficha del elemento en GOV.CO, como exige el
           Anexo. Se dice en la línea de metadatos hacia dónde va el enlace: quien
@@ -482,13 +714,22 @@ function irAPagina(numero: number): void {
         <h3 class="resultado-nombre h5">
           <a :href="elemento.urlFichaGovCo" class="resultado-enlace">{{ elemento.nombre }}</a>
         </h3>
-        <p class="resultado-descripcion mb-2">{{ elemento.descripcion }}</p>
+        <p v-if="elemento.descripcion !== ''" class="resultado-descripcion mb-2">
+          {{ elemento.descripcion }}
+        </p>
         <p class="resultado-meta mb-2">
-          <span class="etiqueta-categoria">{{ elemento.categoria.nombre }}</span>
+          <!-- La categoría sólo se dibuja si la Entidad la declaró: una etiqueta
+               sin nombre ocuparía sitio sin decir nada. -->
+          <span v-if="elemento.categoria !== undefined" class="etiqueta-categoria">
+            {{ elemento.categoria.nombre }}
+          </span>
           <span class="origen-enlace">Ficha del trámite en GOV.CO</span>
         </p>
         <!-- Sin página de inicio en línea no hay botón que ofrecer, y un botón
-             que no lleva a ninguna parte es peor que su ausencia. -->
+             que no lleva a ninguna parte es peor que su ausencia. La fuente
+             oficial declara «en línea» o «parcialmente en línea» para 37 de los
+             123 trámites publicados y sólo trae la dirección de 7: no se rellena
+             con nada, porque rellenarla sería inventarse el destino. -->
         <a
           v-if="elemento.urlTramiteEnLinea !== undefined"
           class="btn btn-govco outline-btn-govco btn-catalogo"
@@ -501,15 +742,15 @@ function irAPagina(numero: number): void {
 
     <!--
       Estado vacío. No dice «no hay resultados» a secas: distingue «la Entidad no
-      ha publicado el catálogo» de «su búsqueda no encontró nada», porque son dos
-      situaciones distintas y confundirlas haría creer que el catálogo existe. El
-      aviso neutro es el del filtro; el amarillo institucional se reserva para
-      cuando el que falta es el catálogo.
+      ha publicado nada en esta sección» de «su búsqueda no encontró nada»,
+      porque son dos situaciones distintas y confundirlas haría creer que el
+      catálogo existe. El aviso neutro es el del filtro; el amarillo
+      institucional se reserva para cuando el que falta es el catálogo.
     -->
     <div
       v-else
       class="estado-vacio mt-2"
-      :class="{ 'estado-vacio-publicacion': delGrupo.length === 0 }"
+      :class="{ 'estado-vacio-publicacion': estadoVacio.esPublicacion }"
     >
       <p class="estado-vacio-titulo mb-2">{{ estadoVacio.titulo }}</p>
       <p class="mb-0">{{ estadoVacio.detalle }}</p>
@@ -523,11 +764,11 @@ function irAPagina(numero: number): void {
     -->
     <nav class="mt-4" aria-label="Paginación de los resultados">
       <ul class="pagination paginacion-catalogo mb-0">
-        <li class="page-item" :class="{ disabled: paginaActual === 1 }">
+        <li class="page-item" :class="{ disabled: !hayAnterior }">
           <button
             type="button"
             class="page-link"
-            :disabled="paginaActual === 1"
+            :disabled="!hayAnterior"
             @click="irAPagina(paginaActual - 1)"
           >
             Anterior
@@ -550,11 +791,11 @@ function irAPagina(numero: number): void {
           </button>
           <span v-else class="page-link" aria-hidden="true">…</span>
         </li>
-        <li class="page-item" :class="{ disabled: paginaActual === totalPaginas }">
+        <li class="page-item" :class="{ disabled: !haySiguiente }">
           <button
             type="button"
             class="page-link"
-            :disabled="paginaActual === totalPaginas"
+            :disabled="!haySiguiente"
             @click="irAPagina(paginaActual + 1)"
           >
             Siguiente
@@ -700,7 +941,8 @@ function irAPagina(numero: number): void {
   El estado de «catálogo todavía no publicado» usa el mismo amarillo y el mismo
   filete que el aviso de sección en preparación del resto del sitio, para que se
   lea igual en todas partes. El de «la búsqueda no encontró nada» es neutro: no
-  es un aviso sobre la Entidad, es el resultado de un filtro.
+  es un aviso sobre la Entidad, es el resultado de un filtro. El de la carga
+  también es neutro y por la misma razón: no dice nada de nadie todavía.
 */
 .estado-vacio {
   padding: 1rem 1.25rem;
@@ -711,6 +953,15 @@ function irAPagina(numero: number): void {
 .estado-vacio-publicacion {
   border-left-color: var(--govcolor-golden-brown, #9d7700);
   background-color: var(--govcolor-vis-vis, #fee697);
+}
+
+/*
+  El fallo no es un vacío: es una avería. Lleva el rojo del Kit en el filete para
+  que no se pueda confundir de un vistazo con «aquí no hay nada publicado». El
+  texto se queda en el gris de siempre para no bajar el contraste.
+*/
+.estado-vacio-error {
+  border-left-color: var(--govcolor-red, #a80521);
 }
 
 .estado-vacio-titulo {

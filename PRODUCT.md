@@ -145,14 +145,36 @@ Modal de confirmación antes de redirigir a dominio externo:
 - Lista blanca para dominios de confianza (GOV.CO, SECOP, SUIN, etc.)
 - Plugin global que intercepta clics en enlaces externos automáticamente
 
-### 5.3 Persistencia de Accesibilidad (D-11) ✅
+### 5.3 Ajustes de accesibilidad (RF-B1-044, RNF-07-D01) ✅
 
-**Implementado:** `sitio/app/composables/useAccesibilidad.ts`
+**Implementado:** `sitio/app/composables/useAccesibilidad.ts` ·
+`components/govco/BotonAccesibilidad.vue` · `components/govco/PanelAccesibilidad.vue`
 
-La barra de accesibilidad ahora:
-1. Guarda preferencia de contraste en `localStorage`
-2. Guarda preferencia de tamaño de letra en `localStorage`
-3. Restaura preferencias al cargar la página
+La barra lateral del Kit se sustituyó por **un botón circular flotante** —fijo,
+centrado verticalmente en el lado derecho e igual en todas las pantallas— que abre
+**un panel** con los once controles que pide el brief de accesibilidad, agrupados en
+cuatro categorías:
+
+| Categoría | Controles |
+|---|---|
+| Contraste | Normal · Alto contraste · Colores invertidos · Escala de grises |
+| Tamaño de texto | A− / A+ sobre una escala del 100 % al 200 % |
+| Lectura | Más espaciado · Fuente para dislexia · Resaltar enlaces · Guía de lectura |
+| Movimiento | Detener animaciones |
+| Acciones | Restablecer todo · Centro de Relevo |
+
+Características:
+
+1. Las siete preferencias se guardan en `localStorage` **con versión de formato**;
+   el formato anterior —contraste booleano, letra de −5 a +5— se migra al leer.
+2. El panel es un `<dialog>` nativo abierto con `showModal()`: trampa de foco, fondo
+   inerte y `Escape` correctos sin programarlos a mano.
+3. Segunda vía de acceso desde el pie, para no duplicar controles (CC7) pero sí
+   ofrecer varias vías (CC12).
+4. Respeta `prefers-reduced-motion` siempre y **sugiere** —sin imponer— el alto
+   contraste cuando el sistema lo pide.
+5. Ni el botón ni el panel quedan dentro del envoltorio que invierten los modos de
+   contraste, para que sus propios colores no se alteren.
 
 ### 5.4 Declaración de Accesibilidad (D-23) ✅
 
@@ -199,7 +221,8 @@ Galería de aplicaciones integrada en la cabecera de la sede:
 | Componente | Archivo | Estado |
 |---|---|---|
 | BarraSuperior | `components/govco/BarraSuperior.vue` | ✅ |
-| BarraAccesibilidad | `components/govco/BarraAccesibilidad.vue` | ✅ (con persistencia) |
+| BotonAccesibilidad | `components/govco/BotonAccesibilidad.vue` | ✅ (círculo flotante, 11 controles) |
+| PanelAccesibilidad | `components/govco/PanelAccesibilidad.vue` | ✅ (`<dialog>` nativo) |
 | CabeceraGovco | `components/govco/CabeceraGovco.vue` | ✅ |
 | MenuNavegacionGovco | `components/govco/MenuNavegacionGovco.vue` | ✅ |
 | MigaDePanGovco | `components/govco/MigaDePanGovco.vue` | ✅ |

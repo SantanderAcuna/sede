@@ -80,6 +80,41 @@
   opacity: 1 !important;
 }
 
+/* ----------------------------------------------------------------------------
+   El panel de accesibilidad dentro del modo de alto contraste
+   ----------------------------------------------------------------------------
+
+   El panel se teletransporta a `body`, y `body` sí está dentro de `html`, así que
+   las reglas de arriba lo alcanzan: sin estos ajustes su fondo blanco quedaría
+   forzado a transparente y el panel se vería a través. Es la superficie desde la
+   que se apaga el propio modo, así que tiene que ser la primera que se lea bien.
+   ---------------------------------------------------------------------------- */
+
+.contraste-govco .panel-accesibilidad {
+  background-color: #000 !important;
+  border: 0.0625rem solid #fff !important;
+}
+
+/*
+ * La bola del interruptor y la marca de los modos recuperan su color: las reglas
+ * de arriba fuerzan `background-color: transparent` a todo, y sin esto la bola
+ * desaparecería y el estado activo sólo se distinguiría por la posición.
+ */
+.contraste-govco .panel-interruptor-bola {
+  background-color: #fff !important;
+}
+
+.contraste-govco .panel-radio-marca {
+  background-color: #000 !important;
+  border-color: #fff !important;
+}
+
+/* La marca del modo elegido engrosa el borde, y eso no lo toca el modo: el
+   grosor no es color, así que sigue distinguiendo la opción activa. */
+.contraste-govco .panel-radio-campo:checked ~ .panel-radio-texto {
+  text-decoration: underline !important;
+}
+
 /* ============================================================================
    Los logos del pie, asociados y alineados a la izquierda
    ============================================================================
@@ -210,12 +245,13 @@
   color: #00568d !important;
 }
 
-/* Las sombras decorativas del pie, que el Kit pinta en naranja: azul noche, para
-   que el celeste del fondo se lea como tal y la sombra no compita con él. Y el
-   filete de la primera sección en el tono secundario de la Entidad. */
+/* Las sombras decorativas del pie, que el Kit pinta en naranja, y el filete
+   de la primera sección: celeste principal de la Entidad. Así todo el pie
+   respira el mismo celeste (#00ADE7), tanto la banda inferior, como el
+   filete, como las sombras del primer bloque. */
 .pie-pagina-govco .first-section {
-  --govcolor-tulip: #00568d;
-  --govcolor-tropical-blue: #8ec6e3;
+  --govcolor-tulip: #00ade7;
+  --govcolor-tropical-blue: #00ade7;
 }
 
 /*
@@ -368,6 +404,276 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 }
 
 /* ============================================================================
+   Modos de contraste: inverso y escala de grises
+   ============================================================================
+
+   El brief de accesibilidad pide cuatro modos excluyentes: normal, alto
+   contraste, inverso y escala de grises. El alto contraste ya está arriba; aquí
+   van los otros dos.
+
+   **Por qué el filtro se aplica a `.contenido-filtrable` y no a `html` ni a
+   `#__nuxt`.** Un `filter` distinto de `none` convierte al elemento en **bloque
+   contenedor** de sus descendientes con `position: fixed`. Si se aplicara a
+   `html`, a `body` o a `#__nuxt`, todo lo flotante del sitio —el botón circular
+   de accesibilidad, el de volver arriba, el aviso de cookies, el aviso de salida
+   y el panel— dejaría de estar fijo a la ventana y pasaría a colocarse respecto
+   a la caja del documento: se irían desplazando con el scroll.
+
+   La alternativa era teletransportar lo flotante a `body`, y **se descartó tras
+   medirla**: Vue emite lo teletransportado antes del contenedor de la aplicación,
+   así que el botón de accesibilidad quedaba por delante del enlace «Saltar al
+   contenido principal» y rompía RF-B3-022. Filtrando un envoltorio del contenido
+   se resuelven las dos cosas a la vez.
+
+   **El filtro va en un solo envoltorio, no en cada bloque.** Cada `filter` crea
+   un contexto de apilamiento; si cada sección tuviera el suyo, el contenido
+   —que va después en el documento— se pintaría por encima de los desplegables
+   del menú.
+
+   **Las imágenes y los logos no se invierten.** Un negativo de una fotografía
+   institucional no comunica nada y el logotipo de GOV.CO perdería su color, que
+   es marca normada. Se re-invierten para devolverles su aspecto.
+   ============================================================================ */
+
+.contraste-inverso-govco .contenido-filtrable {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.contraste-grises-govco .contenido-filtrable {
+  filter: grayscale(1);
+}
+
+/* El fondo de la página tiene que acompañar al filtro, o asoma una banda clara
+   por debajo del contenido en las páginas cortas. */
+.contraste-inverso-govco,
+.contraste-inverso-govco body {
+  background-color: #000 !important;
+  color-scheme: dark;
+}
+
+.contraste-grises-govco,
+.contraste-grises-govco body {
+  background-color: #fff !important;
+  color-scheme: light;
+}
+
+/* Contenido que se devuelve a su color: imágenes, vídeo y marcas. */
+.contraste-inverso-govco .contenido-filtrable img,
+.contraste-inverso-govco .contenido-filtrable video,
+.contraste-inverso-govco .contenido-filtrable iframe,
+.contraste-inverso-govco .contenido-filtrable .logotipo-entidad,
+.contraste-inverso-govco .contenido-filtrable .logo-entidad,
+.contraste-inverso-govco .contenido-filtrable .govco-logo,
+.contraste-inverso-govco .contenido-filtrable .govco-co,
+.contraste-inverso-govco .contenido-filtrable .govco-logo-potencia {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* ============================================================================
+   Fuente y disposición para dislexia
+   ============================================================================
+
+   El brief pide una «fuente para dislexia». No se descarga ninguna: la pila
+   Verdana/Tahoma ya viaja al navegador, es una sans serif de caja ancha y
+   x-height grande, y lo que la evidencia sostiene con más fuerza para la
+   lectura con dislexia es el **espaciado**, la alineación a la izquierda y la
+   ausencia de cursivas —no una tipografía concreta—. Descargar una fuente
+   específica es una decisión de licencia y de coste de red que queda pendiente
+   de ratificación y no se toma por la puerta de atrás.
+
+   **Los elementos de icono se excluyen a propósito.** La fuente iconográfica
+   del Kit (`govco-fontv5`) se declara hoy en pseudo-elementos —`::after`—, que
+   no heredan el `font-family` del elemento y por tanto no se verían afectados;
+   pero se excluyen igual para que un cambio futuro del Kit que mueva esa
+   declaración al elemento no rompa el icono del menú en este modo.
+   ============================================================================ */
+
+.dislexia-govco #__nuxt *:not(.icon-menu-govco):not(.govco-svg):not([class*='govco-icon']) {
+  font-family: Verdana, Tahoma, Geneva, sans-serif !important;
+  letter-spacing: 0.06em;
+  word-spacing: 0.16em;
+}
+
+.dislexia-govco #__nuxt {
+  line-height: 1.6;
+}
+
+.dislexia-govco #__nuxt :is(p, li, dd, blockquote) {
+  line-height: 1.8;
+  /* A la izquierda: el texto justificado abre «ríos» que dificultan el
+     seguimiento de la línea, que es justo lo que este modo viene a resolver. */
+  text-align: left !important;
+  hyphens: none;
+}
+
+/* Sin cursivas: son la forma tipográfica que más cuesta discriminar. */
+.dislexia-govco #__nuxt :is(em, i, cite, blockquote, address) {
+  font-style: normal !important;
+}
+
+/* ============================================================================
+   Resaltar enlaces
+   ============================================================================
+
+   El criterio CC5 prohíbe que el color sea el único medio de transmitir
+   información. Aquí no lo es: además del color, el enlace lleva subrayado
+   grueso y fondo propio. Se limita al contenido y al pie —donde viven los
+   enlaces de prosa y de políticas— para no desfigurar el menú, la galería de
+   aplicaciones ni los botones del Kit.
+   ============================================================================ */
+
+.resaltar-enlaces-govco #contenido-principal a,
+.resaltar-enlaces-govco .pie-pagina-govco a {
+  text-decoration: underline !important;
+  text-decoration-thickness: 0.125rem;
+  text-underline-offset: 0.15em;
+  background-color: #fff3bf !important;
+  color: #0b3d91 !important;
+  font-weight: 600;
+}
+
+.resaltar-enlaces-govco #contenido-principal a:visited,
+.resaltar-enlaces-govco .pie-pagina-govco a:visited {
+  color: #4a1d7a !important;
+}
+
+/* ============================================================================
+   Guía de lectura
+   ============================================================================
+
+   Resalta el bloque que está bajo el puntero o que contiene el foco. Es una
+   guía de lectura hecha con CSS a propósito: no hay un subrayador que siga al
+   cursor porque eso exigiría `pointermove`, no funcionaría con teclado (CC32) y
+   añadiría movimiento justo donde el brief pide evitarlo (CC20).
+
+   Se usa `border-left` y no sólo fondo porque en modo alto contraste las reglas
+   de arriba fuerzan los fondos a transparente con `!important`; el filete
+   izquierdo, forzado a blanco, sigue marcando la línea que se lee.
+   ============================================================================ */
+
+.guia-lectura-govco #contenido-principal :is(p, li, dd, blockquote):hover,
+.guia-lectura-govco #contenido-principal :is(p, li, dd, blockquote):focus-within {
+  background-color: #fff3bf;
+  border-left: 0.375rem solid var(--govcolor-cobalt, #0943b5);
+  padding-left: 0.5rem;
+  /* Compensa el filete para que el texto no se desplace al pasar el puntero. */
+  margin-left: -0.5rem;
+}
+
+/* ============================================================================
+   Detener animaciones
+   ============================================================================
+
+   Además de lo que pida el sistema, el ciudadano puede apagarlas él. Se anula
+   por completo —animación y transición— y no se deja un «casi nada», porque una
+   transición de 150 ms sigue siendo movimiento.
+   ============================================================================ */
+
+.detener-animaciones-govco #__nuxt *,
+.detener-animaciones-govco #__nuxt *::before,
+.detener-animaciones-govco #__nuxt *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+.detener-animaciones-govco {
+  scroll-behavior: auto !important;
+}
+
+/* ============================================================================
+   Preferencia del sistema: movimiento reducido
+   ============================================================================
+
+   Se respeta siempre, haya elección del ciudadano o no: es una necesidad que el
+   sistema declara, no una preferencia que haya que consentir. La duración no se
+   pone a cero sino a un valor inapreciable, porque algunos componentes del Kit
+   escuchan `transitionend` y con `none` no llega a dispararse.
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+   Esquema de color declarado
+   ============================================================================
+
+   La sede no tiene tema oscuro. Declararlo explícitamente evita que el navegador
+   aplique por su cuenta formularios y barras de desplazamiento oscuros sobre un
+   diseño claro, que es lo que ocurre cuando no se declara nada y el sistema pide
+   oscuro. El brief pide respetar `prefers-color-scheme`; la respuesta honesta es
+   que no hay un tema oscuro que ofrecer, y fingirlo sería peor que no tenerlo.
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+}
+
+/* ============================================================================
+   Reflujo con el texto ampliado (CC4, RNF-B3-004)
+   ============================================================================
+
+   El ajuste de tamaño de texto escala la raíz con `zoom`, así que en una pantalla
+   estrecha la ventana de composición se reduce —a 320 px con el texto al 200 %,
+   el ancho útil es de 160 px—. Medido con navegador real, a ese extremo el
+   documento se ensanchaba hasta 620 px, es decir, aparecía scroll horizontal.
+
+   Dos componentes eran los causantes, y ninguno se encoge solo:
+
+     · El **globo de ayuda de la galería** (`.tooltip-text-govco`) se oculta con
+       `visibility: hidden`, que **sigue ocupando sitio**, y el Kit le fija una
+       anchura de 16,75 rem. Su caja medía 536 px sobre una ventana de 320.
+     · Las **tarjetas de información** (`.module-tarjeta-govco`) no bajan de su
+       contenido mínimo.
+
+   El globo se resuelve sacándolo del flujo mientras está oculto —`display: none`
+   en vez de `visibility: hidden`— y devolviéndolo al flujo en los mismos estados
+   en que el Kit lo hace visible. Acotarlo con `max-width` **no** habría servido:
+   las unidades `vw` no se reescalan con `zoom`, así que el tope seguía siendo
+   mayor que la ventana real. Las tarjetas se acotan a su contenedor. En ningún
+   caso se esconde contenido: una corrección que ocultara algo incumpliría
+   1.4.10, que es justamente el criterio que se está atendiendo.
+   ============================================================================ */
+
+.button-rounded-menu-govco .tooltip-text-govco {
+  display: none;
+}
+
+/*
+ * Los mismos estados en que el Kit muestra el globo. Se replican sólo los que
+ * afectan a este elemento; los del `dropdown-arrow` no se tocan.
+ */
+.button-rounded-menu-govco[aria-expanded='false']:hover .tooltip-text-govco,
+.button-rounded-menu-govco[aria-expanded='false'].hover .tooltip-text-govco,
+.button-rounded-menu-govco[aria-expanded='false']:focus .tooltip-text-govco,
+.button-rounded-menu-govco[aria-expanded='false'].focus .tooltip-text-govco,
+.button-rounded-menu-govco[aria-expanded='false'].negative .tooltip-text-govco,
+.button-rounded-menu-govco[aria-expanded='false'].negative-focus .tooltip-text-govco {
+  display: block;
+  /* Al mostrarse sí se acota, para que el globo no empuje el documento. */
+  max-width: 14rem;
+  height: auto;
+  min-height: 5.125rem;
+  overflow-wrap: anywhere;
+}
+
+.module-tarjeta-govco,
+.module-tarjeta-govco * {
+  min-width: 0;
+}
+
+.module-tarjeta-govco {
+  max-width: 100%;
+}
+
+/* ============================================================================
    Medida de línea del contenido (RNF-B1-031, CAG-27, RF-B2-081)
    ============================================================================
 
@@ -403,7 +709,22 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
    2. La miga de pan desbordaba 30 px a 390 px cuando el último nivel lleva un
       nombre largo —«Transparencia y acceso a información pública»—, porque el
       elemento no podía partir la línea.
+   3. El botón circular de accesibilidad, que flota fijo centrado en el lado
+      derecho, se montaba encima del texto en pantallas estrechas: a 320 px
+      ocupaba 48 px de los 304 útiles, y la última palabra de cada línea quedaba
+      debajo. Se le reserva su franja.
    ============================================================================ */
+
+/*
+ * La franja del botón circular: su ancho más su margen, sólo donde el ancho de
+ * lectura es escaso. En escritorio el contenedor ya deja márgenes a los lados y
+ * reservar espacio desplazaría el contenido sin necesidad.
+ */
+@media (max-width: 575px) {
+  #contenido-principal {
+    padding-right: 3.5rem;
+  }
+}
 
 /* El Kit dimensiona el buscador con `-webkit-fill-available`, que NO es
    estándar: fuera de WebKit el navegador lo descarta y el campo conserva su
@@ -612,4 +933,58 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 */
 .btn {
   min-height: 2.75rem;
+}
+
+/*
+ * ============================================================================
+ * Hover/foco de las etiquetas padre del menú en celeste de la Entidad
+ * ============================================================================
+ *
+ * El Kit pinta el fondo del ítem padre del menú en `--govcolor-matterhorn`
+ * (gris oscuro #4C4C4C) cuando se hace hover, foco, está activo o
+ * `aria-expanded="true"`:
+ *
+ *   .menu-govco .navbar-nav .nav-item .nav-link:hover { ... }
+ *
+ * Aquí se sobreescribe a `#00ADE7` (azul celeste A, color principal de la
+ * Entidad) para que las etiquetas padre respiren el mismo celeste del resto
+ * del sitio. Se aplica sólo a las **etiquetas padre** —los `<button
+ * class="nav-link dropdown-toggle">` que despliegan los paneles y los
+ * `<a class="nav-link">` simples de la barra—. Los `<a class="dropdown-item">`
+ * dentro de los paneles desplegados conservan el subrayado del Kit, porque
+ * son enlaces de contenido, no el control que ocupa el área visible del menú.
+ *
+ * **Por qué la especificidad coincide con la del Kit y aún así gana.** El
+ * selector del Kit es `.menu-govco .navbar-nav .nav-item .nav-link:hover` →
+ * (0,3,1). El de aquí es idéntico → mismo (0,3,1). Como `sitio.css` se carga
+ * después del bundle del Kit, gana por orden de declaración sin necesidad de
+ * `!important`, que se reserva para casos en los que otro estilo del propio
+ * sitio entra en conflicto. Sin esta regla ganaría el gris oscuro del Kit y
+ * se rompería la coherencia cromática del sitio.
+ */
+/*
+ * **El texto del ítem activo va en negro, y no es un capricho.**
+ *
+ * El fondo es el celeste A de la Entidad, `#00ADE7`, que es claro. Con texto
+ * blanco el contraste es de **2,58:1** y WCAG 1.4.3 pide 4,5:1: la puerta de
+ * accesibilidad lo cazó como violación grave en cinco páginas (el ítem activo
+ * del menú aparece en todas). Medido sobre este mismo fondo:
+ *
+ *   texto negro      #000000 →  8,13:1  ✓
+ *   tinta oscura     #0F172A →  6,91:1  ✓
+ *   azul profundo    #003049 →  5,35:1  ✓
+ *   Matterhorn (Kit) #4C4C4C →  3,33:1  ✗  no sirve, aunque sea el color de
+ *                                          texto habitual del proyecto
+ *   blanco (antes)   #FFFFFF →  2,58:1  ✗
+ *
+ * Se elige el negro porque es el que el propio fichero documenta para este fondo
+ * (línea 220) y el que deja más margen. El estado de foco hereda este color, así
+ * que el anillo de foco (`currentColor`) también contrasta.
+ */
+.menu-govco .navbar-nav .nav-item .nav-link:hover,
+.menu-govco .navbar-nav .nav-item .nav-link:focus-visible,
+.menu-govco .navbar-nav .nav-item .nav-link.active,
+.menu-govco .navbar-nav .nav-item .nav-link[aria-expanded="true"] {
+  background-color: #00ade7;
+  color: #000000;
 }

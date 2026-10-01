@@ -187,74 +187,101 @@ const aplicacionesGaleria = [
       Saltar al contenido principal
     </a>
 
-    <BarraSuperior />
-    <BarraAccesibilidad />
+    <!--
+      **El botón circular de accesibilidad.** Flota fijo, centrado verticalmente
+      en el lado derecho, e idéntico en todas las pantallas. Va justo después del
+      enlace de salto —que sigue siendo el primer tabulable, como exige RF-B3-022—
+      y **fuera** del envoltorio filtrable, para que los modos de contraste no lo
+      inviertan y para que un `filter` no lo desancle de la ventana.
+    -->
+    <BotonAccesibilidad />
 
     <!--
-      El buscador general de la Sede va EN LA CABECERA, dentro del hueco que el
-      propio componente reserva para él. Lo exige FUN-011 —«el encabezado debe
-      incluir el logo de la entidad enlazado a inicio, buscador general…»— y
-      además el Kit lo alinea a la derecha de la barra por su cuenta.
+      **Envoltorio del contenido que sí se filtra.** Los modos «colores
+      invertidos» y «escala de grises» aplican aquí su `filter`, y no sobre
+      `#__nuxt`, por dos motivos que se descubrieron midiendo:
 
-      Antes sólo estaba en la portada, así que desde cualquier otra página no
-      había forma de buscar: había que volver al inicio primero.
+        1. Un `filter` convierte al elemento en **bloque contenedor** de sus
+           descendientes con `position: fixed`. Filtrar `#__nuxt` desanclaba todo
+           lo flotante del sitio, y la única salida era teletransportarlo a
+           `body`.
+        2. Y teletransportar tenía un precio que no se ve hasta que se mide: Vue
+           emite lo teletransportado **antes** del contenedor de la aplicación,
+           así que el botón de accesibilidad quedaba por delante del enlace
+           «Saltar al contenido principal» y rompía RF-B3-022 (el enlace de salto
+           tiene que ser el primer tabulable).
+
+      Filtrando sólo este envoltorio, el contenido se invierte y los controles
+      flotantes conservan a la vez su posición y su orden en el documento. Y el
+      filtro es **uno solo** para todo el bloque —y no uno por elemento— para que
+      el desplegable del menú siga pintándose por encima del contenido: cada
+      `filter` crea un contexto de apilamiento, y si cada bloque tuviera el suyo,
+      el contenido posterior taparía los desplegables.
+
+      `flex: 1` mantiene el pie abajo aunque la página tenga poco contenido.
     -->
-    <CabeceraGovco>
-      <template #buscador>
-        <BuscadorGovco @buscar="alBuscar" />
-      </template>
+    <div class="contenido-filtrable">
+      <BarraSuperior />
 
       <!--
-        «Iniciar Sesión» en la cabecera, como la dibuja el Anexo 2.1 en su
-        página 6. El anexo lo marca **opcional**.
+        El buscador general de la Sede va EN LA CABECERA, dentro del hueco que el
+        propio componente reserva para él. Lo exige FUN-011 —«el encabezado debe
+        incluir el logo de la entidad enlazado a inicio, buscador general…»— y
+        además el Kit lo alinea a la derecha de la barra por su cuenta.
 
-        **Lleva a la entrada del panel, en `/admin/acceso`**, que es la única
-        pantalla de acceso que existe. No se inventa una entrada de ciudadano que
-        no está construida, y la del panel declara que el módulo de identidad
-        todavía no está conectado: un botón que abre un formulario que finge
-        autenticar es peor que no tenerlo, porque el ciudadano cree haber
-        iniciado sesión.
-
-        Es un `NuxtLink` y no un `<a href>`: un enlace interno con `<a>` descarga
-        la aplicación entera y pierde el estado de navegación, que en una sede con
-        sesión y formularios a medias no es un detalle cosmético (D-22).
+        Antes sólo estaba en la portada, así que desde cualquier otra página no
+        había forma de buscar: había que volver al inicio primero.
       -->
-      <template #acciones>
-        <!-- Galería de aplicaciones (RF-B3-068) -->
-        <GaleriaAplicacionesGovco
-          :aplicaciones="aplicacionesGaleria"
-          etiqueta-boton="Abrir aplicaciones y servicios"
-          ayuda-boton="Acceso al Portal GOV.CO, Carpeta Ciudadana y CIIU."
-        />
-        <NuxtLink class="enlace-sesion" to="/admin/acceso">Iniciar sesión</NuxtLink>
-      </template>
-    </CabeceraGovco>
+      <CabeceraGovco>
+        <template #buscador>
+          <BuscadorGovco @buscar="alBuscar" />
+        </template>
 
-    <!--
-      El buscador se pasa también al menú, en el hueco que el componente expone.
-      En escritorio el componente lo oculta —el buscador ya está en la cabecera— y
-      en móvil, con el menú desplegado, es la única forma de buscar sin cerrarlo:
-      el Kit sitúa ahí su buscador y aquí se respeta (D-50).
-    -->
-    <MenuNavegacionGovco :items="menu" etiqueta-accesible="Menú principal de la Sede Electrónica">
-      <template #buscador>
-        <BuscadorGovco @buscar="alBuscar" />
-      </template>
-    </MenuNavegacionGovco>
+        <template #acciones>
+          <!--
+            La galería de aplicaciones. **El botón de accesibilidad ya no va aquí**:
+            pasó a ser un círculo flotante fijo en el lado derecho, para estar siempre
+            en el mismo sitio en cualquier pantalla. Su montaje está arriba, tras el
+            enlace de salto.
 
-    <MigaDePanGovco :niveles="migaDePan" />
+            **El botón de login ahora está en la BarraSuperior** (la franja azul del
+            Estado), en la esquina derecha, con un icono de usuario outline en blanco.
+          -->
+          <GaleriaAplicacionesGovco
+            :aplicaciones="aplicacionesGaleria"
+            etiqueta-boton="Abrir aplicaciones y servicios"
+            ayuda-boton="Acceso al Portal GOV.CO, Carpeta Ciudadana y CIIU."
+          />
+        </template>
+      </CabeceraGovco>
 
-    <!--
-      `tabindex="-1"` permite que el enlace de salto mueva el foco aquí. Sin él,
-      el navegador desplaza la vista pero deja el foco donde estaba, y quien
-      navega con teclado sigue tabulando desde la cabecera: el salto no serviría
-      de nada.
-    -->
-    <main id="contenido-principal" tabindex="-1">
-      <slot />
-    </main>
+      <!--
+        El buscador se pasa también al menú, en el hueco que el componente
+        expone. En escritorio el componente lo oculta —el buscador ya está en la
+        cabecera— y en móvil, con el menú desplegado, es la única forma de buscar
+        sin cerrarlo: el Kit sitúa ahí su buscador y aquí se respeta (D-50).
+      -->
+      <MenuNavegacionGovco :items="menu" etiqueta-accesible="Menú principal de la Sede Electrónica">
+        <template #buscador>
+          <BuscadorGovco @buscar="alBuscar" />
+        </template>
+      </MenuNavegacionGovco>
 
-    <PiePaginaGovco />
+      <MigaDePanGovco :niveles="migaDePan" />
+
+      <!--
+        `tabindex="-1"` permite que el enlace de salto mueva el foco aquí. Sin
+        él, el navegador desplaza la vista pero deja el foco donde estaba, y
+        quien navega con teclado sigue tabulando desde la cabecera: el salto no
+        serviría de nada.
+      -->
+      <main id="contenido-principal" tabindex="-1">
+        <slot />
+      </main>
+
+      <PiePaginaGovco />
+    </div>
+
     <VolverArriba />
 
     <!-- Componentes de la auditoría: banner de cookies y aviso de salida -->
@@ -269,36 +296,20 @@ const aplicacionesGaleria = [
       @confirmar="confirmarNavegacion"
       @cancelar="cancelarNavegacion"
     />
+
+    <!--
+      El panel de ajustes de accesibilidad. Se monta una sola vez por página y lo
+      abren sus dos disparadores —el círculo flotante y el enlace del pie— porque
+      la apertura es estado compartido, no un evento que se pase de uno a otro.
+      Va también fuera del envoltorio filtrable: un `<dialog>` abierto con
+      `showModal()` se dibuja en la capa superior, pero su contenido no debe
+      heredar la inversión de colores del modo.
+    -->
+    <PanelAccesibilidad />
   </div>
 </template>
 
 <style scoped>
-/*
-  El enlace de sesión de la cabecera. Se estiliza aquí y no se le pone una clase
-  del Kit porque el Kit no trae un botón de sesión para la cabecera: el suyo vive
-  en el módulo de inicio de sesión, que es otra pantalla. Se resuelve con el azul
-  cobalto del Kit y un área de pulsación de 44 px de alto, que es el mínimo táctil
-  que fija el propio Kit (CAG-23).
-*/
-.enlace-sesion {
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  min-height: 2.75rem;
-  padding: 0 1rem;
-  border: 0.125rem solid var(--govcolor-cobalt, #0943b5);
-  border-radius: 1.5rem;
-  color: var(--govcolor-cobalt, #0943b5);
-  font-family: 'Nunito_Sans-SemiBold', system-ui, sans-serif;
-  font-size: 0.9375rem;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.enlace-sesion:hover {
-  background-color: var(--govcolor-solitude, #e5ecf8);
-}
-
 .disposicion-sitio {
   display: flex;
   flex-direction: column;
@@ -358,6 +369,20 @@ const aplicacionesGaleria = [
 
 #contenido-principal {
   flex: 1;
+}
+
+/*
+ * El envoltorio del contenido filtrable. Reproduce la disposición en columna
+ * que antes tenía `.disposicion-sitio`, para que sus hijos —barra superior,
+ * cabecera, menú, migas, contenido y pie— se comporten exactamente igual que
+ * cuando eran hijos directos. `flex: 1` es lo que hace que `#contenido-principal`
+ * siga empujando el pie hasta abajo.
+ */
+.contenido-filtrable {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 /*

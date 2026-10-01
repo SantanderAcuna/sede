@@ -318,12 +318,26 @@ Cuando se añade, modifica o elimina una ruta en `config/sitemap.ts`:
 
 | Componente | Atributos ARIA |
 |---|---|
-| Barra de accesibilidad | `aria-pressed` en toggle de contraste |
+| Botón circular de accesibilidad | `aria-haspopup="dialog"`, `aria-expanded`, `aria-controls`; nombre accesible en texto recortado, no en `aria-label` |
+| Panel de accesibilidad | `<dialog>` nativo + `aria-labelledby`; grupos con `<fieldset>`/`<legend>` y títulos; interruptores con `role="switch"`; una sola región `role="status" aria-live="polite"` |
 | Menú de navegación | `aria-expanded`, `aria-controls`, `aria-haspopup`, `aria-label` |
 | Carrusel | `role="region"`, `aria-roledescription="carrusel"`, `aria-live` |
 | Migas de pan | `aria-current="page"` en último nivel |
 | Breadcrumb | `aria-label="Breadcrumb"` |
 | Enlace skip | `href="#contenido-principal"`, `tabindex="-1"` |
+
+### 5.3.1 Botón circular de accesibilidad
+
+| Propiedad | Valor |
+|---|---|
+| Forma | Círculo (`border-radius: 50%`, ancho = alto) |
+| Posición | `fixed`, `top: 50%`, `translateY(-50%)`, pegado al borde derecho |
+| Tamaños | 56 px (≥992) · 52 px (768–991) · 48 px (<768) · 46 px (pantallas bajas) — siempre ≥44 px |
+| Colores | Fondo Cobalt `#0943B5`, icono blanco (8,46:1), borde blanco, sombra de elevación |
+| Foco | Doble anillo: `#1A1A1A` interior + `#FFBF00` exterior |
+| Icono | SVG en línea con `fill="currentColor"` — sobrevive al modo de alto contraste, que fuerza `background-color: transparent` |
+| Franja reservada | `#contenido-principal { padding-right: 3.5rem }` por debajo de 576 px, para no tapar texto |
+| Independencia | No consulta dónde está «Volver arriba»; ocupan franjas distintas del borde derecho |
 
 ### 5.4 Alto contraste
 
@@ -335,6 +349,21 @@ Cuando se añade, modifica o elimina una ruta en `config/sitemap.ts`:
 | Enlaces y botones | — | `#FFFF00` (amarillo) | — |
 | Foco | — | — | `#FFFF00` 3px |
 | Imágenes | — | — | Borde 1px blanco |
+| Botón de accesibilidad | `#000000` | `#FFFFFF` | `#FFFFFF` |
+| Panel de accesibilidad | `#000000` | `#FFFFFF` | `#FFFFFF` |
+
+### 5.5 Modos de contraste: dónde se aplica el `filter`
+
+Los modos **Colores invertidos** (`.contraste-inverso-govco`) y **Escala de grises**
+(`.contraste-grises-govco`) aplican `filter` a `.contenido-filtrable`, un envoltorio
+que contiene la página pero **no** los controles flotantes.
+
+| Regla | Motivo |
+|---|---|
+| El filtro va en el envoltorio, no en `html`/`body`/`#__nuxt` | Un `filter` crea bloque contenedor de los descendientes con `position: fixed`: en la raíz, desancla todos los flotantes |
+| El filtro es **uno solo**, no uno por sección | Cada `filter` crea un contexto de apilamiento; con uno por bloque, el contenido taparía los desplegables del menú |
+| Imágenes, vídeo y logotipos se re-invierten | Un negativo de una fotografía institucional no comunica nada; el logotipo de GOV.CO es marca normada |
+| Los controles flotantes quedan fuera | Conservan su posición **y su orden en el documento**; además no se invierten sus colores |
 
 ---
 

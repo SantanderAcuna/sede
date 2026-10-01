@@ -54,6 +54,15 @@ onMounted(inicializar)
 </script>
 
 <template>
+  <!--
+    Vive fuera de `.contenido-filtrable` —lo monta así la disposición—, porque los
+    modos de contraste «colores invertidos» y «escala de grises» aplican un
+    `filter` a ese envoltorio y un `filter` convierte a su elemento en bloque
+    contenedor de los descendientes con `position: fixed`: dentro, el banner
+    dejaría de estar anclado a la ventana y se iría con el scroll. Fuera conserva
+    además sus colores y su contraste propios, que es lo que se espera de un
+    aviso legal.
+  -->
   <div
     v-if="visible"
     class="banner-cookies"

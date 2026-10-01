@@ -57,23 +57,20 @@ import { computed } from 'vue'
 import { POLITICAS } from '~/config/sitemap'
 
 /**
- * Los mismos estados que gobierna la barra flotante de accesibilidad.
+ * La vía del pie a los ajustes de accesibilidad.
  *
- * Se repiten aquí porque la barra se oculta por debajo de 992 px (CAG-07) y eso
- * dejaba sin ajuste de contraste ni de tamaño de letra a quien navega en tablet
- * o en móvil, que es justo quien más lo necesita (RNF-07-D01, HU-07-D02). El pie
- * está en todas las páginas y a cualquier ancho: es el sitio donde estos
- * controles no pueden desaparecer.
+ * **Publica un enlace, no un juego de controles.** Antes el pie repetía los seis
+ * ajustes de la barra flotante con otras palabras y otro orden, y las dos listas
+ * ya habían divergido: el pie ofrecía espaciado y la barra no, y «Restablecer» se
+ * llamaba distinto en cada sitio. Eso incumple CC7 —mismas acciones, mismo
+ * aspecto y mismo nombre— y multiplica los lugares donde arreglar un fallo.
+ *
+ * Ahora abre el **mismo panel** que el botón de la cabecera, porque la apertura es
+ * estado compartido en `useAccesibilidad`. Se sigue cumpliendo CC12 —vías
+ * distintas al mismo contenido— sin duplicar ni un control, y es la vía que
+ * sobrevive cuando la cabecera ya ha quedado fuera de pantalla.
  */
-const {
-  preferencias,
-  alternarContraste,
-  alternarEspaciado,
-  moverLetra,
-  restablecer,
-  puedeAumentar,
-  puedeReducir,
-} = useAccesibilidad()
+const { abrirPanel } = useAccesibilidad()
 
 /**
  * El punto de revocación del consentimiento de cookies.
@@ -377,83 +374,16 @@ const contacto = computed<DatoContacto[]>(() => {
       </p>
 
       <!--
-        Los controles de accesibilidad, con etiqueta y a cualquier ancho. La barra
-        flotante es el atajo en escritorio; esto es la garantía de que la función
-        existe siempre.
+        La vía del pie a los ajustes de accesibilidad: **un enlace**, no un
+        segundo juego de controles. Abre el mismo panel que el botón de la
+        cabecera. El razonamiento completo está en el `script`, junto al
+        `useAccesibilidad()`.
       -->
-      <section class="accesibilidad-pie" aria-labelledby="titulo-accesibilidad-pie">
-        <h3 id="titulo-accesibilidad-pie" class="subtitulo-pie">Accesibilidad</h3>
-
-        <ul class="lista-accesibilidad-pie">
-          <li>
-            <button
-              type="button"
-              class="btn-govco outline-btn-govco"
-              :aria-pressed="preferencias.contraste"
-              @click="alternarContraste"
-            >
-              {{ preferencias.contraste ? 'Quitar alto contraste' : 'Alto contraste' }}
-            </button>
-          </li>
-          <li>
-            <button
-              type="button"
-              class="btn-govco outline-btn-govco"
-              :disabled="!puedeReducir"
-              @click="moverLetra(-1)"
-            >
-              Reducir letra
-            </button>
-          </li>
-          <li>
-            <button
-              type="button"
-              class="btn-govco outline-btn-govco"
-              :disabled="!puedeAumentar"
-              @click="moverLetra(1)"
-            >
-              Aumentar letra
-            </button>
-          </li>
-          <li>
-            <button type="button" class="btn-govco outline-btn-govco" @click="restablecer">
-              Restablecer
-            </button>
-          </li>
-          <li>
-            <!--
-              Espaciado de texto reforzado (RF-B3-014, WCAG 1.4.12). Va aquí y no
-              en la barra flotante porque la barra se oculta por debajo de 992 px:
-              quien lee con dislexia o baja visión en un móvil tiene que poder
-              ajustarlo igual.
-            -->
-            <button
-              type="button"
-              class="btn-govco outline-btn-govco"
-              :aria-pressed="preferencias.espaciado"
-              @click="alternarEspaciado"
-            >
-              {{ preferencias.espaciado ? 'Quitar espaciado' : 'Más espaciado' }}
-            </button>
-          </li>
-          <li>
-            <!--
-              El Centro de Relevo atiende por video-llamada a la ciudadanía con
-              discapacidad auditiva. Es un dominio del Estado, así que el aviso de
-              salida no se interpone (RN-01-D03).
-            -->
-            <a
-              class="btn-govco link-btn-govco"
-              href="https://www.centroderelevo.gov.co"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Centro de Relevo: atención a la ciudadanía con discapacidad auditiva (abre en una pestaña nueva)"
-            >
-              Centro de Relevo
-            </a>
-          </li>
-        </ul>
-      </section>
+      <p class="configurar-cookies">
+        <button type="button" class="btn-govco link-btn-govco" @click="abrirPanel">
+          Ajustes de accesibilidad
+        </button>
+      </p>
     </div>
 
     <div class="second-section">
@@ -546,39 +476,6 @@ const contacto = computed<DatoContacto[]>(() => {
   color: var(--govcolor-matterhorn, #4c4c4c);
   font-family: 'Verdana-Regular', system-ui, sans-serif;
   font-size: 15px;
-}
-
-/*
- * Bloque de accesibilidad del pie. Los controles van en fila y con salto de
- * línea, no en una rejilla fija: son cinco botones de texto de ancho variable y
- * en 320 px tienen que poder acomodarse sin desbordar.
- */
-.accesibilidad-pie {
-  width: 100%;
-  margin-top: 1.5rem;
-}
-
-.lista-accesibilidad-pie {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-/*
- * El Kit pone `display: flex` a todo párrafo del pie; de ahí que los controles se
- * alineen a la izquierda con `align-items` explícito en lugar de heredar el
- * centrado de la caja.
- */
-.lista-accesibilidad-pie li {
-  display: flex;
-  align-items: center;
-}
-
-.lista-accesibilidad-pie .btn-govco {
-  min-height: 2.75rem;
 }
 
 /* El Kit no trae utilidad equivalente —no hay `visually-hidden` ni `sr-only` en

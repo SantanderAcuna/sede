@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
     "test:accesibilidad": "node tests/accesibilidad.mjs",
+    "test:contraste": "node tests/verificar-modos-contraste.mjs",
     "test": "vitest",
     "trazabilidad": "node scripts/trazabilidad.mjs",
     "test:cobertura": "vitest run --coverage",

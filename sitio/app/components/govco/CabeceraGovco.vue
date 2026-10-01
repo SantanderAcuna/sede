@@ -68,9 +68,20 @@ const {
           <img class="logotipo-entidad" :src="logotipo" :alt="logotipoAlt" decoding="async" />
         </NuxtLink>
 
-        <!-- Hueco del buscador. Va entre los logotipos porque el Kit lo alinea a
-             la derecha de la barra con `justify-content: space-between`. -->
-        <slot name="buscador" />
+        <!--
+          Hueco del buscador. Va entre los logotipos porque el Kit lo alinea a
+          la derecha de la barra con `justify-content: space-between`.
+
+          En escritorio se acota con `hueco-buscador` (regla más abajo) para que
+          no ocupe todo el ancho y se vea centrado: la barra mide mucho y el
+          campo a 100 % descuadra el conjunto. En móvil el buscador pasa al menú
+          desplegable y este hueco ya ni se monta, pero por si el consumidor lo
+          reutiliza en otra barra estrecha, se deja al 100 % por debajo de
+          992 px.
+        -->
+        <div class="hueco-buscador">
+          <slot name="buscador" />
+        </div>
 
         <!--
           Hueco para las acciones de la cabecera. Lo pide el Anexo 2.1, página 6,
@@ -111,6 +122,49 @@ const {
 @media (max-width: 991px) {
   .logotipo-entidad {
     height: 40px;
+  }
+}
+
+/*
+ * Buscador de la cabecera: ancho acotado y centrado sólo en pantallas grandes.
+ *
+ * **Por qué se acota.** El Kit pone el buscador entre el logotipo y las
+ * acciones con `justify-content: space-between`, lo que hace que el campo
+ * ocupe todo el hueco intermedio: en escritorios anchos termina midiendo más
+ * de 800 px, con el texto del placeholder perdido a la izquierda y un botón de
+ * búsqueda flotando muy a la derecha. Un campo de búsqueda no necesita más
+ * de ~28 rem para ser cómodo, y acotarlo libera el resto del ancho para que la
+ * galería de aplicaciones no compita con él.
+ *
+ * **Por qué se centra.** Con `justify-content: space-between` la barra reparte
+ * tres bloques —logo, buscador, acciones— y queda forzado a los extremos;
+ * centrar el buscador rompe ese reparto y queda más equilibrado. El logo
+ * queda a la izquierda y las acciones a la derecha, como manda el Anexo 2.1.
+ *
+ * **Por qué sólo en pantallas grandes.** Por debajo de 992 px el buscador se
+ * va al menú desplegable y este contenedor ni se renderiza, pero si algún día
+ * se reutiliza el slot en otra barra estrecha, se mantiene al 100 % para no
+ * comprimir el campo por debajo del mínimo táctil de 44 px de alto.
+ */
+.hueco-buscador {
+  /* Por defecto ocupa todo el ancho disponible: el buscador manda en su
+     contenedor y nunca debe salirse de él. El `min-width: 0` deja que el
+     `<input>` interno pueda encoger por debajo de su ancho intrínseco
+     (tamaño de `placeholder`), que es lo que hace que en móvil no se salga. */
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 992px) {
+  .hueco-buscador {
+    /* 28 rem ≈ 448 px: cómodo para un campo de búsqueda sin dominar la barra.
+       `flex: 0 0 auto` evita que crezca o se encoja; el `margin-inline: auto`
+       lo centra en el hueco que le deja el `space-between` del padre. */
+    flex: 0 0 auto;
+    width: 28rem;
+    max-width: 28rem;
+    margin-inline: auto;
   }
 }
 </style>

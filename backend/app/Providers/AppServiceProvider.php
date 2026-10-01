@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Contracts\Integraciones\FuenteFichaGovCoInterface;
+use App\Contracts\Repositories\IngestaTramiteRepositoryInterface;
 use App\Contracts\Repositories\TramiteRepositoryInterface;
+use App\Contracts\Services\IngestaTramitesInterface;
 use App\Contracts\Services\TramiteServiceInterface;
+use App\Repositories\Eloquent\IngestaTramiteRepository;
 use App\Repositories\Eloquent\TramiteRepository;
+use App\Services\GovCo\FuenteFichaGovCo;
+use App\Services\IngestaTramites;
 use App\Services\TramiteService;
 use Illuminate\Support\ServiceProvider;
 
@@ -25,6 +31,14 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(TramiteRepositoryInterface::class, TramiteRepository::class);
         $this->app->bind(TramiteServiceInterface::class, TramiteService::class);
+
+        // La ingesta y su fuente. La interfaz de la fuente es lo que permite probar
+        // la ingesta entera —incluido su comportamiento de reanudación— sin salir a
+        // la red: la fuente del Estado limita la tasa y una prueba que dependiera
+        // de ella fallaría los días que la fuente decide no contestar.
+        $this->app->bind(IngestaTramiteRepositoryInterface::class, IngestaTramiteRepository::class);
+        $this->app->bind(FuenteFichaGovCoInterface::class, FuenteFichaGovCo::class);
+        $this->app->bind(IngestaTramitesInterface::class, IngestaTramites::class);
     }
 
     /**

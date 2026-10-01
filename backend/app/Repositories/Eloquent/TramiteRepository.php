@@ -46,11 +46,24 @@ final class TramiteRepository implements TramiteRepositoryInterface
     /**
      * Los trámites que el ciudadano puede ver.
      *
-     * Las dos condiciones son la misma regla vista desde dos lados: no se publica
-     * lo que la Entidad no ha publicado —`publicado_en`— ni lo que no tiene ficha
-     * en GOV.CO, que es el destino del clic en el nombre según el Anexo 2.1. Un
-     * trámite sin ficha puede estar guardado mientras la Entidad la consigue;
-     * mientras tanto no se ofrece.
+     * La regla es la del §5.1.3 de la Guía: **no se publica un trámite al que le
+     * falte uno de sus seis atributos obligatorios**. Vive aquí y no en el modelo
+     * ni en el controlador porque este repositorio es la única puerta por la que
+     * el ciudadano llega al catálogo: si la regla estuviera repartida, bastaría con
+     * añadir una consulta nueva para saltársela sin que nada fallara.
+     *
+     * Las tres condiciones son la misma regla vista desde tres lados:
+     *
+     * - `publicado_en`: la Entidad lo ha dado de alta.
+     * - `url_ficha_gov_co`: tiene ficha en GOV.CO, que es el destino del clic en el
+     *   nombre según el Anexo 2.1. Un trámite sin ficha puede estar guardado
+     *   mientras la Entidad la consigue; mientras tanto no se ofrece.
+     * - los seis atributos: desde que la ingesta de la ficha oficial puede guardar
+     *   un trámite incompleto —para que la Entidad vea qué le falta en vez de
+     *   perderlo—, la comprobación dejó de ser implícita en el esquema y tiene que
+     *   ser explícita aquí. Sin ella, un trámite al que la fuente no le declara la
+     *   modalidad se publicaría con la modalidad en nulo, que es justo lo que la
+     *   Guía prohíbe.
      *
      * @return Builder<Tramite>
      */
@@ -58,6 +71,12 @@ final class TramiteRepository implements TramiteRepositoryInterface
     {
         return Tramite::query()
             ->whereNotNull('publicado_en')
-            ->whereNotNull('url_ficha_gov_co');
+            ->whereNotNull('url_ficha_gov_co')
+            ->whereNotNull('modalidad')
+            ->whereNotNull('tiene_costo')
+            ->whereNotNull('tiempo_solucion_dias')
+            ->whereNotNull('canal_inicio')
+            ->whereNotNull('consulta_estado')
+            ->whereNotNull('requisitos');
     }
 }

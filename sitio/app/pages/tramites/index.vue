@@ -725,6 +725,22 @@ function reintentar(): void {
           </span>
           <span class="origen-enlace">Ficha del trámite en GOV.CO</span>
         </p>
+        <!--
+          La ficha propia, **sin quitar el enlace a GOV.CO**.
+
+          El Anexo manda que el nombre lleve a la ficha oficial de GOV.CO, y eso
+          sigue haciendo el `h3` de arriba: este enlace no lo sustituye, se añade
+          al lado. Los dos destinos dicen cosas distintas y el ciudadano necesita
+          los dos: GOV.CO publica la ficha tal como la Entidad la registró en el
+          SUIT —que es el origen oficial y el que se puede citar—, y esta ficha
+          publica los requisitos, el costo, dónde se atiende y qué norma lo
+          faculta, que es lo que el SUIT no declara por atributo y lo que la Sede
+          sí puede sostener.
+        -->
+        <NuxtLink class="enlace-ficha d-block mb-2" :to="`/tramites/${elemento.slug}`">
+          Ver la ficha completa<span class="solo-lectores">: {{ elemento.nombre }}</span>
+        </NuxtLink>
+
         <!-- Sin página de inicio en línea no hay botón que ofrecer, y un botón
              que no lleva a ninguna parte es peor que su ausencia. La fuente
              oficial declara «en línea» o «parcialmente en línea» para 37 de los

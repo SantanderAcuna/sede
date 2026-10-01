@@ -57,10 +57,10 @@ final class TramiteSeederTest extends TestCase
         $tramite = Tramite::query()->where('codigo', 'T2621')->firstOrFail();
 
         $this->assertSame('Impuesto predial unificado', $tramite->nombre);
-        $this->assertSame('parcialmente_en_linea', $tramite->modalidad->value);
-        $this->assertSame('con_costo', $tramite->tiene_costo->value);
+        $this->assertSame('parcialmente_en_linea', $tramite->modalidad?->value);
+        $this->assertSame('con_costo', $tramite->tiene_costo?->value);
         $this->assertSame(1, $tramite->tiempo_solucion_dias);
-        $this->assertSame('propio', $tramite->canal_inicio->value);
+        $this->assertSame('propio', $tramite->canal_inicio?->value);
         $this->assertSame('https://impuestos.santamarta.gov.co:8443/autoservicios.jsf', $tramite->url_inicio);
         $this->assertSame('https://www.gov.co/ficha-tramites-y-servicios/T2621', $tramite->url_ficha_gov_co);
         $this->assertNotNull($tramite->publicado_en);
@@ -75,7 +75,7 @@ final class TramiteSeederTest extends TestCase
         // antes de pulsar.
         $nacional = Tramite::query()->where('codigo', 'T73293')->firstOrFail();
 
-        $this->assertSame('portal_nacional', $nacional->canal_inicio->value);
+        $this->assertSame('portal_nacional', $nacional->canal_inicio?->value);
     }
 
     public function test_los_descartes_se_cuentan_por_atributo_y_se_informan(): void

@@ -37,15 +37,30 @@ use Illuminate\Support\Str;
  * @property string $slug
  * @property string $nombre
  * @property string|null $resumen
- * @property ModalidadTramite $modalidad
- * @property CostoTramite $tiene_costo
+ *                                Los seis atributos obligatorios son anulables en la base y **no lo son para
+ *                                publicarse**. La distinción es la misma que ya valía para `url_ficha_gov_co`: un
+ *                                trámite al que la fuente no le declara la modalidad puede existir mientras la
+ *                                Entidad lo arregla, y no puede salir al catálogo. Quien lo comprueba es el
+ *                                repositorio, que es la única puerta por la que el ciudadano llega al catálogo.
+ * @property ModalidadTramite|null $modalidad
+ * @property CostoTramite|null $tiene_costo
  * @property string|null $costo
- * @property int $tiempo_solucion_dias
- * @property CanalInicioTramite $canal_inicio
+ * @property int|null $tiempo_solucion_dias
+ * @property CanalInicioTramite|null $canal_inicio
  * @property string|null $url_inicio
- * @property string $consulta_estado
- * @property list<array{descripcion: string, obligatorio?: bool}> $requisitos
- * @property list<array{nombre: string, url?: string|null, formato?: string|null}> $documentos
+ * @property string|null $consulta_estado
+ * @property list<array{descripcion: string, obligatorio?: bool}>|null $requisitos
+ * @property list<array{nombre: string, url?: string|null, formato?: string|null}>|null $documentos
+ * @property string|null $costo_tipo_valor
+ * @property string|null $costo_moneda
+ * @property string|null $costo_url_pago
+ * @property string|null $costo_descripcion
+ * @property list<array<string, string|null>> $costo_cuentas
+ * @property string|null $resultado
+ * @property list<string> $perfiles
+ * @property list<array<string, mixed>> $puntos_atencion
+ * @property list<array<string, mixed>> $normativa
+ * @property list<array<string, mixed>> $canales_consulta_estado
  * @property string|null $categoria_slug
  * @property string|null $categoria_nombre
  * @property string|null $url_ficha_gov_co
@@ -54,6 +69,10 @@ use Illuminate\Support\Str;
  * @property string|null $procedencia_url
  * @property Carbon|null $procedencia_obtenido_en
  * @property string|null $procedencia_nota
+ * @property string|null $procedencia_api
+ * @property array<string, string> $procedencia_origen_por_campo
+ * @property list<array{campo: string, regla: string}> $procedencia_derivados
+ * @property list<string> $procedencia_faltantes
  * @property Carbon|null $publicado_en
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -72,6 +91,16 @@ use Illuminate\Support\Str;
     'consulta_estado',
     'requisitos',
     'documentos',
+    'resultado',
+    'perfiles',
+    'puntos_atencion',
+    'normativa',
+    'canales_consulta_estado',
+    'costo_tipo_valor',
+    'costo_moneda',
+    'costo_url_pago',
+    'costo_descripcion',
+    'costo_cuentas',
     'categoria_slug',
     'categoria_nombre',
     'url_ficha_gov_co',
@@ -79,6 +108,10 @@ use Illuminate\Support\Str;
     'procedencia_url',
     'procedencia_obtenido_en',
     'procedencia_nota',
+    'procedencia_api',
+    'procedencia_origen_por_campo',
+    'procedencia_derivados',
+    'procedencia_faltantes',
     'publicado_en',
 ])]
 final class Tramite extends Model
@@ -105,6 +138,14 @@ final class Tramite extends Model
             'costo' => 'decimal:2',
             'requisitos' => 'array',
             'documentos' => 'array',
+            'perfiles' => 'array',
+            'puntos_atencion' => 'array',
+            'normativa' => 'array',
+            'canales_consulta_estado' => 'array',
+            'costo_cuentas' => 'array',
+            'procedencia_origen_por_campo' => 'array',
+            'procedencia_derivados' => 'array',
+            'procedencia_faltantes' => 'array',
             'publicado_en' => 'datetime',
             'procedencia_obtenido_en' => 'date',
         ];

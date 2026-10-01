@@ -8,10 +8,12 @@ use App\Enums\CanalInicioTramite;
 use App\Enums\CostoTramite;
 use App\Enums\ModalidadTramite;
 use App\Models\Tramite;
+use App\Support\Tramites\FuenteSuit;
+use App\Support\Tramites\SlugCatalogo;
+use App\Support\Tramites\TiempoEnDias;
 use Illuminate\Console\Command;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
@@ -88,16 +90,23 @@ use Throwable;
  */
 final class TramiteSeeder extends Seeder
 {
-    /** La fuente oficial. Se publica en la procedencia de cada trámite. */
-    public const FUENTE = 'SUIT — Función Pública (entidad 0043)';
+    /**
+     * La fuente oficial. Se publica en la procedencia de cada trámite.
+     *
+     * Apunta al sitio único donde está declarada (`FuenteSuit`) y no a un literal
+     * propio: la marca de procedencia es también la marca con la que la ingesta de
+     * la ficha oficial reconoce lo que escribió este sembrador, así que las dos
+     * tienen que ser exactamente la misma cadena.
+     */
+    public const FUENTE = FuenteSuit::NOMBRE;
 
-    public const URL_FUENTE = 'https://www.funcionpublica.gov.co/es/suit/buscador-de-tramites';
+    public const URL_FUENTE = FuenteSuit::URL;
 
     /** La fecha en que se obtuvo el catálogo. No es la de hoy: es la del dato. */
     public const OBTENIDO_EN = '2026-09-30';
 
     /** La copia congelada de la recolección, dentro del proyecto. */
-    public const ARCHIVO = 'datos/tramites-0043-suit.json';
+    public const ARCHIVO = FuenteSuit::COPIA_CATALOGO;
 
     /**
      * El mecanismo con el que la Sede permite consultar el estado de una
@@ -114,12 +123,6 @@ final class TramiteSeeder extends Seeder
 
     /** El nombre del documento que contiene los requisitos. */
     private const DOCUMENTO = 'Ficha oficial del trámite en GOV.CO (SUIT)';
-
-    /** Un día de término son ocho horas de jornada hábil. */
-    private const HORAS_POR_DIA = 8;
-
-    /** Un mes de término son treinta días. */
-    private const DIAS_POR_MES = 30;
 
     /**
      * Los atributos que el trámite necesita para publicarse, con el nombre que
@@ -387,30 +390,17 @@ final class TramiteSeeder extends Seeder
     }
 
     /**
-     * El slug del trámite: su nombre, en minúsculas y sin tildes.
+     * El slug del trámite, con la regla compartida del catálogo.
      *
-     * Cuando dos trámites darían el mismo slug —los títulos de la fuente no están
-     * normalizados—, el segundo lleva su código pegado. Se decide mirando también
-     * lo que ya hay en la base para que una segunda ejecución no renombre lo
-     * publicado.
+     * Vive en `SlugCatalogo` porque la ingesta de la ficha oficial escribe en la
+     * misma columna: dos reglas distintas darían dos direcciones para el mismo
+     * trámite según por dónde hubiera entrado.
      *
      * @param  array<string, string>  $usados
      */
     private function slug(?string $nombre, string $codigo, array &$usados): string
     {
-        $slug = mb_substr(rtrim(Str::slug((string) $nombre), '-'), 0, 160);
-
-        if ($slug === '') {
-            $slug = mb_strtolower($codigo);
-        }
-
-        if (($usados[$slug] ?? $codigo) !== $codigo) {
-            $slug = mb_substr($slug, 0, 140).'-'.mb_strtolower($codigo);
-        }
-
-        $usados[$slug] = $codigo;
-
-        return $slug;
+        return SlugCatalogo::para($nombre, $codigo, $usados);
     }
 
     /**
@@ -474,79 +464,21 @@ final class TramiteSeeder extends Seeder
     }
 
     /**
-     * El término de solución, en días, con la nota que explica la conversión
-     * cuando hubo que hacerla.
+     * El término de solución, en días, con la nota que explica la conversión.
      *
-     * La fuente declara el término en texto libre —«10 DIA(S) HÁBIL(ES)»,
-     * «2 HORA(S)», «3 MES(ES)»— y una de cada cuatro fichas lo declara en una
-     * unidad que no son días. Convertir sin decirlo dejaría un dato que parece
-     * declarado por la fuente y no lo está: por eso la conversión viaja en la
-     * procedencia del trámite, a la vista de quien lo consulte.
-     *
-     * No se distingue «DIA(S)» de «DIA(S) HÁBIL(ES)»: el sufijo aparece y
-     * desaparece entre fichas del mismo tamaño —hay trámites de «90 DIA(S)» y de
-     * «90 DIA(S) HÁBIL(ES)»—, así que tratarlo como una unidad distinta sería
-     * leer en la fuente una distinción que no hace. Es un límite conocido de este
-     * mapeo y se declara aquí en vez de disimularse.
+     * La conversión —y el porqué de cada una de sus reglas— vive en
+     * `TiempoEnDias`, y este método se limita a leer el campo de la copia de SUIT y
+     * a pasárselo. Está compartida con la ingesta de la ficha oficial a propósito:
+     * son dos caminos que llenan la misma columna del mismo catálogo, y dos
+     * conversiones distintas darían dos plazos distintos para el mismo trámite
+     * según por dónde hubiera entrado.
      *
      * @param  array<string, mixed>  $fila
      * @return array{dias: int, nota: string|null}|null
      */
     private function tiempoEnDias(array $fila): ?array
     {
-        $declarado = $this->texto($fila, 'tiempoObtencion');
-
-        if ($declarado === null) {
-            return null;
-        }
-
-        if (preg_match('/^(\d+)\s*(DIA|HORA|MES)/u', mb_strtoupper($declarado), $coincidencias) !== 1) {
-            return null;
-        }
-
-        $cantidad = (int) $coincidencias[1];
-
-        if ($coincidencias[2] === 'HORA') {
-            // Hacia arriba y nunca a cero: un trámite de dos horas se resuelve
-            // dentro de la jornada, no en cero días.
-            $dias = max(1, (int) ceil($cantidad / self::HORAS_POR_DIA));
-
-            return [
-                'dias' => $dias,
-                'nota' => sprintf(
-                    'El término lo declara la fuente como «%s» y se publica en %s: una jornada son %d horas.',
-                    $declarado,
-                    $this->enDias($dias),
-                    self::HORAS_POR_DIA,
-                ),
-            ];
-        }
-
-        if ($coincidencias[2] === 'MES') {
-            $dias = $cantidad * self::DIAS_POR_MES;
-
-            return [
-                'dias' => $dias,
-                'nota' => sprintf(
-                    'El término lo declara la fuente como «%s» y se publica en %s: la fuente no lo declara en días hábiles y no se convierte sin el calendario de días hábiles del Distrito.',
-                    $declarado,
-                    $this->enDias($dias),
-                ),
-            ];
-        }
-
-        return ['dias' => $cantidad, 'nota' => null];
-    }
-
-    /**
-     * «1 día hábil» o «3 días hábiles».
-     *
-     * La nota la lee el ciudadano en la ficha del trámite, y «se publica en 1
-     * días» es exactamente el detalle que hace dudar de todo lo demás.
-     */
-    private function enDias(int $dias): string
-    {
-        return $dias === 1 ? '1 día hábil' : sprintf('%d días hábiles', $dias);
+        return TiempoEnDias::desde($this->texto($fila, 'tiempoObtencion'));
     }
 
     /**

@@ -214,13 +214,33 @@ jobs:
 
       - name: Auditoría del panel y del sitio
         run: |
+          # Falla ante vulnerabilidades altas o críticas **corregibles**, que es lo
+          # que declara el mensaje de esta puerta. La distinción vive en
+          # `.github/scripts/auditar-dependencias.py`, porque `npm audit` sólo
+          # devuelve un código de salida y no separa las que tienen arreglo de las
+          # que no lo tienen aguas arriba.
+          #
+          # Una vulnerabilidad sin arreglo sólo se tolera si su advisory está
+          # nombrado aquí con su identificador. La lista es explícita para que una
+          # nueva no pueda colarse: si no está nombrada, rompe la construcción.
+          permitidas="GHSA-86w9-cpqp-85rv"
+
           fallos=0
           for d in panel sitio; do
             echo "--- $d ---"
-            if ! (cd "$d" && npm audit --audit-level=high); then
-              fallos=$((fallos + 1))
-            fi
+            (cd "$d" && npm audit --json > audit.json 2>/dev/null) || true
+
+            lectura=$(python3 "$GITHUB_WORKSPACE/.github/scripts/auditar-dependencias.py" \
+              "$d/audit.json" $permitidas)
+            codigo=$?
+            set -- $lectura
+            toleradas=${2:-0}
+            [ "$toleradas" -gt 0 ] && echo "    $toleradas tolerada(s): su advisory no tiene versión corregida"
+            rm -f "$d/audit.json"
+
+            [ "$codigo" -ne 0 ] && fallos=$((fallos + 1))
           done
+
           if [ "$fallos" -ne 0 ]; then
             echo "::error::Hay dependencias con vulnerabilidades altas o críticas corregibles."
             echo "Se arreglan actualizando el archivo de bloqueo, no bajando el umbral."

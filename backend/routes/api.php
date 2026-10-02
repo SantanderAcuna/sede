@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\EntidadController;
+use App\Http\Controllers\Api\V1\IdentidadController;
 use App\Http\Controllers\Api\V1\TramiteController;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +26,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/entidad', [EntidadController::class, 'mostrar'])
         ->name('entidad.mostrar')
         ->withoutMiddleware('auth:sanctum');
+
+    // Identidad: top-bar, footer y menú — públicos
+    Route::get('/identidad/top-bar', [IdentidadController::class, 'topBar'])->name('identidad.top-bar');
+    Route::get('/identidad/footer', [IdentidadController::class, 'footer'])->name('identidad.footer');
+    Route::get('/identidad/menu', [IdentidadController::class, 'menu'])->name('identidad.menu');
 
     // El catálogo de trámites. Las dos operaciones son públicas —el contrato las
     // declara con `security: []`— y por eso no llevan middleware de sesión.

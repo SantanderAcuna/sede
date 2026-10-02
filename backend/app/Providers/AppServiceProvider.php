@@ -7,16 +7,20 @@ namespace App\Providers;
 use App\Contracts\Integraciones\FuenteFichaGovCoInterface;
 use App\Contracts\Repositories\EntidadRepositoryInterface;
 use App\Contracts\Repositories\IngestaTramiteRepositoryInterface;
+use App\Contracts\Repositories\MenuRepositoryInterface;
 use App\Contracts\Repositories\TramiteRepositoryInterface;
 use App\Contracts\Services\EntidadServiceInterface;
+use App\Contracts\Services\IdentidadServiceInterface;
 use App\Contracts\Services\IngestaTramitesInterface;
 use App\Contracts\Services\TramiteServiceInterface;
 use App\Models\User;
 use App\Repositories\Eloquent\EntidadRepository;
 use App\Repositories\Eloquent\IngestaTramiteRepository;
+use App\Repositories\Eloquent\MenuRepository;
 use App\Repositories\Eloquent\TramiteRepository;
 use App\Services\EntidadService;
 use App\Services\GovCo\FuenteFichaGovCo;
+use App\Services\IdentidadService;
 use App\Services\IngestaTramites;
 use App\Services\TramiteService;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -45,6 +49,10 @@ class AppServiceProvider extends ServiceProvider
         // Entidad: datos institucionales para cabecera y pie de página
         $this->app->bind(EntidadRepositoryInterface::class, EntidadRepository::class);
         $this->app->bind(EntidadServiceInterface::class, EntidadService::class);
+
+        // Identidad: top-bar, footer y menú
+        $this->app->bind(MenuRepositoryInterface::class, MenuRepository::class);
+        $this->app->bind(IdentidadServiceInterface::class, IdentidadService::class);
 
         // La ingesta y su fuente. La interfaz de la fuente es lo que permite probar
         // la ingesta entera —incluido su comportamiento de reanudación— sin salir a

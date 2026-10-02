@@ -95,7 +95,7 @@ async function handleSubmit() {
       class="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200"
       role="alert"
     >
-      <FaIcon icon="circle-exclamation" class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <FaIcon icon="exclamation-circle" class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       <span>{{ error }}</span>
     </p>
   </form>

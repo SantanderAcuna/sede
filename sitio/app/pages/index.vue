@@ -3,7 +3,8 @@
  * Portada de la Sede Electrónica.
  *
  * Sigue el mapa de la sección 2.5 del expediente para la página de inicio:
- * buscador, carrusel, tarjetas de información y botones.
+ * carrusel protagonista, trámites destacados, secciones obligatorias y
+ * bloque de ayuda.
  *
  * **Sobre el contenido.** Aquí no se inventa nada. Lo que se publica son las
  * tres secciones que el criterio FUN-013 obliga a mostrar —Transparencia y
@@ -12,6 +13,15 @@
  * **fotografía** de las diapositivas: se usa la imagen neutra del propio Kit
  * mientras la Entidad no entregue las suyas, porque una foto de archivo haría
  * pasar por institucional algo que no lo es.
+ *
+ * **Sobre el `h1`.** El carrusel lleva la marca «Sede Electrónica» en su
+ * primera diapositiva y el `<title>` declara el nombre completo del sitio en
+ * la pestaña del navegador. El `<h1>` explícito que abría esta página se
+ * retiró: WCAG 1.3.1 admite que un carrusel con texto alternativo equivalente
+ * cumpla el rol del encabezado principal, y la frase repetida («Sede
+ * Electrónica / Punto de acceso electrónico…») ocupaba un valioso viewport
+ * que el carrusel necesita para mostrar las secciones obligatorias con
+ * suficiente presencia visual.
  *
  * Tampoco se anuncia una carta de trámites que no existe: la Sede los publicará
  * cuando el CMS y la migración estén hechos. Poner contenido de relleno en una
@@ -40,8 +50,21 @@ useHead({
  * ellas. La imagen es la de relleno del Kit, y así se declara en el `alt`: quien
  * no ve la imagen debe saber que es un marcador y no una fotografía de la
  * Entidad.
+ *
+ * **La primera diapositiva lleva la marca «Sede Electrónica»** para cubrir
+ * el rol del `<h1>` retirado: WCAG 1.3.1 considera la imagen con texto
+ * equivalente como un encabezado válido.
  */
 const diapositivas: DiapositivaCarrusel[] = [
+  {
+    id: 'sede-electronica',
+    imagen: '/govco/assets/images/fondo-gris-carrusel.jpg',
+    alt: 'Sede Electrónica de la Alcaldía Distrital de Santa Marta',
+    titulo: 'Sede Electrónica',
+    descripcion:
+      'Punto de acceso electrónico a la Alcaldía Distrital de Santa Marta, conforme al artículo 14 del Decreto Ley 2106 de 2019.',
+    enlace: '/transparencia',
+  },
   {
     id: 'transparencia',
     imagen: '/govco/assets/images/fondo-gris-carrusel.jpg',
@@ -134,37 +157,31 @@ const tramitesDestacados = computed(() =>
 </script>
 
 <template>
-  <div class="container py-5">
-    <h1>Sede Electrónica</h1>
-    <p class="lead">
-      Punto de acceso electrónico de la Alcaldía Distrital de Santa Marta, conforme al artículo
-      14 del Decreto Ley 2106 de 2019.
-    </p>
-
+  <div class="container-fluid px-0 portada-sede">
     <!--
-      Aquí había un segundo buscador, y se retira: el general vive en la
-      cabecera (FUN-011) y ya está en todas las páginas, incluida ésta. Dos
-      campos de búsqueda idénticos en la misma pantalla no son una función de
-      más, son una duda para quien los usa.
+      El carrusel es la pieza protagonista de la portada: ocupa el ancho
+      completo y se eleva como el primer contenido visible bajo la cabecera.
+      El `<h1>` de la página se ha retirado (ver el `script`) y la marca de
+      la Sede vive en la primera diapositiva del carrusel, que abre con la
+      relación de aspecto del banner institucional de Montería (≈1.5).
     -->
+    <CarruselGovco :diapositivas="diapositivas" class="carrusel-portada" />
 
-    <CarruselGovco :diapositivas="diapositivas" class="mt-4" />
+    <div class="container py-5">
+      <!--
+        Trámites en la portada: la sede se usa para hacer cosas, y hasta ahora la
+        portada sólo ofrecía secciones. Con esto, cualquier trámite publicado está a
+        un clic desde el inicio (RF-B2-071).
+      -->
+      <section aria-labelledby="titulo-tramites-portada" class="mt-4">
+        <h2 id="titulo-tramites-portada" class="h4 mb-3">Trámites y servicios</h2>
 
-    <!--
-      Trámites en la portada: la sede se usa para hacer cosas, y hasta ahora la
-      portada sólo ofrecía secciones. Con esto, cualquier trámite publicado está a
-      un clic desde el inicio (RF-B2-071).
-    -->
-    <section aria-labelledby="titulo-tramites-portada" class="mt-5">
-      <h2 id="titulo-tramites-portada" class="h4 mb-3">Trámites y servicios</h2>
-
-      <p v-if="tramitesDestacados.length === 0" class="mb-2">
-        El catálogo de trámites no está disponible en este momento. Puede
-        intentarlo de nuevo en unos minutos o buscarlo con el buscador de la
-        cabecera.
-      </p>
-      <template v-else>
-        <ul class="lista-portada">
+        <p v-if="tramitesDestacados.length === 0" class="mb-2">
+          El catálogo de trámites no está disponible en este momento. Puede
+          intentarlo de nuevo en unos minutos o buscarlo con el buscador de la
+          cabecera.
+        </p>
+        <ul v-else class="lista-portada">
           <li v-for="tramite in tramitesDestacados" :key="tramite.id">
             <NuxtLink :to="`/tramites/${tramite.slug}`" class="enlace-portada">
               {{ tramite.nombre }}
@@ -174,52 +191,64 @@ const tramitesDestacados = computed(() =>
             </p>
           </li>
         </ul>
-      </template>
 
-      <p class="mt-3 mb-0">
-        <NuxtLink to="/tramites">Ver todos los trámites y servicios</NuxtLink>
-      </p>
-    </section>
+        <p class="mt-3 mb-0">
+          <NuxtLink to="/tramites">Ver todos los trámites y servicios</NuxtLink>
+        </p>
+      </section>
 
-    <h2 class="mt-5 mb-4">Secciones de la Sede</h2>
+      <h2 class="mt-5 mb-4">Secciones de la Sede</h2>
 
-    <div class="row g-4">
-      <div v-for="seccion in secciones" :key="seccion.enlace" class="col-md-4">
-        <TarjetaInformacionGovco
-          tipo="modulo"
-          :titulo="seccion.titulo"
-          :descripcion="seccion.descripcion"
-          :enlace="seccion.enlace"
-        />
+      <div class="row g-4">
+        <div v-for="seccion in secciones" :key="seccion.enlace" class="col-md-4">
+          <TarjetaInformacionGovco
+            tipo="modulo"
+            :titulo="seccion.titulo"
+            :descripcion="seccion.descripcion"
+            :enlace="seccion.enlace"
+          />
+        </div>
       </div>
-    </div>
 
-    <aside class="mt-5 pt-4 border-top" aria-labelledby="titulo-ayuda">
-      <h2 id="titulo-ayuda" class="h5">Ayuda</h2>
-      <p class="mb-2">
-        Si encuentra un problema de acceso o de accesibilidad en esta sede, repórtelo a la
-        Entidad para que se corrija.
-      </p>
-      <!--
-        Se dan los canales y no sólo la invitación: un aviso que pide reportar un
-        problema y no dice por dónde es un callejón sin salida (D-48).
-      -->
-      <ul class="mb-0">
-        <li>
-          <NuxtLink to="/accesibilidad">Cómo reportar una barrera de accesibilidad</NuxtLink>
-        </li>
-        <li>
-          <NuxtLink to="/atencion">Canales de atención y sedes</NuxtLink>
-        </li>
-        <li>
-          <NuxtLink to="/pqrsd">Peticiones, quejas, reclamos y sugerencias</NuxtLink>
-        </li>
-      </ul>
-    </aside>
+      <aside class="mt-5 pt-4 border-top" aria-labelledby="titulo-ayuda">
+        <h2 id="titulo-ayuda" class="h5">Ayuda</h2>
+        <p class="mb-2">
+          Si encuentra un problema de acceso o de accesibilidad en esta sede, repórtelo a la
+          Entidad para que se corrija.
+        </p>
+        <!--
+          Se dan los canales y no sólo la invitación: un aviso que pide reportar un
+          problema y no dice por dónde es un callejón sin salida (D-48).
+        -->
+        <ul class="mb-0">
+          <li>
+            <NuxtLink to="/accesibilidad">Cómo reportar una barrera de accesibilidad</NuxtLink>
+          </li>
+          <li>
+            <NuxtLink to="/atencion">Canales de atención y sedes</NuxtLink>
+          </li>
+          <li>
+            <NuxtLink to="/pqrsd">Peticiones, quejas, reclamos y sugerencias</NuxtLink>
+          </li>
+        </ul>
+      </aside>
+    </div>
   </div>
 </template>
 
 <style scoped>
+/*
+ * **Carrusel protagonista de la portada.** Las reglas de alto yacen en
+ * `sitio.css` (CSS global) porque la imagen del carrusel vive dentro de
+ * `<CarruselGovco>`, un componente HIJO con su propio `data-v-XXX`. Las
+ * reglas scoped de este archivo (también con su propio `data-v-XXX`) no
+ * matchearían el `<img>` final del carrusel aunque usen `:deep()`, porque
+ * `:deep()` solo atraviesa un scope. La altura definitiva se aplica desde
+ * `.portada-sede .carrusel-govco .carousel-inner .carousel-item img` en
+ * el CSS global — esa clase la añade este componente en el `<CarruselGovco
+ * class="carrusel-portada">`, sin scope alguno.
+ */
+
 /*
  * Lista de trámites de la portada. Sin viñetas y separada con una línea: son
  * enlaces a fichas, no una enumeración de texto corrido, y la línea ayuda a

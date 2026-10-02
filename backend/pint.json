@@ -4,6 +4,11 @@
         "declare_strict_types": true,
         "strict_comparison": true,
         "final_class": false,
-        "ordered_imports": { "sort_algorithm": "alpha" }
-    }
+        "ordered_imports": {
+            "sort_algorithm": "alpha"
+        }
+    },
+    "exclude": [
+        "database/seeders/datos"
+    ]
 }

@@ -1,0 +1,104 @@
+{
+  "extends": [
+    "stylelint-config-standard"
+  ],
+  "rules": {
+    "max-nesting-depth": [
+      3,
+      {
+        "ignoreAtRules": [
+          "media",
+          "supports"
+        ],
+        "message": "Anidación máxima 3 (ITCSS). Más profundo significa que el selector depende de su contexto y deja de ser reutilizable."
+      }
+    ],
+    "selector-max-id": [
+      0,
+      {
+        "message": "Ningún #id como selector de estilo: gana siempre y hace imposible sobreescribirlo sin !important."
+      }
+    ],
+    "selector-max-specificity": [
+      "0,3,0",
+      {
+        "message": "Especificidad máxima 0,3,0. Por encima, la siguiente persona necesita !important para ganarte."
+      }
+    ],
+    "selector-max-compound-selectors": [
+      4,
+      {
+        "message": "Máximo 4 selectores compuestos."
+      }
+    ],
+    "declaration-no-important": [
+      true,
+      {
+        "severity": "warning",
+        "message": "!important sólo se admite en la capa de modos de accesibilidad, y ahí es obligatorio. Cualquier otro uso es deuda: mira si el problema es de especificidad."
+      }
+    ],
+    "no-duplicate-selectors": true,
+    "declaration-block-no-duplicate-properties": true,
+    "no-descending-specificity": null,
+    "custom-property-pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+    "selector-class-pattern": null,
+    "color-hex-length": "short",
+    "alpha-value-notation": null,
+    "color-function-notation": null,
+    "value-keyword-case": null,
+    "property-no-vendor-prefix": null,
+    "value-no-vendor-prefix": null,
+    "selector-no-vendor-prefix": null,
+    "media-feature-range-notation": null,
+    "import-notation": null,
+    "at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": [
+          "theme",
+          "apply",
+          "variants",
+          "screen",
+          "tailwind"
+        ]
+      }
+    ],
+    "comment-empty-line-before": null,
+    "rule-empty-line-before": null,
+    "declaration-empty-line-before": null,
+    "custom-property-empty-line-before": null,
+    "number-max-precision": 5,
+    "shorthand-property-no-redundant-values": null,
+    "selector-not-notation": null
+  },
+  "ignoreFiles": [
+    "public/govco/**",
+    "node_modules/**",
+    ".output/**",
+    ".nuxt/**"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "app/assets/css/tokens.css"
+      ],
+      "rules": {
+        "no-duplicate-selectors": null
+      }
+    },
+    {
+      "_motivo": "sitio.css contiene la capa de modos de accesibilidad. Esas reglas NO son deuda: un modo de alto contraste, de dislexia o de detencion de animaciones tiene que ganarle a todo lo ya pintado, incluido el Kit gov.co, que es un tercero vendorizado byte a byte desde su CDN y que no controlamos. De ahi los !important, la especificidad alta y los #id (#__nuxt es la raiz de la aplicacion: no hay forma de estilarla sin el). Se relajan SOLO estas cuatro reglas y solo para este archivo; el resto del sistema sigue gobernado. Extraerlas a un archivo aparte se intento y se descarto: estan intercaladas con las secciones que sobreescriben, y separarlas no aporta nada funcional a cambio de arriesgar la cascada.",
+      "files": [
+        "app/assets/css/sitio.css"
+      ],
+      "rules": {
+        "declaration-no-important": null,
+        "selector-max-id": null,
+        "selector-max-specificity": null,
+        "selector-max-compound-selectors": null,
+        "selector-id-pattern": null
+      }
+    }
+  ]
+}

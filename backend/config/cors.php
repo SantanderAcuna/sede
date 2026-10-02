@@ -28,6 +28,10 @@ return [
 
     'allowed_origins' => [
         env('FRONTEND_URL', 'http://localhost:5173'),
+        // Sitio público (Nuxt) — accede directamente al backend desde el navegador
+        // durante el hydration. En producción ambos comparten origen y CORS no aplica.
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
     ],
 
     'allowed_headers' => ['*'],

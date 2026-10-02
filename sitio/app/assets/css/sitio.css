@@ -52,7 +52,7 @@
 .contraste-govco button,
 .contraste-govco a *,
 .contraste-govco button * {
-  color: #ffff00 !important;
+  color: #ff0 !important;
 }
 
 .contraste-govco a {
@@ -63,7 +63,7 @@
 .contraste-govco :focus-visible,
 .contraste-govco a:focus-visible,
 .contraste-govco button:focus-visible {
-  outline: 3px solid #ffff00 !important;
+  outline: 3px solid #ff0 !important;
   outline-offset: 2px !important;
 }
 
@@ -142,8 +142,7 @@
 .pie-pagina-govco .logo-container {
   position: static;
   align-items: flex-start;
-  flex-direction: row;
-  flex-wrap: wrap;
+  flex-flow: row wrap;
   gap: 1rem;
   margin-bottom: 1.875rem;
 }
@@ -488,7 +487,7 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
    declaración al elemento no rompa el icono del menú en este modo.
    ============================================================================ */
 
-.dislexia-govco #__nuxt *:not(.icon-menu-govco):not(.govco-svg):not([class*='govco-icon']) {
+.dislexia-govco #__nuxt *:not(.icon-menu-govco, .govco-svg, [class*='govco-icon']) {
   font-family: Verdana, Tahoma, Geneva, sans-serif !important;
   letter-spacing: 0.06em;
   word-spacing: 0.16em;
@@ -799,7 +798,7 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .form-select:focus,
 .form-check-input:focus {
   border-color: var(--govcolor-cobalt, #0943b5);
-  box-shadow: 0 0 0 0.25rem rgba(9, 67, 181, 0.25);
+  box-shadow: 0 0 0 0.25rem rgb(9, 67, 181, 0.25);
 }
 
 .form-check-input:checked {
@@ -824,7 +823,7 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .form-select:disabled,
 .form-control[readonly] {
   background-color: var(--govcolor-solitude, #e5ecf8);
-  border-color: var(--govcolor-silver, #cccccc);
+  border-color: var(--govcolor-silver, #ccc);
   color: var(--govcolor-matterhorn, #4c4c4c);
   opacity: 1;
 }
@@ -839,7 +838,7 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .form-select.is-invalid:focus,
 .form-check-input.is-invalid:focus {
   border-color: var(--govcolor-red, #a80521);
-  box-shadow: 0 0 0 0.25rem rgba(168, 5, 33, 0.25);
+  box-shadow: 0 0 0 0.25rem rgb(168, 5, 33, 0.25);
 }
 
 .form-control.is-valid,
@@ -1098,7 +1097,7 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .menu-govco .navbar-nav .nav-item .nav-link.active,
 .menu-govco .navbar-nav .nav-item .nav-link[aria-expanded="true"] {
   background-color: var(--alcaldia-azul-celeste-a);
-  color: #000000;
+  color: #000;
 }
 
 /*

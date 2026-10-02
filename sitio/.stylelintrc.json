@@ -69,7 +69,8 @@
     "declaration-empty-line-before": null,
     "custom-property-empty-line-before": null,
     "number-max-precision": 5,
-    "shorthand-property-no-redundant-values": null
+    "shorthand-property-no-redundant-values": null,
+    "selector-not-notation": null
   },
   "ignoreFiles": [
     "public/govco/**",

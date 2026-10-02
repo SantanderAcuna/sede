@@ -984,16 +984,41 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .menu-govco .navbar-nav > .nav-item:nth-child(2),
 .menu-govco .navbar-nav > .nav-item:nth-child(3) {
   /*
-   * **Ancho de los desplegables principales.** El Kit pone 11.563 rem, lo que
-   * parte "Atención al ciudadano" en dos líneas. Se sube a 13 rem para que
-   * el rótulo quepa en una línea con el padding lateral del Kit (0.625 rem a
-   * cada lado), y el hover cubra toda la etiqueta sin que el texto se vea
-   * apretado —exactamente como en el ejemplo del Estado colombiano donde
-   * "Atención y Servicios a la Ciudadanía" se muestra en una sola línea con
-   * padding generoso.
+   * **Ancho de los desplegables principales: el que pida su rótulo.**
+   *
+   * El Kit pone 11.563 rem fijos, y eso parte «Atención al ciudadano» en dos
+   * líneas. La corrección anterior subió el valor a 13 rem —«para que quepa»—,
+   * y funcionaba… mientras el rótulo midiera exactamente lo que mide hoy:
+   *
+   *   - con el **aumento de letra** que ofrece la barra de accesibilidad, el
+   *     texto crece y el ancho se queda igual → vuelve a partirse;
+   *   - con otra fuente, otro idioma o unos píxeles menos de ventana, lo mismo.
+   *
+   * Un ancho fijo sólo acierta con una combinación concreta de fuente y tamaño,
+   * y esta Sede tiene que servir a cualquiera que agrande la letra —que es
+   * justamente quien más lo necesita—.
+   *
+   * Por eso el ancho deja de ser fijo: `min-width` conserva la holgura visual
+   * entre ítems y `width: auto` permite que el ítem **crezca lo que su rótulo
+   * necesite**. Con `white-space: nowrap` en el enlace, el texto no se parte en
+   * ninguna circunstancia. El reparto del menú se ajusta solo, porque es flex.
    */
   min-width: 13rem;
-  width: 13rem;
+  width: auto;
+}
+
+/*
+ * **El rótulo de un ítem de menú no se parte nunca en dos líneas.**
+ *
+ * Un menú de navegación principal se lee recorriéndolo con la vista; partido en
+ * dos líneas deja de leerse como una lista y el ítem deja de reconocerse de un
+ * vistazo. Y no es sólo estética: con el aumento de letra activo el texto
+ * crecía, el ancho no, y el rótulo se partía justo para quien había pedido
+ * letra más grande.
+ */
+.menu-govco .navbar-nav .nav-item .nav-link,
+.menu-govco .navbar-nav .nav-item .nav-link span {
+  white-space: nowrap;
 }
 
 .menu-govco .navbar-nav .nav-item .nav-link {

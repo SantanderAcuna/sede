@@ -15,6 +15,13 @@ use Illuminate\Database\Seeder;
  * - rol "sitio" = sitio público
  * - rol "panel" = panel de administración
  * - rol "admin" = solo administradores
+ *
+ * **Es idempotente, y no lo era.** El sembrador creaba cada ítem con
+ * `Menu::create()`, así que ejecutarlo dos veces dejaba el menú duplicado: ocho
+ * filas donde van cuatro. Se vio al plantear la siembra del servidor, donde el
+ * mismo sembrador tiene que poder correr en cada despliegue. La llave es
+ * `slug`, que es único en la tabla, así que `updateOrCreate` deja el menú igual
+ * la primera vez y las siguientes —y de paso corrige la etiqueta si cambió—.
  */
 final class MenuSeeder extends Seeder
 {
@@ -39,14 +46,8 @@ final class MenuSeeder extends Seeder
             ['slug' => 'panel-usuarios', 'etiqueta' => 'Usuarios', 'ruta' => '/panel/usuarios', 'orden' => 4, 'visible' => true, 'tipo' => 'interno', 'roles' => '["admin"]'],
         ];
 
-        // Insertar menú público
-        foreach ($sitioItems as $item) {
-            Menu::create($item);
-        }
-
-        // Insertar menú del panel
-        foreach ($panelItems as $item) {
-            Menu::create($item);
+        foreach ([...$sitioItems, ...$panelItems] as $item) {
+            Menu::updateOrCreate(['slug' => $item['slug']], $item);
         }
     }
 }

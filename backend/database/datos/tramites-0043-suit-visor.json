@@ -5,13 +5,13 @@
         "obtenido_en": "2026-10-02",
         "catalogo": "GET https://visorsuit.funcionpublica.gov.co/api/tramite?fi={fi} para los 124 trámites de la entidad",
         "total_tramites": 124,
-        "nota": "Copia congelada del scraping hecho a las 2026-10-02 16:15:49 — el directorio de captura no se versiona. Campos normalizados para que el seeder los pueda cruzar con tramites-0043-suit.json (T-códigos) por nombre estandarizado."
+        "nota": "Copia congelada del scraping hecho a las 2026-10-02 16:17:17 — el directorio de captura no se versiona. Campos normalizados para que el seeder los pueda cruzar con tramites-0043-suit.json (T-códigos) por nombre estandarizado."
     },
     "tramites": [
         {
-            "fi": null,
+            "fi": 33046,
             "nombre": "Registro de la publicidad exterior visual",
-            "nombre_listado": null,
+            "nombre_listado": "Registro de la publicidad exterior visual",
             "proposito": "Inscribir el medio masivo de comunicación destinado a informar o llamar la atención del público a través de elementos visuales como leyendas, inscripciones, dibujos, fotografías, signos o similares, visibles desde las vías de uso o dominio público, bien sean peatonales o vehiculares, terrestres, fluviales, marítimas o aéreas. ",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -226,9 +226,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 14088,
             "nombre": "Certificado de libertad y tradición de un vehículo automotor",
-            "nombre_listado": null,
+            "nombre_listado": "Certificado de libertad y tradición de un vehículo automotor",
             "proposito": "Obtener el certificado que determina la titularidad del dominio, las características del vehículo, medidas cautelares, limitaciones, gravámenes y un registro histórico donde se refleja todas las actuaciones y trámites realizados al automotor desde la fecha de expedición de la matrícula inicial.",
             "modalidad": "TOTALMENTE",
             "tiempo": {
@@ -536,9 +536,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 14089,
             "nombre": "Radicación de documentos para adelantar actividades de construcción y enajenación de inmuebles destinados a vivienda",
-            "nombre_listado": null,
+            "nombre_listado": "Radicación de documentos para adelantar actividades de construcción y enajenación de inmuebles destinados a vivienda",
             "proposito": "Habilitación que se le otorga a los interesados en promocionar, anunciar y/o desarrollar planes de vivienda para ejercer las actividades de transferencia de dominio a título oneroso.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -1223,9 +1223,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 2636,
             "nombre": "Exención del impuesto predial unificado",
-            "nombre_listado": null,
+            "nombre_listado": "Exención del impuesto predial unificado",
             "proposito": "Exoneración total de la obligación que tienen las personas naturales y jurídicas propietarias o poseedoras de predios, de conformidad con la causal determinada por las respectivas jurisdicciones territoriales.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -1751,9 +1751,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 2674,
             "nombre": "Impuesto de industria y comercio y su complementario de avisos y tableros.",
-            "nombre_listado": null,
+            "nombre_listado": "Impuesto de industria y comercio y su complementario de avisos y tableros.",
             "proposito": "Declaración y pago del impuesto por el ejercicio de cualquier actividad comercial, industrial o de servicios, en forma permanente u ocasional en inmuebles determinados, con establecimientos de comercio o sin ellos.",
             "modalidad": "TOTALMENTE",
             "tiempo": {
@@ -3087,9 +3087,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 28597,
             "nombre": "Copia certificada de planos",
-            "nombre_listado": null,
+            "nombre_listado": "Copia certificada de planos",
             "proposito": "Obtener la certificación de que la copia adicional de los planos es idéntica a los planos que se aprobaron en la respectiva licencia urbanística.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -4231,9 +4231,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 28614,
             "nombre": "Aprobación de piscinas.",
-            "nombre_listado": null,
+            "nombre_listado": "Aprobación de piscinas.",
             "proposito": "Permiso para la intervención del terreno destinado a la construcción de piscinas.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -8769,9 +8769,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 40674,
             "nombre": "Devolución de elementos retenidos por ocupación ilegal del espacio público",
-            "nombre_listado": null,
+            "nombre_listado": "Devolución de elementos retenidos por ocupación ilegal del espacio público",
             "proposito": "Obtener la devolución de los elementos que fueron retenidos por la autoridad de policía por ocupación ilegal del espacio público.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -9154,9 +9154,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 40683,
             "nombre": "Autorización para la operación de juegos de suerte y azar en la modalidad de promocionales",
-            "nombre_listado": null,
+            "nombre_listado": "Autorización para la operación de juegos de suerte y azar en la modalidad de promocionales",
             "proposito": "Obtener autorización para organizar y operar juegos de suerte y azar con el fin de publicitar o promocionar bienes o servicios, establecimientos, empresas o entidades, en los cuales se ofrezca un premio al público, sin que para acceder al juego se pague directamente.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -9439,9 +9439,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 40684,
             "nombre": "Permiso para espectáculos públicos diferentes a las artes escénicas",
-            "nombre_listado": null,
+            "nombre_listado": "Permiso para espectáculos públicos diferentes a las artes escénicas",
             "proposito": "Obtener la autorización para la realización de espectáculos públicos diferentes a las artes escénicas que comprenden las representaciones cinematográficas, corridas de toros, deportivos, ferias artesanales, desfiles de modas, reinados, atracciones mecánicas, peleas de gallos, de perros, circos con animales, carreras hípicas, desfiles en sitios públicos con el fin de exponer ideas o intereses colectivos de carácter político, económico, religioso o social.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -9759,9 +9759,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 40740,
             "nombre": "Auxilio para gastos de sepelio",
-            "nombre_listado": null,
+            "nombre_listado": "Auxilio para gastos de sepelio",
             "proposito": "Obtener el reconocimiento y pago de los gastos funerarios a la población en condición de vulnerabilidad extrema, como también víctimas del conflicto armado y sus familiares, que no cuenten con los recursos suficientes para sufragarlos.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -11979,9 +11979,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 40866,
             "nombre": "Concepto de excepción de juegos de suerte y azar en la modalidad de promocionales",
-            "nombre_listado": null,
+            "nombre_listado": "Concepto de excepción de juegos de suerte y azar en la modalidad de promocionales",
             "proposito": "Obtener concepto mediante el cual se establece la excepción para la autorización de juegos promocionales que realicen los operadores de juegos de suerte y azar, las beneficencias departamentales, las sociedades de capitalización y los juegos de suerte y azar de carácter tradicional, familiar y escolar.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -12214,9 +12214,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 40869,
             "nombre": "Concepto de excepción de juegos de suerte y azar en la modalidad de rifas",
-            "nombre_listado": null,
+            "nombre_listado": "Concepto de excepción de juegos de suerte y azar en la modalidad de rifas",
             "proposito": "Obtener concepto mediante el cual se establece la excepción para la realización de juegos de suerte y azar en la modalidad de rifas a los cuerpos de bomberos para su propio financiamiento. ",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -12397,9 +12397,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 40900,
             "nombre": "Autorización para la operación de juegos de suerte y azar en la modalidad de rifas",
-            "nombre_listado": null,
+            "nombre_listado": "Autorización para la operación de juegos de suerte y azar en la modalidad de rifas",
             "proposito": "Obtener autorización para la realización de juegos de suerte y azar en fecha predeterminada, en la cual se sortea premios en especie entre quienes hubieren adquirido o fueren poseedores de una o varias boletas emitidas con numeración en serie continua y puestas en venta en el mercado a precio fijo.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -13194,9 +13194,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 40942,
             "nombre": "Impuesto a la publicidad visual exterior",
-            "nombre_listado": null,
+            "nombre_listado": "Impuesto a la publicidad visual exterior",
             "proposito": "Declaración y pago del impuesto por la instalación y exhibición de toda publicidad exterior visual o medio masivo de comunicación destinado a informar o llamar la atención del público a través de elementos visuales como leyendas, inscripciones, dibujos, fotografías, signos o similares, visibles desde las vías de uso o dominio público, bien sean peatonales o vehiculares, terrestres, fluviales, marítimas o aéreas. ",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -13476,9 +13476,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 40952,
             "nombre": "Inscripción de limitación o gravamen a la propiedad de un vehículo automotor",
-            "nombre_listado": null,
+            "nombre_listado": "Inscripción de limitación o gravamen a la propiedad de un vehículo automotor",
             "proposito": "Inscribir gravámenes a la propiedad de un vehículo. ",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -14764,9 +14764,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41257,
             "nombre": "Cambio de carrocería de un vehículo automotor",
-            "nombre_listado": null,
+            "nombre_listado": "Cambio de carrocería de un vehículo automotor",
             "proposito": "Autorización del cambio o modificación de la estructura del vehículo automotor instalada sobre un chasis, destinada al transporte de personas o de carga.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -15199,9 +15199,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41309,
             "nombre": "Permiso para espectáculos públicos de las artes escénicas en escenarios no habilitados.",
-            "nombre_listado": null,
+            "nombre_listado": "Permiso para espectáculos públicos de las artes escénicas en escenarios no habilitados.",
             "proposito": "Obtener la autorización  para la realización de espectáculos públicos de las artes escénicas en escenarios no habilitados que comprenden las representaciones en vivo de expresiones artísticas en teatro, danza, música, circo, magia y todas sus posibles prácticas derivadas o creadas a partir de la imaginación, sensibilidad y conocimiento del ser humano que congregan la gente  por fuera del ámbito doméstico.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -15540,9 +15540,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41310,
             "nombre": "Licencia de funcionamiento para las instituciones promovidas por particulares que ofrezcan el servicio educativo para el trabajo y el desarrollo humano",
-            "nombre_listado": null,
+            "nombre_listado": "Licencia de funcionamiento para las instituciones promovidas por particulares que ofrezcan el servicio educativo para el trabajo y el desarrollo humano",
             "proposito": "Autorizar la creación, organización y  funcionamiento de instituciones de educación para el trabajo y el desarrollo humano de naturaleza privada.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -15821,9 +15821,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41311,
             "nombre": "Licencia de funcionamiento para establecimientos educativos promovidos por particulares para prestar el servicio público educativo en los niveles de preescolar, básica y media",
-            "nombre_listado": null,
+            "nombre_listado": "Licencia de funcionamiento para establecimientos educativos promovidos por particulares para prestar el servicio público educativo en los niveles de preescolar, básica y media",
             "proposito": "Obtener el reconocimiento oficial por medio del cual se le autoriza la apertura y operación del establecimiento educativo privado para prestar el servicio público de educación formal, en los niveles de preescolar, básica y media.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -16257,9 +16257,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41349,
             "nombre": "Concepto de norma urbanística",
-            "nombre_listado": null,
+            "nombre_listado": "Concepto de norma urbanística",
             "proposito": "Obtener el dictamen que contiene las normas urbanísticas y demás vigentes aplicables a un predio que va a ser construido o intervenido.\n\n\n",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -16657,9 +16657,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41351,
             "nombre": "Licencia de exhumación de cadáveres",
-            "nombre_listado": null,
+            "nombre_listado": "Licencia de exhumación de cadáveres",
             "proposito": "Obtener la autorización para extraer cadáveres, restos humanos y restos óseos del lugar de inhumación, previa orden judicial o administrativa para los efectos funerarios o legales.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -16954,9 +16954,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41353,
             "nombre": "Licencia para la cremación de cadáveres",
-            "nombre_listado": null,
+            "nombre_listado": "Licencia para la cremación de cadáveres",
             "proposito": "Obtener la autorización para cremar o incinerar un cadáver, en calidad de familiar de un fallecido, hospital o funeraria.\n\n",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -17221,9 +17221,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41356,
             "nombre": "Prórroga de sorteo de rifas",
-            "nombre_listado": null,
+            "nombre_listado": "Prórroga de sorteo de rifas",
             "proposito": "Obtener autorización de nueva fecha para efectuar el sorteo de la rifa que no se realizó en la fecha previamente autorizada. ",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -17508,9 +17508,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41360,
             "nombre": "Permiso para demostraciones públicas de pólvora, artículos pirotécnicos o fuegos artificiales.",
-            "nombre_listado": null,
+            "nombre_listado": "Permiso para demostraciones públicas de pólvora, artículos pirotécnicos o fuegos artificiales.",
             "proposito": "Obtener la autorización o permiso para la realización de espectáculos públicos de pólvora, artículos pirotécnicos o fuegos artificiales estableciendo las condiciones de seguridad que determinen técnicamente las autoridades o cuerpos de bomberos para prevenir incendios o situaciones de peligro y de acuerdo con la categoría de los fuegos artificiales. ",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -17823,9 +17823,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41362,
             "nombre": "Concepto de uso del suelo",
-            "nombre_listado": null,
+            "nombre_listado": "Concepto de uso del suelo",
             "proposito": "Obtener el dictamen escrito sobre uso o usos permitidos en un predio o edificación, de conformidad con las normas urbanísticas del plan de ordenamiento territorial y los instrumentos que lo desarrollen.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -18112,9 +18112,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41363,
             "nombre": "Aprobación de los planos de propiedad horizontal",
-            "nombre_listado": null,
+            "nombre_listado": "Aprobación de los planos de propiedad horizontal",
             "proposito": "Obtener la aprobación de los planos de alinderamiento, cuadros de áreas o proyecto de división entre bienes privados y bienes comunes de la propiedad horizontal.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -18532,9 +18532,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41366,
             "nombre": "Registro o renovación de programas de las instituciones promovidas por particulares que ofrezcan el servicio educativo para el trabajo y el desarrollo humano",
-            "nombre_listado": null,
+            "nombre_listado": "Registro o renovación de programas de las instituciones promovidas por particulares que ofrezcan el servicio educativo para el trabajo y el desarrollo humano",
             "proposito": "Obtener reconocimiento de los requisitos básicos para el funcionamiento adecuado de un programa de educación para el trabajo y el desarrollo humano.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -18885,9 +18885,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 41370,
             "nombre": "Blindaje de un vehículo automotor",
-            "nombre_listado": null,
+            "nombre_listado": "Blindaje de un vehículo automotor",
             "proposito": "Instalación de las barreras físicas de protección, utilizadas en sistemas de transporte para proteger, reducir o evitar situaciones extremas como atentados, tiroteos, robos, en los cuales se encuentren en peligro las personas que están en su interior.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -21004,9 +21004,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65678,
             "nombre": "Duplicado de placas de un vehículo automotor",
-            "nombre_listado": null,
+            "nombre_listado": "Duplicado de placas de un vehículo automotor",
             "proposito": "Expedición del duplicado de la(s) placa(s) de un vehículo automotor, en caso de pérdida, destrucción, deterioro o hurto, las cuales permiten identificar externa y privativamente un vehículo.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -21425,9 +21425,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65684,
             "nombre": "Duplicado de la licencia de tránsito de un vehículo automotor",
-            "nombre_listado": null,
+            "nombre_listado": "Duplicado de la licencia de tránsito de un vehículo automotor",
             "proposito": "Obtener la copia de la licencia de transito, expedida en caso de pérdida, hurto o deterioro, la cual identifica un vehículo automotor, acredita su propiedad e identifica a su propietario y autoriza a dicho vehículo para circular por las vías públicas y por las privadas abiertas al público.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -22990,9 +22990,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65974,
             "nombre": "Licencia de ocupación del espacio público para la localización de equipamiento",
-            "nombre_listado": null,
+            "nombre_listado": "Licencia de ocupación del espacio público para la localización de equipamiento",
             "proposito": "Autorización para ocupar una zona de cesión pública o de uso público con edificaciones destinadas al equipamiento comunal público.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -23274,9 +23274,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65975,
             "nombre": "Licencia de intervención del espacio público",
-            "nombre_listado": null,
+            "nombre_listado": "Licencia de intervención del espacio público",
             "proposito": "Autorización previa para intervenir bienes de uso público incluidos en el espacio público, de conformidad con las normas urbanísticas adoptadas en el Plan de Ordenamiento Territorial y en los instrumentos que lo desarrollen y complementen.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -23598,9 +23598,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65977,
             "nombre": "Autorización de Ocupación de Inmuebles",
-            "nombre_listado": null,
+            "nombre_listado": "Autorización de Ocupación de Inmuebles",
             "proposito": "Obtener el certificado que acredita el cabal cumplimiento de las obras construidas de conformidad con la licencia de construcción en la modalidad de obra nueva u obra de adecuación a las normas de sismorresistencia y/o normas urbanísticas y arquitectónicas. ",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -23812,9 +23812,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65978,
             "nombre": "Modificación del plano urbanístico",
-            "nombre_listado": null,
+            "nombre_listado": "Modificación del plano urbanístico",
             "proposito": "Actualizar la información contenida en los planos y cuadros de áreas de las urbanizaciones aprobadas y ejecutadas, cuya licencia esté vencida.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -24098,9 +24098,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65979,
             "nombre": "Registro de extinción de la propiedad horizontal",
-            "nombre_listado": null,
+            "nombre_listado": "Registro de extinción de la propiedad horizontal",
             "proposito": "Registrar la extinción total o parcial de la propiedad horizontal.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -24267,9 +24267,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65981,
             "nombre": "Legalización urbanística de asentamientos humanos",
-            "nombre_listado": null,
+            "nombre_listado": "Legalización urbanística de asentamientos humanos",
             "proposito": "Reconocimiento de la existencia de los asentamientos humanos constituidos por viviendas , con el fin de aprobar los planos urbanísticos y expedir la reglamentación urbanística. La legalización de los asentamientos implica la incorporación al perímetro urbano y de servicios, cuando a ello hubiere lugar y la regularización urbanística del asentamiento humano, sin contemplar la legalización de los derechos de propiedad en favor de eventuales poseedores.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -24641,9 +24641,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65989,
             "nombre": "Autorización sanitaria para la concesión de aguas para el consumo humano",
-            "nombre_listado": null,
+            "nombre_listado": "Autorización sanitaria para la concesión de aguas para el consumo humano",
             "proposito": "Obtener la autorización que acredita que las características físicas, químicas y microbiológicas encontradas en el agua son aptas para el consumo humano.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -24974,9 +24974,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65992,
             "nombre": "Certificado de estratificación socioeconómica",
-            "nombre_listado": null,
+            "nombre_listado": "Certificado de estratificación socioeconómica",
             "proposito": "Certificar el estrato socioeconómico oficial de uno o varios inmuebles residenciales, urbanos y rurales que se encuentren en jurisdicción del municipio.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -25258,9 +25258,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 65993,
             "nombre": "Asignación de nomenclatura",
-            "nombre_listado": null,
+            "nombre_listado": "Asignación de nomenclatura",
             "proposito": "Obtener el número de identificación único de los bienes raíces que se encuentren dentro de la jurisdicción.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -25511,9 +25511,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66055,
             "nombre": "Incorporación y entrega de las áreas de cesión a favor del municipio",
-            "nombre_listado": null,
+            "nombre_listado": "Incorporación y entrega de las áreas de cesión a favor del municipio",
             "proposito": "Transferir a favor del municipio por parte del urbanizador responsable y/o propietario de un proyecto urbanístico, la propiedad de las zonas de cesión obligatoria y gratuita de conformidad con los planos y resoluciones aprobadas para el respectivo proyecto urbanístico o desarrollo legalizado por la autoridad urbanística correspondiente.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -25783,9 +25783,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66057,
             "nombre": "Ajuste de un plan parcial adoptado",
-            "nombre_listado": null,
+            "nombre_listado": "Ajuste de un plan parcial adoptado",
             "proposito": "Aprobación del proyecto de ajuste o modificación de un plan parcial aprobado, teniendo en cuenta únicamente las instancias o autoridades a cuyo cargo se encuentren los asuntos objeto del ajuste necesario para el desarrollo del respectivo plan.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -26045,9 +26045,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66058,
             "nombre": "Consulta preliminar para la formulación de planes de regularización",
-            "nombre_listado": null,
+            "nombre_listado": "Consulta preliminar para la formulación de planes de regularización",
             "proposito": "Determinar la viabilidad y suministrar información para dar inicio a la etapa de formulación de un plan de regularización, para mitigar los impactos urbanísticos y ambientales negativos originados por el desarrollo del uso del suelo establecido, que por sus características requieren de un tratamiento especial del entorno inmediato a su localización, así como mejorar las condiciones de las edificaciones en que se realicen tales usos.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -26275,9 +26275,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66059,
             "nombre": "Formulación y radicación del proyecto del plan parcial",
-            "nombre_listado": null,
+            "nombre_listado": "Formulación y radicación del proyecto del plan parcial",
             "proposito": "Obtener la aprobación de la propuesta del plan parcial desarrollado conforme a lo establecido en los determinantes. Mediante el plan parcial se establece el aprovechamiento de los espacios privados, con la asignación de sus usos específicos, intensidades de uso y edificabilidad.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -26617,9 +26617,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66070,
             "nombre": "Determinantes para el ajuste de un plan parcial",
-            "nombre_listado": null,
+            "nombre_listado": "Determinantes para el ajuste de un plan parcial",
             "proposito": "Fijar las delimitaciones y la información sobre los determinantes aplicables para el ajuste o modificación de un plan parcial aprobado.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -27141,9 +27141,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66107,
             "nombre": "Corrección de errores e inconsistencias en declaraciones y recibos de pago",
-            "nombre_listado": null,
+            "nombre_listado": "Corrección de errores e inconsistencias en declaraciones y recibos de pago",
             "proposito": "Corrección de la información contenida en las declaraciones y/o en los recibos oficiales de pago, que presenten errores de diligenciamiento por parte del contribuyente, en datos tales como errores u omisiones en el concepto del tributo que se cancela, año y/o período gravable, errores de documento de identificación, errores aritméticos, siempre y cuando la inconsistencia no afecte el valor o liquidación del impuesto declarado",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -27361,9 +27361,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66133,
             "nombre": "Registro de ejemplares caninos de manejo especial",
-            "nombre_listado": null,
+            "nombre_listado": "Registro de ejemplares caninos de manejo especial",
             "proposito": "Obtener el registro en el censo de caninos de razas de manejo especial y posterior permiso para poseer los ejemplares que presenten una o más de las siguientes características: 1. Caninos que han tenido episodios de agresiones a personas; o le hayan causado la muerte a otros perros 2. Caninos que han sido adiestrados para el ataque y la defensa 3. Caninos que pertenecen a una de las siguientes razas o a sus cruces o híbridos: American staffordshire terrier, bullmastiff, dóberman, dogo argentino, dogo de burdeos, fila brasileiro, mastín napolitano, bull terrier, pit bull terrier, american pit bull terrier, de presa canario, rottweiler, staffordshire terrier, tosa japonés.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -27611,9 +27611,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66139,
             "nombre": "Esterilización canina y felina",
-            "nombre_listado": null,
+            "nombre_listado": "Esterilización canina y felina",
             "proposito": "Esterilizar caninos o felinos mediante procedimiento quirúrgico para controlar el crecimiento poblacional.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -28663,9 +28663,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66178,
             "nombre": "Devolución y/o compensación de pagos en exceso y pagos de lo no debido por conceptos no tributarios",
-            "nombre_listado": null,
+            "nombre_listado": "Devolución y/o compensación de pagos en exceso y pagos de lo no debido por conceptos no tributarios",
             "proposito": "Obtener la devolución y/o compensación de pagos en exceso o lo no debido, si ha cancelado sumas mayores por concepto de obligaciones no tributarias o ha efectuado pagos sin que exista causa legal para hacer exigible su cumplimiento.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -28880,9 +28880,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66181,
             "nombre": "Certificado de paz y salvo",
-            "nombre_listado": null,
+            "nombre_listado": "Certificado de paz y salvo",
             "proposito": "Obtener la certificación donde se manifiesta que el deudor se encuentra a paz y salvo con la entidad. ",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -31134,9 +31134,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 6071,
             "nombre": "Modificación en el registro de contribuyentes del impuesto de industria y comercio",
-            "nombre_listado": null,
+            "nombre_listado": "Modificación en el registro de contribuyentes del impuesto de industria y comercio",
             "proposito": "Realizar el cambio o actualización en el registro de contribuyentes del Impuesto de Industria y Comercio cuando hayan modificaciones efectuadas con relación a la actividad económica, sujeto pasivo del impuesto o establecimientos, tales como la venta, enajenación, modificación de la razón social, transformación de las actividades que se desarrollen, cambio de dirección del establecimiento y cualquier otra susceptible de modificar en los registros.",
             "modalidad": "TOTALMENTE",
             "tiempo": {
@@ -31421,9 +31421,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 6079,
             "nombre": "Cancelación del registro de contribuyentes del impuesto de industria y comercio",
-            "nombre_listado": null,
+            "nombre_listado": "Cancelación del registro de contribuyentes del impuesto de industria y comercio",
             "proposito": "Obtener  la cancelación del registro de industria y comercio cuando cesen definitivamente el desarrollo de actividades industriales, comerciales o de servicios sujetas a dicho impuesto.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -33236,9 +33236,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66338,
             "nombre": "Determinantes para la formulación de planes parciales",
-            "nombre_listado": null,
+            "nombre_listado": "Determinantes para la formulación de planes parciales",
             "proposito": "Fijar las delimitaciones y la información sobre los determinantes aplicables para la formulación del plan parcial.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {
@@ -33814,9 +33814,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66452,
             "nombre": "Apertura de los centros de estética y similares",
-            "nombre_listado": null,
+            "nombre_listado": "Apertura de los centros de estética y similares",
             "proposito": "Obtener autorización para la apertura y puesta en funcionamiento de establecimientos que ofrecen servicios de estética ornamental tales como: centros de estética, institutos de belleza, centros de bronceado y demás establecimientos donde se realicen procedimientos cosméticos, faciales o corporales.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -34165,9 +34165,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 66456,
             "nombre": "Licencia de inhumación de cadáveres.",
-            "nombre_listado": null,
+            "nombre_listado": "Licencia de inhumación de cadáveres.",
             "proposito": "Autorización para enterrar o depositar cadáveres, restos óseos y partes humanas en los cementerios.",
             "modalidad": "PARCIALMENTE",
             "tiempo": {
@@ -34461,9 +34461,9 @@
             }
         },
         {
-            "fi": null,
+            "fi": 67700,
             "nombre": "Licencia de funcionamiento de instituciones educativas que ofrezcan programas de educación formal de adultos",
-            "nombre_listado": null,
+            "nombre_listado": "Licencia de funcionamiento de instituciones educativas que ofrezcan programas de educación formal de adultos",
             "proposito": "Autorizar a una institución o centro para ofrecer el servicio educativo a las personas en edad relativamente mayor a la aceptada regularmente, en la educación por niveles y grados del servicio público educativo.",
             "modalidad": "NO_DISPONIBLE",
             "tiempo": {

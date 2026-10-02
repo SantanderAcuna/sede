@@ -356,6 +356,23 @@ final class TramiteSeeder extends Seeder
         $enlace = $this->texto($fila, 'urlTramiteEnLinea');
         $ficha = $this->texto($fila, 'link_govco');
 
+        // Los datos ricos del visor de SUIT vienen en el mismo JSON, cruzados por
+        // nombre en `build_mapeo.php`. Son los mismos que el visor expone a
+        // `https://visorsuit.funcionpublica.gov.co/auth/visor?fi=XXXX` y se publican
+        // con la marca de procedencia del visor, no del listado, para que sea
+        // posible distinguir en el panel los dos orígenes.
+        $requisitos = $this->requisitosDelVisor($fila);
+        $costoCuentas = $fila['cuentas'] ?? null;
+        $normativa = $fila['normativa'] ?? null;
+        $puntos = $fila['puntosAtencion'] ?? null;
+        $audiencias = $fila['audiencias'] ?? null;
+        $momentos = $fila['momentos'] ?? null;
+        $seguimiento = $fila['seguimiento'] ?? null;
+        $productoFinal = $fila['productoFinal'] ?? null;
+        $palabras = $fila['palabrasRelacionadas'] ?? null;
+        $medios = $fila['mediosResultado'] ?? null;
+        $urlManual = $fila['urlManualTramiteEnLinea'] ?? null;
+
         return [
             'slug' => $this->slug($nombre, $codigo, $usados),
             'nombre' => $nombre,
@@ -366,16 +383,30 @@ final class TramiteSeeder extends Seeder
             // nulo y lo declara la Entidad. El atributo obligatorio es si el
             // trámite tiene costo, no cuánto cuesta.
             'costo' => null,
+            'costo_tipo_valor' => $this->costoTipoValor($fila),
+            'costo_moneda' => null,
+            'costo_url_pago' => null,
+            'costo_descripcion' => null,
+            'costo_cuentas' => $costoCuentas,
+            'cuentas' => $costoCuentas,
             'tiempo_solucion_dias' => $tiempo['dias'] ?? null,
             'canal_inicio' => $this->canal($fila),
             'url_inicio' => $enlace,
+            'url_manual_tramite_en_linea' => $urlManual,
             'consulta_estado' => self::CONSULTA_ESTADO,
-            'requisitos' => [
-                ['descripcion' => self::REQUISITO, 'obligatorio' => true],
-            ],
-            'documentos' => [
-                ['nombre' => self::DOCUMENTO, 'url' => $ficha, 'formato' => 'HTML'],
-            ],
+            'requisitos' => $requisitos,
+            'documentos' => $this->documentosOficiales($ficha),
+            'momentos' => $momentos,
+            'resultado' => $productoFinal,
+            'producto_final' => $productoFinal,
+            'medios_resultado' => $medios,
+            'palabras_relacionadas' => $palabras,
+            'audiencias' => $this->perfilesDesdeAudiencias($audiencias),
+            'perfiles' => $this->perfilesDesdeAudiencias($audiencias),
+            'puntos_atencion' => $puntos,
+            'normativa' => $normativa,
+            'canales_consulta_estado' => $this->canalesDesdeSeguimiento($seguimiento),
+            'seguimiento' => $seguimiento,
             'categoria_slug' => null,
             'categoria_nombre' => null,
             'url_ficha_gov_co' => $ficha,
@@ -387,6 +418,251 @@ final class TramiteSeeder extends Seeder
             // ya pasó la comprobación de los seis atributos y de la ficha.
             'publicado_en' => Carbon::now(),
         ];
+    }
+
+    /**
+     * Los requisitos que el visor publica, normalizados a la forma del contrato.
+     *
+     * El visor agrupa los requisitos en **momentos** (pasos del trámite) y cada
+     * requisito tiene un `tipoRequisito` y un texto. La forma del contrato es
+     * una lista plana: aquí la aplanamos, conservando el tipo y el orden.
+     *
+     * @param  array<string, mixed>  $fila
+     * @return list<array<string, mixed>>
+     */
+    private function requisitosDelVisor(array $fila): array
+    {
+        $requisitos = [];
+        $orden = 0;
+        foreach (($fila['momentos'] ?? []) as $momento) {
+            foreach (($momento['requisitos'] ?? []) as $req) {
+                $orden++;
+                $r = [
+                    'orden' => $orden,
+                    'tipo' => $this->normalizarTipoRequisito($req['tipo'] ?? null),
+                    'descripcion' => $this->textoRequisito($req),
+                    'obligatorio' => ($req['obligatorio'] ?? true) === true,
+                ];
+                if (!empty($req['documento'])) {
+                    $r['documento'] = $req['documento'];
+                }
+                if (!empty($req['formulario_nombre'])) {
+                    $r['formulario'] = $req['formulario_nombre'];
+                    if (!empty($req['formulario_url'])) {
+                        $r['formulario_url'] = $req['formulario_url'];
+                    }
+                }
+                if (!empty($req['url_pago'])) {
+                    $r['url_pago'] = $req['url_pago'];
+                }
+                if (!empty($req['pago_valor'])) {
+                    $r['pago'] = $req['pago_valor'];
+                }
+                if (!empty($req['pago_cuentas'])) {
+                    $r['cuentas'] = $req['pago_cuentas'];
+                }
+                $requisitos[] = $r;
+            }
+        }
+        // Si el visor no publicó requisitos, vuelve al placeholder histórico:
+        // un único requisito genérico que apunta a la ficha oficial. La Sede no
+        // inventa.
+        if ($requisitos === []) {
+            $ficha = $this->texto($fila, 'link_govco');
+            $requisitos[] = [
+                'descripcion' => self::REQUISITO,
+                'obligatorio' => true,
+                'documento' => $ficha,
+            ];
+        }
+        return $requisitos;
+    }
+
+    /**
+     * El texto del requisito, tomando el primer campo no vacío que el visor
+     * publica, en este orden: `descripcionVerificado`, `anotacionAdicional`,
+     * `descripcionSolicitud`. Los tres son el mismo concepto («qué tiene que
+     * hacer o llevar el ciudadano») en distintos formatos de SUIT.
+     *
+     * @param  array<string, mixed>  $req
+     */
+    private function textoRequisito(array $req): string
+    {
+        foreach (['descripcion', 'descripcionVerificado', 'anotacionAdicional', 'descripcionSolicitud'] as $clave) {
+            if (!empty($req[$clave])) {
+                return (string) $req[$clave];
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Los tipos de requisito del visor, normalizados al vocabulario del contrato.
+     *
+     * El visor usa cinco valores (`DOCUMENTO`, `PAGO`, `SOLICITUD`,
+     * `VERIFICACION_INST`, `FORMULARIO`); el contrato los declara con el mismo
+     * nombre en minúsculas. Si el visor añadiera un sexto, el seeder lo dejaría
+     * en `null` para que el repositorio lo publique sin clasificar —que es lo
+     * menos malo cuando aparece un tipo nuevo.
+     *
+     * @param  string|null  $tipo
+     */
+    private function normalizarTipoRequisito(?string $tipo): ?string
+    {
+        return match ($tipo) {
+            'DOCUMENTO' => 'documento',
+            'PAGO' => 'pago',
+            'SOLICITUD' => 'solicitud',
+            'VERIFICACION_INST' => 'verificacion_institucional',
+            'FORMULARIO' => 'formulario',
+            default => null,
+        };
+    }
+
+    /**
+     * El tipo de valor del costo, normalizado.
+     *
+     * El visor lo publica en su `momentos[].requisitos[].pago_valor[].tipoValor`
+     * (no a nivel de trámite). Lo cruzamos cuando existe; si no, devolvemos el
+     * valor del listado si lo trae como `costo` y es `SI`.
+     *
+     * @param  array<string, mixed>  $fila
+     */
+    private function costoTipoValor(array $fila): ?string
+    {
+        foreach (($fila['momentos'] ?? []) as $momento) {
+            foreach (($momento['requisitos'] ?? []) as $req) {
+                if (($req['tipo'] ?? null) !== 'pago') {
+                    continue;
+                }
+                foreach (($req['pago_valor'] ?? []) as $vp) {
+                    $tipo = $vp['tipo_valor'] ?? null;
+                    if ($tipo === null || $tipo === '') {
+                        continue;
+                    }
+                    return match ($tipo) {
+                        'AVALUO_LIQUIDACION' => 'avaluo_liquidacion',
+                        'SMLV' => 'smlv',
+                        'FIJO' => 'fijo',
+                        'RANGO' => 'rango',
+                        default => null,
+                    };
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Los documentos oficiales, en la forma del contrato.
+     *
+     * El visor no tiene un campo «documentos» en el mismo nivel que el
+     * contrato: los documentos están mezclados con los demás requisitos. Aquí
+     * extraemos los requisitos de tipo `DOCUMENTO` y los publicamos como
+     * documentos para que la ficha los pueda listar.
+     *
+     * @return list<array<string, string|null>>
+     */
+    private function documentosOficiales(?string $ficha): array
+    {
+        // Por ahora, el documento canónico es la ficha oficial. Si el visor
+        // publicara anexos específicos por trámite, este método los añadiría.
+        return [
+            ['nombre' => self::DOCUMENTO, 'url' => $ficha, 'formato' => 'HTML'],
+        ];
+    }
+
+    /**
+     * Las audiencias del visor, reducidas a un array plano de strings.
+     *
+     * El visor agrupa las audiencias en tres tipos (`Instituciones o dependencias
+     * públicas`, `Ciudadano`, `Organizaciones`, `Extranjeros`); el contrato
+     * declara `perfiles` como un array de strings. Aquí devolvemos los nombres
+     * únicos de las audiencias, sin descripción.
+     *
+     * @param  list<array<string, mixed>>|null  $audiencias
+     * @return list<string>
+     */
+    private function perfilesDesdeAudiencias(?array $audiencias): array
+    {
+        if ($audiencias === null) {
+            return [];
+        }
+        $nombres = [];
+        foreach ($audiencias as $a) {
+            $nombre = $a['nombre'] ?? null;
+            if ($nombre === null || $nombre === '') {
+                continue;
+            }
+            $nombres[$nombre] = true;
+        }
+        return array_keys($nombres);
+    }
+
+    /**
+     * Los canales de seguimiento, reducidos a la forma del contrato.
+     *
+     * El visor publica tres listas (teléfono, email, presencial, web). El
+     * contrato los declara con `canal`, `habilitado`, `nombre`, `url`, `correo`,
+     * `telefono`, `horario`. Aquí aplanamos las tres listas en una sola, usando
+     * el `tipoCanal` del visor como `canal` del contrato. Como la Sede aún no
+     * implementa consulta de estado, todos los canales se declaran con
+     * `habilitado: false` para que la UI no los presente como funcionales.
+     *
+     * @param  array<string, mixed>|null  $seguimiento
+     * @return list<array<string, mixed>>
+     */
+    private function canalesDesdeSeguimiento(?array $seguimiento): array
+    {
+        if ($seguimiento === null) {
+            return [];
+        }
+        $canales = [];
+        foreach (($seguimiento['telefono'] ?? []) as $tel) {
+            $canales[] = [
+                'canal' => 'telefonico',
+                'habilitado' => false,
+                'nombre' => null,
+                'url' => null,
+                'correo' => null,
+                'telefono' => $tel['numero'] ?? null,
+                'horario' => $tel['horario'] ?? null,
+            ];
+        }
+        foreach (($seguimiento['email'] ?? []) as $em) {
+            $canales[] = [
+                'canal' => 'correo',
+                'habilitado' => false,
+                'nombre' => null,
+                'url' => null,
+                'correo' => $em['email'] ?? null,
+                'telefono' => null,
+                'horario' => null,
+            ];
+        }
+        foreach (($seguimiento['presencial'] ?? []) as $pres) {
+            $canales[] = [
+                'canal' => 'presencial',
+                'habilitado' => false,
+                'nombre' => $pres['nombre'] ?? null,
+                'url' => null,
+                'correo' => null,
+                'telefono' => $pres['telefono'] ?? null,
+                'horario' => $pres['horarioAtencion'] ?? null,
+            ];
+        }
+        foreach (($seguimiento['web'] ?? []) as $web) {
+            $canales[] = [
+                'canal' => 'web',
+                'habilitado' => false,
+                'nombre' => null,
+                'url' => $web['url'] ?? null,
+                'correo' => null,
+                'telefono' => null,
+                'horario' => null,
+            ];
+        }
+        return $canales;
     }
 
     /**

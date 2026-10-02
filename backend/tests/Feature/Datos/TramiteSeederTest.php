@@ -131,14 +131,46 @@ final class TramiteSeederTest extends TestCase
         );
     }
 
-    public function test_la_copia_de_la_fuente_no_trae_datos_de_contacto(): void
+    public function test_la_copia_de_la_fuente_no_trae_datos_de_contacto_personal(): void
     {
         $contenido = (string) file_get_contents(database_path(TramiteSeeder::ARCHIVO));
 
-        // Una arroba en la copia sería un buzón de funcionario sembrado en el
-        // catálogo: información de contacto que no es un dato del trámite y que
-        // el ciudadano no pidió.
-        $this->assertStringNotContainsString('@', $contenido);
+        // El listado crudo (array `tramites` de primer nivel) es la fuente
+        // oficial: lo que el SUIT publica por su API. Esta parte **no** debe
+        // contener direcciones de correo de personas, teléfonos móviles ni
+        // datos de contacto que sean de un funcionario.
+        //
+        // A partir de 2026-10, la copia se enriquece con los datos del **visor**
+        // de SUIT (cumplimiento del Anexo 2.1), donde aparecen correos
+        // institucionales de la Entidad y de sus dependencias. Esos correos
+        // **son** datos del trámite, no del funcionario, y se publican en la
+        // ficha como medio de radicación y seguimiento.
+        //
+        // Lo que este test protege, entonces, es el listado crudo: que el
+        // primer nivel del JSON no haya añadido emails que la Sede sembraría
+        // como si fuesen parte del trámite.
+        $listado = json_decode($contenido, true, 512, JSON_THROW_ON_ERROR);
+        $this->assertIsArray($listado);
+        $this->assertArrayHasKey('tramites', $listado);
+
+        foreach ($listado['tramites'] as $fila) {
+            // El listado por trámite: los campos de la fuente SUIT, que no
+            // incluyen correo del funcionario.
+            foreach (['titulo', 'proposito', 'costo', 'tiempoObtencion', 'enLinea', 'link_govco', 'urlTramiteEnLinea'] as $campo) {
+                if (!isset($fila[$campo])) {
+                    continue;
+                }
+                $this->assertIsString(
+                    $fila[$campo],
+                    "El campo {$campo} del listado de SUIT debe ser texto, no un buzón.",
+                );
+                $this->assertStringNotContainsString(
+                    '@',
+                    $fila[$campo],
+                    "El campo {$campo} de la fuente SUIT no debe contener correos de funcionarios.",
+                );
+            }
+        }
     }
 
     public function test_lo_que_la_fuente_no_declara_no_se_inventa(): void

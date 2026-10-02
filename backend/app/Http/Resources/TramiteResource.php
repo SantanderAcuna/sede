@@ -68,15 +68,22 @@ final class TramiteResource extends JsonResource
             'requisitos' => $tramite->requisitos,
             'documentos' => $tramite->documentos,
 
-            // Lo que acompaña a los seis atributos. Cada bloque viaja aunque vaya
-            // vacío: la ficha los presenta rotulados y un bloque ausente y uno
-            // vacío se dibujan igual, así que declararlos siempre deja al cliente
-            // sin una rama de más.
-            'resultado' => $tramite->resultado,
+            // Los momentos del trámite y su resultado oficial: vienen del visor
+            // de SUIT, que es la fuente oficial. El modelo ya declara el
+            // `resultado` y se mantiene por compatibilidad con la Guía §5.1.3;
+            // `producto_final` es el dato crudo del visor.
+            'resultado' => $tramite->resultado ?? $tramite->producto_final,
+            'producto_final' => $tramite->producto_final,
+            'medios_resultado' => $tramite->medios_resultado,
+            'palabras_relacionadas' => $tramite->palabras_relacionadas,
+            'momentos' => $tramite->momentos,
+            'audiencias' => $tramite->audiencias,
             'perfiles' => $tramite->perfiles,
             'puntos_atencion' => $tramite->puntos_atencion,
             'normativa' => $tramite->normativa,
             'canales_consulta_estado' => $tramite->canales_consulta_estado,
+            'seguimiento' => $tramite->seguimiento,
+            'cuentas' => $tramite->cuentas,
 
             'url_inicio' => $tramite->url_inicio,
             'categoria' => $tramite->categoria_slug === null

@@ -1944,6 +1944,7 @@ components:
           type: string
           enum: [propio, portal_nacional]
         url_inicio: { type: [string, 'null'] }
+        url_manual_tramite_en_linea: { type: [string, 'null'], format: uri, maxLength: 500 }
         consulta_estado: { type: string }
         requisitos:
           type: array
@@ -1951,19 +1952,48 @@ components:
         documentos:
           type: array
           items: { $ref: '#/components/schemas/TramiteDocumento' }
+        # Momentos del trámite: los pasos oficiales del visor de SUIT
+        # (Reunir documentos, Radicar la documentación, etc.) con sus
+        # requisitos dentro. Cada momento es narrativo, no un ítem de
+        # checklist, y conserva el orden oficial.
+        momentos:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteMomento' }
+        # Resultado y medios por los que se entrega (correo, presencial, etc.)
+        resultado: { type: [string, 'null'] }
+        producto_final: { type: [string, 'null'], maxLength: 500 }
+        medios_resultado:
+          type: array
+          items: { type: string, maxLength: 60 }
+        # Palabras clave secundarias del visor, separadas por comas.
+        palabras_relacionadas: { type: [string, 'null'] }
+        # Audiencias (perfiles) declaradas por el visor, con descripción.
+        audiencias:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteAudiencia' }
         perfiles:
           type: array
           items: { type: string, maxLength: 60 }
-        resultado: { type: [string, 'null'] }
         puntos_atencion:
           type: array
           items: { $ref: '#/components/schemas/TramitePuntoAtencion' }
         normativa:
           type: array
           items: { $ref: '#/components/schemas/TramiteNorma' }
+        # Cuentas de recaudo declaradas por el visor. Distintas de
+        # `costo.cuentas` porque el visor las publica a nivel de trámite
+        # (no a nivel de requisito de pago), y porque su forma es la del
+        # visor: `banco`/`tipo`/`numero`/`titular` en vez de
+        # `entidad`/`tipo_cuenta`/`numero_cuenta`/`titular`.
+        cuentas:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteCuentaVisor' }
         canales_consulta_estado:
           type: array
           items: { $ref: '#/components/schemas/TramiteCanalConsulta' }
+        # Bloque de seguimiento del visor: teléfono, email, presencial, web.
+        # Cada sub-bloque puede traer varios registros.
+        seguimiento: { $ref: '#/components/schemas/TramiteSeguimiento' }
         categoria:
           oneOf:
             - $ref: '#/components/schemas/TramiteCategoria'
@@ -2089,6 +2119,142 @@ components:
         orden: { type: integer, minimum: 1 }
         titulo: { type: string }
         descripcion: { type: [string, 'null'] }
+
+    TramiteMomento:
+      type: object
+      required: [orden, titulo]
+      description: |
+        Un momento del trámite, en la forma en que los publica el visor de
+        SUIT. Es un paso narrativo con un orden oficial y un conjunto de
+        requisitos dentro. La Sede lo renderiza como una línea de tiempo.
+      properties:
+        orden: { type: integer, minimum: 1 }
+        titulo: { type: string, maxLength: 200 }
+        descripcion: { type: [string, 'null'] }
+        requisitos:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteRequisitoVisor' }
+
+    TramiteRequisitoVisor:
+      type: object
+      description: |
+        Requisito de un momento, en la forma del visor de SUIT. Tiene los
+        mismos cinco tipos del contrato (`documento`, `pago`, `solicitud`,
+        `verificacion_institucional`, `formulario`) y campos opcionales según
+        el tipo: cuentas de recaudo si es `pago`, formulario con URL si es
+        `formulario`, etc.
+      required: [tipo]
+      properties:
+        orden: { type: [integer, 'null'], minimum: 1 }
+        tipo:
+          type: string
+          enum: [documento, verificacion_institucional, solicitud, formulario, pago]
+        descripcion: { type: [string, 'null'] }
+        obligatorio: { type: [boolean, 'null'], default: true }
+        # Documento
+        documento: { type: [string, 'null'] }
+        # Formulario
+        formulario: { type: [string, 'null'] }
+        formulario_url: { type: [string, 'null'], format: uri }
+        # Pago
+        url_pago: { type: [string, 'null'], format: uri }
+        pago:
+          type: array
+          items: { $ref: '#/components/schemas/TramitePagoValor' }
+        cuentas:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteCuentaVisor' }
+        # Canales
+        canales:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteCanalRequisito' }
+
+    TramitePagoValor:
+      type: object
+      required: []
+      description: |
+        El valor declarado para un pago, en la forma del visor. Distintos
+        campos pueden venir nulos según el `tipo_valor`: `fijo` requiere
+        `valor`, `avaluo_liquidacion` lo deja nulo con una explicación.
+      properties:
+        valor: { type: [string, 'null'], maxLength: 30 }
+        moneda: { type: [string, 'null'], maxLength: 20 }
+        tipo_valor:
+          type: [string, 'null']
+          enum: [fijo, smlv, avaluo_liquidacion, rango, null]
+        descripcion: { type: [string, 'null'] }
+
+    TramiteCuentaVisor:
+      type: object
+      required: [numero]
+      description: |
+        Una cuenta bancaria declarada por el visor de SUIT, en su forma
+        original. Distinta de `TramiteCuentaBancaria` (que es la forma del
+        contrato) sólo en los nombres de los campos: el visor usa
+        `banco`/`numero` en vez de `entidad`/`numero_cuenta`.
+      properties:
+        banco: { type: [string, 'null'], maxLength: 120 }
+        tipo: { type: [string, 'null'], maxLength: 40 }
+        numero: { type: string, maxLength: 40 }
+        titular: { type: [string, 'null'], maxLength: 120 }
+
+    TramiteAudiencia:
+      type: object
+      required: [nombre]
+      description: |
+        Una audiencia del visor: el grupo (Ciudadano, Organizaciones, etc.)
+        y el nombre (Infancia, Juventud, etc.). El grupo se publica en el
+        objeto padre y aquí sólo va el nombre y la descripción.
+      properties:
+        grupo: { type: [string, 'null'], maxLength: 60 }
+        nombre: { type: string, maxLength: 120 }
+        descripcion: { type: [string, 'null'] }
+
+    TramiteSeguimiento:
+      type: object
+      description: |
+        Los canales de seguimiento que el visor publica. Cada bloque es
+        opcional: un trámite puede tener teléfono pero no email, etc. Los
+        canales los dibuja la ficha con `habilitado: false` mientras el
+        expediente electrónico de la Sede no esté construido.
+      properties:
+        telefono:
+          type: array
+          items:
+            type: object
+            properties:
+              numero: { type: [string, 'null'] }
+              extension: { type: [string, 'null'] }
+              horario: { type: [string, 'null'] }
+        email:
+          type: array
+          items:
+            type: object
+            properties:
+              email: { type: [string, 'null'], format: email }
+        presencial:
+          type: array
+          items: { $ref: '#/components/schemas/TramitePuntoAtencion' }
+        web:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: [string, 'null'], format: uri }
+
+    TramiteCanalRequisito:
+      type: object
+      required: [tipo]
+      description: |
+        El canal por el que se presenta un requisito (correo, presencial,
+        web). En la ficha, el tipo se renderiza como un enlace o un
+        distintivo.
+      properties:
+        tipo:
+          type: string
+          enum: [correo, presencial, web, telefonico]
+        email: { type: [string, 'null'], format: email }
+        url: { type: [string, 'null'], format: uri }
 
     TramiteProcedencia:
       type: object

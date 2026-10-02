@@ -53,6 +53,30 @@ type Requisito = components['schemas']['TramiteRequisito']
 type PuntoAtencion = components['schemas']['TramitePuntoAtencion']
 type Norma = components['schemas']['TramiteNorma']
 type Cuenta = components['schemas']['TramiteCuentaBancaria']
+type TramitePaso = components['schemas']['TramitePaso']
+type TramiteCuentaPago = {
+  banco?: string
+  tipo?: string
+  numero?: string
+  titular?: string
+}
+type TramitePagoValor = {
+  valor?: string | number | null
+  moneda?: string
+  tipo_valor?: string
+  descripcion?: string
+}
+type RequisitoExtendido = Requisito & {
+  orden?: number
+  pago?: TramitePagoValor[]
+  pago_valor?: TramitePagoValor[]
+  cuentas?: TramiteCuentaPago[]
+  pago_cuentas?: TramiteCuentaPago[]
+  formulario?: string
+  formulario_nombre?: string
+  formulario_url?: string
+  url_pago?: string
+}
 
 /** La naturaleza de un requisito, tal como la declara el contrato. */
 type TipoRequisito = Requisito['tipo']
@@ -226,17 +250,19 @@ const EXPLICACION_TIPO_VALOR: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 /** Los requisitos, agrupados por naturaleza y en el orden del recorrido. */
-const requisitosPorTipo = computed<{ tipo: TipoRequisito; titulo: string; items: Requisito[] }[]>(
-  () => {
-    const todos = tramite.value?.requisitos ?? []
+const requisitosPorTipo = computed<{
+  tipo: TipoRequisito
+  titulo: string
+  items: RequisitoExtendido[]
+}[]>(() => {
+  const todos = (tramite.value?.requisitos ?? []) as unknown as RequisitoExtendido[]
 
-    return ORDEN_REQUISITO.map((tipo) => ({
-      tipo,
-      titulo: TITULO_REQUISITO[tipo],
-      items: todos.filter((requisito) => requisito.tipo === tipo),
-    })).filter((grupo) => grupo.items.length > 0)
-  },
-)
+  return ORDEN_REQUISITO.map((tipo) => ({
+    tipo,
+    titulo: TITULO_REQUISITO[tipo],
+    items: todos.filter((requisito) => requisito.tipo === tipo),
+  })).filter((grupo) => grupo.items.length > 0)
+})
 
 /**
  * El término, con la palabra «hábil» que la fuente no declara.
@@ -304,6 +330,53 @@ const canalesConsulta = computed(() => tramite.value?.canales_consulta_estado ??
 
 /** El mecanismo de consulta que la Sede declara en el atributo obligatorio. */
 const consultaEstado = computed<string>(() => tramite.value?.consulta_estado ?? '')
+
+/**
+ * Los pasos (momentos) del trámite, en el orden oficial del visor de SUIT.
+ *
+ * Cada momento es un paso narrativo («Reunir documentos», «Radicar la
+ * documentación») con sus requisitos dentro. La Sede los publica como una
+ * línea de tiempo, que es la forma en que el visor oficial los presenta.
+ */
+const momentos = computed<TramitePaso[]>(() => {
+  const raw = tramite.value?.momentos
+  if (!Array.isArray(raw)) return []
+  return raw as unknown as TramitePaso[]
+})
+
+/** Los medios por los que la Entidad entrega el resultado, según el visor. */
+const mediosResultado = computed<string[]>(() => {
+  const raw = tramite.value?.medios_resultado
+  if (!Array.isArray(raw)) return []
+  return raw.filter((m): m is string => typeof m === 'string' && m.length > 0)
+})
+
+/** El conjunto de cuentas de recaudo del trámite, deduplicado por banco+número. */
+const cuentasVisor = computed<TramiteCuentaPago[]>(() => {
+  const raw = tramite.value?.cuentas
+  if (!Array.isArray(raw)) return []
+  return raw as unknown as TramiteCuentaPago[]
+})
+
+/**
+ * Los perfiles-audiencia declarados por el visor, ya reducidos a un array
+ * plano de strings. Es el mismo campo que `perfiles` del contrato, pero
+ * poblado desde el visor en vez de inventado.
+ */
+const perfilesVisor = computed<string[]>(() => {
+  const raw = tramite.value?.audiencias
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((a) => (a as { nombre?: string }).nombre)
+    .filter((n): n is string => typeof n === 'string' && n.length > 0)
+})
+
+/** Las palabras clave secundarias declaradas por el visor. */
+const palabrasRelacionadas = computed<string[]>(() => {
+  const raw = tramite.value?.palabras_relacionadas
+  if (typeof raw !== 'string' || raw.length === 0) return []
+  return raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+})
 
 /**
  * Los campos cuya procedencia **no** es la fuente.
@@ -386,6 +459,37 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
   if (unidad === undefined) return String(cantidad)
 
   return `${cantidad} ${unidad}`
+}
+
+/** Las cuentas de un requisito de pago, en la forma normalizada del visor. */
+function cuentasDeRequisito(req: RequisitoExtendido): TramiteCuentaPago[] {
+  return req.cuentas ?? req.pago_cuentas ?? []
+}
+
+/** Los valores de pago declarados, en la forma del visor. */
+function pagosDeRequisito(req: RequisitoExtendido): TramitePagoValor[] {
+  return req.pago ?? req.pago_valor ?? []
+}
+
+/** El nombre del formulario, si el requisito lo declara. */
+function formularioDeRequisito(req: RequisitoExtendido): string | undefined {
+  return opcional(req.formulario ?? req.formulario_nombre)
+}
+
+/** El tipo de valor del pago, en lenguaje del ciudadano. */
+function formatoTipoValor(tipo: string | null | undefined): string {
+  switch (tipo) {
+    case 'avaluo_liquidacion':
+      return 'El importe se calcula con el avalúo y la liquidación del predio'
+    case 'smlv':
+      return 'El importe se expresa en salarios mínimos legales mensuales vigentes (SMLMV)'
+    case 'fijo':
+      return 'El trámite tiene un importe fijo'
+    case 'rango':
+      return 'El importe depende del rango que la Entidad declara'
+    default:
+      return 'El trámite tiene costo; la Entidad debe declarar el importe'
+  }
 }
 </script>
 
@@ -517,7 +621,12 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
 
           <ul class="lista-requisitos">
             <li v-for="(requisito, indice) in grupo.items" :key="indice">
-              <span class="requisito-descripcion">{{ requisito.descripcion }}</span>
+              <span v-if="opcional(requisito.descripcion)" class="requisito-descripcion">
+                {{ requisito.descripcion }}
+              </span>
+              <span v-else class="requisito-descripcion text-muted">
+                <em>Requisito sin descripción detallada</em>
+              </span>
 
               <!-- La cantidad sólo la declara la fuente para los documentos. -->
               <span v-if="cantidadDocumento(requisito)" class="d-block nota-derivado">
@@ -548,9 +657,119 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
                   :aria-label="`${requisito.correo} (abre el programa de correo)`"
                 >{{ requisito.correo }}</a>
               </span>
+
+              <!--
+                BLOQUE DE PAGO: si el requisito es de tipo PAGO, mostramos el
+                importe declarado por el visor y la lista de cuentas donde el
+                ciudadano puede pagar. Las cuentas son la ruta real de pago
+                porque la Sede no tiene pasarela de pagos contratada.
+              -->
+              <template v-if="grupo.tipo === 'pago'">
+                <div v-if="pagosDeRequisito(requisito).length > 0" class="bloque-pago mt-2">
+                  <p
+                    v-for="(pago, idxPago) in pagosDeRequisito(requisito)"
+                    :key="idxPago"
+                    class="mb-1"
+                  >
+                    <strong v-if="pago.valor">Importe: {{ pago.valor }} {{ pago.moneda ?? '' }}.</strong>
+                    <strong v-else-if="pago.tipo_valor">Importe: {{ formatoTipoValor(pago.tipo_valor) }}.</strong>
+                    <span v-if="pago.descripcion" class="d-block nota-derivado">
+                      {{ pago.descripcion }}
+                    </span>
+                  </p>
+                </div>
+
+                <div
+                  v-if="cuentasDeRequisito(requisito).length > 0"
+                  class="cuentas-pago mt-2"
+                >
+                  <p class="nota-derivado mb-1">Cuentas de recaudo para este pago:</p>
+                  <ul class="lista-cuentas-pequena">
+                    <li
+                      v-for="(cuenta, idxCta) in cuentasDeRequisito(requisito)"
+                      :key="idxCta"
+                    >
+                      <strong v-if="opcional(cuenta.banco)">{{ cuenta.banco }}</strong>
+                      <span v-if="opcional(cuenta.tipo)"> — {{ cuenta.tipo }}</span>
+                      <span v-if="opcional(cuenta.numero)" class="dato-largo"> — N° {{ cuenta.numero }}</span>
+                      <span v-if="opcional(cuenta.titular)"> — {{ cuenta.titular }}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <p
+                  v-if="opcional(requisito.url_pago)"
+                  class="mt-2"
+                >
+                  <a
+                    :href="requisito.url_pago ?? undefined"
+                    class="enlace-externo"
+                    rel="noopener"
+                  >Pagar en línea en el portal de la Entidad</a>
+                </p>
+              </template>
+
+              <!--
+                BLOQUE DE FORMULARIO: si el requisito es de tipo FORMULARIO,
+                mostramos el nombre y la URL del formulario.
+              -->
+              <template v-if="grupo.tipo === 'formulario'">
+                <p
+                  v-if="formularioDeRequisito(requisito)"
+                  class="mt-2 mb-0"
+                >
+                  <strong>Formulario:</strong> {{ formularioDeRequisito(requisito) }}
+                </p>
+                <p
+                  v-if="opcional(requisito.formulario_url)"
+                  class="mt-1"
+                >
+                  <a
+                    :href="requisito.formulario_url ?? undefined"
+                    class="enlace-externo"
+                    rel="noopener"
+                  >Diligenciar en línea</a>
+                </p>
+              </template>
             </li>
           </ul>
         </div>
+      </section>
+
+      <!--
+        =====================================================================
+        Pasos del trámite (momentos)
+        =====================================================================
+        Cada paso es un momento narrativo con un orden oficial. El visor los
+        publica con su `orden` y su `descripcion` («Reunir documentos»,
+        «Radicar la documentación»). Se renderizan como una línea de tiempo
+        porque es la forma en que el visor oficial los presenta: cada paso es
+        una etapa, no un ítem de una lista.
+      -->
+      <section
+        v-if="momentos.length > 0"
+        aria-labelledby="titulo-pasos"
+        class="mt-5"
+      >
+        <h2 id="titulo-pasos" class="h3">Cómo se hace — paso a paso</h2>
+
+        <ol class="linea-tiempo list-unstyled">
+          <li
+            v-for="(paso, idx) in momentos"
+            :key="idx"
+            class="paso-tramite"
+          >
+            <div class="paso-numero">
+              <span>{{ paso.orden ?? idx + 1 }}</span>
+            </div>
+            <div class="paso-cuerpo">
+              <h3 class="h5 paso-titulo">{{ paso.titulo }}</h3>
+              <p v-if="opcional(paso.descripcion)" class="paso-descripcion">
+                {{ paso.descripcion }}
+              </p>
+            </div>
+          </li>
+        </ol>
       </section>
 
       <!--
@@ -673,17 +892,29 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
         de los seis atributos: los perfiles deciden si el trámite le aplica a
         quien está leyendo, y el resultado dice qué se lleva a cambio.
       -->
-      <div v-if="(tramite.perfiles ?? []).length > 0 || opcional(tramite.resultado)" class="row mt-5">
-        <div v-if="(tramite.perfiles ?? []).length > 0" class="col-md-6">
+      <div
+        v-if="perfilesVisor.length > 0 || opcional(tramite.resultado) || mediosResultado.length > 0"
+        class="row mt-5"
+      >
+        <div v-if="perfilesVisor.length > 0" class="col-md-6">
           <h2 class="h3">A quién va dirigido</h2>
           <ul class="lista-simple">
-            <li v-for="perfil in tramite.perfiles" :key="perfil">{{ perfil }}</li>
+            <li v-for="perfil in perfilesVisor" :key="perfil">{{ perfil }}</li>
           </ul>
         </div>
 
-        <div v-if="opcional(tramite.resultado)" class="col-md-6">
+        <div v-if="opcional(tramite.resultado) || mediosResultado.length > 0" class="col-md-6">
           <h2 class="h3">Qué obtiene</h2>
-          <p>{{ tramite.resultado }}</p>
+          <p v-if="opcional(tramite.resultado)">{{ tramite.resultado }}</p>
+          <p
+            v-if="mediosResultado.length > 0"
+            class="nota-derivado mb-0"
+          >
+            <strong>Lo recibe por:</strong>
+            <span v-for="(medio, idx) in mediosResultado" :key="idx">
+              {{ medio }}<span v-if="idx < mediosResultado.length - 1">, </span>
+            </span>
+          </p>
         </div>
       </div>
 
@@ -958,5 +1189,112 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
 
 .estado-fallo {
   max-width: 65ch;
+}
+
+/*
+  Línea de tiempo de los pasos del trámite.
+  Cada paso tiene un número grande a la izquierda y un cuerpo a la derecha,
+  con una línea vertical que conecta los pasos. Es el mismo patrón que usa el
+  visor de SUIT, simplificado a CSS sin JS.
+
+  El color de la línea es el institucional (#004884) y el del número el de
+  contraste del Kit (#00ADE7), los dos vienen del CSS del Kit y son lo que el
+  usuario ve cuando entra a la ficha del trámite en GOV.CO.
+*/
+.linea-tiempo {
+  counter-reset: paso;
+  margin-top: 1.5rem;
+}
+
+.paso-tramite {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 1rem;
+  align-items: start;
+  padding: 1rem 0;
+  border-bottom: 1px solid #e5e5e5;
+  position: relative;
+}
+
+.paso-tramite:last-child {
+  border-bottom: none;
+}
+
+.paso-tramite::before {
+  content: '';
+  position: absolute;
+  left: 1.375rem;
+  top: 3.25rem;
+  bottom: 0;
+  width: 2px;
+  background: #004884;
+}
+
+.paso-tramite:first-child::before {
+  top: 3rem;
+}
+
+.paso-tramite:last-child::before {
+  display: none;
+}
+
+.paso-numero {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: #00ade7;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.paso-cuerpo {
+  min-width: 0;
+}
+
+.paso-titulo {
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
+.paso-descripcion {
+  color: #4b4b4b;
+  margin-bottom: 0;
+}
+
+/* Bloque de pago dentro de un requisito */
+.bloque-pago {
+  background: #fff8e1;
+  border-left: 3px solid #f2c94c;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.cuentas-pago {
+  background: #f4f8fc;
+  border-left: 3px solid #004884;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.lista-cuentas-pequena {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+
+.lista-cuentas-pequena > li {
+  padding: 0.25rem 0;
+  border-bottom: 1px dashed #d0d0d0;
+}
+
+.lista-cuentas-pequena > li:last-child {
+  border-bottom: none;
 }
 </style>

@@ -807,16 +807,28 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
    ============================================================================ */
 
 /*
- * La franja del botón circular: su ancho más su margen, sólo donde el ancho de
- * lectura es escaso. En escritorio el contenedor ya deja márgenes a los lados y
- * reservar espacio desplazaría el contenido sin necesidad.
+ * **El botón de accesibilidad flota; no se le reserva sitio.**
+ *
+ * Aquí vivía un `padding-right: 3.5rem` sobre `#contenido-principal` por debajo
+ * de 575 px, con el razonamiento de que así el botón circular no tapaba el
+ * texto. La intención era buena y el efecto, el contrario:
+ *
+ *   medido a 390 px, el `<main>` medía **390 px con 56 de relleno a la derecha**,
+ *   así que el carrusel —y con él todo el contenido— quedaba en **334 px**. La
+ *   página se veía **más estrecha que la pantalla**, con una franja blanca al
+ *   lado del botón, como si no hubiera terminado de cargar.
+ *
+ * Se paga un precio por reservar espacio y se paga por no reservarlo, y no son
+ * iguales: reservándolo, **toda** la página se ve incompleta en **todos** los
+ * móviles; sin reservarlo, el botón tapa una franja a media altura que se
+ * recupera desplazando. El primer daño es permanente y el segundo es de un
+ * gesto.
+ *
+ * El botón ya es `position: fixed`, que es lo que lo hace flotar de verdad: no
+ * participa del flujo y no empuja nada. La franja se compensa, donde de verdad
+ * estorba, con `scroll-margin` en los elementos interactivos —no recortando la
+ * página entera—.
  */
-@media (max-width: 575px) {
-  #contenido-principal {
-    padding-right: 3.5rem;
-  }
-}
-
 /* El Kit dimensiona el buscador con `-webkit-fill-available`, que NO es
    estándar: fuera de WebKit el navegador lo descarta y el campo conserva su
    ancho natural, así que en la cabecera —una fila flex— empuja la página 25 px

@@ -386,6 +386,51 @@ onBeforeUnmount(() => {
    `width: 25%` pensado para esa posición; Bootstrap, además, las deja al 50 % de
    opacidad y con los márgenes del pie al 15 %. Dentro de la barra sobra todo eso,
    y la opacidad hay que devolverla a 1 o el blanco se queda en 3,9:1. */
+/*
+ * **La barra en pantallas estrechas: rejilla, no fila que se envuelve.**
+ *
+ * Tenía `flex-wrap: wrap` con `justify-content: space-between`, y eso funciona
+ * mientras quepa. Medido a 320 px, los cuatro controles —flecha, puntos,
+ * «Reproducir» y flecha— suman unos 350 px en una barra de 320, así que **se
+ * envolvían sin criterio**: la barra pasaba de 72 px de alto a **136**, la
+ * flecha «anterior» quedaba en una línea y la «siguiente» en otra, **64 px más
+ * abajo**, montándose sobre «Reproducir». A 390 px caben y se veían alineadas,
+ * que es por lo que el defecto sólo aparecía en móviles angostos.
+ *
+ * Una rejilla con áreas fijas resuelve la causa y no el síntoma: **las dos
+ * flechas quedan siempre en la misma fila**, ancladas a los extremos, y
+ * «Reproducir» baja a una segunda línea cuando no cabe. Deja de depender de si
+ * el contenido entra por pocos píxeles.
+ */
+@media (max-width: 575px) {
+  .barra-controles-carrusel {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'anterior puntos siguiente'
+      'reproducir reproducir reproducir';
+    row-gap: 0.25rem;
+    column-gap: 0.5rem;
+    align-items: center;
+  }
+
+  .barra-controles-carrusel .carousel-control-prev { grid-area: anterior; justify-self: start; }
+  .barra-controles-carrusel .carousel-control-next { grid-area: siguiente; justify-self: end; }
+
+  /* Los puntos se centran en el hueco que queda entre las dos flechas, así que
+     siguen quedando en el eje del carrusel y no desplazados a un lado. */
+  .barra-controles-carrusel .carousel-indicators {
+    grid-area: puntos;
+    justify-self: center;
+    margin: 0;
+  }
+
+  .barra-controles-carrusel .control-start-pause {
+    grid-area: reproducir;
+    justify-self: start;
+  }
+}
+
 .carrusel-govco .carousel-control-prev,
 .carrusel-govco .carousel-control-next {
   position: static;

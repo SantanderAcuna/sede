@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -29,7 +30,7 @@ final class UsuarioResource extends JsonResource
 
         /** @var Role $rol */
         foreach ($this->roles as $rol) {
-            /** @var Collection $permissions */
+            /** @var Collection<int, Permission> $permissions */
             $permissions = $rol->permissions;
 
             $roles[] = [

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /*
@@ -28,7 +29,7 @@ return new class extends Migration
 
         // Backfill explícito para los trámites ya creados: la cláusula `default`
         // sólo aplica a inserciones nuevas, no a filas existentes.
-        \DB::table('tramites')->whereNull('type')->update(['type' => 'tramites']);
+        DB::table('tramites')->whereNull('type')->update(['type' => 'tramites']);
     }
 
     public function down(): void

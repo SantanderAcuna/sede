@@ -279,12 +279,17 @@ const EXPLICACION_TIPO_VALOR: Record<string, string> = {
 /**
  * Los requisitos, agrupados por naturaleza y en el orden del recorrido.
  *
- * Antes de agrupar, se descartan los requisitos que no tienen nada que
- * mostrar al ciudadano. Es la aplicación práctica de "no inventar": un
- * `SOLICITUD` sin descripción, sin URL, sin correo, sólo con `orden: 11` no
- * es un dato del trámite, es un placeholder del SUIT. Se filtra en la
- * frontera de la presentación, **no** en la base, para que la Entidad
- * pueda ver el placeholder y completarlo desde el panel.
+ * **Aquí no se filtra por audiencia, y es a propósito.** El contenido de una
+ * sede electrónica tiene que ser rastreable y auditable **sin ejecutar
+ * JavaScript** —es la razón de ser del renderizado en servidor, declarada en
+ * `nuxt.config.ts`—. Si los requisitos de las audiencias no activas salieran del
+ * HTML, un rastreador o una auditoría sólo verían la pestaña por defecto. Por eso
+ * se dibujan **todos** y cada uno se oculta con el atributo `hidden` cuando no
+ * aplica a la audiencia elegida; el cambio de pestaña es instantáneo y el HTML
+ * del servidor queda completo.
+ *
+ * Tampoco se deduplica aquí: los requisitos repetidos se colapsan en la ingesta
+ * (`TramiteSeeder::deduplicarRequisitos`), que es donde se normaliza la fuente.
  */
 const requisitosPorTipo = computed<{
   tipo: TipoRequisito
@@ -292,12 +297,10 @@ const requisitosPorTipo = computed<{
   items: RequisitoExtendido[]
 }[]>(() => {
   const todos = (tramite.value?.requisitos ?? []) as unknown as RequisitoExtendido[]
-  // Filtra por audiencia activa Y por requisitos con datos visibles.
-  // El orden es: primero audiencia (que es lo que el ciudadano quiere
-  // ver), después visibilidad (que es lo que la Sede sabe dibujar).
-  const visibles = todos.filter(
-    (req) => requisitoEsVisible(req) && requisitoAplicaA(req, audienciaActiva.value),
-  )
+  // Se descartan los requisitos sin nada que mostrar: un `SOLICITUD` sin texto
+  // es un marcador de posición del SUIT, no un dato del trámite. Se filtra en la
+  // presentación, no en la base, para que la Entidad pueda verlo y completarlo.
+  const visibles = todos.filter(requisitoEsVisible)
 
   return ORDEN_REQUISITO.map((tipo) => ({
     tipo,
@@ -305,6 +308,21 @@ const requisitosPorTipo = computed<{
     items: visibles.filter((requisito) => requisito.tipo === tipo),
   })).filter((grupo) => grupo.items.length > 0)
 })
+
+/**
+ * Cuántos requisitos ve el ciudadano con la audiencia elegida.
+ *
+ * Es el número que declara «Información general». Tiene que ser el de la vista
+ * activa y no el de la lista cruda: decir «14 requisitos» cuando la pestaña
+ * muestra 6 es mentir en el resumen de la propia ficha.
+ */
+const totalRequisitosVisibles = computed<number>(() =>
+  requisitosPorTipo.value.reduce(
+    (total, grupo) =>
+      total + grupo.items.filter((req) => requisitoAplicaA(req, audienciaActiva.value)).length,
+    0,
+  ),
+)
 
 /**
  * El término, con la palabra «hábil» que la fuente no declara.
@@ -401,117 +419,111 @@ const cuentasVisor = computed<TramiteCuentaPago[]>(() => {
 })
 
 /**
- * Los perfiles-audiencia declarados por el visor, ya reducidos a un array
- * plano de strings. Es el mismo campo que `perfiles` del contrato, pero
- * poblado desde el visor en vez de inventado.
+ * Las palabras clave con las que la fuente también nombra el trámite.
+ *
+ * El visor las publica bajo el título como «(También se conoce como: …)» y son
+ * la forma en que el ciudadano encuentra el trámite cuando lo busca con el
+ * nombre que usa la calle y no el nombre oficial.
  */
-const perfilesVisor = computed<string[]>(() => {
-  const raw = tramite.value?.audiencias
-  if (!Array.isArray(raw)) return []
-  return raw
-    .map((a) => (a as { nombre?: string }).nombre)
-    .filter((n): n is string => typeof n === 'string' && n.length > 0)
-})
-
-/** Las palabras clave secundarias declaradas por el visor. */
 const palabrasRelacionadas = computed<string[]>(() => {
   const raw = tramite.value?.palabras_relacionadas
   if (typeof raw !== 'string' || raw.length === 0) return []
-  return raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
 })
 
 /**
- * Los grupos de audiencia posibles para cualquier trámite.
+ * El orden en que la fuente presenta las audiencias.
  *
- * El visor de SUIT siempre expone tres pestañas (Ciudadano, Extranjeros,
- * Organizaciones) sin importar cuántas audiencias declare el trámite: es
- * el patrón del filtro «Para realizarlo necesita». Aquí se exponen
- * siempre, y la Sede filtra los requisitos que apliquen a cada uno.
- *
- * El conteo (`count`) y la lista (`nombres`) son los del trámite actual,
- * no de un catálogo global, porque la Sede no publica un diccionario
- * de audiencias: el visor es la fuente.
+ * No es alfabético ni inventado: es el orden de las pestañas del visor,
+ * comprobado en `fi=28610` y `fi=40900`, que son los que declaran las cuatro.
+ * Un grupo que la fuente añada en el futuro se coloca al final en lugar de
+ * desaparecer.
  */
-interface GrupoAudiencia {
-  grupo: string
-  count: number
-  nombres: string[]
-}
-const gruposAudiencia = computed<GrupoAudiencia[]>(() => {
-  // Las tres pestañas que el visor siempre muestra.
-  const gruposFijos = ['Ciudadano', 'Extranjeros', 'Organizaciones']
-  const raw = (tramite.value?.audiencias ?? []) as Array<{
-    grupo?: string | null
-    nombre?: string | null
-  }>
-  const counts = new Map<string, { count: number; nombres: Set<string> }>()
-  for (const a of raw) {
-    const grupo = a.grupo ?? ''
-    const nombre = a.nombre ?? ''
-    if (!grupo || !nombre) continue
-    if (!counts.has(grupo)) {
-      counts.set(grupo, { count: 0, nombres: new Set() })
+const ORDEN_AUDIENCIAS: readonly string[] = [
+  'Ciudadano',
+  'Extranjeros',
+  'Instituciones o dependencias públicas',
+  'Organizaciones',
+]
+
+/**
+ * Los grupos de audiencia que este trámite declara.
+ *
+ * **Sale de los requisitos, no del campo `audiencias`.** Se comprobó contra el
+ * visor: el SISBÉN (`fi=6139`) declara en su ficha de entidad sólo «Ciudadano»,
+ * pero su visor muestra dos pestañas —Ciudadano y Extranjeros— porque los
+ * requisitos sí declaran las dos. La unión de `tipos_audiencia` de los
+ * requisitos es lo que reproduce el visor.
+ */
+const gruposAudiencia = computed<string[]>(() => {
+  const declaradas = new Set<string>()
+  for (const requisito of tramite.value?.requisitos ?? []) {
+    // El contrato declara las audiencias como una unión cerrada, pero el campo
+    // es opcional y la fuente podría añadir un grupo nuevo: se lee como texto
+    // para que un valor desconocido se publique en vez de romper el tipo.
+    const audiencias = (requisito.tipos_audiencia ?? []) as unknown as string[]
+    for (const audiencia of audiencias) {
+      if (typeof audiencia === 'string' && audiencia.trim() !== '') {
+        declaradas.add(audiencia.trim())
+      }
     }
-    const entry = counts.get(grupo)
-    if (!entry) continue
-    entry.count++
-    entry.nombres.add(nombre)
   }
-  return gruposFijos.map<GrupoAudiencia>((grupo) => {
-    const entry = counts.get(grupo)
-    return {
-      grupo,
-      count: entry?.count ?? 0,
-      nombres: entry ? [...entry.nombres] : [],
-    }
-  })
+  const ordenadas = ORDEN_AUDIENCIAS.filter((audiencia) => declaradas.has(audiencia))
+  for (const audiencia of declaradas) {
+    if (!ORDEN_AUDIENCIAS.includes(audiencia)) ordenadas.push(audiencia)
+  }
+  return [...ordenadas]
 })
 
 /**
- * El grupo de audiencia seleccionado en el filtro de la ficha.
+ * La audiencia que el ciudadano eligió, o nula si todavía no eligió.
  *
- * Por defecto es `'todos'`: la Sede muestra todos los requisitos. Cuando el
- * ciudadano hace clic en una pestaña, el valor cambia al nombre del grupo
- * (Ciudadano, Extranjeros, Organizaciones) y los requisitos se filtran
- * para mostrar sólo los que aplican a ese grupo.
- *
- * Es la **misma** pestaña para los dos bloques que la usan —«¿Qué
- * necesito?» y «¿Cómo hago mi trámite?»—: la misma selección de
- * audiencia filtra ambas vistas, igual que hace el visor de SUIT.
+ * Es un `ref` aparte del valor efectivo porque la página se renderiza en el
+ * servidor antes de que exista una elección: la pestaña por defecto tiene que
+ * salir de los datos, no del estado del navegador.
  */
-const audienciaActiva = ref<string>('todos')
+const audienciaElegida = ref<string | null>(null)
+
+/**
+ * La audiencia activa: la elegida si sigue existiendo, y si no la primera que
+ * el trámite declare. Es `null` cuando el trámite no declara ninguna, y en ese
+ * caso no hay filtro ni pestañas.
+ *
+ * **No hay pestaña «Todos».** El visor no la tiene —comprobado en su DOM— y es
+ * lo que hacía que el ciudadano viera juntas las exigencias que no le aplican:
+ * «Cédula de ciudadanía» y «Cédula de extranjería» en la misma lista.
+ */
+const audienciaActiva = computed<string | null>(() => {
+  const grupos = gruposAudiencia.value
+  if (grupos.length === 0) return null
+  const elegida = audienciaElegida.value
+  return elegida !== null && grupos.includes(elegida) ? elegida : grupos[0] ?? null
+})
 
 /** Devuelve si un requisito aplica a la audiencia activa. */
-function requisitoAplicaA(req: unknown, audiencia: string): boolean {
-  if (audiencia === 'todos') return true
+function requisitoAplicaA(req: unknown, audiencia: string | null): boolean {
+  if (audiencia === null || audiencia === '') return true
   const r = req as { tipos_audiencia?: string[] | null }
   const audiencias = r.tipos_audiencia
   if (!audiencias || audiencias.length === 0) {
-    // Sin audiencia declarada, el requisito es universal: aparece en
-    // todos los grupos. Es la opción conservadora: mejor mostrar un
-    // requisito que el ciudadano no necesita que ocultar uno que sí.
+    // Sin audiencia declarada, el requisito es universal: aparece en todos los
+    // grupos. Es la opción conservadora: mejor mostrar un requisito que el
+    // ciudadano quizá no necesita que ocultar uno que sí necesita.
     return true
   }
   return audiencias.includes(audiencia)
 }
 
-/**
- * Los pasos filtrados por el grupo de audiencia activo.
- *
- * Filtra dentro de cada paso los requisitos que no aplican a la audiencia
- * seleccionada. Si tras el filtro el paso queda sin requisitos, el paso
- * se conserva: la Sede prefiere explicar «qué hace este paso» aunque
- * su contenido no aplique al grupo, para que el ciudadano entienda la
- * ruta del trámite.
- */
-const momentosFiltrados = computed(() => {
-  return momentos.value.map((paso) => ({
-    ...paso,
-    requisitos: (paso.requisitos ?? []).filter((req) =>
-      requisitoAplicaA(req, audienciaActiva.value),
-    ),
-  }))
-})
+/** Si este trámite necesita selector de audiencia (dos grupos o más). */
+const haySelectorAudiencia = computed<boolean>(() => gruposAudiencia.value.length >= 2)
+
+/** Cambia la audiencia activa. */
+function elegirAudiencia(audiencia: string): void {
+  audienciaElegida.value = audiencia
+}
 
 /**
  * Los campos cuya procedencia **no** es la fuente.
@@ -624,30 +636,32 @@ function tipoRequisitoLabel(tipo: string | null | undefined): string {
 }
 
 /**
- * El texto que se muestra para un requisito dentro de un paso. Si tiene
- * descripción, se usa esa; si no, el nombre del documento o del formulario.
- * La función `descripcionVisible` (declarada arriba) ya hace lo mismo, pero
- * este nombre se usa en el contexto del paso y se prefiere por claridad.
+ * El título de un requisito: **qué** tiene que llevar o hacer el ciudadano.
+ *
+ * El orden es el de la fuente: el documento manda sobre la descripción, porque
+ * el documento es lo que el ciudadano tiene que conseguir y la descripción es
+ * la condición que lo acompaña («En caso de ser persona natural»). Poner la
+ * condición como título —que es lo que hacía la versión anterior— dejaba al
+ * ciudadano sin saber **qué** documento llevar.
  */
-function descripcionVisibleRequisito(req: unknown): string {
-  return descripcionVisible(req) ?? ''
+function tituloRequisito(req: unknown): string | undefined {
+  const r = req as { descripcion?: string | null; documento?: string | null }
+  return opcional(r.documento) ?? formularioDeRequisito(req) ?? opcional(r.descripcion)
 }
 
 /**
- * El texto que se muestra como descripción principal del requisito.
+ * La aclaración que acompaña al título, cuando la fuente la declara y aporta
+ * algo que el título no dice.
  *
- * Prioridad: la descripción literal del visor; si no, el nombre del
- * documento o del formulario que el visor publica (los requisitos de tipo
- * `documento` suelen venir sin descripción, sólo con el nombre); si no, nada.
- *
- * Devolver `undefined` (no cadena vacía) es la señal de que el requisito
- * **no** debe dibujarse: ver `requisitoEsVisible`.
+ * Si la descripción es el propio título —un requisito que sólo trae descripción—
+ * no se repite: devolver `undefined` es lo que evita que el mismo texto se
+ * publique dos veces seguidas.
  */
-function descripcionVisible(req: unknown): string | undefined {
-  const r = req as { descripcion?: string | null; documento?: string | null }
+function detalleRequisito(req: unknown): string | undefined {
+  const r = req as { descripcion?: string | null }
   const descripcion = opcional(r.descripcion)
-  if (descripcion !== undefined) return descripcion
-  return opcional(r.documento) ?? formularioDeRequisito(req)
+  if (descripcion === undefined) return undefined
+  return descripcion === tituloRequisito(req) ? undefined : descripcion
 }
 
 /**
@@ -661,7 +675,7 @@ function descripcionVisible(req: unknown): string | undefined {
  * decisión de "no inventar" del §3 del AGENTS.md.
  */
 function requisitoEsVisible(req: unknown): boolean {
-  if (descripcionVisible(req) !== undefined) return true
+  if (tituloRequisito(req) !== undefined) return true
   const r = req as {
     nota?: string | null
     url?: string | null
@@ -718,6 +732,17 @@ function formatoTipoValor(tipo: string | null | undefined): string {
 
     <template v-else-if="tramite !== null">
       <h1>{{ tramite.nombre }}</h1>
+
+      <!--
+        Los otros nombres con los que la fuente conoce el trámite. Van justo
+        bajo el título y entre paréntesis, como en el visor, porque no son un
+        dato del trámite sino la forma en que el ciudadano lo llama: quien
+        busca «Permiso Publicidad Exterior Visual» tiene que reconocer aquí lo
+        que busca. Sólo se dibuja cuando la fuente los declara.
+      -->
+      <p v-if="palabrasRelacionadas.length > 0" class="tambien-conocido">
+        (También se conoce como: {{ palabrasRelacionadas.join(', ') }})
+      </p>
 
       <div class="row">
         <div class="col-lg-8">
@@ -794,8 +819,8 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         <dt class="col-sm-4">Requisitos</dt>
         <dd class="col-sm-8">
           <template v-if="requisitosPorTipo.length > 0">
-            {{ tramite.requisitos.length }}
-            <template v-if="tramite.requisitos.length === 1">requisito</template>
+            {{ totalRequisitosVisibles }}
+            <template v-if="totalRequisitosVisibles === 1">requisito</template>
             <template v-else>requisitos</template>
             en {{ requisitosPorTipo.length }}
             <template v-if="requisitosPorTipo.length === 1">categoría</template>
@@ -819,38 +844,31 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         <h2 id="titulo-requisitos" class="h3 mt-5">¿Qué necesito para hacer mi trámite?</h2>
 
         <!--
-          Filtro de audiencia. Es el mismo que se usa para «¿Cómo hago mi
-          trámite?»: el visor de SUIT muestra un único selector con tres
-          pestañas (Ciudadano / Extranjeros / Organizaciones) y los
-          requisitos se filtran al cambiar de pestaña. Aquí se replica
-          el mismo patrón, con el cobalto del Kit.
+          Selector de audiencia. Es el mismo que usa «¿Cómo hago mi trámite?»:
+          una elección filtra los dos bloques, como en el visor de SUIT.
+
+          Son botones con `aria-pressed` y no un juego de pestañas ARIA: el
+          contenido no son paneles que cada pestaña posea, sino la misma lista
+          con los elementos que no aplican ocultos. Declarar `role="tab"` sin
+          `tabpanel` propio sería mentir sobre la estructura —el mismo criterio
+          del selector de grupo del catálogo—.
         -->
         <div
+          v-if="haySelectorAudiencia"
           class="audiencia-filtro mt-3"
-          role="tablist"
-          aria-label="Filtrar requisitos por tipo de persona"
+          role="group"
+          aria-label="Tipo de persona que realiza el trámite"
         >
           <button
-            type="button"
-            role="tab"
-            class="audiencia-tab"
-            :class="{ 'audiencia-tab-activa': audienciaActiva === 'todos' }"
-            :aria-selected="audienciaActiva === 'todos'"
-            @click="audienciaActiva = 'todos'"
-          >
-            Todos
-          </button>
-          <button
             v-for="grupo in gruposAudiencia"
-            :key="grupo.grupo"
+            :key="grupo"
             type="button"
-            role="tab"
             class="audiencia-tab"
-            :class="{ 'audiencia-tab-activa': audienciaActiva === grupo.grupo }"
-            :aria-selected="audienciaActiva === grupo.grupo"
-            @click="audienciaActiva = grupo.grupo"
+            :class="{ 'audiencia-tab-activa': audienciaActiva === grupo }"
+            :aria-pressed="audienciaActiva === grupo"
+            @click="elegirAudiencia(grupo)"
           >
-            {{ grupo.grupo }}
+            {{ grupo }}
           </button>
         </div>
 
@@ -858,9 +876,25 @@ function formatoTipoValor(tipo: string | null | undefined): string {
           <h3 class="h5 mt-4">{{ grupo.titulo }}</h3>
 
           <ul class="lista-requisitos">
-            <li v-for="(requisito, indice) in grupo.items" :key="indice">
-              <span class="requisito-descripcion">
-                {{ descripcionVisible(requisito) }}
+            <li
+              v-for="(requisito, indice) in grupo.items"
+              :key="indice"
+              :hidden="!requisitoAplicaA(requisito, audienciaActiva)"
+            >
+              <!--
+                El título es **qué** hay que conseguir («Cédula de ciudadanía»);
+                la aclaración es la condición que lo acompaña («Del nuevo
+                propietario…»). Cuando el requisito sólo trae descripción, el
+                título es esa descripción y `detalleRequisito` devuelve
+                `undefined`, así que el texto no se publica dos veces.
+              -->
+              <span class="requisito-descripcion">{{ tituloRequisito(requisito) }}</span>
+
+              <span
+                v-if="detalleRequisito(requisito)"
+                class="d-block nota-derivado"
+              >
+                {{ detalleRequisito(requisito) }}
               </span>
 
               <!-- La cantidad sólo la declara la fuente para los documentos. -->
@@ -997,44 +1031,34 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         <h2 id="titulo-pasos" class="h3">¿Cómo hago mi trámite?</h2>
 
         <!--
-          Filtro de audiencia: el visor siempre muestra las tres pestañas
-          (Ciudadano, Extranjeros, Organizaciones), sin importar las
-          audiencias que declare el trámite, porque es la forma en que el
-          ciudadano se reconoce. La Sede filtra los pasos que apliquen a
-          la audiencia seleccionada.
+          El mismo selector de audiencia que «¿Qué necesito?»: una sola
+          elección gobierna los dos bloques, como en el visor. Los requisitos
+          que no aplican a la audiencia activa se ocultan con `hidden` en vez de
+          salir del HTML, para que el contenido siga siendo rastreable sin
+          ejecutar JavaScript.
         -->
         <div
+          v-if="haySelectorAudiencia"
           class="audiencia-filtro mt-3"
-          role="tablist"
-          aria-label="Filtrar pasos por tipo de persona"
+          role="group"
+          aria-label="Tipo de persona que realiza el trámite"
         >
           <button
-            type="button"
-            role="tab"
-            class="audiencia-tab"
-            :class="{ 'audiencia-tab-activa': audienciaActiva === 'todos' }"
-            :aria-selected="audienciaActiva === 'todos'"
-            @click="audienciaActiva = 'todos'"
-          >
-            Todos
-          </button>
-          <button
             v-for="grupo in gruposAudiencia"
-            :key="grupo.grupo"
+            :key="`pasos-${grupo}`"
             type="button"
-            role="tab"
             class="audiencia-tab"
-            :class="{ 'audiencia-tab-activa': audienciaActiva === grupo.grupo }"
-            :aria-selected="audienciaActiva === grupo.grupo"
-            @click="audienciaActiva = grupo.grupo"
+            :class="{ 'audiencia-tab-activa': audienciaActiva === grupo }"
+            :aria-pressed="audienciaActiva === grupo"
+            @click="elegirAudiencia(grupo)"
           >
-            {{ grupo.grupo }}
+            {{ grupo }}
           </button>
         </div>
 
         <ol class="pasos-listado list-unstyled mt-3">
           <li
-            v-for="(paso, idx) in momentosFiltrados"
+            v-for="(paso, idx) in momentos"
             :key="idx"
             class="paso-card"
           >
@@ -1061,10 +1085,14 @@ function formatoTipoValor(tipo: string | null | undefined): string {
                   v-for="(req, idxReq) in paso.requisitos"
                   :key="idxReq"
                   class="paso-requisito"
+                  :hidden="!requisitoAplicaA(req, audienciaActiva)"
                 >
                   <span class="paso-requisito-tipo">{{ tipoRequisitoLabel(req.tipo) }}</span>
                   <span class="paso-requisito-texto">
-                    {{ descripcionVisibleRequisito(req) }}
+                    <span class="requisito-descripcion">{{ tituloRequisito(req) }}</span>
+                    <span v-if="detalleRequisito(req)" class="d-block nota-derivado">
+                      {{ detalleRequisito(req) }}
+                    </span>
                   </span>
                 </li>
               </ul>
@@ -1432,6 +1460,18 @@ function formatoTipoValor(tipo: string | null | undefined): string {
 .nota-derivado {
   font-size: 0.9rem;
   color: #4b4b4b;
+}
+
+/*
+  «También se conoce como: …». Es un subtítulo del trámite, no una nota al
+  margen: mismo tamaño pequeño y color atenuado que las notas, pero con el
+  cuerpo del texto y sin negrita, para que no compita con el título.
+*/
+.tambien-conocido {
+  font-size: 0.95rem;
+  color: #4b4b4b;
+  margin-top: -0.25rem;
+  overflow-wrap: anywhere;
 }
 
 .grupo-requisitos:first-of-type h3 {

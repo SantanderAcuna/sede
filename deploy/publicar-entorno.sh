@@ -35,6 +35,7 @@ PLANTILLA="$RAIZ/deploy/plantilla.env"
 
 rojo()  { printf '\033[31m%s\033[0m\n' "$*" >&2; }
 verde() { printf '\033[32m%s\033[0m\n' "$*"; }
+amarillo() { printf '\033[33m%s\033[0m\n' "$*" >&2; }
 paso()  { printf '\n\033[1m%s\033[0m\n' "$*"; }
 
 case "$ENTORNO" in
@@ -66,6 +67,19 @@ S3_SECRET_KEY="$(valor "S3_SECRET_KEY_$SUFIJO")"
 
 SERVIDOR_IP="$(valor SERVIDOR_IP)"
 
+# El super-admin que siembra el despliegue. La clave vive en el registro, que no
+# se versiona: publicarla en el repositorio —que es público— dejaría la cuenta de
+# máximo privilegio de la Sede al alcance de cualquiera.
+SUPER_ADMIN_EMAIL="$(valor SUPER_ADMIN_EMAIL)"
+SUPER_ADMIN_NAME="$(valor SUPER_ADMIN_NAME)"
+SUPER_ADMIN_PASSWORD="$(valor SUPER_ADMIN_PASSWORD)"
+
+# Si la clave falta, el sembrador se niega a crearla en producción. Se avisa
+# aquí, antes de publicar, para que el fallo no aparezca a mitad de un despliegue.
+if [ -z "$SUPER_ADMIN_PASSWORD" ]; then
+  amarillo "Sin SUPER_ADMIN_PASSWORD en $REGISTRO: la siembra se negará a crear el super-admin."
+fi
+
 # Dominio por entorno. El de producción sigue SIN decidirse: mientras no lo esté,
 # se falla en lugar de inventarlo, porque un dominio inventado produce un
 # certificado inválido y un sitio que no se encuentra.
@@ -95,6 +109,7 @@ paso "1. Renderizado del entorno ($ENTORNO)"
 export APP_KEY DB_PASSWORD REDIS_PASSWORD BACKUP_PASSPHRASE
 export S3_ACCESS_KEY S3_SECRET_KEY
 export DOMINIO ENTORNO TRUSTED_PROXIES
+export SUPER_ADMIN_EMAIL SUPER_ADMIN_NAME SUPER_ADMIN_PASSWORD
 
 export DB_DATABASE="sede"
 export DB_USERNAME="sede"

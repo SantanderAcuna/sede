@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\Services\EntidadServiceInterface;
 use App\Http\Controllers\Controller;
+use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
@@ -41,30 +42,18 @@ final class EntidadController extends Controller
         try {
             $entidadResource = $this->entidadService->obtenerEntidad();
 
-            return response()->json([
-                'success' => true,
-                'message' => null,
-                'data' => $entidadResource,
-                'errors' => null,
-            ]);
+            return ApiResponse::objeto($entidadResource);
         } catch (\RuntimeException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'data' => null,
-                'errors' => null,
-            ], 404);
+            return ApiResponse::notFound($e->getMessage());
         } catch (\Throwable $e) {
             Log::error('Error al obtener entidad', [
                 'exception' => $e,
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Error interno al obtener los datos de la entidad.',
-                'data' => null,
-                'errors' => null,
-            ], 500);
+            return ApiResponse::error(
+                'Error interno al obtener los datos de la entidad.',
+                500
+            );
         }
     }
 }

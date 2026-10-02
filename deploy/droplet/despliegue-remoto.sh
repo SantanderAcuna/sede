@@ -150,6 +150,32 @@ if ! $COMPOSE run --rm app php artisan migrate --force; then
 fi
 verde "  esquema al día"
 
+# --- Siembra ------------------------------------------------------------------
+#
+# **Sin esto la sede se sirve vacía, y así se sirvió.** El despliegue migraba y
+# no sembraba: la base de pruebas quedó con `tramites: 0`, así que la API
+# devolvía `total: 0`, la portada decía «el catálogo no está disponible» y
+# **cada ficha respondía 404**. El código viajaba y los datos no, y nada lo
+# decía: el despliegue terminaba en verde.
+#
+# Se nombra el sembrador por su clase y no se ejecuta el de por defecto. Un
+# `db:seed` a secas correría `DatabaseSeeder`, que es el punto de entrada de
+# Laravel y el que usan las pruebas y `make preparar`: cualquier dato que
+# mañana se añada ahí para desarrollar viajaría a producción sin que nadie lo
+# note. `SedeSeeder` es la lista de lo institucional, y los cuatro sembradores
+# que llama son idempotentes, así que correrlo en cada despliegue no duplica
+# nada ni pisa lo que haya corregido una persona.
+#
+# Va después de migrar —se siembra sobre un esquema al día— y antes de levantar:
+# una sede que responde con el catálogo vacío es peor que una que no responde,
+# porque la primera parece funcionar.
+if ! $COMPOSE run --rm app php artisan db:seed --class=SedeSeeder --force; then
+  rojo "Falló la siembra. La sede se serviría sin catálogo, así que no se levanta."
+  volver_atras || true
+  exit 1
+fi
+verde "  datos institucionales sembrados"
+
 $COMPOSE rm -f >/dev/null 2>&1 || true
 $COMPOSE up -d --remove-orphans
 

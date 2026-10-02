@@ -1187,37 +1187,36 @@ function formatoTipoValor(tipo: string | null | undefined): string {
 
       <!--
         =====================================================================
-        A quién va dirigido y qué entrega
+        ¿Qué resultado obtengo luego de hacer mi trámite?
         =====================================================================
-        Dos datos cortos que la ficha oficial declara y que no caben en ninguno
-        de los seis atributos: los perfiles deciden si el trámite le aplica a
-        quien está leyendo, y el resultado dice qué se lleva a cambio.
-      -->
-      <div
-        v-if="perfilesVisor.length > 0 || opcional(tramite.resultado) || mediosResultado.length > 0"
-        class="row mt-5"
-      >
-        <div v-if="perfilesVisor.length > 0" class="col-md-6">
-          <h2 class="h3">¿Quién puede realizarlo?</h2>
-          <ul class="lista-simple">
-            <li v-for="perfil in perfilesVisor" :key="perfil">{{ perfil }}</li>
-          </ul>
-        </div>
+        El resultado es lo que el ciudadano recibe al terminar; los medios
+        son por dónde se lo entregan. En el visor aparecen en un solo
+        bloque rojo; aquí se conservan juntos pero con la pregunta del
+        Anexo 2.1 como encabezado.
 
-        <div v-if="opcional(tramite.resultado) || mediosResultado.length > 0" class="col-md-6">
-          <h2 class="h3">¿Qué resultado obtengo luego de hacer mi trámite?</h2>
-          <p v-if="opcional(tramite.resultado)">{{ tramite.resultado }}</p>
-          <p
-            v-if="mediosResultado.length > 0"
-            class="nota-derivado mb-0"
-          >
-            <strong>Lo recibe por:</strong>
-            <span v-for="(medio, idx) in mediosResultado" :key="idx">
-              {{ medio }}<span v-if="idx < mediosResultado.length - 1">, </span>
-            </span>
-          </p>
-        </div>
-      </div>
+        «¿Quién puede realizarlo?» **no** se publica como bloque: la
+        audiencia se gestiona a través del filtro que hay en «¿Qué
+        necesito?» y «¿Cómo hago mi trámite?». Mostrarla además
+        repetiría la información sin que aporte nada nuevo —el ciudadano
+        ya la filtró al elegir su pestaña—.
+      -->
+      <section
+        v-if="opcional(tramite.resultado) || mediosResultado.length > 0"
+        aria-labelledby="titulo-resultado"
+        class="mt-5"
+      >
+        <h2 id="titulo-resultado" class="h3">¿Qué resultado obtengo luego de hacer mi trámite?</h2>
+        <p v-if="opcional(tramite.resultado)">{{ tramite.resultado }}</p>
+        <p
+          v-if="mediosResultado.length > 0"
+          class="nota-derivado mb-0"
+        >
+          <strong>Lo recibe por:</strong>
+          <span v-for="(medio, idx) in mediosResultado" :key="idx">
+            {{ medio }}<span v-if="idx < mediosResultado.length - 1">, </span>
+          </span>
+        </p>
+      </section>
 
       <!--
         =====================================================================

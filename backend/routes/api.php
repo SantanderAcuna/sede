@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\EntidadController;
 use App\Http\Controllers\Api\V1\IdentidadController;
 use App\Http\Controllers\Api\V1\TramiteController;
@@ -36,4 +37,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // declara con `security: []`— y por eso no llevan middleware de sesión.
     Route::get('/tramites', [TramiteController::class, 'listar'])->name('tramites.listar');
     Route::get('/tramites/{slug}', [TramiteController::class, 'mostrar'])->name('tramites.mostrar');
+
+    // Panel — Auth (requiere autenticación Sanctum)
+    Route::prefix('panel')->name('panel.')->group(function (): void {
+        Route::post('/login', [AuthController::class, 'login'])->name('login');
+        Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth:sanctum');
+        Route::get('/perfil', [AuthController::class, 'perfil'])->name('perfil')->middleware('auth:sanctum');
+    });
 });

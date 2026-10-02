@@ -1090,6 +1090,48 @@ paths:
       security:
         - cookieSesion: []
 
+  /panel/perfil:
+    get:
+      tags: [Panel — Auth]
+      operationId: perfil
+      summary: Perfil del usuario autenticado
+      description: Devuelve los datos del usuario autenticado actual.
+      x-status: pending
+      responses:
+        '200':
+          description: Perfil del usuario
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UsuarioItem'
+              examples:
+                ok:
+                  value:
+                    success: true
+                    message: null
+                    data:
+                      id: 1
+                      type: usuario
+                      email: admin@santamarta.gov.co
+                      mfa_habilitado: false
+                      estado: activo
+                      roles:
+                        - id: 1
+                          type: rol
+                          nombre: super-admin
+                          permisos: ["*"]
+                    errors: null
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+      security:
+        - cookieSesion: []
+
   # ══════════════════════════════════════════════════════════════════════════════
   # PANEL — TRANSPARENCIA (CRUD autenticado)
   # ══════════════════════════════════════════════════════════════════════════════

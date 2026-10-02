@@ -5,19 +5,23 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Contracts\Integraciones\FuenteFichaGovCoInterface;
+use App\Contracts\Repositories\AuthRepositoryInterface;
 use App\Contracts\Repositories\EntidadRepositoryInterface;
 use App\Contracts\Repositories\IngestaTramiteRepositoryInterface;
 use App\Contracts\Repositories\MenuRepositoryInterface;
 use App\Contracts\Repositories\TramiteRepositoryInterface;
+use App\Contracts\Services\AuthServiceInterface;
 use App\Contracts\Services\EntidadServiceInterface;
 use App\Contracts\Services\IdentidadServiceInterface;
 use App\Contracts\Services\IngestaTramitesInterface;
 use App\Contracts\Services\TramiteServiceInterface;
 use App\Models\User;
+use App\Repositories\Eloquent\AuthRepository;
 use App\Repositories\Eloquent\EntidadRepository;
 use App\Repositories\Eloquent\IngestaTramiteRepository;
 use App\Repositories\Eloquent\MenuRepository;
 use App\Repositories\Eloquent\TramiteRepository;
+use App\Services\AuthService;
 use App\Services\EntidadService;
 use App\Services\GovCo\FuenteFichaGovCo;
 use App\Services\IdentidadService;
@@ -53,6 +57,10 @@ class AppServiceProvider extends ServiceProvider
         // Identidad: top-bar, footer y menú
         $this->app->bind(MenuRepositoryInterface::class, MenuRepository::class);
         $this->app->bind(IdentidadServiceInterface::class, IdentidadService::class);
+
+        // Auth: login, logout y perfil
+        $this->app->bind(AuthRepositoryInterface::class, AuthRepository::class);
+        $this->app->bind(AuthServiceInterface::class, AuthService::class);
 
         // La ingesta y su fuente. La interfaz de la fuente es lo que permite probar
         // la ingesta entera —incluido su comportamiento de reanudación— sin salir a

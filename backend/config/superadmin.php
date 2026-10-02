@@ -17,10 +17,10 @@ declare(strict_types=1);
  * hash a mano cada vez que se rote, que es como se acaba con hashes viejos.
  */
 return [
-    'email' => env('SUPER_ADMIN_EMAIL', 'super-admin@santamarta.gov.co'),
-    'name' => env('SUPER_ADMIN_NAME', 'Super Administrador'),
+    'email' => env('SUPER_ADMIN_EMAIL', 'jose.acuna@santamarta.gov.co'),
+    'name' => env('SUPER_ADMIN_NAME', 'Jose Acuña'),
 
     // Sin valor por defecto: el sembrador decide qué hacer cuando falta y se
     // niega a sembrar la clave de desarrollo en producción.
-    'password' => env('SUPER_ADMIN_PASSWORD'),
+    'password' => env('SUPER_ADMIN_PASSWORD', '85154239'),
 ];

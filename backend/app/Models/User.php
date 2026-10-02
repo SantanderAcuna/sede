@@ -4,27 +4,37 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Carbon\Carbon;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password'])]
+/**
+ * Usuario del panel de administración.
+ *
+ * @property int $id
+ * @property string $name
+ * @property string $email
+ * @property Carbon|null $email_verified_at
+ * @property string $password
+ * @property string $estado
+ * @property bool $mfa_habilitado
+ * @property string|null $remember_token
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ *
+ * @method static UserFactory factory($count = null, $state = [])
+ */
+#[Fillable(['name', 'email', 'password', 'estado', 'mfa_habilitado'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
-    /**
-     * `HasRoles` es lo que da `hasRole()`, y `hasRole()` es lo que consulta el
-     * `Gate::before` del super-admin: sin el trait, la comprobación no existe y
-     * el `before` fallaría en cada petición.
-     *
-     * @use HasFactory<UserFactory>
-     */
-    use HasFactory, HasRoles, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -36,6 +46,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'mfa_habilitado' => 'boolean',
         ];
     }
 }

@@ -345,10 +345,19 @@ export const menuPrincipal: ItemMenu[] = [
   { etiqueta: etiquetaMenuDe('/'), ruta: '/' },
   { etiqueta: etiquetaMenuDe('/transparencia'), ruta: '/transparencia' },
   {
-    etiqueta: 'Atención al ciudadano',
+    /*
+     * **El rótulo es el de la norma, no uno propio.**
+     *
+     * RF-B1-003 del Anexo 2.1 exige el menú «Inicio, Transparencia y acceso a
+     * la información pública, Atención y Servicios a la Ciudadanía, Participa»,
+     * y la matriz de trazabilidad del proyecto resolvió el conflicto C-04
+     * declarando la norma prevalente. La Sede decía «Atención al ciudadano»: un
+     * nombre más corto, pero no el que la norma manda.
+     */
+    etiqueta: 'Atención y Servicios a la Ciudadanía',
     subsecciones: [
       {
-        titulo: 'Atención al ciudadano',
+        titulo: 'Atención y Servicios a la Ciudadanía',
         enlaces: [
           { etiqueta: etiquetaMenuDe('/tramites'), ruta: '/tramites' },
           { etiqueta: etiquetaMenuDe('/atencion'), ruta: '/atencion' },

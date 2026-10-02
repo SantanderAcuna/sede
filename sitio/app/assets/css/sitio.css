@@ -1089,9 +1089,11 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
   /*
    * **Ancho de los desplegables principales: el que pida su rótulo.**
    *
-   * El Kit pone 11.563 rem fijos, y eso parte «Atención al ciudadano» en dos
-   * líneas. La corrección anterior subió el valor a 13 rem —«para que quepa»—,
-   * y funcionaba… mientras el rótulo midiera exactamente lo que mide hoy:
+   * El Kit pone 11.563 rem fijos, y eso parte el rótulo en dos líneas. La
+   * corrección anterior subió el valor a 13 rem —«para que quepa»—, y
+   * funcionaba… mientras el rótulo midiera exactamente lo que medía entonces
+   * —«Atención al ciudadano», que hoy dice «Atención y Servicios a la
+   * Ciudadanía» porque así lo exige RF-B1-003—:
    *
    *   - con el **aumento de letra** que ofrece la barra de accesibilidad, el
    *     texto crece y el ancho se queda igual → vuelve a partirse;
@@ -1105,9 +1107,16 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
    * entre ítems y `width: auto` permite que el ítem **crezca lo que su rótulo
    * necesite**. Con `white-space: nowrap` en el enlace, el texto no se parte en
    * ninguna circunstancia. El reparto del menú se ajusta solo, porque es flex.
+   *
+   * Y `max-width: none` porque el Kit pone además un tope de 11.563 rem a
+   * **todos** los ítems: sin quitarlo, `min-width` gana por poco y el ítem se
+   * queda en 208 px mientras el rótulo necesita 256 — y el Kit lo publica
+   * recortado. El detalle, con las dos medidas, está junto a la regla del
+   * `span` que hace el recorte.
    */
   min-width: 13rem;
   width: auto;
+  max-width: none;
 }
 
 /*
@@ -1122,6 +1131,71 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .menu-govco .navbar-nav .nav-item .nav-link,
 .menu-govco .navbar-nav .nav-item .nav-link span {
   white-space: nowrap;
+}
+
+/*
+ * **El rótulo completo del menú: que lo decida el ancho, no un tope fijo.**
+ *
+ * Es un defecto del Kit, y se mide:
+ *
+ *   - `.nav-item { max-width: 11.563rem }` —185 px— tope a **todos** los ítems
+ *     (se levanta en la regla de ancho, más arriba);
+ *   - `.nav-link span { overflow: hidden; text-overflow: ellipsis;
+ *     -webkit-line-clamp: 2 }` — el rótulo se recorta y, si no cabe en una
+ *     línea, se parte en dos.
+ *
+ * Con un rótulo corto no se notaba: «Atención al ciudadano» necesita ~140 px y
+ * cabe en los 165 px que quedan tras el relleno y la flecha. **La norma exige
+ * otro nombre** —RF-B1-003: «Atención y Servicios a la Ciudadanía»— y ese
+ * necesita **256 px**, así que el Kit lo publicaba como «Atención y
+ * Servicios ...». Un nombre de sección recortado no es una sección: el
+ * ciudadano no puede leerla.
+ *
+ * Se levanta el tope y se deja que el reparto flex decida, que es lo que ya
+ * hace el resto del menú:
+ *
+ *   - **con sitio** (≥1002 px, medido) el ítem crece a los 299 px que pide su
+ *     rótulo y se lee entero;
+ *   - **sin sitio**, el ítem se encoge hasta su `min-width` y el rótulo se
+ *     recorta con puntos suspensivos **en una línea** —nunca en dos—, que es
+ *     la degradación correcta: un menú partido en dos líneas deja de leerse
+ *     como una lista.
+ *
+ * Y así no hay número mágico que ajustar: un `@media` con el ancho medido
+ * acertaría con esta fuente y este tamaño, y fallaría con el aumento de letra
+ * de la barra de accesibilidad —justo para quien más lo necesita—.
+ */
+.menu-govco .navbar-nav .nav-item > .nav-link span {
+  /* La caja del Kit existe solo para recortar a dos líneas: sin ese recorte,
+   * estorba. `display: block` la devuelve al flujo normal. */
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: unset;
+}
+
+/*
+ * **`min-width: 0` en el contenedor del menú, y aquí no es sólo cosa de móvil.**
+ *
+ * `.navbar-collapse` es un ítem flex y trae `min-width: auto`, que significa
+ * «no encojas por debajo del ancho mínimo de tu contenido». Con el rótulo
+ * largo, ese mínimo son **962 px**: entre 768 y 1002 px el contenedor se
+ * estiraba a lo que pedía el contenido —hasta **844 px dentro de una ventana
+ * de 768**— y arrastraba la página en horizontal.
+ *
+ * Con `min-width: 0` el ítem puede encogerse, y entonces el recorte con puntos
+ * suspensivos del rótulo hace su trabajo en vez de desbordar. Es la misma
+ * línea que ya estaba puesta para los 320 px; allí se descubrió, pero el
+ * motivo no era el teléfono: era que un ítem flex no encoge si no se lo
+ * permiten.
+ *
+ * Y la lista de dentro tiene el mismo problema, un nivel más abajo: encogido el
+ * contenedor, el `<ul>` seguía midiendo lo que su contenido y se salía a 768 px
+ * por los dos lados —medido: `[-6 → 774]`—. Por eso van los dos.
+ */
+.menu-govco .navbar-collapse,
+.menu-govco .navbar-collapse > ul.navbar-nav {
+  min-width: 0;
 }
 
 .menu-govco .navbar-nav .nav-item .nav-link {
@@ -1281,8 +1355,9 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
    un submenú desplegado:
 
      - el menú medía **670 px de alto** para siete ítems;
-     - «Atención al ciudadano» ocupaba un bloque celeste de **~490 px** para una
-       sola línea de texto;
+     - el segundo ítem —entonces «Atención al ciudadano», hoy «Atención y
+       Servicios a la Ciudadanía» por RF-B1-003— ocupaba un bloque celeste de
+       **~490 px** para una sola línea de texto;
      - había **~240 px de vacío** al principio, sin nada dentro;
      - y «Participa» se dibujaba **encima** del submenú: se leía
        «Atención al ciudadan**Participa**».

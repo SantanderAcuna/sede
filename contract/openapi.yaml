@@ -1962,6 +1962,15 @@ components:
         # Resultado y medios por los que se entrega (correo, presencial, etc.)
         resultado: { type: [string, 'null'] }
         producto_final: { type: [string, 'null'], maxLength: 500 }
+        # La aclaración que el visor publica bajo el resultado: de qué depende
+        # el plazo. Nula cuando la fuente no la declara (107 de 123 trámites).
+        observaciones_resultado: { type: [string, 'null'] }
+        # «¿Cuándo se puede realizar?». El visor lo responde con tres hechos y
+        # no con una frase: el booleano que cubre casi todos los trámites, la
+        # condición en prosa de unos pocos y el calendario externo de uno.
+        fecha_cualquiera: { type: [boolean, 'null'] }
+        cuando_se_puede_realizar: { type: [string, 'null'] }
+        url_calendario: { type: [string, 'null'], maxLength: 500 }
         medios_resultado:
           type: array
           items: { type: string, maxLength: 60 }

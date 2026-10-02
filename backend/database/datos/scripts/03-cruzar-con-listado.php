@@ -144,6 +144,10 @@ foreach ($listado['tramites'] as $posicion => $t) {
             'urlManualTramiteEnLinea' => $ficha['urlManual'] ?? null,
             'modalidad_visor' => $ficha['modalidad'] ?? null,
             'tiempo_visor' => $ficha['tiempo'] ?? null,
+            'fechaCualquiera' => $ficha['fechaCualquiera'] ?? null,
+            'cuandoSePuedeRealizar' => $ficha['cuandoSePuedeRealizar'] ?? null,
+            'urlCalendario' => $ficha['urlCalendario'] ?? null,
+            'observacionesResultado' => $ficha['observacionesResultado'] ?? null,
             'normativa' => $normativa,
             'momentos' => $ficha['momentos'] ?? [],
             'puntosAtencion' => $ficha['puntosAtencion'] ?? [],
@@ -166,6 +170,7 @@ $listado['_origen']['derivados'] = [
     'url_descarga' => 'No lo declara la fuente. Se arma con la llave del archivo que publica el visor (`archivo.id`) y la plantilla de descarga de SUIT: '.PLANTILLA_DESCARGA,
     'normas_con_descarga' => $normasConDescarga,
     'normas_sin_llave_de_archivo' => $normasSinLlave,
+    'cuando_se_puede_realizar' => 'El visor no publica una frase: publica tres hechos (`fechaCualquiera`, `observaFechaGeneral` y `urlCalendarioEjecucion`). Los tres viajan por separado y la ficha los compone. **No se publica `periodosEjecucionList`**: el único trámite que lo trae declara ventanas de descuento de 2013, y unas fechas vencidas leídas como vigentes son peor que su ausencia.',
 ];
 
 file_put_contents(

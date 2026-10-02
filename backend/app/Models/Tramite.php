@@ -58,6 +58,10 @@ use Illuminate\Support\Str;
  * @property list<array<string, string|null>> $costo_cuentas
  * @property string|null $resultado
  * @property string|null $producto_final
+ * @property string|null $observaciones_resultado
+ * @property bool|null $fecha_cualquiera
+ * @property string|null $cuando_se_puede_realizar
+ * @property string|null $url_calendario
  * @property string|null $palabras_relacionadas
  * @property string|null $url_manual_tramite_en_linea
  * @property list<array<string, mixed>> $momentos
@@ -103,6 +107,10 @@ use Illuminate\Support\Str;
     'momentos',
     'resultado',
     'producto_final',
+    'observaciones_resultado',
+    'fecha_cualquiera',
+    'cuando_se_puede_realizar',
+    'url_calendario',
     'palabras_relacionadas',
     'medios_resultado',
     'perfiles',
@@ -156,6 +164,7 @@ final class Tramite extends Model
             'documentos' => 'array',
             'momentos' => 'array',
             'medios_resultado' => 'array',
+            'fecha_cualquiera' => 'boolean',
             'perfiles' => 'array',
             'audiencias' => 'array',
             'puntos_atencion' => 'array',

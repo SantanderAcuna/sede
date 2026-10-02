@@ -27,6 +27,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -262,6 +266,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -612,6 +620,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -988,6 +1000,10 @@
                 "Presencial",
                 "Página web"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -1386,6 +1402,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Acuerdo",
@@ -1754,6 +1774,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -1990,6 +2014,10 @@
             "mediosResultado": [
                 "Correo electrónico"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -2502,6 +2530,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -2742,6 +2774,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "En caso de ser devolución por pagos en exceso de impuesto, el tiempo es de respuesta de 30 días hábiles",
             "normativa": [
                 {
                     "tipo": "Acuerdo",
@@ -3049,6 +3085,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Circular",
@@ -3506,6 +3546,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -3739,6 +3783,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -4055,6 +4103,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -4467,6 +4519,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Circular",
@@ -4817,6 +4873,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -5147,6 +5207,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -5498,6 +5562,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Acto administrativo",
@@ -5976,6 +6044,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -6372,6 +6444,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -6673,6 +6749,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -7140,6 +7220,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -7572,6 +7656,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -8002,6 +8090,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -8199,6 +8291,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -8656,6 +8752,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Acuerdo",
@@ -9199,6 +9299,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -9476,6 +9580,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -9849,6 +9957,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -10177,6 +10289,10 @@
                 "Correo certificado",
                 "Telefónico"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "Si las personas no reclaman su mercancía dentro de los términos fijados o no cumplen los requisitos establecidos, mediante resolución motivada se declarará el abandono de los bienes, y se señalará su destinación.  De igual forma, si se comprueba la reincidencia del infractor, no se devuelve la mercancía y se declara decomiso definitivo.",
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -10604,6 +10720,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -10934,6 +11054,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -11323,6 +11447,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -11805,6 +11933,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Acto administrativo",
@@ -12120,6 +12252,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -13875,6 +14011,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "Se notifica por medio físico o por correo electrónico",
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -14129,6 +14269,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -14326,6 +14470,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -15141,6 +15289,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -15443,6 +15595,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -15952,6 +16108,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -16317,6 +16477,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -16609,6 +16773,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -16906,6 +17074,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "la obtención de la licencia queda sujeta a la entrega de los documentos por parte del ciudadano ",
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -17427,6 +17599,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -17843,6 +18019,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -18158,6 +18338,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -18649,6 +18833,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -19132,6 +19320,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -19474,6 +19666,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -19771,6 +19967,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -20097,6 +20297,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -20472,6 +20676,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -20798,6 +21006,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -21316,6 +21528,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -21711,6 +21927,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "la obtención de la licencia de blindaje esta sujeta a la documentación entregada por el ciudadano.",
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -22268,6 +22488,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -22555,6 +22779,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Constitución política de Colombia",
@@ -22810,6 +23038,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -23039,6 +23271,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -23265,6 +23501,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -24237,6 +24477,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "Se genera un certificado de permiso de placa, con el cual el ciudadano puede circular.",
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -24726,6 +24970,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "la cantidad de días para la obtención queda sujeta a la verificación y aporte de los documentos por parte del ciudadano ",
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -25205,6 +25453,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -25493,6 +25745,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -25818,6 +26074,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": false,
+            "cuandoSePuedeRealizar": "La solicitud deberá presentarse por escrito, con una anticipación no inferior a diez (10) días calendario a la fecha propuesta para la realización del sorteo o sorteos",
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -26031,6 +26291,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -26216,6 +26480,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -26486,6 +26754,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -26819,6 +27091,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -27196,6 +27472,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -27429,6 +27709,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -27764,6 +28048,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -27946,6 +28234,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -28382,6 +28674,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -28753,6 +29049,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -29062,6 +29362,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -29342,6 +29646,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -29642,6 +29950,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -29947,6 +30259,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -30195,6 +30511,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -30591,6 +30911,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -30895,6 +31219,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -31168,6 +31496,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -31408,6 +31740,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -31691,6 +32027,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": false,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": "www.santamarta.gov.co",
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -32524,6 +32864,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": false,
+            "cuandoSePuedeRealizar": "Por lo menos con cinco (5) días de antelación a la\nrealización del espectáculo, el responsable del mismo pondrá a\ndisposición de la dependencia competente, el total de la boletería\npara efectos del respectivo sellamiento, al igual que entregará las\ngarantías establecidas en el artículo anterior. Sin el cumplimiento\nde los anteriores requerimientos no será posible autorizar la\nrealización de ningún espectáculo público en jurisdicción del\nDistrito del\nDistrito de Santa Marta.",
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Acuerdo",
@@ -32779,6 +33123,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -33013,6 +33361,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Acuerdo",
@@ -33225,6 +33577,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -33532,6 +33888,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": false,
+            "cuandoSePuedeRealizar": "en el periodo de octubre y noviembre",
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -34287,6 +34647,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -34537,6 +34901,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -34749,6 +35117,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -34898,6 +35270,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -35092,6 +35468,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -35377,6 +35757,10 @@
                 "Correo electrónico",
                 "Página web"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -35701,6 +36085,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": false,
+            "cuandoSePuedeRealizar": "Los contribuyentes que ejerzan una actividad gravada que cesen definitivamente en el desarrollo de actividades sujetas al correspondiente tributo, deberán informar tal hecho, dentro del mes siguiente al mismo.",
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Acuerdo",
@@ -36012,6 +36400,10 @@
                 "Correo electrónico",
                 "Página web"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -36470,6 +36862,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -36937,6 +37333,10 @@
             "mediosResultado": [
                 "Página web"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "En la fecha de corte en que el Municipio reporta al Departamento Nacional de Planeación – DNP y el DNP la publica",
             "normativa": [
                 {
                     "tipo": "Circular",
@@ -37330,6 +37730,10 @@
             "mediosResultado": [
                 "Página web"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "En la fecha de corte en que el Municipio reporta al Departamento Nacional de Planeación – DNP y el DNP la publica",
             "normativa": [
                 {
                     "tipo": "Circular",
@@ -37746,6 +38150,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -38026,6 +38434,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -38368,6 +38780,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "Por primera vez tres (3) meses y Renovaciones seis (6) meses ",
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -38767,6 +39183,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -39095,6 +39515,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -39339,6 +39763,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Circular",
@@ -39770,6 +40198,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Circular",
@@ -40185,6 +40617,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -40371,6 +40807,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -40575,6 +41015,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -40895,6 +41339,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -41193,6 +41641,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "Si el trámite requiere actividades de campo, será atendido  en un término de treinta (30) días. ",
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -41491,6 +41943,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -41816,6 +42272,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -42140,6 +42600,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "Las rectificaciones cuyo trámite requiera actividades de campo, se realizaran en un término de treinta (30) días. ",
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -42438,6 +42902,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -42762,6 +43230,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "Desde 2 días hábiles, dependiendo de la infracción",
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -43209,6 +43681,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -43543,6 +44019,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "En el caso de que cuyo trámite requiera actividades de campo, se obtendrá en un término de treinta (30) días. ",
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -43822,6 +44302,10 @@
             "mediosResultado": [
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "El ciudadano debe de realizar los pagos y cursos que correspondan, si lo logra realizar el mismo día se autoriza la salida del vehículo.  Los horarios de Patios para retirar los vehículos son de Lunes a Viernes de 08:00am- 12:00pm y de 01:00pm-04:30 pm y los sábados de 09:00 am- 12:00 pm. ",
             "normativa": [
                 {
                     "tipo": "Resolución",
@@ -44339,6 +44823,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": "15 días hábiles",
             "normativa": [
                 {
                     "tipo": "Decreto",
@@ -44666,6 +45154,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Ley",
@@ -44955,6 +45447,10 @@
                 "Correo electrónico",
                 "Presencial"
             ],
+            "fechaCualquiera": true,
+            "cuandoSePuedeRealizar": null,
+            "urlCalendario": null,
+            "observacionesResultado": null,
             "normativa": [
                 {
                     "tipo": "Circular",

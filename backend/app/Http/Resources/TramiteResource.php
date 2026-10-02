@@ -74,6 +74,13 @@ final class TramiteResource extends JsonResource
             // `producto_final` es el dato crudo del visor.
             'resultado' => $tramite->resultado ?? $tramite->producto_final,
             'producto_final' => $tramite->producto_final,
+            // La aclaración que el visor publica bajo el resultado: de qué
+            // depende el plazo en los 16 trámites que la declaran.
+            'observaciones_resultado' => $tramite->observaciones_resultado,
+            // «¿Cuándo se puede realizar?»: tres hechos y no una frase.
+            'fecha_cualquiera' => $tramite->fecha_cualquiera,
+            'cuando_se_puede_realizar' => $tramite->cuando_se_puede_realizar,
+            'url_calendario' => $tramite->url_calendario,
             'medios_resultado' => $tramite->medios_resultado,
             'palabras_relacionadas' => $tramite->palabras_relacionadas,
             'momentos' => $tramite->momentos,

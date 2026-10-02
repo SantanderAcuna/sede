@@ -297,6 +297,17 @@ foreach ($fichas as $ficha) {
         'urlManual' => $d['urlManualTramiteEnLinea'] ?? null,
         'palabrasRelacionadas' => $d['palabrasRelacionadas'] ?? null,
         'mediosResultado' => array_column($d['mediosResultadoList'] ?? [], 'nombre'),
+        // «¿Cuándo se puede realizar?». El visor lo responde con tres cosas
+        // distintas y no con una: casi siempre «cualquier fecha» (un booleano),
+        // a veces una condición en prosa, y una vez un calendario externo.
+        // Se conservan las tres por separado para no convertir un hecho en un
+        // texto que nadie pueda auditar.
+        'fechaCualquiera' => $d['fechaCualquiera'] ?? null,
+        'cuandoSePuedeRealizar' => $d['observaFechaGeneral'] ?? null,
+        'urlCalendario' => $d['urlCalendarioEjecucion'] ?? null,
+        // Las «Observaciones» que el visor publica **bajo el resultado**, no
+        // bajo el término: en 16 trámites aclara de qué depende el plazo.
+        'observacionesResultado' => $d['tiempoObtencionObservaciones'] ?? null,
         'normativa' => $normativa,
         'momentos' => $momentos,
         'puntosAtencion' => $puntos,

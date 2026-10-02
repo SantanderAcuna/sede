@@ -418,6 +418,74 @@ final class TramiteSeederTest extends TestCase
     }
 
     /**
+     * Todo trámite publicado responde «¿Cuándo se puede realizar?».
+     *
+     * La pregunta se responde con la unión de tres hechos —el booleano de
+     * «cualquier fecha», la condición en prosa y el calendario externo—, así que
+     * la regresión que hay que impedir es que un trámite quede con los tres
+     * vacíos: la ficha dibujaría la pregunta sin respuesta, o ninguna, y el
+     * ciudadano no sabría cuándo puede ir. La fuente cubre los 123, y por eso se
+     * exige que los cubra todos.
+     */
+    public function test_todo_tramite_responde_cuando_se_puede_realizar(): void
+    {
+        $this->seed(TramiteSeeder::class);
+
+        $sinRespuesta = [];
+        $cualquiera = 0;
+
+        foreach (Tramite::query()->cursor() as $tramite) {
+            if ($tramite->fecha_cualquiera === true) {
+                $cualquiera++;
+
+                continue;
+            }
+
+            if (
+                ($tramite->cuando_se_puede_realizar ?? '') === ''
+                && ($tramite->url_calendario ?? '') === ''
+            ) {
+                $sinRespuesta[] = $tramite->codigo;
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $sinRespuesta,
+            'Trámites sin respuesta a «¿Cuándo se puede realizar?»: '.implode(' · ', $sinRespuesta),
+        );
+
+        // La mayoría lo responde con el booleano: si esa cuenta cayera a cero,
+        // la prueba estaría pasando por la rama de excepción y no probaría nada.
+        $this->assertGreaterThan(0, $cualquiera, 'Ningún trámite declara «cualquier fecha».');
+    }
+
+    /**
+     * Las «Observaciones» del resultado no se guardan en blanco.
+     *
+     * La fuente usa el blanco para decir «no hay dato». Guardarlo como cadena
+     * vacía haría que la ficha dibujara el rótulo «Observaciones:» seguido de
+     * nada, que se lee como un dato que falta y no como uno que la fuente no
+     * declara.
+     */
+    public function test_las_observaciones_del_resultado_no_quedan_en_blanco(): void
+    {
+        $this->seed(TramiteSeeder::class);
+
+        $enBlanco = [];
+
+        foreach (Tramite::query()->cursor() as $tramite) {
+            $observaciones = $tramite->observaciones_resultado;
+
+            if ($observaciones !== null && trim($observaciones) === '') {
+                $enBlanco[] = $tramite->codigo;
+            }
+        }
+
+        $this->assertSame([], $enBlanco, 'Observaciones en blanco: '.implode(' · ', $enBlanco));
+    }
+
+    /**
      * Una copia con dos requisitos idénticos, cada uno para una audiencia.
      *
      * Se escribe fuera del proyecto para no dejar basura dentro, como la fuente

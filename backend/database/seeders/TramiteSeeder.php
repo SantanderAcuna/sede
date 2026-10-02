@@ -378,7 +378,8 @@ final class TramiteSeeder extends Seeder
         $ficha = $this->texto($fila, 'link_govco');
 
         // Los datos ricos del visor de SUIT vienen en el mismo JSON, cruzados por
-        // nombre en `build_mapeo.php`. Son los mismos que el visor expone a
+        // nombre en `database/datos/scripts/03-cruzar-con-listado.php`. Son los
+        // mismos que el visor expone en
         // `https://visorsuit.funcionpublica.gov.co/auth/visor?fi=XXXX` y se publican
         // con la marca de procedencia del visor, no del listado, para que sea
         // posible distinguir en el panel los dos orígenes.
@@ -395,6 +396,13 @@ final class TramiteSeeder extends Seeder
         $palabras = $fila['palabrasRelacionadas'] ?? null;
         $medios = $fila['mediosResultado'] ?? null;
         $urlManual = $fila['urlManualTramiteEnLinea'] ?? null;
+        // «¿Cuándo se puede realizar?» viaja como tres hechos y no como una
+        // frase: el booleano que responde a casi todos, la condición en prosa de
+        // unos pocos y el calendario externo de uno.
+        $fechaCualquiera = $fila['fechaCualquiera'] ?? null;
+        $cuandoSePuedeRealizar = $fila['cuandoSePuedeRealizar'] ?? null;
+        $urlCalendario = $fila['urlCalendario'] ?? null;
+        $observacionesResultado = $fila['observacionesResultado'] ?? null;
 
         return [
             'slug' => $this->slug($nombre, $codigo, $usados),
@@ -422,6 +430,10 @@ final class TramiteSeeder extends Seeder
             'momentos' => $momentos,
             'resultado' => $productoFinal,
             'producto_final' => $productoFinal,
+            'observaciones_resultado' => $observacionesResultado,
+            'fecha_cualquiera' => $fechaCualquiera,
+            'cuando_se_puede_realizar' => $cuandoSePuedeRealizar,
+            'url_calendario' => $urlCalendario,
             'medios_resultado' => $medios,
             'palabras_relacionadas' => $palabras,
             'audiencias' => $this->perfilesDesdeAudiencias($audiencias)['audiencias'],

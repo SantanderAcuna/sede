@@ -351,6 +351,32 @@ const notaTermino = computed<string | null>(
 )
 
 /**
+ * La respuesta a «¿Cuándo se puede realizar?», o `undefined` si la fuente no
+ * la declara.
+ *
+ * El visor no publica una frase: publica tres hechos y la Sede los compone en
+ * este orden, que es el de mayor a menor amplitud. **«Cualquier fecha» es una
+ * transcripción**, no una invención: es literalmente lo que el visor responde
+ * cuando la fuente marca `fechaCualquiera`. Si no, se publica la condición en
+ * prosa de la fuente y, en su defecto, el calendario externo.
+ *
+ * Devolver `undefined` es lo que evita dibujar la fila cuando no hay dato: una
+ * fila vacía en la ficha parece un dato que falta, y aquí es un dato que la
+ * fuente no declara.
+ */
+const cuandoSePuedeRealizar = computed<string | undefined>(() => {
+  const t = tramite.value
+  if (t === null || t === undefined) return undefined
+  if (t.fecha_cualquiera === true) return 'Cualquier fecha'
+  return opcional(t.cuando_se_puede_realizar)
+})
+
+/** El calendario externo donde la Entidad publica las fechas, si lo declara. */
+const urlCalendario = computed<string | undefined>(() =>
+  opcional(tramite.value?.url_calendario),
+)
+
+/**
  * El costo, en una línea, **sin inventar un importe que la fuente no declara**.
  *
  * Para el impuesto predial la fuente devuelve `Valor: null` junto a
@@ -776,6 +802,25 @@ function formatoTipoValor(tipo: string | null | undefined): string {
       <h2 class="h3 mt-4">Información general</h2>
 
       <dl class="row datos-tramite">
+        <!--
+          «¿Cuándo se puede realizar?» va primero porque es la pregunta que el
+          ciudadano se hace antes de organizar el desplazamiento, y porque es el
+          orden del visor. La fila sólo se dibuja cuando la fuente responde algo.
+        -->
+        <template v-if="cuandoSePuedeRealizar !== undefined || urlCalendario !== undefined">
+          <dt class="col-sm-4">¿Cuándo se puede realizar?</dt>
+          <dd class="col-sm-8">
+            <template v-if="cuandoSePuedeRealizar !== undefined">
+              {{ cuandoSePuedeRealizar }}
+            </template>
+            <span v-if="urlCalendario !== undefined" class="d-block">
+              <a :href="urlCalendario" class="enlace-externo" rel="noopener">
+                Consultar el calendario de la Entidad
+              </a>
+            </span>
+          </dd>
+        </template>
+
         <dt class="col-sm-4">Modalidad</dt>
         <dd class="col-sm-8">
           {{ MODALIDAD[tramite.modalidad] ?? tramite.modalidad }}
@@ -1229,7 +1274,7 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         ya la filtró al elegir su pestaña—.
       -->
       <section
-        v-if="opcional(tramite.resultado) || mediosResultado.length > 0"
+        v-if="opcional(tramite.resultado) || mediosResultado.length > 0 || opcional(tramite.observaciones_resultado)"
         aria-labelledby="titulo-resultado"
         class="mt-5"
       >
@@ -1243,6 +1288,19 @@ function formatoTipoValor(tipo: string | null | undefined): string {
           <span v-for="(medio, idx) in mediosResultado" :key="idx">
             {{ medio }}<span v-if="idx < mediosResultado.length - 1">, </span>
           </span>
+        </p>
+
+        <!--
+          La aclaración que el visor publica bajo el resultado: de qué depende
+          el plazo. Va aquí y no junto al término porque es donde la fuente la
+          declara, y porque quien lee «se obtiene en N días» necesita la
+          salvedad en el mismo sitio, no tres bloques más arriba.
+        -->
+        <p
+          v-if="opcional(tramite.observaciones_resultado)"
+          class="nota-derivado mt-2 mb-0"
+        >
+          <strong>Observaciones:</strong> {{ tramite.observaciones_resultado }}
         </p>
       </section>
 

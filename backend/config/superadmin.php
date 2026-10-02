@@ -20,7 +20,22 @@ return [
     'email' => env('SUPER_ADMIN_EMAIL', 'jose.acuna@santamarta.gov.co'),
     'name' => env('SUPER_ADMIN_NAME', 'Jose Acuña'),
 
-    // Sin valor por defecto: el sembrador decide qué hacer cuando falta y se
-    // niega a sembrar la clave de desarrollo en producción.
-    'password' => env('SUPER_ADMIN_PASSWORD', '85154239'),
+    /*
+     * **Sin valor por defecto, y ahora sí.**
+     *
+     * Aquí hubo un literal —la clave real— y ese literal viajaba en un
+     * repositorio **público**: cualquiera podía leer la contraseña del
+     * super-admin de la Sede y entrar al panel. El comentario de arriba ya decía
+     * «sin valor por defecto»; el código decía otra cosa.
+     *
+     * Sin `SUPER_ADMIN_PASSWORD`, el sembrador cae en su clave de desarrollo
+     * declarada y **se niega a sembrar en producción**, que es el
+     * comportamiento que se documentó desde el principio: fallar el sembrado es
+     * preferible a dejar la puerta abierta en silencio.
+     *
+     * El valor se define donde no se publica: en `backend/.env` para desarrollo
+     * —que no se versiona— y en el registro de secretos del despliegue para los
+     * entornos publicados.
+     */
+    'password' => env('SUPER_ADMIN_PASSWORD'),
 ];

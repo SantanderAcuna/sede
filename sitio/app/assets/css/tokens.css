@@ -55,10 +55,10 @@
   /** Azul celeste B `#8EC6E3` — secundario. */
   --alcaldia-azul-celeste-b: #8ec6e3;
   /** Blanco `#FFFFFF`. */
-  --alcaldia-blanco: #ffffff;
+  --alcaldia-blanco: #fff;
   /** Negro de texto. No está en el manual como color de marca, pero es el que
       el propio `sitio.css` documenta para el texto sobre celeste (8,13:1). */
-  --alcaldia-negro: #000000;
+  --alcaldia-negro: #000;
 
   /* --- Escala de espaciado -------------------------------------------------
      Base 4 px, la unidad que el Kit usa en sus propias medidas. Se declara
@@ -86,7 +86,7 @@
 }
 
 /* ============================================================================
-   NIVEL 2 · Semánticos
+   NIVEL 2 · Semánticos (continúa en el mismo `:root`)
    ============================================================================
 
    El papel del color, no su valor. **Cada token que lleva texto anota su
@@ -122,7 +122,7 @@
   /** Texto corriente sobre fondo claro. */
   --color-texto: var(--govcolor-matterhorn, #4c4c4c);
   /** Texto de máximo contraste, para titulares. */
-  --color-texto-fuerte: var(--govcolor-black, #000000);
+  --color-texto-fuerte: var(--govcolor-black, #000);
 
   /* --- Interacción --------------------------------------------------------- */
   /** Enlace corriente. Es el cobalto del Kit: 8,46:1 sobre blanco.
@@ -134,7 +134,7 @@
 }
 
 /* ============================================================================
-   NIVEL 3 · Componentes
+   NIVEL 3 · Componentes (continúa en el mismo `:root`)
    ============================================================================
 
    Lo que un componente concreto necesita y no se deduce de un papel genérico.

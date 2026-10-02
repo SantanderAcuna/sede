@@ -186,20 +186,6 @@ const GRUPOS: Record<GrupoCatalogo, Grupo> = {
 const ORDEN_GRUPOS: readonly GrupoCatalogo[] = ['tramites', 'opa', 'consultas']
 
 /**
- * Los grupos que el catálogo público sirve hoy.
- *
- * `GET /tramites` no tiene parámetro de grupo —el contrato no declara ninguno— y
- * la fuente oficial de la que la Entidad siembra su catálogo, SUIT, sólo
- * clasifica trámites: lo que esa operación devuelve son trámites y nada más. Los
- * otros dos grupos que el Anexo manda visualizar —OPA y consultas de acceso a
- * información pública— no tienen todavía nada que publicar, y la página lo dice
- * con su estado vacío en vez de repartirles una clasificación que la Entidad no
- * ha declarado. Cuando el contrato tenga con qué distinguirlos, esta constante
- * es lo único que hay que cambiar aquí.
- */
-const GRUPOS_PUBLICADOS: readonly GrupoCatalogo[] = ['tramites']
-
-/**
  * Seis elementos por página. Es el tamaño con el que el catálogo no se convierte
  * en una lista interminable ni obliga a paginar de más. Con la primera fila
  * compacta —título, descripción y botón— la primera cabe holgadamente por
@@ -251,28 +237,6 @@ const claveBuscador = ref(0)
  */
 const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
 
-/** Si el grupo activo es uno de los que el catálogo público sirve hoy. */
-const grupoPublicado = computed<boolean>(() => GRUPOS_PUBLICADOS.includes(grupoActivo.value))
-
-/**
- * La colección vacía con la que responde un grupo que el catálogo todavía no
- * sirve, sin gastar una petición: la respuesta está decidida de antemano. `path`
- * va vacío porque no hay petición que lo haya producido; el resto son los
- * valores que el contrato da a una colección sin elementos.
- */
-const COLECCION_VACIA: RespuestaCatalogo = {
-  data: [],
-  meta: {
-    current_page: 1,
-    from: null,
-    last_page: 1,
-    path: '',
-    per_page: TAMANO_PAGINA,
-    to: null,
-    total: 0,
-  },
-}
-
 /**
  * `useRequestFetch` y no `$fetch` a secas: durante el renderizado en servidor
  * resuelve la ruta relativa contra la petición en curso, y la URL por defecto del
@@ -284,16 +248,14 @@ const traer = useRequestFetch()
 /**
  * El catálogo: una petición por página, término y categoría.
  *
- * El contrato declara `page`, `per_page`, `buscar` y `categoria`, así que el
- * troceado y el filtrado los hace el servidor. Traerse el catálogo entero para
- * hacerlo aquí sería hacer el trabajo dos veces —y la segunda con la copia peor:
- * la que no ve lo que no se ha traído—.
+ * El contrato declara `page`, `per_page`, `buscar`, `categoria` y `type`, así que
+ * el troceado y el filtrado los hace el servidor. Traerse el catálogo entero
+ * para hacerlo aquí sería hacer el trabajo dos veces —y la segunda con la copia
+ * peor: la que no ve lo que no se ha traído—.
  */
 const { data, status, refresh } = await useAsyncData<RespuestaCatalogo>(
   'tramites-catalogo',
   async () => {
-    if (!grupoPublicado.value) return COLECCION_VACIA
-
     const consulta: Record<string, string | number> = {
       page: pagina.value,
       per_page: TAMANO_PAGINA,
@@ -303,6 +265,9 @@ const { data, status, refresh } = await useAsyncData<RespuestaCatalogo>(
     // el servidor devolvería el catálogo entero bajo esa apariencia.
     if (terminoAplicado.value !== '') consulta.buscar = terminoAplicado.value
     if (categoriaElegida.value !== '') consulta.categoria = categoriaElegida.value
+    // El grupo activo del Anexo 2.1 viaja como `type` al backend: el contrato
+    // declara el filtro y el repositorio lo aplica al campo `type` del modelo.
+    consulta.type = grupoActivo.value
 
     return await traer<RespuestaCatalogo>(`${urlApi}/tramites`, { query: consulta })
   },
@@ -477,7 +442,7 @@ const resumenResultados = computed<string>(() => {
  * búsqueda haya fallado.
  */
 const estadoVacio = computed<EstadoVacio>(() => {
-  const sinPublicar = !grupoPublicado.value || (!hayFiltros.value && totalResultados.value === 0)
+  const sinPublicar = !hayFiltros.value && totalResultados.value === 0
 
   if (sinPublicar) {
     return {

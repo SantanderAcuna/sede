@@ -1,0 +1,385 @@
+# SCHEMAS ADICIONALES PARA contract/openapi.yaml
+# Convertidos de JSON:API → Flat Envelope
+# Fuente: entidad-transparencia/05-especificaciones-api/openapi-3.1.yaml
+# Fecha: 2026-10-02
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SCHEMAS COMPARTIDOS ADICIONALES
+# ══════════════════════════════════════════════════════════════════════════════
+
+    # ─── TopBar ───────────────────────────────────────────────────────────
+    TopBarItem:
+      type: object
+      required: [id, type]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: top-bar }
+        logo_path: { type: [string, 'null'], format: uri }
+        url_govco: { type: [string, 'null'], format: uri }
+        altura_px: { type: integer }
+        idioma_default: { type: string }
+
+    # ─── Footer ───────────────────────────────────────────────────────────
+    FooterItem:
+      type: object
+      required: [id, type, nombre_autoridad]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: footer }
+        nombre_autoridad: { type: string }
+        nit: { type: [string, 'null'] }
+        direccion: { type: [string, 'null'] }
+        codigo_postal: { type: [string, 'null'] }
+        municipio: { type: [string, 'null'] }
+        departamento: { type: [string, 'null'] }
+        horario: { type: [string, 'null'] }
+        commutador: { type: [string, 'null'] }
+        linea_anticorrupcion: { type: [string, 'null'] }
+        correo_institucional: { type: [string, 'null'], format: email }
+        correo_notificaciones: { type: [string, 'null'], format: email }
+        redes:
+          type: array
+          items: { $ref: '#/components/schemas/EntidadRed' }
+        politicas:
+          type: array
+          description: Las cinco políticas obligatorias del footer
+          items: { $ref: '#/components/schemas/EntidadPolitica' }
+
+    # ─── Menú ─────────────────────────────────────────────────────────────
+    MenuItem:
+      type: object
+      required: [id, type, slug, etiqueta, orden, visible, tipo]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: menu-item }
+        slug: { type: string }
+        etiqueta: { type: string }
+        ruta: { type: [string, 'null'] }
+        descripcion: { type: [string, 'null'] }
+        orden: { type: integer }
+        visible: { type: boolean }
+        tipo: { type: string, enum: [interno, externo, ancla, modal] }
+        hijos:
+          type: array
+          description: Submenús (máximo 2 niveles)
+          items: { $ref: '#/components/schemas/MenuItem' }
+
+    # ─── Noticias ──────────────────────────────────────────────────────────
+    NoticiaItem:
+      type: object
+      required: [id, type, slug, titulo, fecha_publicacion]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: noticia }
+        slug: { type: string }
+        titulo: { type: string }
+        descripcion_corta: { type: [string, 'null'] }
+        contenido_html: { type: [string, 'null'] }
+        fecha_publicacion: { type: string, format: date-time }
+        destacada: { type: boolean }
+        activo: { type: boolean }
+        imagen_url: { type: [string, 'null'], format: uri }
+        categorias:
+          type: array
+          items: { type: string }
+        created_at: { type: string, format: date-time, readOnly: true }
+        updated_at: { type: string, format: date-time, readOnly: true }
+
+    NoticiaCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/NoticiaItem' }
+
+    # ─── Subsección Transparencia ──────────────────────────────────────────
+    SubseccionTransparenciaItem:
+      type: object
+      required: [id, type, codigo, nombre, orden]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: subseccion-transparencia }
+        codigo:
+          type: string
+          enum: [informacion-entidad, normativa, contratacion, planeacion, tramites, participa, datos-abiertos, grupos-interes, reporte-especifico, tributaria]
+        nombre: { type: string }
+        descripcion: { type: [string, 'null'] }
+        orden: { type: integer, minimum: 1, maximum: 10 }
+        numero_ley: { type: integer, minimum: 1, maximum: 10 }
+        url: { type: [string, 'null'], format: uri }
+
+    # ─── Documentos ────────────────────────────────────────────────────────
+    DocumentoItem:
+      type: object
+      required: [id, type, slug, titulo, estado]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: documento }
+        slug: { type: string }
+        titulo: { type: string }
+        descripcion: { type: [string, 'null'] }
+        fecha_publicacion: { type: [string, 'null'], format: date }
+        fecha_documento: { type: [string, 'null'], format: date }
+        periodicidad:
+          type: [string, 'null']
+          enum: [anual, semestral, trimestral, mensual, eventual, null]
+        estado:
+          type: string
+          enum: [borrador, revision, publicado, despublicado, archivado]
+        destacado: { type: boolean }
+        indice_lecturabilidad: { type: [number, 'null'] }
+        hash_sha256: { type: [string, 'null'] }
+        tamano_bytes: { type: [integer, 'null'] }
+        formato_abierto: { type: boolean }
+        # Relaciones
+        subseccion: { $ref: '#/components/schemas/SubseccionTransparenciaItem' }
+        categoria: { type: [object, 'null'] }
+        tipo_documento: { type: [object, 'null'] }
+        archivo_url: { type: [string, 'null'], format: uri }
+        autor:
+          type: object
+          properties:
+            id: { type: integer }
+            nombre: { type: string }
+        metadatos:
+          type: array
+          items: { $ref: '#/components/schemas/MetadatoItem' }
+        versiones:
+          type: array
+          description: Versiones anteriores del documento
+          items: { $ref: '#/components/schemas/DocumentoVersionItem' }
+        created_at: { type: string, format: date-time, readOnly: true }
+        updated_at: { type: string, format: date-time, readOnly: true }
+
+    MetadatoItem:
+      type: object
+      required: [id, type, clave, valor]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: metadato }
+        clave: { type: string }
+        valor: { type: string }
+
+    DocumentoVersionItem:
+      type: object
+      required: [id, version, fecha]
+      properties:
+        id: { type: integer }
+        version: { type: string }
+        fecha: { type: string, format: date-time }
+        hash_sha256: { type: string }
+        url: { type: string, format: uri }
+
+    DocumentoCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/DocumentoItem' }
+
+    # ─── Servidor Público ─────────────────────────────────────────────────
+    ServidorPublicoItem:
+      type: object
+      required: [id, type, nombres, apellidos, cargo]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: servidor-publico }
+        codigo_sigep: { type: [string, 'null'] }
+        nombres: { type: string }
+        apellidos: { type: string }
+        cargo: { type: string }
+        correo_institucional: { type: [string, 'null'], format: email }
+        extension: { type: [string, 'null'] }
+        dependencia:
+          type: object
+          properties:
+            id: { type: integer }
+            codigo: { type: string }
+            nombre: { type: string }
+
+    # ─── Política ──────────────────────────────────────────────────────────
+    PoliticaItem:
+      type: object
+      required: [id, type, codigo, nombre]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: politica }
+        codigo:
+          type: string
+          enum: [terminos, privacidad, cookies, derechos-autor, accesibilidad]
+        nombre: { type: string }
+        contenido_html: { type: [string, 'null'] }
+        tipo:
+          type: string
+          enum: [legal, seguridad, privacidad, institucional]
+        vigente: { type: boolean }
+        actualizada_en: { type: [string, 'null'], format: date, readOnly: true }
+
+    # ─── Calendario Tributario ─────────────────────────────────────────────
+    CalendarioTributarioItem:
+      type: object
+      required: [id, type, impuesto, vigencia, fecha_vencimiento]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: calendario-tributario }
+        impuesto:
+          type: string
+          enum: [predial, ica, otros]
+        vigencia: { type: integer }
+        fecha_vencimiento: { type: string, format: date }
+        descripcion: { type: [string, 'null'] }
+        aplica_a: { type: [string, 'null'] }
+
+    # ─── Búsqueda ──────────────────────────────────────────────────────────
+    SugerenciaBusquedaItem:
+      type: object
+      required: [id, type, texto, url]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: sugerencia }
+        texto: { type: string }
+        url: { type: string, format: uri }
+        tipo_recurso:
+          type: string
+          enum: [documento, noticia, tramite, servidor]
+        score: { type: number }
+
+    BusquedaResult:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data, meta]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/DocumentoItem' }
+            meta:
+              type: object
+              required: [total, termino]
+              properties:
+                total: { type: integer }
+                termino: { type: string }
+                tiempo_ms: { type: integer }
+
+    # ─── Alertas ───────────────────────────────────────────────────────────
+    AlertaPublicacionItem:
+      type: object
+      required: [id, type, tipo, mensaje, dias_anticipacion]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: alerta-publicacion }
+        tipo:
+          type: string
+          enum: [plan-accion-31ene, informe-gestion-31ene, pqrsd-trimestral, control-interno-semestral, calendario-tributario]
+        mensaje: { type: string }
+        dias_anticipacion: { type: integer }
+        activa: { type: boolean }
+        vence_en: { type: [string, 'null'], format: date }
+
+    # ─── Tablero ITA ──────────────────────────────────────────────────────
+    TableroItaItem:
+      type: object
+      required: [id, type, porcentaje_cumplimiento]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: tablero-ita }
+        porcentaje_cumplimiento: { type: number, minimum: 0, maximum: 100 }
+        items_cumplen: { type: integer }
+        items_no_cumplen: { type: integer }
+        items_parcial: { type: integer }
+        items_no_aplica: { type: integer }
+        ultima_actualizacion: { type: string, format: date-time, readOnly: true }
+
+    # ─── Auditoría ────────────────────────────────────────────────────────
+    AuditoriaItem:
+      type: object
+      required: [id, type, accion, recurso, created_at]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: auditoria }
+        accion:
+          type: string
+          enum: [crear, actualizar, eliminar, login, logout]
+        recurso: { type: string }
+        recurso_id: { type: [integer, 'null'] }
+        cambios: { type: [object, 'null'] }
+        ip_origen: { type: [string, 'null'] }
+        user_agent: { type: [string, 'null'] }
+        usuario:
+          type: object
+          properties:
+            id: { type: integer }
+            email: { type: string }
+        created_at: { type: string, format: date-time, readOnly: true }
+
+    AuditoriaCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/AuditoriaItem' }
+
+    # ─── Usuario ──────────────────────────────────────────────────────────
+    UsuarioItem:
+      type: object
+      required: [id, type, email, estado]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: usuario }
+        email: { type: string, format: email }
+        mfa_habilitado: { type: boolean }
+        estado:
+          type: string
+          enum: [activo, inactivo, bloqueado, pendiente]
+        roles:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              type: { type: string, const: rol }
+              nombre: { type: string }
+              permisos:
+                type: array
+                items: { type: string }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# RESPUESTAS ADICIONALES
+# ══════════════════════════════════════════════════════════════════════════════
+
+    NoAutenticado:
+      description: No autenticado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+          examples:
+            no_autenticado:
+              value:
+                success: false
+                message: "No autenticado."
+                data: null
+                errors: null
+
+    DemasiadasSolicitudes:
+      description: Demasiadas solicitudes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+          examples:
+            rate_limit:
+              value:
+                success: false
+                message: "Demasiadas solicitudes. Intenta más tarde."
+                data: null
+                errors: null

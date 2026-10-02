@@ -40,7 +40,7 @@ export default defineConfig({
     proxy: {
       // En desarrollo la API vive en otro proceso. En producción es el punto de
       // entrada el que reparte, y este proxy no interviene.
-      '/api': { target: 'http://127.0.0.1:8010', changeOrigin: true },
+      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
       '/storage': { target: 'http://127.0.0.1:8010', changeOrigin: true },
     },
   },

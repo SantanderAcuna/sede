@@ -8,6 +8,7 @@ use App\Enums\CanalInicioTramite;
 use App\Enums\CostoTramite;
 use App\Enums\ModalidadTramite;
 use App\Models\Tramite;
+use App\Support\Tramites\ContactoPublicable;
 use App\Support\Tramites\FuenteSuit;
 use App\Support\Tramites\SlugCatalogo;
 use App\Support\Tramites\TiempoEnDias;
@@ -227,7 +228,17 @@ final class TramiteSeeder extends Seeder
             // misma fuente, así que el número de filas no cambia —y la prueba lo
             // comprueba, porque un sembrador que duplica sólo se nota cuando ya
             // duplicó—.
-            Tramite::updateOrCreate(['codigo' => $codigo], $atributos);
+            //
+            // El slug se preserva cuando el trámite ya existe: el nombre
+            // estandarizado puede cambiar entre cosechas (GOV.CO actualiza
+            // nombres con regularidad), pero el slug es una **dirección estable**
+            // de la ficha del ciudadano. Cambiarlo rompería los enlaces guardados
+            // sin que la nueva versión aporte nada al ciudadano.
+            $atributosConSlug = $atributos;
+            if ($existente !== null && $existente->slug !== '' && $existente->slug !== null) {
+                $atributosConSlug['slug'] = $existente->slug;
+            }
+            Tramite::updateOrCreate(['codigo' => $codigo], $atributosConSlug);
 
             if ($existente === null) {
                 $publicados++;
@@ -352,30 +363,85 @@ final class TramiteSeeder extends Seeder
      */
     private function atributos(array $fila, string $codigo, array &$usados, ?array $tiempo): array
     {
-        $nombre = $this->texto($fila, 'titulo');
+        // El nombre y el propósito oficiales son los de GOV.CO, no los del
+        // SUIT. Verificado el 2026-10-02 con todos los 124 T-códigos de la
+        // Entidad: los 124 nombres del listado SUIT y los 124 de GOV.CO
+        // difieren. GOV.CO es la versión vigente y se publica.
+        $nombre = $this->texto($fila, 'nombreEstandarizado_govco')
+            ?? $this->texto($fila, 'nombreEstandarizado')
+            ?? $this->texto($fila, 'titulo');
+        $proposito = $this->texto($fila, 'proposito_govco')
+            ?? $this->texto($fila, 'proposito_suit')
+            ?? $this->texto($fila, 'proposito');
+
         $enlace = $this->texto($fila, 'urlTramiteEnLinea');
         $ficha = $this->texto($fila, 'link_govco');
+
+        // Los datos ricos del visor de SUIT vienen en el mismo JSON, cruzados por
+        // nombre en `database/datos/scripts/03-cruzar-con-listado.php`. Son los
+        // mismos que el visor expone en
+        // `https://visorsuit.funcionpublica.gov.co/auth/visor?fi=XXXX` y se publican
+        // con la marca de procedencia del visor, no del listado, para que sea
+        // posible distinguir en el panel los dos orígenes.
+        $momentos = $this->momentosDelVisor($fila);
+        $requisitos = $this->requisitosDelVisor($fila);
+        $costoCuentas = $fila['cuentas'] ?? null;
+        $normativa = $fila['normativa'] ?? null;
+        // El contacto pasa por `ContactoPublicable` antes de guardarse: los
+        // móviles personales y las coordenadas imposibles no llegan al catálogo.
+        $puntos = $this->puntosPublicables($fila['puntosAtencion'] ?? null);
+        $audiencias = $fila['audiencias'] ?? null;
+        $seguimiento = $this->seguimientoPublicable($fila['seguimiento'] ?? null);
+        $productoFinal = $fila['productoFinal'] ?? null;
+        $palabras = $fila['palabrasRelacionadas'] ?? null;
+        $medios = $fila['mediosResultado'] ?? null;
+        $urlManual = $fila['urlManualTramiteEnLinea'] ?? null;
+        // «¿Cuándo se puede realizar?» viaja como tres hechos y no como una
+        // frase: el booleano que responde a casi todos, la condición en prosa de
+        // unos pocos y el calendario externo de uno.
+        $fechaCualquiera = $fila['fechaCualquiera'] ?? null;
+        $cuandoSePuedeRealizar = $fila['cuandoSePuedeRealizar'] ?? null;
+        $urlCalendario = $fila['urlCalendario'] ?? null;
+        $observacionesResultado = $fila['observacionesResultado'] ?? null;
 
         return [
             'slug' => $this->slug($nombre, $codigo, $usados),
             'nombre' => $nombre,
-            'resumen' => Tramite::recortarResumen($this->texto($fila, 'proposito')),
+            'resumen' => Tramite::recortarResumen($proposito),
             'modalidad' => $this->modalidad($fila),
             'tiene_costo' => $this->tieneCosto($fila),
             // El importe no lo publica la fuente para ningún trámite: viaja en
             // nulo y lo declara la Entidad. El atributo obligatorio es si el
             // trámite tiene costo, no cuánto cuesta.
             'costo' => null,
+            'costo_tipo_valor' => $this->costoTipoValor($fila),
+            'costo_moneda' => null,
+            'costo_url_pago' => null,
+            'costo_descripcion' => null,
+            'costo_cuentas' => $costoCuentas,
+            'cuentas' => $costoCuentas,
             'tiempo_solucion_dias' => $tiempo['dias'] ?? null,
             'canal_inicio' => $this->canal($fila),
             'url_inicio' => $enlace,
+            'url_manual_tramite_en_linea' => $urlManual,
             'consulta_estado' => self::CONSULTA_ESTADO,
-            'requisitos' => [
-                ['descripcion' => self::REQUISITO, 'obligatorio' => true],
-            ],
-            'documentos' => [
-                ['nombre' => self::DOCUMENTO, 'url' => $ficha, 'formato' => 'HTML'],
-            ],
+            'requisitos' => $requisitos,
+            'documentos' => $this->documentosOficiales($ficha),
+            'momentos' => $momentos,
+            'resultado' => $productoFinal,
+            'producto_final' => $productoFinal,
+            'observaciones_resultado' => $observacionesResultado,
+            'fecha_cualquiera' => $fechaCualquiera,
+            'cuando_se_puede_realizar' => $cuandoSePuedeRealizar,
+            'url_calendario' => $urlCalendario,
+            'medios_resultado' => $medios,
+            'palabras_relacionadas' => $palabras,
+            'audiencias' => $this->perfilesDesdeAudiencias($audiencias)['audiencias'],
+            'perfiles' => $this->perfilesDesdeAudiencias($audiencias)['perfiles'],
+            'puntos_atencion' => $puntos,
+            'normativa' => $normativa,
+            'canales_consulta_estado' => $this->canalesDesdeSeguimiento($seguimiento),
+            'seguimiento' => $seguimiento,
             'categoria_slug' => null,
             'categoria_nombre' => null,
             'url_ficha_gov_co' => $ficha,
@@ -387,6 +453,593 @@ final class TramiteSeeder extends Seeder
             // ya pasó la comprobación de los seis atributos y de la ficha.
             'publicado_en' => Carbon::now(),
         ];
+    }
+
+    /**
+     * Los requisitos que el visor publica, normalizados a la forma del contrato.
+     *
+     * El visor agrupa los requisitos en **momentos** (pasos del trámite) y cada
+     * requisito tiene un `tipoRequisito` y un texto. La forma del contrato es
+     * una lista plana: aquí la aplanamos, conservando el tipo y el orden.
+     *
+     * @param  array<string, mixed>  $fila
+     * @return list<array<string, mixed>>
+     */
+    private function requisitosDelVisor(array $fila): array
+    {
+        $requisitos = [];
+        $orden = 0;
+        foreach (($fila['momentos'] ?? []) as $momento) {
+            foreach (($momento['requisitos'] ?? []) as $req) {
+                $orden++;
+                $r = [
+                    'orden' => $orden,
+                    'tipo' => $this->normalizarTipoRequisito($req['tipo'] ?? null),
+                    'descripcion' => $this->textoRequisito($req),
+                    'obligatorio' => ($req['obligatorio'] ?? true) === true,
+                ];
+                // Las audiencias a las que aplica el requisito. Es la base
+                // del filtro «Para realizarlo necesita» del visor: el
+                // ciudadano se reconoce en uno de los grupos (Ciudadano,
+                // Extranjeros, Organizaciones) y la Sede filtra los requisitos
+                // que le aplican. Sin audiencia, el requisito se considera
+                // universal y aparece en todos los grupos.
+                if (! empty($req['tipos_audiencia'])) {
+                    $r['tipos_audiencia'] = $req['tipos_audiencia'];
+                }
+                if (! empty($req['documento'])) {
+                    $r['documento'] = $req['documento'];
+                }
+                if (! empty($req['formulario_nombre'])) {
+                    $r['formulario'] = $req['formulario_nombre'];
+                    if (! empty($req['formulario_url'])) {
+                        $r['formulario_url'] = $req['formulario_url'];
+                    }
+                }
+                if (! empty($req['url_pago'])) {
+                    $r['url_pago'] = $req['url_pago'];
+                }
+                if (! empty($req['pago_valor'])) {
+                    $r['pago'] = $req['pago_valor'];
+                }
+                if (! empty($req['pago_cuentas'])) {
+                    $r['cuentas'] = $req['pago_cuentas'];
+                }
+                $requisitos[] = $r;
+            }
+        }
+        // Si el visor no publicó requisitos, vuelve al placeholder histórico:
+        // un único requisito genérico que apunta a la ficha oficial. La Sede no
+        // inventa.
+        if ($requisitos === []) {
+            $ficha = $this->texto($fila, 'link_govco');
+            $requisitos[] = [
+                'descripcion' => self::REQUISITO,
+                'obligatorio' => true,
+                'documento' => $ficha,
+            ];
+        }
+
+        return $this->deduplicarRequisitos($requisitos);
+    }
+
+    /**
+     * Colapsa los requisitos que la fuente repite.
+     *
+     * **El defecto es de la fuente y se mide.** El visor publica a veces el
+     * mismo requisito dos veces en el mismo paso: en `T41040` aparecen dos
+     * `[DOCUMENTO] Diploma o acta de grado` seguidos, sin `cantidad` que
+     * distinga uno del otro. Quince de los 123 trámites de la Entidad traen
+     * alguna repetición. Transcribirla a la sede es publicar el defecto: el
+     * ciudadano ve dos veces el mismo documento y desconfía de la lista.
+     *
+     * **Por qué se limpia al ingerir y no al dibujar.** El sembrador ya
+     * normaliza lo que recibe del visor (tipos, textos, audiencias); esta es una
+     * normalización más. Limpiar aquí deja la API honesta para cualquier
+     * consumidor —el panel que vendrá, un export de datos abiertos— en vez de
+     * obligar a cada uno a repetir la misma limpieza. La copia cruda del visor
+     * queda versionada como evidencia de lo que la fuente declara.
+     *
+     * **La clave es el tipo más el nombre visible**, no sólo el nombre: un
+     * `DOCUMENTO` y un `FORMULARIO` homónimos son dos cosas distintas y no se
+     * colapsan. Un requisito sin nombre visible —un `SOLICITUD` vacío que la
+     * fuente dejó a medias— **no** entra en la deduplicación: no hay nada que
+     * comparar y colapsarlos perdería la cuenta de los pasos. Esos los declara
+     * ausentes la presentación.
+     *
+     * @param  list<array<string, mixed>>  $requisitos
+     * @return list<array<string, mixed>>
+     */
+    private function deduplicarRequisitos(array $requisitos): array
+    {
+        /** @var array<string, int> $vistos */
+        $vistos = [];
+        /** @var list<array<string, mixed>> $unicos */
+        $unicos = [];
+
+        foreach ($requisitos as $requisito) {
+            $clave = $this->claveDeRequisito($requisito);
+
+            if ($clave === null) {
+                $unicos[] = $requisito;
+
+                continue;
+            }
+
+            if (! isset($vistos[$clave])) {
+                $vistos[$clave] = count($unicos);
+                $unicos[] = $requisito;
+
+                continue;
+            }
+
+            $unicos[$vistos[$clave]] = $this->fusionarRequisitos($unicos[$vistos[$clave]], $requisito);
+        }
+
+        return array_values($unicos);
+    }
+
+    /**
+     * La clave con la que dos requisitos se consideran el mismo, o nula si no
+     * hay nombre visible con el que compararlos.
+     *
+     * @param  array<string, mixed>  $requisito
+     */
+    private function claveDeRequisito(array $requisito): ?string
+    {
+        foreach (['documento', 'formulario', 'descripcion'] as $campo) {
+            $valor = $requisito[$campo] ?? null;
+
+            if (! is_string($valor) || trim($valor) === '') {
+                continue;
+            }
+
+            $normalizado = mb_strtolower((string) preg_replace('/\s+/u', ' ', trim($valor)));
+
+            return ($requisito['tipo'] ?? '').'|'.$normalizado;
+        }
+
+        return null;
+    }
+
+    /**
+     * Fusiona un duplicado en el requisito que ya se conserva.
+     *
+     * No se descarta el duplicado sin mirarlo: se **unen** las audiencias (unir
+     * es la opción que muestra el requisito en vez de esconderlo) y se
+     * **rellenan los huecos** del conservado con lo que el duplicado sí traía
+     * —un enlace, una nota, un formulario—. Si alguna de las dos copias declara
+     * el requisito obligatorio, el resultado lo es: quitar una obligación es más
+     * grave que añadirla.
+     *
+     * @param  array<string, mixed>  $conservado
+     * @param  array<string, mixed>  $duplicado
+     * @return array<string, mixed>
+     */
+    private function fusionarRequisitos(array $conservado, array $duplicado): array
+    {
+        $audiencias = array_values(array_unique(array_merge(
+            $conservado['tipos_audiencia'] ?? [],
+            $duplicado['tipos_audiencia'] ?? [],
+        )));
+
+        if ($audiencias !== []) {
+            $conservado['tipos_audiencia'] = $audiencias;
+        }
+
+        if (($duplicado['obligatorio'] ?? false) === true) {
+            $conservado['obligatorio'] = true;
+        }
+
+        foreach ($duplicado as $campo => $valor) {
+            if ($campo === 'tipos_audiencia' || $campo === 'obligatorio' || $campo === 'orden') {
+                continue;
+            }
+
+            $actual = $conservado[$campo] ?? null;
+
+            if ($actual === null || $actual === '' || $actual === []) {
+                if ($valor !== null && $valor !== '' && $valor !== []) {
+                    $conservado[$campo] = $valor;
+                }
+            }
+        }
+
+        return $conservado;
+    }
+
+    /**
+     * Los momentos (pasos) que el visor publica, en la forma del contrato.
+     *
+     * El visor de SUIT sólo trae `descripcion` para cada momento —no un
+     * `titulo` separado—, así que aquí se separa el título (la primera
+     * frase de la descripción) de la descripción propiamente dicha. La
+     * operación es la misma que hace GOV.CO en su ficha: «Reunir
+     * documentos» como título y la explicación como descripción.
+     *
+     * Si la descripción no se puede partir limpiamente, el título es la
+     * descripción entera y la descripción queda vacía. La Sede no inventa:
+     * publica lo que el visor publica, en la forma del contrato.
+     *
+     * @param  array<string, mixed>  $fila
+     * @return list<array{orden: int, titulo: string, descripcion: string|null, requisitos: list<array<string, mixed>>}>
+     */
+    private function momentosDelVisor(array $fila): array
+    {
+        $momentos = [];
+        foreach (($fila['momentos'] ?? []) as $idx => $momento) {
+            $crudo = trim((string) ($momento['descripcion'] ?? ''));
+            if ($crudo === '') {
+                continue;
+            }
+            // El visor publica frases largas como descripción, sin título
+            // separado. Aquí se separan en dos: la primera frase hasta el
+            // primer punto es el título, el resto es la descripción.
+            $partes = preg_split('/(?<=\.)\s+/u', $crudo, 2);
+            $titulo = $partes[0] ?? $crudo;
+            $descripcion = $partes[1] ?? null;
+            $titulo = rtrim($titulo, '.').'.';
+
+            $requisitos = [];
+            foreach (($momento['requisitos'] ?? []) as $req) {
+                $r = [
+                    'orden' => $req['orden'] ?? null,
+                    'tipo' => $this->normalizarTipoRequisito($req['tipo'] ?? null),
+                    'descripcion' => $this->textoRequisito($req),
+                    'obligatorio' => ($req['obligatorio'] ?? true) === true,
+                ];
+                if (! empty($req['tipos_audiencia'])) {
+                    $r['tipos_audiencia'] = $req['tipos_audiencia'];
+                }
+                if (! empty($req['documento'])) {
+                    $r['documento'] = $req['documento'];
+                }
+                if (! empty($req['formulario_nombre'])) {
+                    $r['formulario'] = $req['formulario_nombre'];
+                    if (! empty($req['formulario_url'])) {
+                        $r['formulario_url'] = $req['formulario_url'];
+                    }
+                }
+                if (! empty($req['url_pago'])) {
+                    $r['url_pago'] = $req['url_pago'];
+                }
+                if (! empty($req['pago_valor'])) {
+                    $r['pago'] = $req['pago_valor'];
+                }
+                if (! empty($req['pago_cuentas'])) {
+                    $r['cuentas'] = $req['pago_cuentas'];
+                }
+                $requisitos[] = $r;
+            }
+            $momentos[] = [
+                'orden' => $momento['orden'] ?? ($idx + 1),
+                'titulo' => $titulo,
+                'descripcion' => $descripcion,
+                // La misma limpieza que en el listado plano, pero **por paso**:
+                // un requisito que aparece en dos pasos distintos pertenece a los
+                // dos y se conserva en ambos. Lo que se colapsa es la repetición
+                // dentro del mismo paso.
+                'requisitos' => $this->deduplicarRequisitos($requisitos),
+            ];
+        }
+
+        return $momentos;
+    }
+
+    /**
+     * El texto del requisito, tomando el primer campo no vacío que el visor
+     * publica, en este orden: `descripcionVerificado`, `anotacionAdicional`,
+     * `descripcionSolicitud`. Los tres son el mismo concepto («qué tiene que
+     * hacer o llevar el ciudadano») en distintos formatos de SUIT.
+     *
+     * @param  array<string, mixed>  $req
+     */
+    private function textoRequisito(array $req): string
+    {
+        foreach (['descripcion', 'descripcionVerificado', 'anotacionAdicional', 'descripcionSolicitud'] as $clave) {
+            if (! empty($req[$clave])) {
+                return (string) $req[$clave];
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Los tipos de requisito del visor, normalizados al vocabulario del contrato.
+     *
+     * El visor usa cinco valores (`DOCUMENTO`, `PAGO`, `SOLICITUD`,
+     * `VERIFICACION_INST`, `FORMULARIO`); el contrato los declara con el mismo
+     * nombre en minúsculas. Si el visor añadiera un sexto, el seeder lo dejaría
+     * en `null` para que el repositorio lo publique sin clasificar —que es lo
+     * menos malo cuando aparece un tipo nuevo.
+     */
+    private function normalizarTipoRequisito(?string $tipo): ?string
+    {
+        return match ($tipo) {
+            'DOCUMENTO' => 'documento',
+            'PAGO' => 'pago',
+            'SOLICITUD' => 'solicitud',
+            'VERIFICACION_INST' => 'verificacion_institucional',
+            'FORMULARIO' => 'formulario',
+            default => null,
+        };
+    }
+
+    /**
+     * El tipo de valor del costo, normalizado.
+     *
+     * El visor lo publica en su `momentos[].requisitos[].pago_valor[].tipoValor`
+     * (no a nivel de trámite). Lo cruzamos cuando existe; si no, devolvemos el
+     * valor del listado si lo trae como `costo` y es `SI`.
+     *
+     * @param  array<string, mixed>  $fila
+     */
+    private function costoTipoValor(array $fila): ?string
+    {
+        foreach (($fila['momentos'] ?? []) as $momento) {
+            foreach (($momento['requisitos'] ?? []) as $req) {
+                if (($req['tipo'] ?? null) !== 'pago') {
+                    continue;
+                }
+                foreach (($req['pago_valor'] ?? []) as $vp) {
+                    $tipo = $vp['tipo_valor'] ?? null;
+                    if ($tipo === null || $tipo === '') {
+                        continue;
+                    }
+
+                    return match ($tipo) {
+                        'AVALUO_LIQUIDACION' => 'avaluo_liquidacion',
+                        'SMLV' => 'smlv',
+                        'FIJO' => 'fijo',
+                        'RANGO' => 'rango',
+                        default => null,
+                    };
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Los documentos oficiales, en la forma del contrato.
+     *
+     * El visor no tiene un campo «documentos» en el mismo nivel que el
+     * contrato: los documentos están mezclados con los demás requisitos. Aquí
+     * extraemos los requisitos de tipo `DOCUMENTO` y los publicamos como
+     * documentos para que la ficha los pueda listar.
+     *
+     * @return list<array<string, string|null>>
+     */
+    private function documentosOficiales(?string $ficha): array
+    {
+        // Por ahora, el documento canónico es la ficha oficial. Si el visor
+        // publicara anexos específicos por trámite, este método los añadiría.
+        return [
+            ['nombre' => self::DOCUMENTO, 'url' => $ficha, 'formato' => 'HTML'],
+        ];
+    }
+
+    /**
+     * Las audiencias del visor, en la forma del contrato (`TramiteAudiencia`).
+     *
+     * El visor agrupa las audiencias en tres tipos (`Instituciones o dependencias
+     * públicas`, `Ciudadano`, `Organizaciones`, `Extranjeros`). El contrato
+     * declara `audiencias` como una lista de objetos con `grupo`, `nombre` y
+     * `descripcion`. Aquí devolvemos cada audiencia con su grupo inferido del
+     * nombre, que es la forma en que la Sede las publica.
+     *
+     * El campo `perfiles` del contrato (array de strings) se conserva para
+     * compatibilidad: la Sede lo publica como una lista plana de nombres.
+     *
+     * @param  list<array<string, mixed>>|null  $audiencias
+     * @return array{audiencias: list<array<string, mixed>>, perfiles: list<string>}
+     */
+    private function perfilesDesdeAudiencias(?array $audiencias): array
+    {
+        if ($audiencias === null) {
+            return ['audiencias' => [], 'perfiles' => []];
+        }
+        $lista = [];
+        $nombres = [];
+        foreach ($audiencias as $a) {
+            $nombre = $a['nombre'] ?? null;
+            if ($nombre === null || $nombre === '') {
+                continue;
+            }
+            $grupo = $a['grupo'] ?? null;
+            $lista[] = [
+                'grupo' => $grupo,
+                'nombre' => $nombre,
+                'descripcion' => $a['descripcion'] ?? null,
+            ];
+            $nombres[$nombre] = true;
+        }
+
+        return [
+            'audiencias' => $lista,
+            'perfiles' => array_keys($nombres),
+        ];
+    }
+
+    /**
+     * Los puntos de atención, ya pasados por el filtro de contacto publicable.
+     *
+     * **Por qué existe este método.** El visor de SUIT publica, junto a la
+     * dirección institucional, teléfonos que a veces son **móviles de diez
+     * dígitos** de quien atiende la oficina, y coordenadas que no son de ningún
+     * sitio. La ingesta anterior (`Ingesta/MapeoFicha`) ya los descartaba con
+     * `ContactoPublicable`; la ingesta del visor nació sin ese filtro y volvió a
+     * publicarlos. Medido sobre la copia congelada: 74 de 562 números eran
+     * móviles y 39 de 400 coordenadas caían fuera de Colombia.
+     *
+     * Que el dato venga de una API pública no cambia nada (Ley 1581 de 2012): si
+     * el Distrito lo publica en su sede, responde por él. El criterio completo
+     * —qué se descarta y por qué— vive en `ContactoPublicable`.
+     *
+     * @param  list<array<string, mixed>>|null  $puntos
+     * @return list<array<string, mixed>>
+     */
+    private function puntosPublicables(?array $puntos): array
+    {
+        if ($puntos === null) {
+            return [];
+        }
+        $publicables = [];
+        foreach ($puntos as $punto) {
+            $coordenadas = ContactoPublicable::coordenadas(
+                isset($punto['latitud']) ? (float) $punto['latitud'] : null,
+                isset($punto['longitud']) ? (float) $punto['longitud'] : null,
+            );
+            $publicables[] = [
+                'nombre' => $punto['nombre'] ?? null,
+                'direccion' => $punto['direccion'] ?? null,
+                'telefono' => ContactoPublicable::telefono($punto['telefono'] ?? null),
+                'horario' => $punto['horario'] ?? null,
+                'municipio' => $punto['municipio'] ?? null,
+                'departamento' => $punto['departamento'] ?? null,
+                'latitud' => $coordenadas['latitud'],
+                'longitud' => $coordenadas['longitud'],
+            ];
+        }
+
+        return $publicables;
+    }
+
+    /**
+     * El bloque de seguimiento del visor, con el contacto ya filtrado.
+     *
+     * Se conservan las cuatro listas (teléfono, correo, presencial, web) porque
+     * el contrato las declara, pero cada número pasa por `ContactoPublicable` y
+     * cada correo por su comprobación de forma. El bloque crudo es lo que el
+     * visor publica; lo que se publica en la Sede es lo que pasa el filtro.
+     *
+     * @param  array<string, mixed>|null  $seguimiento
+     * @return array<string, mixed>|null
+     */
+    private function seguimientoPublicable(?array $seguimiento): ?array
+    {
+        if ($seguimiento === null) {
+            return null;
+        }
+        $telefonos = [];
+        foreach (($seguimiento['telefono'] ?? []) as $tel) {
+            $numero = ContactoPublicable::telefono($tel['numero'] ?? null);
+            if ($numero === null) {
+                continue;
+            }
+            $telefonos[] = [
+                'numero' => $numero,
+                'extension' => $tel['extension'] ?? null,
+                'horario' => $tel['horario'] ?? null,
+            ];
+        }
+        $correos = [];
+        foreach (($seguimiento['email'] ?? []) as $em) {
+            $correo = ContactoPublicable::correo($em['email'] ?? null);
+            if ($correo === null) {
+                continue;
+            }
+            $correos[] = ['email' => $correo];
+        }
+        $web = [];
+        foreach (($seguimiento['web'] ?? []) as $w) {
+            // El visor no usa `url`/`nombre` sino `urlCanal`/`nombreCanal`.
+            // Leer los nombres equivocados fue lo que hizo que el enlace de
+            // consulta del SISBÉN (`Consulta tu Grupo de SISBEN`) desapareciera.
+            $url = $w['urlCanal'] ?? $w['url'] ?? null;
+            if ($url === null || trim((string) $url) === '') {
+                continue;
+            }
+            $web[] = [
+                'nombre' => $w['nombreCanal'] ?? $w['nombre'] ?? null,
+                'url' => $url,
+            ];
+        }
+
+        return [
+            'telefono' => $telefonos,
+            'email' => $correos,
+            'presencial' => $this->puntosPublicables($seguimiento['presencial'] ?? null),
+            'web' => $web,
+        ];
+    }
+
+    /**
+     * Los canales de seguimiento, reducidos a la forma del contrato.
+     *
+     * El visor publica cuatro listas (teléfono, correo, presencial, web). El
+     * contrato los declara con `canal`, `habilitado`, `nombre`, `url`, `correo`,
+     * `telefono`, `horario`. Aquí se aplanan en una sola.
+     *
+     * **`habilitado` distingue dos cosas que no son la misma.** Un canal que
+     * viene del visor —el conmutador de la Entidad, su buzón de área, su página
+     * de consulta, su ventanilla— **sí atiende hoy**: la Entidad contesta por
+     * ahí y la fuente lo publica. Decir «este canal está previsto y todavía no
+     * atiende» de un teléfono que sí contesta es desinformar. Lo que no está
+     * construido es el mecanismo **propio de la Sede** (`/seguimiento`), y ese
+     * es el único que viaja como `habilitado: false`.
+     *
+     * @param  array<string, mixed>|null  $seguimiento
+     * @return list<array<string, mixed>>
+     */
+    private function canalesDesdeSeguimiento(?array $seguimiento): array
+    {
+        if ($seguimiento === null) {
+            return [];
+        }
+        $canales = [];
+        foreach (($seguimiento['telefono'] ?? []) as $tel) {
+            $canales[] = [
+                'canal' => 'telefonico',
+                'habilitado' => true,
+                'nombre' => null,
+                'url' => null,
+                'correo' => null,
+                'telefono' => $tel['numero'] ?? null,
+                'horario' => $tel['horario'] ?? null,
+            ];
+        }
+        foreach (($seguimiento['email'] ?? []) as $em) {
+            $canales[] = [
+                'canal' => 'correo',
+                'habilitado' => true,
+                'nombre' => null,
+                'url' => null,
+                'correo' => $em['email'] ?? null,
+                'telefono' => null,
+                'horario' => null,
+            ];
+        }
+        foreach (($seguimiento['presencial'] ?? []) as $pres) {
+            $canales[] = [
+                'canal' => 'presencial',
+                'habilitado' => true,
+                'nombre' => $pres['nombre'] ?? null,
+                'url' => null,
+                'correo' => null,
+                // El teléfono y el horario del punto ya se publican en «¿Cuál es
+                // el horario y los puntos de atención?». Repetirlos aquí duplica
+                // el mismo dato en la misma pantalla; la ficha enlaza al bloque
+                // de puntos, como hace el visor.
+                'telefono' => null,
+                'horario' => null,
+            ];
+        }
+        foreach (($seguimiento['web'] ?? []) as $web) {
+            $canales[] = [
+                'canal' => 'web',
+                'habilitado' => true,
+                'nombre' => $web['nombre'] ?? null,
+                'url' => $web['url'] ?? null,
+                'correo' => null,
+                'telefono' => null,
+                'horario' => null,
+            ];
+        }
+
+        return $canales;
     }
 
     /**

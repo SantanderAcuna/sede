@@ -1252,6 +1252,25 @@ ese formato proviene del modelo de requisitos **para el sistema de gestión docu
 entidad**, y **no es un estándar nacional obligatorio**. Se adopta porque es el modelo de
 referencia del sector, y queda como decisión declarada en vez de cómo obligación supuesta.
 
+> **CORREGIDO 2026-10-02 — este formato queda SUPERADO.** Al auditar el repositorio aparecieron
+> **tres formatos de radicado contradictorios**:
+>
+> | Dónde | Formato |
+> |---|---|
+> | `sede-electronica-doc/_bd/schema.sql:786,817` | `SM-{dependencia}-{AAAA}-{NNNNNN}` |
+> | **este documento**, más abajo | `1-AAAA-XXXXX` / `2-AAAA-XXXXX` |
+> | `docs/Sección 5 · Funcionalidad.md:117` | **UUID** |
+>
+> **Rige el de `sede-electronica-doc/_bd/`**, porque es el único que trae las tres cosas que un
+> consecutivo necesita para ser correcto: **regex vinculante**
+> (`^SM-[A-Z0-9]+-[0-9]{4}-[0-9]{6}$`), **restricción de unicidad** (`UNIQUE (prefijo_dependencia,
+> anio, consecutivo_anual)`, con reinicio anual y por dependencia) y **modelo de concurrencia**
+> (`pg_advisory_xact_lock` + `MAX+1` para un consecutivo denso y sin huecos, que es la exigencia
+> archivística del AGN).
+>
+> Los otros dos formatos **se corrigen en sus documentos**; este párrafo queda como traza de la
+> decisión, no como norma vigente.
+
 > **Riesgo de retrabajo, a verificar antes de diseñar cualquier formulario.** Si el trámite
 > es un **trámite modelo**, su **formulario único es de obligatoria observancia** y no admite
 > pasos ni requisitos adicionales. Diseñar un formulario propio para un trámite modelo

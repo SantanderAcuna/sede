@@ -24,12 +24,18 @@ use Throwable;
  *
  * **De dónde salen los datos.** Del catálogo de SUIT —Función Pública— para la
  * entidad `0043`, que es la fuente oficial y ratificada del Estado: los 124
- * trámites que la Alcaldía Distrital de Santa Marta tiene registrados. La copia
- * congelada de esa recolección vive en `database/datos/tramites-0043-suit.json`,
- * dentro del proyecto, porque el directorio donde se recogió no se versiona y
- * sin una copia propia ni la integración continua ni un despliegue nuevo podrían
- * sembrar nada. Los nombres de los campos del archivo son los de la fuente, sin
- * traducir, para que este mapeo se pueda auditar contra ella.
+ * trámites que la Alcaldía Distrital de Santa Marta tiene registrados. Las fichas
+ * completas viven en `database/seeders/datos/catalogo.php`, **dentro del
+ * proyecto y versionadas con el código**, así que sembrar no depende de que
+ * ningún archivo de datos llegue al servidor: viaja en lo que se despliega. Los
+ * nombres de los campos de cada ficha son los de la fuente, sin traducir, para
+ * que este mapeo se pueda auditar contra ella.
+ *
+ * La copia congelada de la recolección sigue en
+ * `database/datos/tramites-0043-suit.json` —es la salida auditable de la receta
+ * de ingesta de `database/datos/scripts/`, y la prueba de qué publicó la
+ * fuente—, pero **el sembrador ya no la lee**. Se regenera desde ahí el archivo
+ * PHP cuando cambia el catálogo.
  *
  * **Qué NO se siembra.** Sólo se leen los datos públicos del trámite: su
  * identificador, su nombre, su propósito, su costo, su término, su modalidad y
@@ -106,7 +112,15 @@ final class TramiteSeeder extends Seeder
     /** La fecha en que se obtuvo el catálogo. No es la de hoy: es la del dato. */
     public const OBTENIDO_EN = '2026-09-30';
 
-    /** La copia congelada de la recolección, dentro del proyecto. */
+    /**
+     * La copia congelada de la recolección, dentro del proyecto.
+     *
+     * **Ya no la lee la siembra**: el catálogo vive en `datos/catalogo.php`. Esta
+     * ruta se queda porque es el origen del que se regenera ese archivo y porque
+     * hay una prueba que comprueba, sobre la copia, que la fuente no trae datos
+     * de contacto personal —una comprobación sobre el dato original, no sobre lo
+     * que el sembrador escribió—.
+     */
     public const ARCHIVO = FuenteSuit::COPIA_CATALOGO;
 
     /**
@@ -145,13 +159,23 @@ final class TramiteSeeder extends Seeder
     ];
 
     /**
-     * La ruta de la copia se puede indicar, y por defecto es la del proyecto.
+     * La ruta de una copia se puede indicar; por defecto se siembra el catálogo
+     * que viaja en el proyecto.
      *
-     * Sirve para sembrar una recolección nueva —una copia descargada aparte—
-     * sin tocar el código, y para poder probar los descartes con una fuente
-     * pequeña y conocida en vez de con la buena.
+     * El parámetro sigue existiendo por dos motivos que no son comodidad:
+     *
+     *   - **sembrar una recolección nueva** —una copia descargada aparte, con
+     *     trámites que todavía no están en el código— sin tocar el sembrador;
+     *   - **probar los descartes** con una fuente pequeña y conocida en vez de
+     *     con los 124 trámites buenos: hay pruebas que necesitan que falte un
+     *     atributo obligatorio, y provocarlo sobre el catálogo real sería
+     *     mentir sobre él.
+     *
+     * Con `null` —el caso normal— se siembra `datos/catalogo.php`: **no se lee
+     * ningún archivo de datos externo**, así que la siembra no puede fallar
+     * porque falte la copia.
      */
-    public function __construct(private readonly string $archivo = self::ARCHIVO) {}
+    public function __construct(private readonly ?string $archivo = null) {}
 
     public function run(): void
     {
@@ -1147,12 +1171,27 @@ final class TramiteSeeder extends Seeder
     }
 
     /**
-     * Las filas de la fuente congelada.
+     * Las filas del catálogo que hay que sembrar.
+     *
+     * El caso normal no lee nada de fuera: el catálogo vive en
+     * `datos/catalogo.php`, dentro del proyecto y versionado con el código. Sólo
+     * cuando se indica una ruta —sembrar otra recolección, o las pruebas con su
+     * fixture— se lee un archivo.
      *
      * @return list<array<string, mixed>>
      */
     private function leerFuente(): array
     {
+        if ($this->archivo === null) {
+            /** @var list<array<string, mixed>> $filas */
+            $filas = array_values(array_filter(
+                (array) require __DIR__.'/datos/catalogo.php',
+                'is_array',
+            ));
+
+            return $filas;
+        }
+
         // Una ruta absoluta se respeta: es la que permite sembrar una copia que
         // no vive dentro del proyecto.
         $ruta = str_starts_with($this->archivo, DIRECTORY_SEPARATOR)

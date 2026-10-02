@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -28,30 +27,23 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     *
+     * **Delega en `SedeSeeder` para que haya una sola lista de lo que se
+     * siembra.** Si este método tuviera su propia lista, el servidor —que
+     * ejecuta `SedeSeeder` por su clase— y el desarrollo podrían sembrar cosas
+     * distintas, que es justo el defecto que dejó el menú sin sembrar:
+     * `MenuSeeder` existía desde el principio y no lo llamaba nadie, así que
+     * `migrate:fresh --seed` dejaba `menus: 0`.
+     *
+     * **Y ya no crea el usuario de prueba.** El esqueleto de Laravel traía
+     * `test@example.com` con una contraseña conocida, y este repositorio es
+     * público: una credencial de ejemplo no pinta nada en una base que se
+     * siembra para una sede del Estado, y menos ahora que la siembra también
+     * corre en el servidor. Se comprobó que nada la usaba —ni las pruebas, ni
+     * los guiones, ni la documentación— antes de quitarla.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
-        // Los datos institucionales de la entidad titular.
-        // Alimentan la cabecera y el pie de página de la sede.
-        $this->call(EntidadSeeder::class);
-
-        // El catálogo de trámites de la Entidad. Va aquí y no en un comando
-        // aparte porque `php artisan migrate:fresh --seed` —lo que ejecuta
-        // `make preparar`— tiene que dejar la sede con el mismo catálogo que
-        // sirve en producción: una base de desarrollo sin trámites esconde
-        // justo el estado vacío que no se quiere volver a tener.
-        $this->call(TramiteSeeder::class);
-
-        // Y el super-admin. Sin él, una base recién sembrada no tiene quién
-        // conceda permisos: es la cuenta que el `Gate::before` deja pasar
-        // siempre, así que su ausencia deja el panel inaccesible.
-        $this->call(SuperAdminSeeder::class);
+        $this->call(SedeSeeder::class);
     }
 }

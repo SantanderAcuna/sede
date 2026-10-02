@@ -463,6 +463,15 @@ final class TramiteSeeder extends Seeder
                     'descripcion' => $this->textoRequisito($req),
                     'obligatorio' => ($req['obligatorio'] ?? true) === true,
                 ];
+                // Las audiencias a las que aplica el requisito. Es la base
+                // del filtro «Para realizarlo necesita» del visor: el
+                // ciudadano se reconoce en uno de los grupos (Ciudadano,
+                // Extranjeros, Organizaciones) y la Sede filtra los requisitos
+                // que le aplican. Sin audiencia, el requisito se considera
+                // universal y aparece en todos los grupos.
+                if (!empty($req['tipos_audiencia'])) {
+                    $r['tipos_audiencia'] = $req['tipos_audiencia'];
+                }
                 if (!empty($req['documento'])) {
                     $r['documento'] = $req['documento'];
                 }
@@ -538,6 +547,9 @@ final class TramiteSeeder extends Seeder
                     'descripcion' => $this->textoRequisito($req),
                     'obligatorio' => ($req['obligatorio'] ?? true) === true,
                 ];
+                if (!empty($req['tipos_audiencia'])) {
+                    $r['tipos_audiencia'] = $req['tipos_audiencia'];
+                }
                 if (!empty($req['documento'])) {
                     $r['documento'] = $req['documento'];
                 }

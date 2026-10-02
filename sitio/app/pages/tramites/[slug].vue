@@ -292,7 +292,12 @@ const requisitosPorTipo = computed<{
   items: RequisitoExtendido[]
 }[]>(() => {
   const todos = (tramite.value?.requisitos ?? []) as unknown as RequisitoExtendido[]
-  const visibles = todos.filter(requisitoEsVisible)
+  // Filtra por audiencia activa Y por requisitos con datos visibles.
+  // El orden es: primero audiencia (que es lo que el ciudadano quiere
+  // ver), después visibilidad (que es lo que la Sede sabe dibujar).
+  const visibles = todos.filter(
+    (req) => requisitoEsVisible(req) && requisitoAplicaA(req, audienciaActiva.value),
+  )
 
   return ORDEN_REQUISITO.map((tipo) => ({
     tipo,
@@ -416,13 +421,16 @@ const palabrasRelacionadas = computed<string[]>(() => {
 })
 
 /**
- * Los grupos de audiencia declarados por el visor, deduplicados.
+ * Los grupos de audiencia posibles para cualquier trámite.
  *
- * El visor publica audiencias con su `grupo` (Ciudadano, Organizaciones,
- * Extranjeros, Instituciones o dependencias públicas) y su `nombre`
- * (Infancia, Juventud, etc.). Aquí se agrupan por grupo para alimentar
- * las pestañas del filtro de pasos: el ciudadano se reconoce en uno de
- * los grupos y la Sede le muestra sólo los pasos que le aplican.
+ * El visor de SUIT siempre expone tres pestañas (Ciudadano, Extranjeros,
+ * Organizaciones) sin importar cuántas audiencias declare el trámite: es
+ * el patrón del filtro «Para realizarlo necesita». Aquí se exponen
+ * siempre, y la Sede filtra los requisitos que apliquen a cada uno.
+ *
+ * El conteo (`count`) y la lista (`nombres`) son los del trámite actual,
+ * no de un catálogo global, porque la Sede no publica un diccionario
+ * de audiencias: el visor es la fuente.
  */
 interface GrupoAudiencia {
   grupo: string
@@ -430,11 +438,13 @@ interface GrupoAudiencia {
   nombres: string[]
 }
 const gruposAudiencia = computed<GrupoAudiencia[]>(() => {
-  const counts = new Map<string, { count: number; nombres: Set<string> }>()
+  // Las tres pestañas que el visor siempre muestra.
+  const gruposFijos = ['Ciudadano', 'Extranjeros', 'Organizaciones']
   const raw = (tramite.value?.audiencias ?? []) as Array<{
     grupo?: string | null
     nombre?: string | null
   }>
+  const counts = new Map<string, { count: number; nombres: Set<string> }>()
   for (const a of raw) {
     const grupo = a.grupo ?? ''
     const nombre = a.nombre ?? ''
@@ -447,39 +457,60 @@ const gruposAudiencia = computed<GrupoAudiencia[]>(() => {
     entry.count++
     entry.nombres.add(nombre)
   }
-  // Orden estable: Ciudadano, Organizaciones, Extranjeros, Instituciones
-  const orden = ['Ciudadano', 'Organizaciones', 'Extranjeros', 'Instituciones']
-  const resultado: GrupoAudiencia[] = []
-  for (const grupo of orden) {
+  return gruposFijos.map<GrupoAudiencia>((grupo) => {
     const entry = counts.get(grupo)
-    if (entry) {
-      resultado.push({ grupo, count: entry.count, nombres: [...entry.nombres] })
+    return {
+      grupo,
+      count: entry?.count ?? 0,
+      nombres: entry ? [...entry.nombres] : [],
     }
-  }
-  return resultado
+  })
 })
 
-/** El grupo de audiencia seleccionado en el filtro de pasos. */
-const grupoAudienciaActivo = ref<string>('todos')
+/**
+ * El grupo de audiencia seleccionado en el filtro de la ficha.
+ *
+ * Por defecto es `'todos'`: la Sede muestra todos los requisitos. Cuando el
+ * ciudadano hace clic en una pestaña, el valor cambia al nombre del grupo
+ * (Ciudadano, Extranjeros, Organizaciones) y los requisitos se filtran
+ * para mostrar sólo los que aplican a ese grupo.
+ *
+ * Es la **misma** pestaña para los dos bloques que la usan —«¿Qué
+ * necesito?» y «¿Cómo hago mi trámite?»—: la misma selección de
+ * audiencia filtra ambas vistas, igual que hace el visor de SUIT.
+ */
+const audienciaActiva = ref<string>('todos')
+
+/** Devuelve si un requisito aplica a la audiencia activa. */
+function requisitoAplicaA(req: unknown, audiencia: string): boolean {
+  if (audiencia === 'todos') return true
+  const r = req as { tipos_audiencia?: string[] | null }
+  const audiencias = r.tipos_audiencia
+  if (!audiencias || audiencias.length === 0) {
+    // Sin audiencia declarada, el requisito es universal: aparece en
+    // todos los grupos. Es la opción conservadora: mejor mostrar un
+    // requisito que el ciudadano no necesita que ocultar uno que sí.
+    return true
+  }
+  return audiencias.includes(audiencia)
+}
 
 /**
  * Los pasos filtrados por el grupo de audiencia activo.
  *
- * Sin filtro (todos): todos los pasos. Con filtro: sólo los pasos cuyos
- * requisitos tengan al menos una audiencia del grupo seleccionado.
+ * Filtra dentro de cada paso los requisitos que no aplican a la audiencia
+ * seleccionada. Si tras el filtro el paso queda sin requisitos, el paso
+ * se conserva: la Sede prefiere explicar «qué hace este paso» aunque
+ * su contenido no aplique al grupo, para que el ciudadano entienda la
+ * ruta del trámite.
  */
 const momentosFiltrados = computed(() => {
-  if (grupoAudienciaActivo.value === 'todos') return momentos.value
-  const grupo = grupoAudienciaActivo.value
-  return momentos.value
-    .map((paso) => {
-      const requisitosFiltrados = (paso.requisitos ?? []).filter((req) => {
-        // Si el requisito no declara audiencias, mostrar siempre.
-        return true
-      })
-      return { ...paso, requisitos: requisitosFiltrados }
-    })
-    .filter((paso) => (paso.requisitos ?? []).length > 0)
+  return momentos.value.map((paso) => ({
+    ...paso,
+    requisitos: (paso.requisitos ?? []).filter((req) =>
+      requisitoAplicaA(req, audienciaActiva.value),
+    ),
+  }))
 })
 
 /**
@@ -787,6 +818,42 @@ function formatoTipoValor(tipo: string | null | undefined): string {
       <section v-if="requisitosPorTipo.length > 0" aria-labelledby="titulo-requisitos">
         <h2 id="titulo-requisitos" class="h3 mt-5">¿Qué necesito para hacer mi trámite?</h2>
 
+        <!--
+          Filtro de audiencia. Es el mismo que se usa para «¿Cómo hago mi
+          trámite?»: el visor de SUIT muestra un único selector con tres
+          pestañas (Ciudadano / Extranjeros / Organizaciones) y los
+          requisitos se filtran al cambiar de pestaña. Aquí se replica
+          el mismo patrón, con el cobalto del Kit.
+        -->
+        <div
+          class="audiencia-filtro mt-3"
+          role="tablist"
+          aria-label="Filtrar requisitos por tipo de persona"
+        >
+          <button
+            type="button"
+            role="tab"
+            class="audiencia-tab"
+            :class="{ 'audiencia-tab-activa': audienciaActiva === 'todos' }"
+            :aria-selected="audienciaActiva === 'todos'"
+            @click="audienciaActiva = 'todos'"
+          >
+            Todos
+          </button>
+          <button
+            v-for="grupo in gruposAudiencia"
+            :key="grupo.grupo"
+            type="button"
+            role="tab"
+            class="audiencia-tab"
+            :class="{ 'audiencia-tab-activa': audienciaActiva === grupo.grupo }"
+            :aria-selected="audienciaActiva === grupo.grupo"
+            @click="audienciaActiva = grupo.grupo"
+          >
+            {{ grupo.grupo }}
+          </button>
+        </div>
+
         <div v-for="grupo in requisitosPorTipo" :key="grupo.tipo" class="grupo-requisitos">
           <h3 class="h5 mt-4">{{ grupo.titulo }}</h3>
 
@@ -930,11 +997,13 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         <h2 id="titulo-pasos" class="h3">¿Cómo hago mi trámite?</h2>
 
         <!--
-          Filtro de audiencia: si hay más de un grupo declarado, se muestran
-          pestañas. Si hay sólo uno o ninguno, se omite.
+          Filtro de audiencia: el visor siempre muestra las tres pestañas
+          (Ciudadano, Extranjeros, Organizaciones), sin importar las
+          audiencias que declare el trámite, porque es la forma en que el
+          ciudadano se reconoce. La Sede filtra los pasos que apliquen a
+          la audiencia seleccionada.
         -->
         <div
-          v-if="gruposAudiencia.length > 1"
           class="audiencia-filtro mt-3"
           role="tablist"
           aria-label="Filtrar pasos por tipo de persona"
@@ -943,9 +1012,9 @@ function formatoTipoValor(tipo: string | null | undefined): string {
             type="button"
             role="tab"
             class="audiencia-tab"
-            :class="{ 'audiencia-tab-activa': grupoAudienciaActivo === 'todos' }"
-            :aria-selected="grupoAudienciaActivo === 'todos'"
-            @click="grupoAudienciaActivo = 'todos'"
+            :class="{ 'audiencia-tab-activa': audienciaActiva === 'todos' }"
+            :aria-selected="audienciaActiva === 'todos'"
+            @click="audienciaActiva = 'todos'"
           >
             Todos
           </button>
@@ -955,9 +1024,9 @@ function formatoTipoValor(tipo: string | null | undefined): string {
             type="button"
             role="tab"
             class="audiencia-tab"
-            :class="{ 'audiencia-tab-activa': grupoAudienciaActivo === grupo.grupo }"
-            :aria-selected="grupoAudienciaActivo === grupo.grupo"
-            @click="grupoAudienciaActivo = grupo.grupo"
+            :class="{ 'audiencia-tab-activa': audienciaActiva === grupo.grupo }"
+            :aria-selected="audienciaActiva === grupo.grupo"
+            @click="audienciaActiva = grupo.grupo"
           >
             {{ grupo.grupo }}
           </button>

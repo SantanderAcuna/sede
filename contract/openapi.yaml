@@ -2041,6 +2041,11 @@ components:
         # aplana el requisito del momento y conserva su `documento`,
         # `formulario`, `pago[]` y `cuentas[]` cuando los trae.
         orden: { type: [integer, 'null'], minimum: 1 }
+        tipos_audiencia:
+          type: array
+          items:
+            type: string
+            enum: [Ciudadano, Extranjeros, Organizaciones, "Instituciones o dependencias públicas"]
         documento: { type: [string, 'null'] }
         formulario: { type: [string, 'null'] }
         formulario_url: { type: [string, 'null'], format: uri }
@@ -2158,6 +2163,13 @@ components:
         `verificacion_institucional`, `formulario`) y campos opcionales según
         el tipo: cuentas de recaudo si es `pago`, formulario con URL si es
         `formulario`, etc.
+
+        `tipos_audiencia` declara para qué tipo de persona aplica el
+        requisito y es la base del filtro «Para realizarlo necesita» del
+        visor: el ciudadano se reconoce en uno de los grupos (Ciudadano,
+        Extranjeros, Organizaciones) y la Sede filtra los requisitos que
+        aplican. Si el campo viene vacío, el requisito se considera
+        universal y aparece en todos los grupos.
       required: [tipo]
       properties:
         orden: { type: [integer, 'null'], minimum: 1 }
@@ -2166,6 +2178,11 @@ components:
           enum: [documento, verificacion_institucional, solicitud, formulario, pago]
         descripcion: { type: [string, 'null'] }
         obligatorio: { type: [boolean, 'null'], default: true }
+        tipos_audiencia:
+          type: array
+          items:
+            type: string
+            enum: [Ciudadano, Extranjeros, Organizaciones, "Instituciones o dependencias públicas"]
         # Documento
         documento: { type: [string, 'null'] }
         # Formulario

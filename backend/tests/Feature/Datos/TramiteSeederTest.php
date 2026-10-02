@@ -56,7 +56,7 @@ final class TramiteSeederTest extends TestCase
         // la conversión de horas a días y la nota que la declara.
         $tramite = Tramite::query()->where('codigo', 'T2621')->firstOrFail();
 
-        $this->assertSame('Impuesto predial unificado', $tramite->nombre);
+        $this->assertSame('Liquidación impuesto(s)  predial unificado', $tramite->nombre);
         $this->assertSame('parcialmente_en_linea', $tramite->modalidad?->value);
         $this->assertSame('con_costo', $tramite->tiene_costo?->value);
         $this->assertSame(1, $tramite->tiempo_solucion_dias);

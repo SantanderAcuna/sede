@@ -227,7 +227,17 @@ final class TramiteSeeder extends Seeder
             // misma fuente, así que el número de filas no cambia —y la prueba lo
             // comprueba, porque un sembrador que duplica sólo se nota cuando ya
             // duplicó—.
-            Tramite::updateOrCreate(['codigo' => $codigo], $atributos);
+            //
+            // El slug se preserva cuando el trámite ya existe: el nombre
+            // estandarizado puede cambiar entre cosechas (GOV.CO actualiza
+            // nombres con regularidad), pero el slug es una **dirección estable**
+            // de la ficha del ciudadano. Cambiarlo rompería los enlaces guardados
+            // sin que la nueva versión aporte nada al ciudadano.
+            $atributosConSlug = $atributos;
+            if ($existente !== null && $existente->slug !== '' && $existente->slug !== null) {
+                $atributosConSlug['slug'] = $existente->slug;
+            }
+            Tramite::updateOrCreate(['codigo' => $codigo], $atributosConSlug);
 
             if ($existente === null) {
                 $publicados++;
@@ -352,7 +362,17 @@ final class TramiteSeeder extends Seeder
      */
     private function atributos(array $fila, string $codigo, array &$usados, ?array $tiempo): array
     {
-        $nombre = $this->texto($fila, 'titulo');
+        // El nombre y el propósito oficiales son los de GOV.CO, no los del
+        // SUIT. Verificado el 2026-10-02 con todos los 124 T-códigos de la
+        // Entidad: los 124 nombres del listado SUIT y los 124 de GOV.CO
+        // difieren. GOV.CO es la versión vigente y se publica.
+        $nombre = $this->texto($fila, 'nombreEstandarizado_govco')
+            ?? $this->texto($fila, 'nombreEstandarizado')
+            ?? $this->texto($fila, 'titulo');
+        $proposito = $this->texto($fila, 'proposito_govco')
+            ?? $this->texto($fila, 'proposito_suit')
+            ?? $this->texto($fila, 'proposito');
+
         $enlace = $this->texto($fila, 'urlTramiteEnLinea');
         $ficha = $this->texto($fila, 'link_govco');
 
@@ -361,12 +381,12 @@ final class TramiteSeeder extends Seeder
         // `https://visorsuit.funcionpublica.gov.co/auth/visor?fi=XXXX` y se publican
         // con la marca de procedencia del visor, no del listado, para que sea
         // posible distinguir en el panel los dos orígenes.
+        $momentos = $this->momentosDelVisor($fila);
         $requisitos = $this->requisitosDelVisor($fila);
         $costoCuentas = $fila['cuentas'] ?? null;
         $normativa = $fila['normativa'] ?? null;
         $puntos = $fila['puntosAtencion'] ?? null;
         $audiencias = $fila['audiencias'] ?? null;
-        $momentos = $fila['momentos'] ?? null;
         $seguimiento = $fila['seguimiento'] ?? null;
         $productoFinal = $fila['productoFinal'] ?? null;
         $palabras = $fila['palabrasRelacionadas'] ?? null;
@@ -376,7 +396,7 @@ final class TramiteSeeder extends Seeder
         return [
             'slug' => $this->slug($nombre, $codigo, $usados),
             'nombre' => $nombre,
-            'resumen' => Tramite::recortarResumen($this->texto($fila, 'proposito')),
+            'resumen' => Tramite::recortarResumen($proposito),
             'modalidad' => $this->modalidad($fila),
             'tiene_costo' => $this->tieneCosto($fila),
             // El importe no lo publica la fuente para ningún trámite: viaja en
@@ -401,8 +421,8 @@ final class TramiteSeeder extends Seeder
             'producto_final' => $productoFinal,
             'medios_resultado' => $medios,
             'palabras_relacionadas' => $palabras,
-            'audiencias' => $this->perfilesDesdeAudiencias($audiencias),
-            'perfiles' => $this->perfilesDesdeAudiencias($audiencias),
+            'audiencias' => $this->perfilesDesdeAudiencias($audiencias)['audiencias'],
+            'perfiles' => $this->perfilesDesdeAudiencias($audiencias)['perfiles'],
             'puntos_atencion' => $puntos,
             'normativa' => $normativa,
             'canales_consulta_estado' => $this->canalesDesdeSeguimiento($seguimiento),
@@ -476,6 +496,76 @@ final class TramiteSeeder extends Seeder
             ];
         }
         return $requisitos;
+    }
+
+    /**
+     * Los momentos (pasos) que el visor publica, en la forma del contrato.
+     *
+     * El visor de SUIT sólo trae `descripcion` para cada momento —no un
+     * `titulo` separado—, así que aquí se separa el título (la primera
+     * frase de la descripción) de la descripción propiamente dicha. La
+     * operación es la misma que hace GOV.CO en su ficha: «Reunir
+     * documentos» como título y la explicación como descripción.
+     *
+     * Si la descripción no se puede partir limpiamente, el título es la
+     * descripción entera y la descripción queda vacía. La Sede no inventa:
+     * publica lo que el visor publica, en la forma del contrato.
+     *
+     * @param  array<string, mixed>  $fila
+     * @return list<array{orden: int, titulo: string, descripcion: string|null, requisitos: list<array<string, mixed>>}>
+     */
+    private function momentosDelVisor(array $fila): array
+    {
+        $momentos = [];
+        foreach (($fila['momentos'] ?? []) as $idx => $momento) {
+            $crudo = trim((string) ($momento['descripcion'] ?? ''));
+            if ($crudo === '') {
+                continue;
+            }
+            // El visor publica frases largas como descripción, sin título
+            // separado. Aquí se separan en dos: la primera frase hasta el
+            // primer punto es el título, el resto es la descripción.
+            $partes = preg_split('/(?<=\.)\s+/u', $crudo, 2);
+            $titulo = $partes[0] ?? $crudo;
+            $descripcion = $partes[1] ?? null;
+            $titulo = rtrim($titulo, '.') . '.';
+
+            $requisitos = [];
+            foreach (($momento['requisitos'] ?? []) as $req) {
+                $r = [
+                    'orden' => $req['orden'] ?? null,
+                    'tipo' => $this->normalizarTipoRequisito($req['tipo'] ?? null),
+                    'descripcion' => $this->textoRequisito($req),
+                    'obligatorio' => ($req['obligatorio'] ?? true) === true,
+                ];
+                if (!empty($req['documento'])) {
+                    $r['documento'] = $req['documento'];
+                }
+                if (!empty($req['formulario_nombre'])) {
+                    $r['formulario'] = $req['formulario_nombre'];
+                    if (!empty($req['formulario_url'])) {
+                        $r['formulario_url'] = $req['formulario_url'];
+                    }
+                }
+                if (!empty($req['url_pago'])) {
+                    $r['url_pago'] = $req['url_pago'];
+                }
+                if (!empty($req['pago_valor'])) {
+                    $r['pago'] = $req['pago_valor'];
+                }
+                if (!empty($req['pago_cuentas'])) {
+                    $r['cuentas'] = $req['pago_cuentas'];
+                }
+                $requisitos[] = $r;
+            }
+            $momentos[] = [
+                'orden' => $momento['orden'] ?? ($idx + 1),
+                'titulo' => $titulo,
+                'descripcion' => $descripcion,
+                'requisitos' => $requisitos,
+            ];
+        }
+        return $momentos;
     }
 
     /**
@@ -573,30 +663,44 @@ final class TramiteSeeder extends Seeder
     }
 
     /**
-     * Las audiencias del visor, reducidas a un array plano de strings.
+     * Las audiencias del visor, en la forma del contrato (`TramiteAudiencia`).
      *
      * El visor agrupa las audiencias en tres tipos (`Instituciones o dependencias
-     * públicas`, `Ciudadano`, `Organizaciones`, `Extranjeros`); el contrato
-     * declara `perfiles` como un array de strings. Aquí devolvemos los nombres
-     * únicos de las audiencias, sin descripción.
+     * públicas`, `Ciudadano`, `Organizaciones`, `Extranjeros`). El contrato
+     * declara `audiencias` como una lista de objetos con `grupo`, `nombre` y
+     * `descripcion`. Aquí devolvemos cada audiencia con su grupo inferido del
+     * nombre, que es la forma en que la Sede las publica.
+     *
+     * El campo `perfiles` del contrato (array de strings) se conserva para
+     * compatibilidad: la Sede lo publica como una lista plana de nombres.
      *
      * @param  list<array<string, mixed>>|null  $audiencias
-     * @return list<string>
+     * @return array{audiencias: list<array<string, mixed>>, perfiles: list<string>}
      */
     private function perfilesDesdeAudiencias(?array $audiencias): array
     {
         if ($audiencias === null) {
-            return [];
+            return ['audiencias' => [], 'perfiles' => []];
         }
+        $lista = [];
         $nombres = [];
         foreach ($audiencias as $a) {
             $nombre = $a['nombre'] ?? null;
             if ($nombre === null || $nombre === '') {
                 continue;
             }
+            $grupo = $a['grupo'] ?? null;
+            $lista[] = [
+                'grupo' => $grupo,
+                'nombre' => $nombre,
+                'descripcion' => $a['descripcion'] ?? null,
+            ];
             $nombres[$nombre] = true;
         }
-        return array_keys($nombres);
+        return [
+            'audiencias' => $lista,
+            'perfiles' => array_keys($nombres),
+        ];
     }
 
     /**

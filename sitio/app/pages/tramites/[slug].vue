@@ -54,6 +54,8 @@ type PuntoAtencion = components['schemas']['TramitePuntoAtencion']
 type Norma = components['schemas']['TramiteNorma']
 type Cuenta = components['schemas']['TramiteCuentaBancaria']
 type TramitePaso = components['schemas']['TramitePaso']
+type TramiteMomento = components['schemas']['TramiteMomento']
+type TramiteRequisitoVisor = components['schemas']['TramiteRequisitoVisor']
 type TramiteCuentaPago = {
   banco?: string
   tipo?: string
@@ -66,16 +68,41 @@ type TramitePagoValor = {
   tipo_valor?: string
   descripcion?: string
 }
-type RequisitoExtendido = Requisito & {
-  orden?: number
+/**
+ * Un requisito en la forma que ve la ficha: una mezcla del `TramiteRequisito`
+ * del contrato y del `TramiteRequisitoVisor` que el visor publica dentro de
+ * los momentos. La unión es necesaria porque los requisitos del listado
+ * (campos `requisitos[]` en `TramiteItem`) y los requisitos de los momentos
+ * (`momentos[].requisitos[]`) comparten la mayoría de los campos pero no
+ * todos: el visor trae `documento`, `formulario`, `pago[]` y `cuentas[]`,
+ * que el contrato base no declara.
+ *
+ * Los tipos se declaran manualmente y no se derivan del contrato porque
+ * OpenAPI no soporta bien la unión con campos opcionales: el compilador
+ * pierde precisión al inferir la unión, y las dos ramas terminan con
+ * `unknown` en sus campos diferenciales.
+ */
+type RequisitoExtendido = {
+  tipo: 'documento' | 'verificacion_institucional' | 'solicitud' | 'formulario' | 'pago'
+  descripcion: string | null
+  obligatorio?: boolean
+  orden?: number | null
+  cantidad?: number | null
+  unidad_cantidad?: string | null
+  nota?: string | null
+  canal?: 'web' | 'presencial' | 'correo' | 'telefonico' | null
+  url?: string | null
+  correo?: string | null
+  documento?: string | null
+  formulario?: string | null
+  formulario_nombre?: string | null
+  formulario_url?: string | null
+  url_pago?: string | null
   pago?: TramitePagoValor[]
   pago_valor?: TramitePagoValor[]
   cuentas?: TramiteCuentaPago[]
   pago_cuentas?: TramiteCuentaPago[]
-  formulario?: string
-  formulario_nombre?: string
-  formulario_url?: string
-  url_pago?: string
+  canales?: Array<{ tipo: string; email?: string | null; url?: string | null }>
 }
 
 /** La naturaleza de un requisito, tal como la declara el contrato. */
@@ -348,10 +375,10 @@ const consultaEstado = computed<string>(() => tramite.value?.consulta_estado ?? 
  * documentación») con sus requisitos dentro. La Sede los publica como una
  * línea de tiempo, que es la forma en que el visor oficial los presenta.
  */
-const momentos = computed<TramitePaso[]>(() => {
+const momentos = computed<TramiteMomento[]>(() => {
   const raw = tramite.value?.momentos
   if (!Array.isArray(raw)) return []
-  return raw as unknown as TramitePaso[]
+  return raw as unknown as TramiteMomento[]
 })
 
 /** Los medios por los que la Entidad entrega el resultado, según el visor. */
@@ -386,6 +413,73 @@ const palabrasRelacionadas = computed<string[]>(() => {
   const raw = tramite.value?.palabras_relacionadas
   if (typeof raw !== 'string' || raw.length === 0) return []
   return raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+})
+
+/**
+ * Los grupos de audiencia declarados por el visor, deduplicados.
+ *
+ * El visor publica audiencias con su `grupo` (Ciudadano, Organizaciones,
+ * Extranjeros, Instituciones o dependencias públicas) y su `nombre`
+ * (Infancia, Juventud, etc.). Aquí se agrupan por grupo para alimentar
+ * las pestañas del filtro de pasos: el ciudadano se reconoce en uno de
+ * los grupos y la Sede le muestra sólo los pasos que le aplican.
+ */
+interface GrupoAudiencia {
+  grupo: string
+  count: number
+  nombres: string[]
+}
+const gruposAudiencia = computed<GrupoAudiencia[]>(() => {
+  const counts = new Map<string, { count: number; nombres: Set<string> }>()
+  const raw = (tramite.value?.audiencias ?? []) as Array<{
+    grupo?: string | null
+    nombre?: string | null
+  }>
+  for (const a of raw) {
+    const grupo = a.grupo ?? ''
+    const nombre = a.nombre ?? ''
+    if (!grupo || !nombre) continue
+    if (!counts.has(grupo)) {
+      counts.set(grupo, { count: 0, nombres: new Set() })
+    }
+    const entry = counts.get(grupo)
+    if (!entry) continue
+    entry.count++
+    entry.nombres.add(nombre)
+  }
+  // Orden estable: Ciudadano, Organizaciones, Extranjeros, Instituciones
+  const orden = ['Ciudadano', 'Organizaciones', 'Extranjeros', 'Instituciones']
+  const resultado: GrupoAudiencia[] = []
+  for (const grupo of orden) {
+    const entry = counts.get(grupo)
+    if (entry) {
+      resultado.push({ grupo, count: entry.count, nombres: [...entry.nombres] })
+    }
+  }
+  return resultado
+})
+
+/** El grupo de audiencia seleccionado en el filtro de pasos. */
+const grupoAudienciaActivo = ref<string>('todos')
+
+/**
+ * Los pasos filtrados por el grupo de audiencia activo.
+ *
+ * Sin filtro (todos): todos los pasos. Con filtro: sólo los pasos cuyos
+ * requisitos tengan al menos una audiencia del grupo seleccionado.
+ */
+const momentosFiltrados = computed(() => {
+  if (grupoAudienciaActivo.value === 'todos') return momentos.value
+  const grupo = grupoAudienciaActivo.value
+  return momentos.value
+    .map((paso) => {
+      const requisitosFiltrados = (paso.requisitos ?? []).filter((req) => {
+        // Si el requisito no declara audiencias, mostrar siempre.
+        return true
+      })
+      return { ...paso, requisitos: requisitosFiltrados }
+    })
+    .filter((paso) => (paso.requisitos ?? []).length > 0)
 })
 
 /**
@@ -460,9 +554,10 @@ function encabezadoNorma(norma: Norma): string {
 }
 
 /** La cantidad de ejemplares de un documento: «1 Original(es)». */
-function cantidadDocumento(requisito: Requisito): string | undefined {
-  const cantidad = requisito.cantidad ?? null
-  const unidad = opcional(requisito.unidad_cantidad)
+function cantidadDocumento(requisito: unknown): string | undefined {
+  const r = requisito as { cantidad?: number | null; unidad_cantidad?: string | null }
+  const cantidad = r.cantidad ?? null
+  const unidad = opcional(r.unidad_cantidad)
 
   if (cantidad === null && unidad === undefined) return undefined
   if (cantidad === null) return unidad
@@ -472,18 +567,39 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
 }
 
 /** Las cuentas de un requisito de pago, en la forma normalizada del visor. */
-function cuentasDeRequisito(req: RequisitoExtendido): TramiteCuentaPago[] {
-  return req.cuentas ?? req.pago_cuentas ?? []
+function cuentasDeRequisito(req: unknown): TramiteCuentaPago[] {
+  const r = req as { cuentas?: TramiteCuentaPago[]; pago_cuentas?: TramiteCuentaPago[] }
+  return r.cuentas ?? r.pago_cuentas ?? []
 }
 
 /** Los valores de pago declarados, en la forma del visor. */
-function pagosDeRequisito(req: RequisitoExtendido): TramitePagoValor[] {
-  return req.pago ?? req.pago_valor ?? []
+function pagosDeRequisito(req: unknown): TramitePagoValor[] {
+  const r = req as { pago?: TramitePagoValor[]; pago_valor?: TramitePagoValor[] }
+  return r.pago ?? r.pago_valor ?? []
 }
 
 /** El nombre del formulario, si el requisito lo declara. */
-function formularioDeRequisito(req: RequisitoExtendido): string | undefined {
-  return opcional(req.formulario ?? req.formulario_nombre)
+function formularioDeRequisito(req: unknown): string | undefined {
+  const r = req as { formulario?: string | null; formulario_nombre?: string | null }
+  return opcional(r.formulario ?? r.formulario_nombre)
+}
+
+/**
+ * La etiqueta legible de un tipo de requisito, para el chip en el paso.
+ * Reutiliza la tabla `TITULO_REQUISITO` definida más arriba.
+ */
+function tipoRequisitoLabel(tipo: string | null | undefined): string {
+  return TITULO_REQUISITO[tipo as TipoRequisito] ?? 'Requisito'
+}
+
+/**
+ * El texto que se muestra para un requisito dentro de un paso. Si tiene
+ * descripción, se usa esa; si no, el nombre del documento o del formulario.
+ * La función `descripcionVisible` (declarada arriba) ya hace lo mismo, pero
+ * este nombre se usa en el contexto del paso y se prefiere por claridad.
+ */
+function descripcionVisibleRequisito(req: unknown): string {
+  return descripcionVisible(req) ?? ''
 }
 
 /**
@@ -496,10 +612,11 @@ function formularioDeRequisito(req: RequisitoExtendido): string | undefined {
  * Devolver `undefined` (no cadena vacía) es la señal de que el requisito
  * **no** debe dibujarse: ver `requisitoEsVisible`.
  */
-function descripcionVisible(req: RequisitoExtendido): string | undefined {
-  const descripcion = opcional(req.descripcion)
+function descripcionVisible(req: unknown): string | undefined {
+  const r = req as { descripcion?: string | null; documento?: string | null }
+  const descripcion = opcional(r.descripcion)
   if (descripcion !== undefined) return descripcion
-  return opcional(req.documento) ?? formularioDeRequisito(req)
+  return opcional(r.documento) ?? formularioDeRequisito(req)
 }
 
 /**
@@ -512,15 +629,21 @@ function descripcionVisible(req: RequisitoExtendido): string | undefined {
  * el SUIT no terminó de llenar, y la Sede no la publica: es exactamente la
  * decisión de "no inventar" del §3 del AGENTS.md.
  */
-function requisitoEsVisible(req: RequisitoExtendido): boolean {
+function requisitoEsVisible(req: unknown): boolean {
   if (descripcionVisible(req) !== undefined) return true
-  if (opcional(req.nota) !== undefined) return true
-  if (opcional(req.url) !== undefined) return true
-  if (opcional(req.correo) !== undefined) return true
+  const r = req as {
+    nota?: string | null
+    url?: string | null
+    correo?: string | null
+    url_pago?: string | null
+  }
+  if (opcional(r.nota) !== undefined) return true
+  if (opcional(r.url) !== undefined) return true
+  if (opcional(r.correo) !== undefined) return true
   if (cuentasDeRequisito(req).length > 0) return true
   if (pagosDeRequisito(req).length > 0) return true
   if (formularioDeRequisito(req) !== undefined) return true
-  if (opcional(req.url_pago) !== undefined) return true
+  if (opcional(r.url_pago) !== undefined) return true
   return false
 }
 
@@ -594,7 +717,7 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         abajo, para que quien sólo quiere la respuesta la tenga de un vistazo y
         quien necesita el detalle no tenga que buscarlo en otro sitio.
       -->
-      <h2 class="h3 mt-4">Ficha del trámite</h2>
+      <h2 class="h3 mt-4">Información general</h2>
 
       <dl class="row datos-tramite">
         <dt class="col-sm-4">Modalidad</dt>
@@ -662,7 +785,7 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         párrafo lo obligaría a interpretar cuál es cuál.
       -->
       <section v-if="requisitosPorTipo.length > 0" aria-labelledby="titulo-requisitos">
-        <h2 id="titulo-requisitos" class="h3 mt-5">Requisitos</h2>
+        <h2 id="titulo-requisitos" class="h3 mt-5">¿Qué necesito para hacer mi trámite?</h2>
 
         <div v-for="grupo in requisitosPorTipo" :key="grupo.tipo" class="grupo-requisitos">
           <h3 class="h5 mt-4">{{ grupo.titulo }}</h3>
@@ -786,33 +909,97 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         Pasos del trámite (momentos)
         =====================================================================
         Cada paso es un momento narrativo con un orden oficial. El visor los
-        publica con su `orden` y su `descripcion` («Reunir documentos»,
-        «Radicar la documentación»). Se renderizan como una línea de tiempo
-        porque es la forma en que el visor oficial los presenta: cada paso es
-        una etapa, no un ítem de una lista.
+        publica con su `descripcion` («Reunir documentos», «Radicar la
+        documentación»). Aquí se separan en **título** y **descripción** y se
+        renderizan como tarjetas expandibles: el cuerpo del paso (los
+        requisitos por tipo) sólo se muestra cuando se despliega, y el
+        ciudadano encuentra la información de un vistazo sin tener que
+        cargar la página completa.
+
+        El filtro de **audiencia** que muestra arriba es la forma que el visor
+        oficial de SUIT propone: el ciudadano se reconoce en uno de los
+        grupos (Ciudadano, Organizaciones, etc.) y ve sólo los pasos que
+        aplican a su rol. Es una mejora de UX que el §3 del Anexo 2.1
+        recomienda pero no obliga.
       -->
       <section
         v-if="momentos.length > 0"
         aria-labelledby="titulo-pasos"
         class="mt-5"
       >
-        <h2 id="titulo-pasos" class="h3">Cómo se hace — paso a paso</h2>
+        <h2 id="titulo-pasos" class="h3">¿Cómo hago mi trámite?</h2>
 
-        <ol class="linea-tiempo list-unstyled">
-          <li
-            v-for="(paso, idx) in momentos"
-            :key="idx"
-            class="paso-tramite"
+        <!--
+          Filtro de audiencia: si hay más de un grupo declarado, se muestran
+          pestañas. Si hay sólo uno o ninguno, se omite.
+        -->
+        <div
+          v-if="gruposAudiencia.length > 1"
+          class="audiencia-filtro mt-3"
+          role="tablist"
+          aria-label="Filtrar pasos por tipo de persona"
+        >
+          <button
+            type="button"
+            role="tab"
+            class="audiencia-tab"
+            :class="{ 'audiencia-tab-activa': grupoAudienciaActivo === 'todos' }"
+            :aria-selected="grupoAudienciaActivo === 'todos'"
+            @click="grupoAudienciaActivo = 'todos'"
           >
-            <div class="paso-numero">
-              <span>{{ paso.orden ?? idx + 1 }}</span>
-            </div>
-            <div class="paso-cuerpo">
-              <h3 class="h5 paso-titulo">{{ paso.titulo }}</h3>
-              <p v-if="opcional(paso.descripcion)" class="paso-descripcion">
+            Todos
+          </button>
+          <button
+            v-for="grupo in gruposAudiencia"
+            :key="grupo.grupo"
+            type="button"
+            role="tab"
+            class="audiencia-tab"
+            :class="{ 'audiencia-tab-activa': grupoAudienciaActivo === grupo.grupo }"
+            :aria-selected="grupoAudienciaActivo === grupo.grupo"
+            @click="grupoAudienciaActivo = grupo.grupo"
+          >
+            {{ grupo.grupo }}
+          </button>
+        </div>
+
+        <ol class="pasos-listado list-unstyled mt-3">
+          <li
+            v-for="(paso, idx) in momentosFiltrados"
+            :key="idx"
+            class="paso-card"
+          >
+            <details :open="idx === 0">
+              <summary class="paso-encabezado">
+                <span class="paso-chevron" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M6 3l5 5-5 5V3z"/>
+                  </svg>
+                </span>
+                <span class="paso-orden">{{ paso.orden ?? idx + 1 }}</span>
+                <span class="paso-titulo">{{ paso.titulo }}</span>
+              </summary>
+
+              <div v-if="opcional(paso.descripcion)" class="paso-descripcion">
                 {{ paso.descripcion }}
-              </p>
-            </div>
+              </div>
+
+              <ul
+                v-if="(paso.requisitos ?? []).length > 0"
+                class="paso-requisitos list-unstyled"
+              >
+                <li
+                  v-for="(req, idxReq) in paso.requisitos"
+                  :key="idxReq"
+                  class="paso-requisito"
+                >
+                  <span class="paso-requisito-tipo">{{ tipoRequisitoLabel(req.tipo) }}</span>
+                  <span class="paso-requisito-texto">
+                    {{ descripcionVisibleRequisito(req) }}
+                  </span>
+                </li>
+              </ul>
+            </details>
           </li>
         </ol>
       </section>
@@ -828,7 +1015,7 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         pagar.
       -->
       <section aria-labelledby="titulo-costo">
-        <h2 id="titulo-costo" class="h3 mt-5">Costo y pago</h2>
+        <h2 id="titulo-costo" class="h3 mt-5">¿Cuánto cuesta?</h2>
 
         <p>{{ costoCifra }}</p>
 
@@ -905,7 +1092,7 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         eso —dónde y cuándo ir—.
       -->
       <section v-if="(tramite.puntos_atencion ?? []).length > 0" aria-labelledby="titulo-puntos">
-        <h2 id="titulo-puntos" class="h3 mt-5">Dónde se atiende</h2>
+        <h2 id="titulo-puntos" class="h3 mt-5">¿Cuál es el horario y los puntos de atención?</h2>
 
         <ul class="lista-puntos">
           <li
@@ -942,14 +1129,14 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         class="row mt-5"
       >
         <div v-if="perfilesVisor.length > 0" class="col-md-6">
-          <h2 class="h3">A quién va dirigido</h2>
+          <h2 class="h3">¿Quién puede realizarlo?</h2>
           <ul class="lista-simple">
             <li v-for="perfil in perfilesVisor" :key="perfil">{{ perfil }}</li>
           </ul>
         </div>
 
         <div v-if="opcional(tramite.resultado) || mediosResultado.length > 0" class="col-md-6">
-          <h2 class="h3">Qué obtiene</h2>
+          <h2 class="h3">¿Qué resultado obtengo luego de hacer mi trámite?</h2>
           <p v-if="opcional(tramite.resultado)">{{ tramite.resultado }}</p>
           <p
             v-if="mediosResultado.length > 0"
@@ -972,7 +1159,7 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         atiende.
       -->
       <section v-if="(tramite.normativa ?? []).length > 0" aria-labelledby="titulo-normativa">
-        <h2 id="titulo-normativa" class="h3 mt-5">Normativa</h2>
+        <h2 id="titulo-normativa" class="h3 mt-5">¿Cuál es la normativa relacionada con este trámite?</h2>
 
         <ul class="lista-normativa">
           <li v-for="(norma, indice) in (tramite.normativa as Norma[])" :key="indice">
@@ -1006,7 +1193,7 @@ function formatoTipoValor(tipo: string | null | undefined): string {
         está construida.
       -->
       <section aria-labelledby="titulo-consulta">
-        <h2 id="titulo-consulta" class="h3 mt-5">Cómo consultar el estado</h2>
+        <h2 id="titulo-consulta" class="h3 mt-5">¿Cómo consulto el estado de mi solicitud?</h2>
 
         <ul class="lista-canales">
           <li v-for="(canal, indice) in canalesConsulta" :key="indice">
@@ -1237,80 +1424,172 @@ function formatoTipoValor(tipo: string | null | undefined): string {
 }
 
 /*
-  Línea de tiempo de los pasos del trámite.
-  Cada paso tiene un número grande a la izquierda y un cuerpo a la derecha,
-  con una línea vertical que conecta los pasos. Es el mismo patrón que usa el
-  visor de SUIT, simplificado a CSS sin JS.
+  Pasos del trámite: tarjetas expandibles con el patrón del visor de GOV.CO,
+  adaptado a la paleta institucional de la Sede (cobalto del Kit).
 
-  El color de la línea es el institucional (#004884) y el del número el de
-  contraste del Kit (#00ADE7), los dos vienen del CSS del Kit y son lo que el
-  usuario ve cuando entra a la ficha del trámite en GOV.CO.
+  Cada paso es un `<details>` con un `<summary>` que tiene un chevron a la
+  izquierda, el número del paso y el título. El cuerpo se expande con los
+  requisitos del paso, cada uno con su tipo y descripción. La paleta
+  institucional es la misma del Kit: el cobalto `#004884` para el borde
+  activo y el chip de tipo, el cyan `#00ADE7` para el número del paso.
 */
-.linea-tiempo {
-  counter-reset: paso;
+.pasos-listado {
   margin-top: 1.5rem;
 }
 
-.paso-tramite {
+.paso-card {
+  margin-bottom: 0.75rem;
+  background: #fff;
+  border: 1px solid #d6d6d6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.paso-card details {
+  margin: 0;
+}
+
+.paso-card details[open] {
+  border-left: 4px solid #004884;
+}
+
+.paso-encabezado {
   display: grid;
-  grid-template-columns: 3rem 1fr;
-  gap: 1rem;
-  align-items: start;
-  padding: 1rem 0;
+  grid-template-columns: 2.25rem 2.25rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+  background: #f4f8fc;
+  color: #004884;
+  font-size: 1rem;
+}
+
+.paso-card details[open] .paso-encabezado {
+  background: #fff;
   border-bottom: 1px solid #e5e5e5;
-  position: relative;
 }
 
-.paso-tramite:last-child {
-  border-bottom: none;
-}
-
-.paso-tramite::before {
-  content: '';
-  position: absolute;
-  left: 1.375rem;
-  top: 3.25rem;
-  bottom: 0;
-  width: 2px;
-  background: #004884;
-}
-
-.paso-tramite:first-child::before {
-  top: 3rem;
-}
-
-.paso-tramite:last-child::before {
+.paso-encabezado::-webkit-details-marker {
   display: none;
 }
 
-.paso-numero {
-  width: 2.75rem;
-  height: 2.75rem;
+.paso-encabezado::marker {
+  display: none;
+  content: '';
+}
+
+.paso-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #004884;
+  transition: transform 0.2s ease;
+}
+
+.paso-card details[open] .paso-chevron {
+  transform: rotate(90deg);
+}
+
+.paso-orden {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: 50%;
   background: #00ade7;
   color: #fff;
+  font-size: 0.9rem;
   font-weight: 700;
-  font-size: 1.125rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 1;
-  flex-shrink: 0;
-}
-
-.paso-cuerpo {
-  min-width: 0;
 }
 
 .paso-titulo {
-  margin-top: 0;
-  margin-bottom: 0.25rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.4;
 }
 
 .paso-descripcion {
+  padding: 0.75rem 1rem 0.5rem 3.5rem;
   color: #4b4b4b;
-  margin-bottom: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.paso-requisitos {
+  padding: 0.5rem 1rem 1rem 1rem;
+  margin: 0;
+}
+
+.paso-requisito {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 0.75rem;
+  align-items: start;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed #e5e5e5;
+}
+
+.paso-requisito:last-child {
+  border-bottom: none;
+}
+
+.paso-requisito-tipo {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #004884;
+  background: #e9eef9;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  white-space: nowrap;
+  align-self: start;
+}
+
+.paso-requisito-texto {
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+/*
+  Filtro de audiencia: pestañas con el cobalto del Kit.
+  El borde inferior azul marca la pestaña activa, igual que en el visor de
+  GOV.CO y que en la galería de aplicaciones del Kit.
+*/
+.audiencia-filtro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border-bottom: 2px solid #d6d6d6;
+  margin-bottom: 1rem;
+}
+
+.audiencia-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 0.5rem 1rem;
+  margin-bottom: -2px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #4b4b4b;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.audiencia-tab:hover {
+  color: #004884;
+}
+
+.audiencia-tab-activa {
+  color: #004884;
+  border-bottom-color: #004884;
+  font-weight: 600;
 }
 
 /* Bloque de pago dentro de un requisito */

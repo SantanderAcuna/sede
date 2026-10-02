@@ -1169,3 +1169,256 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .portada-sede .carrusel-govco .leyenda-carrusel {
   max-width: min(28rem, 80%);
 }
+
+/* ============================================================================
+   Navegación en pantallas pequeñas: el menú de la hamburguesa
+   ============================================================================
+
+   **El problema, medido antes de tocar nada.** A 390 px, con el menú abierto y
+   un submenú desplegado:
+
+     - el menú medía **670 px de alto** para siete ítems;
+     - «Atención al ciudadano» ocupaba un bloque celeste de **~490 px** para una
+       sola línea de texto;
+     - había **~240 px de vacío** al principio, sin nada dentro;
+     - y «Participa» se dibujaba **encima** del submenú: se leía
+       «Atención al ciudadan**Participa**».
+
+   **La causa era una sola y no era móvil: eran reglas de escritorio.** Más
+   arriba, `.menu-govco { align-items: stretch }`,
+   `.navbar-collapse/.navbar-nav { height: 100% }` y
+   `.nav-item { align-self: stretch }` existen para que el hover rellene la
+   barra de 72 px de extremo a extremo —pero **no estaban dentro de ningún
+   `@media`**, así que en móvil, donde el contenedor contiene el menú entero
+   desplegado y por tanto es altísimo, cada ítem se estiraba hasta llenarlo.
+
+   Eso explica los tres síntomas a la vez: el estirado, el vacío (el primer
+   ítem empujando desde arriba) y el solapamiento (el panel del submenú
+   posicionado contra un contenedor cuya altura ya no significaba nada).
+
+   **El modelo que se aplica debajo de `md`**, que es donde el Kit colapsa el
+   menú, es el de una lista de navegación, no el de una barra horizontal:
+
+     1. Cada ítem mide lo que mide su contenido. Nada se estira.
+     2. Área de pulsación de **44 px** como mínimo —el mínimo táctil que fija el
+        propio Kit en su página 7 y que WCAG 2.5.8 recoge—.
+     3. Un ritmo de espaciado único, en múltiplos de 4 px, para que la lista
+        tenga cadencia en vez de alturas accidentales.
+     4. El submenú **fluye** debajo de su ítem, con fondo y sangría propios: se
+        ve a qué ítem pertenece y no tapa a los siguientes.
+     5. Separación entre grupos, no entre cada línea: líneas finas por todas
+        partes convierten la lista en una rejilla y se pierde la jerarquía.
+   ============================================================================ */
+
+@media (max-width: 767.98px) {
+  /* 1 y 2. El ítem deja de estirarse y pasa a ser un objetivo táctil. */
+  .menu-govco,
+  .menu-govco .navbar-collapse,
+  .menu-govco ul.navbar-nav,
+  .menu-govco .navbar-nav > .nav-item {
+    height: auto;
+    align-items: stretch;
+  }
+
+  /*
+   * **La lista se apila en vertical, y esto resolvía el desborde horizontal.**
+   *
+   * Bootstrap deja `.navbar-nav` en `display: flex` con `flex-direction: row`,
+   * que es lo correcto en una barra horizontal. En móvil los siete ítems seguían
+   * uno al lado del otro, empujándose a lo ancho: medido a 320 px, el contenedor
+   * del menú medía **375 px de ancho en una ventana de 320** —los ítems se
+   * sumaban en fila y arrastraban la página entera—.
+   *
+   * Con `column` cada ítem ocupa una fila y el ancho total es el de la ventana.
+   * Es además lo que hace legible una lista: se recorre de arriba abajo.
+   */
+  .menu-govco ul.navbar-nav {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  /*
+   * **`min-width: 0`, y esta línea era la que faltaba para el desborde.**
+   *
+   * `.navbar-collapse` es un ítem flex y trae `min-width: auto`, que es el valor
+   * por defecto y significa «no encojas por debajo del ancho mínimo de tu
+   * contenido». Como lo que contiene no cabía en 320 px, el contenedor se
+   * estiraba a **375 px dentro de una ventana de 320** y arrastraba la página.
+   *
+   * Trazado el árbol: el `html`, el `body`, `#__nuxt`, la disposición, el
+   * `.contenido-filtrable`, el `nav` y el `container-fluid` medían **los 320
+   * correctos**; sólo este nodo medía 375. Un `min-width: 0` lo devuelve a su
+   * sitio: es el precio de que un ítem flex pueda encogerse, y sin él ningún
+   * ajuste de los hijos sirve de nada.
+   */
+  .menu-govco .navbar-collapse {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* El buscador del menú tampoco puede imponer un ancho mínimo. */
+  .menu-govco .container-search-menu,
+  .menu-govco .container-search-menu input {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /*
+   * **La misma trampa, un nivel más adentro.** El `<ul>` del panel también trae
+   * `min-width: auto`, así que no encogía por debajo del rótulo más largo de
+   * Participa y dejaba el desborde en 360 px dentro de una ventana de 320. Se
+   * libera la cadena entera del panel: contenedor, lista, ítem y enlace. Los
+   * `li` y `a` ya venían a cero; el que faltaba era la lista.
+   */
+  .menu-govco .navbar-nav .dropdown-menu,
+  .menu-govco .navbar-nav .dropdown-menu ul,
+  .menu-govco .navbar-nav .dropdown-menu li,
+  .menu-govco .navbar-nav .dropdown-menu a {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .menu-govco .navbar-nav > .nav-item {
+    align-self: auto;
+    width: 100%;
+
+    /* El `min-width` de 13 rem existe para dar holgura entre ítems **en una
+       barra horizontal**. En una lista vertical sobra y es lo que impedía que
+       los ítems se ajustaran a la ventana. */
+    min-width: 0;
+  }
+
+  .menu-govco .navbar-nav .nav-item .nav-link {
+    /*
+     * `height: 100%` y `align-self: stretch` vienen de las reglas de escritorio
+     * de más arriba. Aquí se anulan explícitamente, y no basta con no
+     * declararlas: hay que deshacerlas.
+     */
+    height: auto;
+    align-self: auto;
+
+    /* 3. El ritmo: 14 px arriba y abajo sobre una línea de 21 px da 49 px, por
+       encima de los 44 px mínimos y con aire suficiente para el pulgar. */
+    min-height: 2.75rem;
+    padding: 0.875rem 1rem;
+    justify-content: flex-start;
+    text-align: left;
+    gap: 0.5rem;
+  }
+
+  /* El chevron del desplegable se separa del rótulo y queda a la derecha del
+     todo, que es lo que hace legible una lista: se ve de un vistazo qué ítems
+     abren algo. */
+  .menu-govco .navbar-nav .nav-item .nav-link .govco-icon,
+  .menu-govco .navbar-nav .nav-item .nav-link::after {
+    margin-left: auto;
+  }
+
+  /*
+   * 4. El submenú, en el flujo.
+   *
+   * El Kit lo posiciona en absoluto para que flote sobre la página —correcto en
+   * escritorio, donde el menú es una barra y el panel no debe empujar nada—.
+   * En móvil una lista no flota: **se despliega**. Con `position: static` el
+   * panel empuja a los ítems siguientes en vez de taparlos, que es justo el
+   * solapamiento que había.
+   */
+  .menu-govco .navbar-nav .dropdown-menu,
+  .menu-govco .navbar-nav .megamenu-menu-govco {
+    position: static !important;
+    float: none;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+
+    /* El fondo distingue el panel de su ítem padre sin competir con él, y la
+       sangría dice a qué ítem pertenece. */
+    background-color: var(--govcolor-white-smoke, #f4f4f4);
+    padding: 0.5rem 0;
+  }
+
+  /*
+   * **Los enlaces del panel crecen lo que su rótulo necesite, y ahí estaba el
+   * solapamiento.**
+   *
+   * Medido en «Participa» a 390 px: el enlace medía **44 px** con un
+   * `scrollHeight` de **65 px** y `overflow: hidden`. Los rótulos de Participa
+   * son largos —«Participación para la identificación de problemas y diagnóstico
+   * de necesidades»— y no caben en una línea; el Kit fija la altura del
+   * `dropdown-item` para una sola, así que el texto se recortaba y sus últimas
+   * líneas se dibujaban **encima del ítem siguiente**. Eso era el solapamiento:
+   * no el panel, sino el enlace desbordando su propia caja.
+   *
+   * Se sueltan las tres ataduras que lo causaban —altura fija, `nowrap` y
+   * recorte— y se le da un área táctil que es un **mínimo**, no un techo.
+   */
+  .menu-govco .navbar-nav .dropdown-item,
+  .menu-govco .navbar-nav .dropdown-menu .nav-link,
+  .menu-govco .navbar-nav .dropdown-menu a {
+    height: auto;
+    min-height: 2.75rem;
+    max-height: none;
+    overflow: visible;
+
+    /*
+     * **`display: block`, y es la pieza que faltaba.**
+     *
+     * El Kit pone `display: flex` en el `dropdown-item`. Con flex, el texto del
+     * enlace se convierte en un elemento flex anónimo que **no se encoge**: no
+     * parte la línea por mucho `white-space: normal` que se le ponga, y se sale
+     * de la caja a lo ancho. Medido a 320 px, la página tenía **375 px de ancho
+     * de scroll en una ventana de 320** —55 px de desborde— y los rótulos largos
+     * de Participa se recortaban.
+     *
+     * Con `block` el texto vuelve a ser texto y fluye solo. El alineado
+     * vertical que daba el flex no hace falta aquí: en una lista desplegada el
+     * texto ocupa su caja entera, no se centra dentro de ella.
+     */
+    display: block;
+
+    white-space: normal;
+    overflow-wrap: anywhere;
+
+    /* Sangría para que se lea la jerarquía respecto a su ítem padre, y ritmo
+       vertical propio. */
+    padding: 0.75rem 1rem 0.75rem 2rem;
+    line-height: 1.4;
+    text-align: left;
+    justify-content: flex-start;
+  }
+
+  /*
+   * **El panel no lleva título, y no hay que quitárselo.** El nombre de la
+   * subsección existe en el marcado como `title` y `aria-label` del `<ul>`, que
+   * es donde tiene que estar —describe el grupo a quien usa un lector de
+   * pantalla— pero **no se dibuja**. El padre ya está a la vista justo encima,
+   * así que repetirlo como encabezado visible sólo añadiría ruido.
+   *
+   * Se deja constancia porque es tentador «arreglarlo» añadiendo un `<h3>` al
+   * panel: sería duplicar el rótulo del padre y romper la jerarquía de
+   * encabezados de la página, que ya tiene su `<h1>`.
+   */
+
+  /* 5. Separación entre ítems de primer nivel, no dentro de un mismo panel:
+     una lista con una línea por fila se lee como una rejilla. */
+  .menu-govco .navbar-nav > .nav-item + .nav-item {
+    border-top: 1px solid var(--govcolor-silver, #b9b9b9);
+  }
+
+  /* El panel abierto no necesita separador: su propio fondo ya lo delimita. */
+  .menu-govco .navbar-nav .dropdown-menu .dropdown-item + .dropdown-item {
+    border-top: 0;
+  }
+
+  /*
+   * La barra del menú, en móvil, no lleva el filete inferior de 4 px: ese
+   * filete pertenece a la barra horizontal de escritorio, y colgado de una
+   * lista vertical se lee como un subrayado mal puesto.
+   */
+  .menu-govco {
+    border-bottom: 0;
+  }
+}

@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Contracts\Services\EntidadServiceInterface;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\EntidadResource;
-use App\Models\Entidad;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
@@ -26,6 +25,10 @@ use Illuminate\Support\Facades\Log;
  */
 final class EntidadController extends Controller
 {
+    public function __construct(
+        private readonly EntidadServiceInterface $entidadService,
+    ) {}
+
     /**
      * Devuelve los datos institucionales de la entidad.
      *
@@ -36,23 +39,21 @@ final class EntidadController extends Controller
     public function mostrar(): JsonResponse
     {
         try {
-            $entidad = Entidad::first();
-
-            if ($entidad === null) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se encontró la entidad configurada.',
-                    'data' => null,
-                    'errors' => null,
-                ], 404);
-            }
+            $entidadResource = $this->entidadService->obtenerEntidad();
 
             return response()->json([
                 'success' => true,
                 'message' => null,
-                'data' => new EntidadResource($entidad),
+                'data' => $entidadResource,
                 'errors' => null,
             ]);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => null,
+                'errors' => null,
+            ], 404);
         } catch (\Throwable $e) {
             Log::error('Error al obtener entidad', [
                 'exception' => $e,

@@ -45,6 +45,13 @@ export const useSesionStore = defineStore('sesion', () => {
    * Extrae los permisos de los roles del usuario.
    */
   function extraerPermisos(roles: UsuarioItem['roles']): string[] {
+    // El rol super-admin tiene acceso total, sin importar sus permisos declarados.
+    for (const rol of roles) {
+      if (rol.nombre === 'super-admin') {
+        return ['*']
+      }
+    }
+
     const permisos = new Set<string>()
     for (const rol of roles) {
       if (rol.permisos.includes('*')) {

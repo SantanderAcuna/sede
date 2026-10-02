@@ -32,6 +32,9 @@ return [
         // durante el hydration. En producción ambos comparten origen y CORS no aplica.
         'http://localhost:3001',
         'http://127.0.0.1:3001',
+        // El navegador del usuario puede resolver el sitio a `0.0.0.0` por
+        // configuración de proxy de la red local.
+        'http://0.0.0.0:3001',
     ],
 
     'allowed_headers' => ['*'],

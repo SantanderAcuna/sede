@@ -1075,3 +1075,72 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
   background-color: #00ade7;
   color: #000000;
 }
+
+/*
+ * ============================================================================
+ * Carrusel de la portada: altura protagonista, idéntica al referente
+ * ============================================================================
+ *
+ * El Kit aplica a la imagen del carrusel un `min-height: 19.813rem`
+ * (≈317 px) con el selector `.carrusel-govco .carousel-inner
+ * .carousel-item img`. Eso basta para las páginas internas, pero la portada
+ * necesita una pieza más visible: ocupa el primer viewport bajo la cabecera
+ * y carga la marca de la Sede.
+ *
+ * El carrusel institucional de referencia mide, capturado vía CDP con el
+ * sitio abierto en un navegador real, en las tres vistas estándar:
+ *
+ *   ancho 1920 px → alto **667 px** (71 % del viewport de 937)
+ *   ancho  768 px → alto **271 px** (móvil/tablet)
+ *   ancho  375 px → alto **136 px** (móvil angosto)
+ *
+ * La regla se publica aquí, en CSS sin scope, porque la imagen vive dentro
+ * de `<CarruselGovco>`, un componente HIJO con su propio `data-v-XXX`.
+ * Las reglas scoped de `pages/index.vue` no matchearían el `<img>` aunque
+ * usen `:deep()`, porque `:deep()` solo atraviesa un scope. Aquí, en CSS
+ * global, no hay scope y el selector simple `.portada-sede
+ * .carrusel-govco .carousel-inner .carousel-item img` sí matchea.
+ *
+ * **Por qué `height` y `min-height` — no `max-height`.** El Kit define
+ * `min-height: 19.813rem` y `height: 22rem` en sus reglas. Mi intento
+ * anterior sobreescribió sólo `max-height` (608 px), pero ese tope nunca
+ * se alcanzaba porque `min-height` y `height` del Kit eran más pequeños. Lo
+ * correcto es pisar los tres valores con la altura del referente:
+ *
+ *   667 px / 16 px-base = **41.6875 rem**  ← ancho 1920
+ *   271 px / 16 px-base = **16.9375 rem**  ← ancho 768
+ *   136 px / 16 px-base = **8.5 rem**      ← ancho 375
+ */
+.portada-sede .carrusel-govco .carousel-inner .carousel-item img {
+  min-height: 41.6875rem;
+  max-height: 41.6875rem;
+  height: 41.6875rem;
+  width: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+@media (max-width: 991px) {
+  .portada-sede .carrusel-govco .carousel-inner .carousel-item img {
+    min-height: 16.9375rem;
+    max-height: 16.9375rem;
+    height: 16.9375rem;
+  }
+}
+
+@media (max-width: 575px) {
+  .portada-sede .carrusel-govco .carousel-inner .carousel-item img {
+    min-height: 8.5rem;
+    max-height: 8.5rem;
+    height: 8.5rem;
+  }
+}
+
+/*
+ * La leyenda del carrusel, que el Kit centra con `max-width: min(23.063rem,
+ * 80%)`, se amplía un poco para la portada: con más altura disponible, una
+ * caja más grande respira mejor.
+ */
+.portada-sede .carrusel-govco .leyenda-carrusel {
+  max-width: min(28rem, 80%);
+}

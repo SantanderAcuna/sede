@@ -20,5 +20,11 @@ final readonly class FiltrosTramite
         public int $porPagina,
         public ?string $buscar,
         public ?string $categoria,
+        /**
+         * Modalidad del catálogo: `tramites`, `opa` o `consultas`. Nula devuelve
+         * las tres modalidades a la vez, que es el comportamiento del catálogo
+         * completo.
+         */
+        public ?string $tipo,
     ) {}
 }

@@ -38,6 +38,7 @@ final class ListarTramitesRequest extends FormRequest
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'buscar' => ['sometimes', 'nullable', 'string', 'max:120'],
             'categoria' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'type' => ['sometimes', 'nullable', 'string', 'in:tramites,opa,consultas'],
         ];
     }
 
@@ -49,6 +50,7 @@ final class ListarTramitesRequest extends FormRequest
     {
         $buscar = $this->string('buscar')->trim()->value();
         $categoria = $this->string('categoria')->trim()->value();
+        $tipo = $this->string('type')->trim()->value();
 
         return new FiltrosTramite(
             pagina: $this->integer('page', 1),
@@ -58,6 +60,7 @@ final class ListarTramitesRequest extends FormRequest
             // sede mostrara «0 resultados» sobre una búsqueda que nadie hizo.
             buscar: $buscar === '' ? null : $buscar,
             categoria: $categoria === '' ? null : $categoria,
+            tipo: $tipo === '' ? null : $tipo,
         );
     }
 

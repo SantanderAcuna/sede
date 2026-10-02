@@ -128,8 +128,30 @@ const MAX_SECCIONES = 4
 /** El Kit conserva cuatro ítems en la barra y desborda el resto. */
 const ITEMS_EN_BARRA = 4
 
-/** Ancho hasta el cual el Kit reparte los ítems sobrantes al menú extendido. */
-const ANCHO_MENU_EXTENDIDO = 992
+/**
+ * Ancho hasta el cual el Kit reparte los ítems sobrantes al menú extendido.
+ *
+ * El Kit trae 992 (su punto de ruptura `md`), pero **no alcanza**, y la cuenta
+ * está medida:
+ *
+ *   - la barra completa (siete ítems) mide **962 px**;
+ *   - el contenedor deja **128 px** de márgenes (4 rem por lado).
+ *
+ * Así que el nombre entero —«Atención y Servicios a la Ciudadanía», el que
+ * exige RF-B1-003— sólo cabe con **1090 px** de ventana o más. Por debajo, el
+ * ítem se encoge y el rótulo se recorta con puntos suspensivos, que es justo
+ * lo que la norma no quiere.
+ *
+ * Subiendo el valor a la medida, hasta 1089 px el Kit reparte cuatro ítems a la
+ * barra y el resto al menú extendido, donde el nombre se lee completo a partir
+ * de **908 px**. Es el mismo mecanismo del Kit, sólo con el punto donde de
+ * verdad empieza a caber: no se le pide a la barra que muestre siete ítems
+ * cuando no puede.
+ *
+ * Entre 768 y 907 px el rótulo se recorta; es la degradación del propio Kit y
+ * el nombre completo sigue en el `aria-label` y el `title` de la sección.
+ */
+const ANCHO_MENU_EXTENDIDO = 1090
 
 /** Punto de ruptura `md`: por debajo, el Kit colapsa el menú en la hamburguesa. */
 const ANCHO_ESCRITORIO = 768
@@ -194,9 +216,10 @@ const esEscritorio = computed(() => anchoVentana.value >= ANCHO_ESCRITORIO)
  *
  * Sólo se desborda a partir de `md`: el botón del menú extendido está oculto por
  * debajo —así lo marca el propio Kit con `d-none d-md-block`— y su `resizeMenu`,
- * que se dispara con cualquier ancho por debajo de 992 px, dejaría los ítems 5 y
- * siguientes dentro de un panel que en un teléfono no se puede abrir. Por eso
- * allí no se reparte nada y el menú colapsado los muestra todos.
+ * que se dispara con cualquier ancho por debajo de su punto de ruptura,
+ * dejaría los ítems 5 y siguientes dentro de un panel que en un teléfono no se
+ * puede abrir. Por eso allí no se reparte nada y el menú colapsado los muestra
+ * todos.
  */
 const itemsEnBarra = computed(() =>
   esEscritorio.value && anchoVentana.value <= ANCHO_MENU_EXTENDIDO

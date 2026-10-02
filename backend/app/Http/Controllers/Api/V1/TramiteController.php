@@ -8,7 +8,7 @@ use App\Contracts\Services\TramiteServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListarTramitesRequest;
 use App\Http\Resources\TramiteResource;
-use App\Support\Api\Respuesta;
+use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -35,7 +35,7 @@ final class TramiteController extends Controller
     {
         $pagina = $this->tramites->listar($peticion->filtros());
 
-        return Respuesta::coleccion(TramiteResource::collection($pagina), $pagina);
+        return ApiResponse::coleccion(TramiteResource::collection($pagina), $pagina);
     }
 
     /**
@@ -43,6 +43,6 @@ final class TramiteController extends Controller
      */
     public function mostrar(string $slug): JsonResponse
     {
-        return Respuesta::objeto(new TramiteResource($this->tramites->porSlug($slug)));
+        return ApiResponse::objeto(new TramiteResource($this->tramites->porSlug($slug)));
     }
 }

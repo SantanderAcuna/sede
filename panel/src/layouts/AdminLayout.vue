@@ -13,7 +13,7 @@
  * sesión real dice que no la hay.
  */
 import { computed, ref, watch } from 'vue'
-import { RouterView, RouterLink, useRoute } from 'vue-router'
+import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
 
 import CommandPalette from '@/components/feedback/CommandPalette.vue'
 import AppLogo from '@/components/base/AppLogo.vue'
@@ -136,6 +136,14 @@ watch(
 
 const ruta = useRoute()
 const paleta = ref<InstanceType<typeof CommandPalette> | null>(null)
+const menuUsuarioAbierto = ref(false)
+const router = useRouter()
+
+async function cerrarSesion(): Promise<void> {
+  menuUsuarioAbierto.value = false
+  await sesion.cerrarSesion()
+  router.push({ name: 'acceso.entrar' })
+}
 
 /**
  * Estado de sesión. Hoy siempre vacío (ver `src/stores/sesion.ts`), y por eso
@@ -448,27 +456,71 @@ const migas = computed(() => {
         </button>
 
         <!--
-          Estado de sesión veraz. El almacén está vacío mientras no exista el
-          módulo de identidad, y entonces la cabecera lo dice: no hay usuario,
-          no hay iniciales y no se da la sesión por activa.
+          Menú de usuario. Muestra avatar con iniciales y un desplegable con
+          opciones de perfil y cierre de sesión.
         -->
-        <div class="flex items-center gap-2 pl-3 border-l border-slate-200">
-          <div
-            :class="[
-              'h-9 w-9 grid place-items-center rounded-full text-sm font-semibold',
-              sesion.iniciada ? 'bg-gov-blue text-white' : 'bg-slate-200 text-slate-500',
-            ]"
+        <div class="relative" v-if="sesion.iniciada">
+          <button
+            type="button"
+            class="flex items-center gap-2 pl-3 border-l border-slate-200 hover:bg-slate-50 rounded-lg py-1.5 px-1 transition-colors"
+            aria-haspopup="true"
+            :aria-expanded="menuUsuarioAbierto"
+            @click="menuUsuarioAbierto = !menuUsuarioAbierto"
           >
-            {{ sesion.iniciada ? iniciales : '—' }}
+            <div
+              class="h-9 w-9 grid place-items-center rounded-full text-sm font-semibold bg-gov-blue text-white"
+            >
+              {{ iniciales }}
+            </div>
+            <div class="hidden sm:block min-w-0">
+              <p class="text-sm font-semibold text-slate-900 truncate">
+                {{ sesion.usuario?.nombre }}
+              </p>
+              <p class="text-[11px] text-slate-500 truncate">
+                {{ sesion.usuario?.email }}
+              </p>
+            </div>
+            <svg class="h-4 w-4 text-slate-400 transition-transform" :class="menuUsuarioAbierto ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 1111.06 1.06l-4.25 4.5a.75.75 0 01-1.06 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+            </svg>
+          </button>
+
+          <!-- Dropdown -->
+          <div
+            v-if="menuUsuarioAbierto"
+            class="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-slate-100 z-50"
+            role="menu"
+          >
+            <div class="px-4 py-3 border-b border-slate-100">
+              <p class="text-sm font-medium text-ink">{{ sesion.usuario?.nombre }}</p>
+              <p class="text-xs text-ink-muted mt-0.5">{{ sesion.usuario?.email }}</p>
+            </div>
+            <RouterLink
+              to="/perfil"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-ink hover:bg-slate-50 transition-colors"
+              role="menuitem"
+              @click="menuUsuarioAbierto = false"
+            >
+              <FaIcon icon="user" class="h-4 w-4 text-slate-400" aria-hidden="true" />
+              Mi perfil
+            </RouterLink>
+            <button
+              type="button"
+              class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              role="menuitem"
+              @click="cerrarSesion"
+            >
+              <FaIcon icon="right-from-bracket" class="h-4 w-4" aria-hidden="true" />
+              Cerrar sesión
+            </button>
           </div>
-          <div class="hidden sm:block min-w-0">
-            <p class="text-sm font-semibold text-slate-900 truncate">
-              {{ sesion.usuario?.nombre ?? 'Sesión no iniciada' }}
-            </p>
-            <p class="text-[11px] text-slate-500 truncate">
-              {{ sesion.iniciada ? 'Sesión iniciada' : 'Sin datos de usuario' }}
-            </p>
-          </div>
+
+          <!-- Click outside to close -->
+          <div
+            v-if="menuUsuarioAbierto"
+            class="fixed inset-0 z-40"
+            @click="menuUsuarioAbierto = false"
+          />
         </div>
       </header>
 

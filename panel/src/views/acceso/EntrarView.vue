@@ -2,43 +2,64 @@
 /**
  * Entrada al panel.
  *
- * Pantalla de diseño: los campos se enlazan a estado local y el envío **no
- * autentica**, porque el módulo de identidad todavía no existe. Cuando llegue,
- * este formulario pasa a invocar el servicio real y a mostrar el error de la
- * API en `FormField`.
- *
- * Por eso mismo la pantalla **no puede afirmar que protege nada**. Publicaba una
- * garantía de doble factor (Decreto 1078) que hoy es falsa —ni hay sesión ni hay
- * segundo factor— y una promesa de seguridad incumplida es peor que el silencio.
- * En su lugar va el aviso de abajo.
+ * Formulario de autenticación que conecta con el backend:
+ * POST /api/v1/panel/login
  */
 import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 import FormField from '@/components/base/FormField.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
+import { useSesionStore } from '@/stores/sesion'
+import { esErrorApi } from '@/services/http'
 
-const usuario = ref('')
-const contrasena = ref('')
+const router = useRouter()
+const sesion = useSesionStore()
+
+const email = ref('')
+const password = ref('')
 const recordar = ref(false)
+const error = ref<string | null>(null)
+const cargando = ref(false)
+
+async function handleSubmit() {
+  if (cargando.value) return
+
+  cargando.value = true
+  error.value = null
+
+  try {
+    await sesion.iniciarSesion({ email: email.value, password: password.value })
+    router.push({ name: 'panel.inicio' })
+  } catch (e) {
+    if (esErrorApi(e)) {
+      error.value = e.message
+    } else {
+      error.value = 'No se pudo conectar con el servidor.'
+    }
+  } finally {
+    cargando.value = false
+  }
+}
 </script>
 
 <template>
-  <form class="space-y-5" novalidate aria-labelledby="titulo-acceso" @submit.prevent>
+  <form class="space-y-5" novalidate aria-labelledby="titulo-acceso" @submit.prevent="handleSubmit">
     <header class="space-y-1">
       <h1 id="titulo-acceso" class="text-2xl font-bold text-ink">Iniciar sesión</h1>
       <p class="text-sm text-ink-muted">Acceso al panel administrativo</p>
     </header>
 
     <FormField
-      v-model="usuario"
-      label="Usuario o cédula"
+      v-model="email"
+      label="Correo electrónico"
+      type="email"
       autocomplete="username"
       required
     />
 
     <FormField
-      v-model="contrasena"
+      v-model="password"
       label="Contraseña"
       type="password"
       autocomplete="current-password"
@@ -59,22 +80,23 @@ const recordar = ref(false)
       </RouterLink>
     </div>
 
-    <BaseButton type="submit" block size="lg" disabled>Ingresar</BaseButton>
-
-    <!--
-      El botón queda deshabilitado porque no hay nada que enviar: un control que
-      se puede pulsar y no hace nada es una promesa que la interfaz no cumple.
-    -->
-    <p
-      class="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-200"
-      role="note"
+    <BaseButton
+      type="submit"
+      block
+      size="lg"
+      :disabled="cargando || !email || !password"
     >
-      <FaIcon icon="triangle-exclamation" class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span>
-        Previsualización: el módulo de identidad todavía no está conectado, así que este
-        formulario no inicia sesión ni concede acceso. La autenticación con doble factor llegará
-        cuando ese módulo exista.
-      </span>
+      <template v-if="cargando">Iniciando sesión…</template>
+      <template v-else>Ingresar</template>
+    </BaseButton>
+
+    <p
+      v-if="error"
+      class="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200"
+      role="alert"
+    >
+      <FaIcon icon="exclamation-circle" class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>{{ error }}</span>
     </p>
   </form>
 </template>

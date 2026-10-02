@@ -249,18 +249,28 @@ const EXPLICACION_TIPO_VALOR: Record<string, string> = {
 // Derivados de la ficha
 // ---------------------------------------------------------------------------
 
-/** Los requisitos, agrupados por naturaleza y en el orden del recorrido. */
+/**
+ * Los requisitos, agrupados por naturaleza y en el orden del recorrido.
+ *
+ * Antes de agrupar, se descartan los requisitos que no tienen nada que
+ * mostrar al ciudadano. Es la aplicación práctica de "no inventar": un
+ * `SOLICITUD` sin descripción, sin URL, sin correo, sólo con `orden: 11` no
+ * es un dato del trámite, es un placeholder del SUIT. Se filtra en la
+ * frontera de la presentación, **no** en la base, para que la Entidad
+ * pueda ver el placeholder y completarlo desde el panel.
+ */
 const requisitosPorTipo = computed<{
   tipo: TipoRequisito
   titulo: string
   items: RequisitoExtendido[]
 }[]>(() => {
   const todos = (tramite.value?.requisitos ?? []) as unknown as RequisitoExtendido[]
+  const visibles = todos.filter(requisitoEsVisible)
 
   return ORDEN_REQUISITO.map((tipo) => ({
     tipo,
     titulo: TITULO_REQUISITO[tipo],
-    items: todos.filter((requisito) => requisito.tipo === tipo),
+    items: visibles.filter((requisito) => requisito.tipo === tipo),
   })).filter((grupo) => grupo.items.length > 0)
 })
 
@@ -476,6 +486,44 @@ function formularioDeRequisito(req: RequisitoExtendido): string | undefined {
   return opcional(req.formulario ?? req.formulario_nombre)
 }
 
+/**
+ * El texto que se muestra como descripción principal del requisito.
+ *
+ * Prioridad: la descripción literal del visor; si no, el nombre del
+ * documento o del formulario que el visor publica (los requisitos de tipo
+ * `documento` suelen venir sin descripción, sólo con el nombre); si no, nada.
+ *
+ * Devolver `undefined` (no cadena vacía) es la señal de que el requisito
+ * **no** debe dibujarse: ver `requisitoEsVisible`.
+ */
+function descripcionVisible(req: RequisitoExtendido): string | undefined {
+  const descripcion = opcional(req.descripcion)
+  if (descripcion !== undefined) return descripcion
+  return opcional(req.documento) ?? formularioDeRequisito(req)
+}
+
+/**
+ * Si un requisito tiene algo que mostrar al ciudadano, lo conservamos; si no,
+ * lo descartamos.
+ *
+ * El visor publica requisitos que en la práctica son ruido para el ciudadano:
+ * un `SOLICITUD` sin texto, sin URL, sin correo, sólo con `orden: 11` y
+ * `tipo: 'solicitud'`. No es un dato del trámite, es una entrada vacía que
+ * el SUIT no terminó de llenar, y la Sede no la publica: es exactamente la
+ * decisión de "no inventar" del §3 del AGENTS.md.
+ */
+function requisitoEsVisible(req: RequisitoExtendido): boolean {
+  if (descripcionVisible(req) !== undefined) return true
+  if (opcional(req.nota) !== undefined) return true
+  if (opcional(req.url) !== undefined) return true
+  if (opcional(req.correo) !== undefined) return true
+  if (cuentasDeRequisito(req).length > 0) return true
+  if (pagosDeRequisito(req).length > 0) return true
+  if (formularioDeRequisito(req) !== undefined) return true
+  if (opcional(req.url_pago) !== undefined) return true
+  return false
+}
+
 /** El tipo de valor del pago, en lenguaje del ciudadano. */
 function formatoTipoValor(tipo: string | null | undefined): string {
   switch (tipo) {
@@ -621,11 +669,8 @@ function formatoTipoValor(tipo: string | null | undefined): string {
 
           <ul class="lista-requisitos">
             <li v-for="(requisito, indice) in grupo.items" :key="indice">
-              <span v-if="opcional(requisito.descripcion)" class="requisito-descripcion">
-                {{ requisito.descripcion }}
-              </span>
-              <span v-else class="requisito-descripcion text-muted">
-                <em>Requisito sin descripción detallada</em>
+              <span class="requisito-descripcion">
+                {{ descripcionVisible(requisito) }}
               </span>
 
               <!-- La cantidad sólo la declara la fuente para los documentos. -->

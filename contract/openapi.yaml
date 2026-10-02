@@ -2036,6 +2036,21 @@ components:
         canal: { type: [string, 'null'], enum: [web, presencial, correo, telefonico, null] }
         url: { type: [string, 'null'], format: uri }
         correo: { type: [string, 'null'], format: email }
+        # Campos adicionales del visor de SUIT (opcional). En el listado
+        # de `requisitos[]` (que es una mezcla de los momentos) la Sede
+        # aplana el requisito del momento y conserva su `documento`,
+        # `formulario`, `pago[]` y `cuentas[]` cuando los trae.
+        orden: { type: [integer, 'null'], minimum: 1 }
+        documento: { type: [string, 'null'] }
+        formulario: { type: [string, 'null'] }
+        formulario_url: { type: [string, 'null'], format: uri }
+        url_pago: { type: [string, 'null'], format: uri }
+        pago:
+          type: array
+          items: { $ref: '#/components/schemas/TramitePagoValor' }
+        cuentas:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteCuentaVisor' }
 
     TramiteCosto:
       type: object

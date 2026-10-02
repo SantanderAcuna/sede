@@ -238,34 +238,16 @@ const tramitesDestacados = computed(() =>
 
 <style scoped>
 /*
- * **Carrusel protagonista de la portada.** El carrusel del Kit define su
- * altura por la imagen (`22rem` en escritorio, `13.5rem` en estrecho). Para
- * la portada queremos una pieza más visible, replicando el alto del
- * carrusel institucional de referencia: ancho 1920 → alto 667 (aspect
- * ratio ≈ 2.88:1), tablet 768 → alto 271, móvil 375 → alto 136.
- *
- * **Cálculo del alto.** Usamos un `aspect-ratio` fijo de 2.88:1 en escritorio
- * (≈ 1920 × 0.347), con un tope de 38rem (608 px) en monitores anchos.
- * En móvil se reduce a 2.75:1, que es lo que se observa en el referente.
- * La imagen se mantiene al borde del viewport —`px-0` en el wrapper— y
- * la barra de controles del carrusel se conserva debajo, como en el Kit.
+ * **Carrusel protagonista de la portada.** Las reglas de alto yacen en
+ * `sitio.css` (CSS global) porque la imagen del carrusel vive dentro de
+ * `<CarruselGovco>`, un componente HIJO con su propio `data-v-XXX`. Las
+ * reglas scoped de este archivo (también con su propio `data-v-XXX`) no
+ * matchearían el `<img>` final del carrusel aunque usen `:deep()`, porque
+ * `:deep()` solo atraviesa un scope. La altura definitiva se aplica desde
+ * `.portada-sede .carrusel-govco .carousel-inner .carousel-item img` en
+ * el CSS global — esa clase la añade este componente en el `<CarruselGovco
+ * class="carrusel-portada">`, sin scope alguno.
  */
-.portada-sede .carrusel-portada :deep(.carrusel-govco .carousel-item img) {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 2.88 / 1;
-  object-fit: cover;
-  max-height: 38rem;
-}
-
-.portada-sede .carrusel-portada :deep(.responsive-carrusel-govco .carousel-item img) {
-  aspect-ratio: 2.75 / 1;
-  max-height: 16rem;
-}
-
-.portada-sede .carrusel-portada :deep(.leyenda-carrusel) {
-  max-width: min(28rem, 80%);
-}
 
 /*
  * Lista de trámites de la portada. Sin viñetas y separada con una línea: son

@@ -155,12 +155,6 @@
   margin: 0 1rem;
 }
 
-/* La banda inferior ya va a la izquierda; se refuerza para que los tres logos
-   compartan el mismo eje que el resto del contenido. */
-.pie-pagina-govco .second-section {
-  justify-content: flex-start;
-  padding-left: 1.25rem;
-}
 
 
 /* ============================================================================
@@ -234,8 +228,25 @@
   blanco da **2,58:1**, muy por debajo del 4,5:1 de AA. El token se acota a la
   banda que de verdad lleva el color.
 */
+/*
+ * **La banda inferior del pie: alineación y color, en un solo bloque.**
+ *
+ * Estaban declarados por separado —uno en la sección de los logos y otro aquí—
+ * y eso es un problema real, no de estilo: dos bloques del mismo selector hacen
+ * que **el orden de las secciones decida** cuál gana, y quien edite uno creerá
+ * que está tocando todo el selector. Se unifican aquí, con los dos motivos.
+ *
+ *   - La alineación: los tres logos comparten el mismo eje que el resto del
+ *     contenido, en vez de quedar centrados.
+ *   - El color: el token del Kit se acota a **esta** banda, y no a todo el pie.
+ *     La auditoría detectó que los enlaces de la primera sección —fondo BLANCO—
+ *     heredaban ese token, y el celeste sobre blanco da 2,58:1, por debajo del
+ *     4,5:1 de AA. El celeste va donde de verdad se ve.
+ */
 .pie-pagina-govco .second-section {
   --govcolor-cobalt: var(--alcaldia-azul-celeste-a);
+  justify-content: flex-start;
+  padding-left: 1.25rem;
 }
 
 /* Los enlaces de la primera sección van sobre blanco: azul noche, que da 7,19:1

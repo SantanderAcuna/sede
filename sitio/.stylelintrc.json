@@ -84,8 +84,20 @@
         "app/assets/css/tokens.css"
       ],
       "rules": {
-        "no-duplicate-selectors": null,
-        "declaration-no-important": null
+        "no-duplicate-selectors": null
+      }
+    },
+    {
+      "_motivo": "sitio.css contiene la capa de modos de accesibilidad. Esas reglas NO son deuda: un modo de alto contraste, de dislexia o de detencion de animaciones tiene que ganarle a todo lo ya pintado, incluido el Kit gov.co, que es un tercero vendorizado byte a byte desde su CDN y que no controlamos. De ahi los !important, la especificidad alta y los #id (#__nuxt es la raiz de la aplicacion: no hay forma de estilarla sin el). Se relajan SOLO estas cuatro reglas y solo para este archivo; el resto del sistema sigue gobernado. Extraerlas a un archivo aparte se intento y se descarto: estan intercaladas con las secciones que sobreescriben, y separarlas no aporta nada funcional a cambio de arriesgar la cascada.",
+      "files": [
+        "app/assets/css/sitio.css"
+      ],
+      "rules": {
+        "declaration-no-important": null,
+        "selector-max-id": null,
+        "selector-max-specificity": null,
+        "selector-max-compound-selectors": null,
+        "selector-id-pattern": null
       }
     }
   ]

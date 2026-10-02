@@ -186,7 +186,7 @@
 .cabecera-govco,
 .menu-govco,
 .barra-superior-govco {
-  --govcolor-tulip: #00ade7;
+  --govcolor-tulip: var(--alcaldia-azul-celeste-a);
 }
 
 /* ============================================================================
@@ -236,13 +236,13 @@
   banda que de verdad lleva el color.
 */
 .pie-pagina-govco .second-section {
-  --govcolor-cobalt: #00ade7;
+  --govcolor-cobalt: var(--alcaldia-azul-celeste-a);
 }
 
 /* Los enlaces de la primera sección van sobre blanco: azul noche, que da 7,19:1
    y sigue siendo un azul de la paleta de la Entidad. */
 .pie-pagina-govco .first-section a {
-  color: #00568d !important;
+  color: var(--alcaldia-azul-noche) !important;
 }
 
 /* Las sombras decorativas del pie, que el Kit pinta en naranja, y el filete
@@ -250,8 +250,8 @@
    respira el mismo celeste (#00ADE7), tanto la banda inferior, como el
    filete, como las sombras del primer bloque. */
 .pie-pagina-govco .first-section {
-  --govcolor-tulip: #00ade7;
-  --govcolor-tropical-blue: #00ade7;
+  --govcolor-tulip: var(--alcaldia-azul-celeste-a);
+  --govcolor-tropical-blue: var(--alcaldia-azul-celeste-a);
 }
 
 /*
@@ -278,7 +278,7 @@
 
 /* El separador del Kit es blanco y sobre celeste desaparecería. */
 .pie-pagina-govco .second-section .separator {
-  border-left-color: #00568d !important;
+  border-left-color: var(--alcaldia-azul-noche) !important;
 }
 
 
@@ -1097,7 +1097,7 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .menu-govco .navbar-nav .nav-item .nav-link:focus-visible,
 .menu-govco .navbar-nav .nav-item .nav-link.active,
 .menu-govco .navbar-nav .nav-item .nav-link[aria-expanded="true"] {
-  background-color: #00ade7;
+  background-color: var(--alcaldia-azul-celeste-a);
   color: #000000;
 }
 

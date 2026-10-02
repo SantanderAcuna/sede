@@ -1,0 +1,169 @@
+/* ============================================================================
+   Design Tokens de la Sede Electrónica
+   ============================================================================
+
+   Capa 1 del sistema, y la única que declara valores en crudo.
+
+   **Por qué existe este archivo.** Antes de él, la paleta institucional estaba
+   escrita a mano en `sitio.css` y de tres formas distintas a la vez:
+
+     #00ADE7  ×11        el azul celeste A, en mayúsculas
+     #00ade7  ×5         el mismo color, en minúsculas
+     #0943b5  ×12        el cobalto del Kit, en crudo en vez de `var(...)`
+     #fff / #FFFFFF      el blanco, de dos maneras
+
+   Dieciséis apariciones del mismo azul escritas de dos formas no son un detalle
+   de estilo: significan que **cambiar la paleta exige buscar y reemplazar en
+   1424 líneas**, y que una errata de un dígito produce un color casi idéntico al
+   correcto —el peor error posible, porque no se ve—.
+
+   **Tres niveles, y la regla que los hace útiles:**
+
+     1. Primitivo   — el valor crudo. Sólo se declara aquí.
+     2. Semántico   — el papel que cumple: superficie, texto, borde, estado.
+     3. Componente  — lo que un componente concreto necesita.
+
+   **Los componentes consumen el nivel 3, o el 2 si no hay 3.** Nunca el 1. Un
+   componente que escribe `#00ADE7` está acoplado a la paleta; uno que escribe
+   `var(--color-superficie-entidad)` está acoplado a un papel, y el día que la
+   Entidad cambie su celeste por otro azul sólo se toca este archivo.
+   ============================================================================ */
+
+/* ============================================================================
+   NIVEL 1 · Primitivos
+   ============================================================================
+
+   Dos familias que NO se mezclan:
+
+     - `--alcaldia-*`: la paleta de la Entidad, del Manual de Identidad Visual
+       DTCH 2024 (páginas 42-43). Es obligatoria y no se elige.
+     - `--govco-*`: los tokens del Kit UI gov.co, que ya llegan como
+       `--govcolor-*` desde su propio `all.css`. Aquí sólo se documentan; no se
+       redeclaran, porque el Kit es un tercero y su paleta no es nuestra.
+   ============================================================================ */
+
+:root {
+  /* --- Paleta de la Alcaldía Distrital de Santa Marta ---------------------
+     Manual de Identidad Visual DTCH 2024, pp. 42-43. */
+
+  /** Azul celeste A `#00ADE7` — color principal de la Entidad. */
+  --alcaldia-azul-celeste-a: #00ade7;
+  /** Azul noche `#00568D` — principal. */
+  --alcaldia-azul-noche: #00568d;
+  /** Amarillo sol `#FFDC2A` — principal. */
+  --alcaldia-amarillo-sol: #ffdc2a;
+  /** Azul celeste B `#8EC6E3` — secundario. */
+  --alcaldia-azul-celeste-b: #8ec6e3;
+  /** Blanco `#FFFFFF`. */
+  --alcaldia-blanco: #ffffff;
+  /** Negro de texto. No está en el manual como color de marca, pero es el que
+      el propio `sitio.css` documenta para el texto sobre celeste (8,13:1). */
+  --alcaldia-negro: #000000;
+
+  /* --- Escala de espaciado -------------------------------------------------
+     Base 4 px, la unidad que el Kit usa en sus propias medidas. Se declara
+     para que el espaciado deje de ser una colección de valores sueltos: en
+     `sitio.css` convivían `12px`, `14px`, `22px` y `46px` sin relación. */
+  --espacio-1: 0.25rem; /*  4 px */
+  --espacio-2: 0.5rem; /*  8 px */
+  --espacio-3: 0.75rem; /* 12 px */
+  --espacio-4: 1rem; /* 16 px */
+  --espacio-5: 1.5rem; /* 24 px */
+  --espacio-6: 2rem; /* 32 px */
+  --espacio-7: 3rem; /* 48 px */
+
+  /* --- Radios y elevación -------------------------------------------------- */
+  --radio-sm: 0.25rem;
+  --radio-md: 0.5rem;
+  --radio-lg: 1rem;
+
+  /* --- Alturas y grosores recurrentes -------------------------------------- */
+  /** Área de pulsación mínima. El Kit la fija en su página 7 y la recoge
+      WCAG 2.5.8; se usa en el menú móvil y en los controles. */
+  --objetivo-tactil: 2.75rem; /* 44 px */
+  /** Filete inferior del menú, en escritorio. */
+  --grosor-filete-menu: 0.25rem; /* 4 px */
+}
+
+/* ============================================================================
+   NIVEL 2 · Semánticos
+   ============================================================================
+
+   El papel del color, no su valor. **Cada token que lleva texto anota su
+   contraste medido**, y eso no es documentación decorativa: la accesibilidad de
+   esta Sede se verifica con `axe-core` en cada PR, y tener la cifra junto al
+   token evita que alguien combine dos colores que ya se sabe que fallan.
+   ============================================================================ */
+
+:root {
+  /* --- Superficies --------------------------------------------------------- */
+
+  /** Superficie con el color de la Entidad. Es donde el Anexo 2 autoriza el
+      color asignado: la barra inferior del menú, el pie y el carrusel. */
+  --color-superficie-entidad: var(--alcaldia-azul-celeste-a);
+  /** Segunda superficie de la Entidad, para las sombras y los tonos hundidos. */
+  --color-superficie-entidad-profunda: var(--alcaldia-azul-noche);
+  /** Superficie neutra de apoyo (avisos, paneles secundarios). */
+  --color-superficie-neutra: var(--govcolor-white-smoke, #f4f4f4);
+
+  /* --- Texto ---------------------------------------------------------------
+     El texto sobre celeste va **oscuro**, y es una consecuencia del color, no
+     un gusto: medido sobre `#00ADE7`,
+
+         negro   #000000   →  8,13:1  ✓ supera AA (4,5:1)
+         blanco  #FFFFFF   →  2,59:1  ✗
+         noche   #00568D   →  2,78:1  ✗
+
+     El Kit pone texto blanco porque su fondo por defecto es oscuro; sobre el
+     celeste de la Entidad incumpliría. */
+  --color-texto-sobre-entidad: var(--alcaldia-negro);
+  /** Texto sobre la superficie institucional oscura (azul noche): 7,19:1. */
+  --color-texto-sobre-entidad-profunda: var(--alcaldia-blanco);
+  /** Texto corriente sobre fondo claro. */
+  --color-texto: var(--govcolor-matterhorn, #4c4c4c);
+  /** Texto de máximo contraste, para titulares. */
+  --color-texto-fuerte: var(--govcolor-black, #000000);
+
+  /* --- Interacción --------------------------------------------------------- */
+  /** Enlace corriente. Es el cobalto del Kit: 8,46:1 sobre blanco.
+      Bootstrap usaría su azul `#0D6EFD`, que da **exactamente 4,50:1** —el
+      límite— y cae a 3,63:1 en cuanto el fondo se tiñe. */
+  --color-enlace: var(--govcolor-cobalt, #0943b5);
+  /** Enlace en el borde de una superficie teñida. */
+  --color-enlace-sobre-tenido: var(--alcaldia-azul-noche);
+}
+
+/* ============================================================================
+   NIVEL 3 · Componentes
+   ============================================================================
+
+   Lo que un componente concreto necesita y no se deduce de un papel genérico.
+   Si un token de aquí sólo lo usa un componente, vive aquí; si lo usan dos, se
+   promueve al nivel 2.
+   ============================================================================ */
+
+:root {
+  /* --- Menú de navegación -------------------------------------------------- */
+
+  /** El filete inferior del menú. El Anexo 2 lo nombra como el segundo sitio
+      donde va el color de la Entidad: «la barra inferior del menú». */
+  --menu-filete: var(--color-superficie-entidad);
+  /** El fondo del ítem activo: el mismo color, porque el Anexo lo autoriza. */
+  --menu-item-activo-fondo: var(--color-superficie-entidad);
+  /** El rótulo del ítem activo: oscuro, por el contraste de arriba. */
+  --menu-item-activo-texto: var(--color-texto-sobre-entidad);
+  /** El panel desplegado en móvil, que fluye debajo de su ítem. */
+  --menu-panel-fondo: var(--color-superficie-neutra);
+  /** Separador entre ítems de primer nivel en móvil. */
+  --menu-separador: var(--govcolor-silver, #b9b9b9);
+
+  /* --- Pie de página -------------------------------------------------------- */
+
+  /** La banda inferior, en el color de la Entidad. Sobre ella el texto va
+      oscuro: celeste `#00ADE7` con negro da 8,13:1. */
+  --pie-banda-fondo: var(--color-superficie-entidad);
+  --pie-banda-texto: var(--color-texto-sobre-entidad);
+  /** Enlaces de la sección blanca del pie: azul noche, 7,73:1 sobre blanco.
+      Con celeste darían 2,58:1 — se midió, y era una regresión real. */
+  --pie-enlace-sobre-blanco: var(--color-enlace-sobre-tenido);
+}

@@ -1,9 +1,90 @@
-/*
- * Hoja de estilos propia del sitio.
- *
- * El grueso de la capa visual es el Kit gov.co (`public/govco/all.css`), que se
- * carga aparte. Aquí va sólo lo que el Kit no resuelve.
- */
+/* ============================================================================
+   REGLAS DE ESTE ARCHIVO — léelas antes de tocar nada
+   ============================================================================
+
+   La guía completa está en `sitio/AGENTS.md`. Esto es lo que hay que saber para
+   no romper nada, resumido donde lo vas a ver: **en el propio archivo**.
+
+   ## Dónde encaja
+
+        bootstrap.min.css  →  all.css  →  tokens.css  →  sitio.css
+              (vendor)        (vendor)     (valores)      (reglas)
+
+   Cada hoja posterior gana a las anteriores **por orden de aparición**. Por eso
+   aquí **no hacen falta `!important`** para sobreescribir al Kit o a Bootstrap:
+   basta con que la hoja se cargue después, y está declarado en `nuxt.config.ts`.
+   **No cambies ese orden**: es la arquitectura, no una preferencia.
+
+   ## Las cuatro reglas
+
+   1. **La carpeta `public/govco` no se toca nunca.** Es el Kit y Bootstrap vendorizados
+      byte a byte contra su CDN, y **el Kit depende de Bootstrap sin
+      distribuirlo**: recompilarlo podría divergir de lo que el Kit espera.
+
+   2. **Un color no se escribe en crudo aquí.** Se declara una vez en
+      `tokens.css` y se consume con `var()`. Escribirlo dos veces es como se
+      llegó a tener el mismo azul en dos formas —`#00ADE7` y `#00ade7`— dieciséis
+      veces en este mismo archivo.
+
+   3. **Se consume el token semántico (nivel 2) o el de componente (nivel 3),
+      nunca el primitivo (nivel 1).** Un componente acoplado al valor no se puede
+      re-tematizar; acoplado al papel, sí.
+
+   4. **Si tu cambio corrige un defecto del Kit, dilo explícitamente** con su
+      medición. Este archivo documenta veinte puntos donde el Kit incumple lo que
+      él mismo publica; esa documentación es lo que permite actualizar el Kit sin
+      perderlos.
+
+   ## Cómo añadir una regla
+
+   - Elige **la sección que corresponda**: el archivo está dividido con
+     encabezados de 80 caracteres, y cada uno dice de qué va.
+   - **Escribe el porqué, no el qué.** El 26 % de este archivo son comentarios y
+     no es casualidad: cada decisión no obvia lleva su motivo, porque una regla
+     sin motivo se desactiva en cuanto estorba.
+   - **Si el arreglo obvio no sirve, dilo.** Es lo que evita que alguien lo
+     reintente mañana.
+
+   El encabezado de sección se abre con una línea de 78 signos igual, el título,
+   otra línea igual, y **el motivo** debajo. Mira cualquiera de las secciones de
+   este archivo: todas siguen esa forma.
+
+   ## Antes de dar algo por hecho
+
+       npm run typecheck                     # 0 errores
+       npm run build                         # sin errores
+       npx stylelint "app/assets/css"  # limpio
+       # con el build servido:
+       node scripts/captura-visual.mjs       # las 11 vistas iguales
+
+   **La captura visual no es opcional.** `axe` verifica contraste, foco y
+   estructura, pero **no verifica que la página se siga viendo igual**.
+
+   ## Por qué esta advertencia está aquí y no sólo en un documento
+
+   `stylelint --fix` cambió `:not(svg):not(path)` por `:not(svg, path)` en la
+   regla del modo de contraste. La notación moderna **no es equivalente**:
+
+       :not(svg):not(path)   cada :not aporta (0,0,1)  →  suma (0,0,2)
+       :not(svg, path)       un solo :not, toma el máximo  →  (0,0,1)
+
+   **Baja la especificidad** de una regla que existe precisamente para ganarle a
+   todo lo ya pintado. `axe` seguía en cero violaciones, ninguna prueba se rompió,
+   y el modo de contraste se repintaba distinto.
+
+   Sólo lo vio la captura visual. Por eso `selector-not-notation` está desactivada
+   en `.stylelintrc.json`: **una regla de estilo no puede ganarle a una de
+   corrección.**
+
+   ## Y una decisión que no hay que reintentar
+
+   Los modos de accesibilidad viven **en este archivo**, intercalados con las
+   secciones que sobreescriben. Se intentó extraerlos a `modos-accesibilidad.css`
+   y **se descartó**: no aporta nada funcional —las reglas funcionan donde
+   están— y arriesga el orden del que depende que el modo gane. Las cuatro reglas
+   que el linter marcaría en ellos están relajadas en `.stylelintrc.json`, **con
+   su motivo escrito**. No lo reintentes sin una razón nueva.
+   ============================================================================ */
 
 /* ============================================================================
    Modo de alto contraste
@@ -52,7 +133,7 @@
 .contraste-govco button,
 .contraste-govco a *,
 .contraste-govco button * {
-  color: #ffff00 !important;
+  color: #ff0 !important;
 }
 
 .contraste-govco a {
@@ -63,7 +144,7 @@
 .contraste-govco :focus-visible,
 .contraste-govco a:focus-visible,
 .contraste-govco button:focus-visible {
-  outline: 3px solid #ffff00 !important;
+  outline: 3px solid #ff0 !important;
   outline-offset: 2px !important;
 }
 
@@ -142,8 +223,7 @@
 .pie-pagina-govco .logo-container {
   position: static;
   align-items: flex-start;
-  flex-direction: row;
-  flex-wrap: wrap;
+  flex-flow: row wrap;
   gap: 1rem;
   margin-bottom: 1.875rem;
 }
@@ -156,12 +236,6 @@
   margin: 0 1rem;
 }
 
-/* La banda inferior ya va a la izquierda; se refuerza para que los tres logos
-   compartan el mismo eje que el resto del contenido. */
-.pie-pagina-govco .second-section {
-  justify-content: flex-start;
-  padding-left: 1.25rem;
-}
 
 
 /* ============================================================================
@@ -186,7 +260,7 @@
 .cabecera-govco,
 .menu-govco,
 .barra-superior-govco {
-  --govcolor-tulip: #00ade7;
+  --govcolor-tulip: var(--alcaldia-azul-celeste-a);
 }
 
 /* ============================================================================
@@ -235,14 +309,31 @@
   blanco da **2,58:1**, muy por debajo del 4,5:1 de AA. El token se acota a la
   banda que de verdad lleva el color.
 */
+/*
+ * **La banda inferior del pie: alineación y color, en un solo bloque.**
+ *
+ * Estaban declarados por separado —uno en la sección de los logos y otro aquí—
+ * y eso es un problema real, no de estilo: dos bloques del mismo selector hacen
+ * que **el orden de las secciones decida** cuál gana, y quien edite uno creerá
+ * que está tocando todo el selector. Se unifican aquí, con los dos motivos.
+ *
+ *   - La alineación: los tres logos comparten el mismo eje que el resto del
+ *     contenido, en vez de quedar centrados.
+ *   - El color: el token del Kit se acota a **esta** banda, y no a todo el pie.
+ *     La auditoría detectó que los enlaces de la primera sección —fondo BLANCO—
+ *     heredaban ese token, y el celeste sobre blanco da 2,58:1, por debajo del
+ *     4,5:1 de AA. El celeste va donde de verdad se ve.
+ */
 .pie-pagina-govco .second-section {
-  --govcolor-cobalt: #00ade7;
+  --govcolor-cobalt: var(--alcaldia-azul-celeste-a);
+  justify-content: flex-start;
+  padding-left: 1.25rem;
 }
 
 /* Los enlaces de la primera sección van sobre blanco: azul noche, que da 7,19:1
    y sigue siendo un azul de la paleta de la Entidad. */
 .pie-pagina-govco .first-section a {
-  color: #00568d !important;
+  color: var(--alcaldia-azul-noche) !important;
 }
 
 /* Las sombras decorativas del pie, que el Kit pinta en naranja, y el filete
@@ -250,8 +341,8 @@
    respira el mismo celeste (#00ADE7), tanto la banda inferior, como el
    filete, como las sombras del primer bloque. */
 .pie-pagina-govco .first-section {
-  --govcolor-tulip: #00ade7;
-  --govcolor-tropical-blue: #00ade7;
+  --govcolor-tulip: var(--alcaldia-azul-celeste-a);
+  --govcolor-tropical-blue: var(--alcaldia-azul-celeste-a);
 }
 
 /*
@@ -278,7 +369,7 @@
 
 /* El separador del Kit es blanco y sobre celeste desaparecería. */
 .pie-pagina-govco .second-section .separator {
-  border-left-color: #00568d !important;
+  border-left-color: var(--alcaldia-azul-noche) !important;
 }
 
 
@@ -488,7 +579,7 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
    declaración al elemento no rompa el icono del menú en este modo.
    ============================================================================ */
 
-.dislexia-govco #__nuxt *:not(.icon-menu-govco):not(.govco-svg):not([class*='govco-icon']) {
+.dislexia-govco #__nuxt *:not(.icon-menu-govco, .govco-svg, [class*='govco-icon']) {
   font-family: Verdana, Tahoma, Geneva, sans-serif !important;
   letter-spacing: 0.06em;
   word-spacing: 0.16em;
@@ -799,7 +890,7 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .form-select:focus,
 .form-check-input:focus {
   border-color: var(--govcolor-cobalt, #0943b5);
-  box-shadow: 0 0 0 0.25rem rgba(9, 67, 181, 0.25);
+  box-shadow: 0 0 0 0.25rem rgb(9, 67, 181, 0.25);
 }
 
 .form-check-input:checked {
@@ -824,7 +915,7 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .form-select:disabled,
 .form-control[readonly] {
   background-color: var(--govcolor-solitude, #e5ecf8);
-  border-color: var(--govcolor-silver, #cccccc);
+  border-color: var(--govcolor-silver, #ccc);
   color: var(--govcolor-matterhorn, #4c4c4c);
   opacity: 1;
 }
@@ -839,7 +930,7 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .form-select.is-invalid:focus,
 .form-check-input.is-invalid:focus {
   border-color: var(--govcolor-red, #a80521);
-  box-shadow: 0 0 0 0.25rem rgba(168, 5, 33, 0.25);
+  box-shadow: 0 0 0 0.25rem rgb(168, 5, 33, 0.25);
 }
 
 .form-control.is-valid,
@@ -984,16 +1075,41 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .menu-govco .navbar-nav > .nav-item:nth-child(2),
 .menu-govco .navbar-nav > .nav-item:nth-child(3) {
   /*
-   * **Ancho de los desplegables principales.** El Kit pone 11.563 rem, lo que
-   * parte "Atención al ciudadano" en dos líneas. Se sube a 13 rem para que
-   * el rótulo quepa en una línea con el padding lateral del Kit (0.625 rem a
-   * cada lado), y el hover cubra toda la etiqueta sin que el texto se vea
-   * apretado —exactamente como en el ejemplo del Estado colombiano donde
-   * "Atención y Servicios a la Ciudadanía" se muestra en una sola línea con
-   * padding generoso.
+   * **Ancho de los desplegables principales: el que pida su rótulo.**
+   *
+   * El Kit pone 11.563 rem fijos, y eso parte «Atención al ciudadano» en dos
+   * líneas. La corrección anterior subió el valor a 13 rem —«para que quepa»—,
+   * y funcionaba… mientras el rótulo midiera exactamente lo que mide hoy:
+   *
+   *   - con el **aumento de letra** que ofrece la barra de accesibilidad, el
+   *     texto crece y el ancho se queda igual → vuelve a partirse;
+   *   - con otra fuente, otro idioma o unos píxeles menos de ventana, lo mismo.
+   *
+   * Un ancho fijo sólo acierta con una combinación concreta de fuente y tamaño,
+   * y esta Sede tiene que servir a cualquiera que agrande la letra —que es
+   * justamente quien más lo necesita—.
+   *
+   * Por eso el ancho deja de ser fijo: `min-width` conserva la holgura visual
+   * entre ítems y `width: auto` permite que el ítem **crezca lo que su rótulo
+   * necesite**. Con `white-space: nowrap` en el enlace, el texto no se parte en
+   * ninguna circunstancia. El reparto del menú se ajusta solo, porque es flex.
    */
   min-width: 13rem;
-  width: 13rem;
+  width: auto;
+}
+
+/*
+ * **El rótulo de un ítem de menú no se parte nunca en dos líneas.**
+ *
+ * Un menú de navegación principal se lee recorriéndolo con la vista; partido en
+ * dos líneas deja de leerse como una lista y el ítem deja de reconocerse de un
+ * vistazo. Y no es sólo estética: con el aumento de letra activo el texto
+ * crecía, el ancho no, y el rótulo se partía justo para quien había pedido
+ * letra más grande.
+ */
+.menu-govco .navbar-nav .nav-item .nav-link,
+.menu-govco .navbar-nav .nav-item .nav-link span {
+  white-space: nowrap;
 }
 
 .menu-govco .navbar-nav .nav-item .nav-link {
@@ -1072,8 +1188,8 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .menu-govco .navbar-nav .nav-item .nav-link:focus-visible,
 .menu-govco .navbar-nav .nav-item .nav-link.active,
 .menu-govco .navbar-nav .nav-item .nav-link[aria-expanded="true"] {
-  background-color: #00ade7;
-  color: #000000;
+  background-color: var(--alcaldia-azul-celeste-a);
+  color: #000;
 }
 
 /*
@@ -1143,4 +1259,257 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
  */
 .portada-sede .carrusel-govco .leyenda-carrusel {
   max-width: min(28rem, 80%);
+}
+
+/* ============================================================================
+   Navegación en pantallas pequeñas: el menú de la hamburguesa
+   ============================================================================
+
+   **El problema, medido antes de tocar nada.** A 390 px, con el menú abierto y
+   un submenú desplegado:
+
+     - el menú medía **670 px de alto** para siete ítems;
+     - «Atención al ciudadano» ocupaba un bloque celeste de **~490 px** para una
+       sola línea de texto;
+     - había **~240 px de vacío** al principio, sin nada dentro;
+     - y «Participa» se dibujaba **encima** del submenú: se leía
+       «Atención al ciudadan**Participa**».
+
+   **La causa era una sola y no era móvil: eran reglas de escritorio.** Más
+   arriba, `.menu-govco { align-items: stretch }`,
+   `.navbar-collapse/.navbar-nav { height: 100% }` y
+   `.nav-item { align-self: stretch }` existen para que el hover rellene la
+   barra de 72 px de extremo a extremo —pero **no estaban dentro de ningún
+   `@media`**, así que en móvil, donde el contenedor contiene el menú entero
+   desplegado y por tanto es altísimo, cada ítem se estiraba hasta llenarlo.
+
+   Eso explica los tres síntomas a la vez: el estirado, el vacío (el primer
+   ítem empujando desde arriba) y el solapamiento (el panel del submenú
+   posicionado contra un contenedor cuya altura ya no significaba nada).
+
+   **El modelo que se aplica debajo de `md`**, que es donde el Kit colapsa el
+   menú, es el de una lista de navegación, no el de una barra horizontal:
+
+     1. Cada ítem mide lo que mide su contenido. Nada se estira.
+     2. Área de pulsación de **44 px** como mínimo —el mínimo táctil que fija el
+        propio Kit en su página 7 y que WCAG 2.5.8 recoge—.
+     3. Un ritmo de espaciado único, en múltiplos de 4 px, para que la lista
+        tenga cadencia en vez de alturas accidentales.
+     4. El submenú **fluye** debajo de su ítem, con fondo y sangría propios: se
+        ve a qué ítem pertenece y no tapa a los siguientes.
+     5. Separación entre grupos, no entre cada línea: líneas finas por todas
+        partes convierten la lista en una rejilla y se pierde la jerarquía.
+   ============================================================================ */
+
+@media (max-width: 767.98px) {
+  /* 1 y 2. El ítem deja de estirarse y pasa a ser un objetivo táctil. */
+  .menu-govco,
+  .menu-govco .navbar-collapse,
+  .menu-govco ul.navbar-nav,
+  .menu-govco .navbar-nav > .nav-item {
+    height: auto;
+    align-items: stretch;
+  }
+
+  /*
+   * **La lista se apila en vertical, y esto resolvía el desborde horizontal.**
+   *
+   * Bootstrap deja `.navbar-nav` en `display: flex` con `flex-direction: row`,
+   * que es lo correcto en una barra horizontal. En móvil los siete ítems seguían
+   * uno al lado del otro, empujándose a lo ancho: medido a 320 px, el contenedor
+   * del menú medía **375 px de ancho en una ventana de 320** —los ítems se
+   * sumaban en fila y arrastraban la página entera—.
+   *
+   * Con `column` cada ítem ocupa una fila y el ancho total es el de la ventana.
+   * Es además lo que hace legible una lista: se recorre de arriba abajo.
+   */
+  .menu-govco ul.navbar-nav {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  /*
+   * **`min-width: 0`, y esta línea era la que faltaba para el desborde.**
+   *
+   * `.navbar-collapse` es un ítem flex y trae `min-width: auto`, que es el valor
+   * por defecto y significa «no encojas por debajo del ancho mínimo de tu
+   * contenido». Como lo que contiene no cabía en 320 px, el contenedor se
+   * estiraba a **375 px dentro de una ventana de 320** y arrastraba la página.
+   *
+   * Trazado el árbol: el `html`, el `body`, `#__nuxt`, la disposición, el
+   * `.contenido-filtrable`, el `nav` y el `container-fluid` medían **los 320
+   * correctos**; sólo este nodo medía 375. Un `min-width: 0` lo devuelve a su
+   * sitio: es el precio de que un ítem flex pueda encogerse, y sin él ningún
+   * ajuste de los hijos sirve de nada.
+   */
+  .menu-govco .navbar-collapse {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* El buscador del menú tampoco puede imponer un ancho mínimo. */
+  .menu-govco .container-search-menu,
+  .menu-govco .container-search-menu input {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /*
+   * **La misma trampa, un nivel más adentro.** El `<ul>` del panel también trae
+   * `min-width: auto`, así que no encogía por debajo del rótulo más largo de
+   * Participa y dejaba el desborde en 360 px dentro de una ventana de 320. Se
+   * libera la cadena entera del panel: contenedor, lista, ítem y enlace. Los
+   * `li` y `a` ya venían a cero; el que faltaba era la lista.
+   */
+  .menu-govco .navbar-nav .dropdown-menu,
+  .menu-govco .navbar-nav .dropdown-menu ul,
+  .menu-govco .navbar-nav .dropdown-menu li,
+  .menu-govco .navbar-nav .dropdown-menu a {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .menu-govco .navbar-nav > .nav-item {
+    align-self: auto;
+    width: 100%;
+
+    /* El `min-width` de 13 rem existe para dar holgura entre ítems **en una
+       barra horizontal**. En una lista vertical sobra y es lo que impedía que
+       los ítems se ajustaran a la ventana. */
+    min-width: 0;
+  }
+
+  .menu-govco .navbar-nav .nav-item .nav-link {
+    /*
+     * `height: 100%` y `align-self: stretch` vienen de las reglas de escritorio
+     * de más arriba. Aquí se anulan explícitamente, y no basta con no
+     * declararlas: hay que deshacerlas.
+     */
+    height: auto;
+    align-self: auto;
+
+    /* 3. El ritmo: 14 px arriba y abajo sobre una línea de 21 px da 49 px, por
+       encima de los 44 px mínimos y con aire suficiente para el pulgar. */
+    min-height: 2.75rem;
+    padding: 0.875rem 1rem;
+    justify-content: flex-start;
+    text-align: left;
+    gap: 0.5rem;
+  }
+
+  /* El chevron del desplegable se separa del rótulo y queda a la derecha del
+     todo, que es lo que hace legible una lista: se ve de un vistazo qué ítems
+     abren algo. */
+  .menu-govco .navbar-nav .nav-item .nav-link .govco-icon,
+  .menu-govco .navbar-nav .nav-item .nav-link::after {
+    margin-left: auto;
+  }
+
+  /*
+   * 4. El submenú, en el flujo.
+   *
+   * El Kit lo posiciona en absoluto para que flote sobre la página —correcto en
+   * escritorio, donde el menú es una barra y el panel no debe empujar nada—.
+   * En móvil una lista no flota: **se despliega**. Con `position: static` el
+   * panel empuja a los ítems siguientes en vez de taparlos, que es justo el
+   * solapamiento que había.
+   */
+  .menu-govco .navbar-nav .dropdown-menu,
+  .menu-govco .navbar-nav .megamenu-menu-govco {
+    position: static !important;
+    float: none;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+
+    /* El fondo distingue el panel de su ítem padre sin competir con él, y la
+       sangría dice a qué ítem pertenece. */
+    background-color: var(--govcolor-white-smoke, #f4f4f4);
+    padding: 0.5rem 0;
+  }
+
+  /*
+   * **Los enlaces del panel crecen lo que su rótulo necesite, y ahí estaba el
+   * solapamiento.**
+   *
+   * Medido en «Participa» a 390 px: el enlace medía **44 px** con un
+   * `scrollHeight` de **65 px** y `overflow: hidden`. Los rótulos de Participa
+   * son largos —«Participación para la identificación de problemas y diagnóstico
+   * de necesidades»— y no caben en una línea; el Kit fija la altura del
+   * `dropdown-item` para una sola, así que el texto se recortaba y sus últimas
+   * líneas se dibujaban **encima del ítem siguiente**. Eso era el solapamiento:
+   * no el panel, sino el enlace desbordando su propia caja.
+   *
+   * Se sueltan las tres ataduras que lo causaban —altura fija, `nowrap` y
+   * recorte— y se le da un área táctil que es un **mínimo**, no un techo.
+   */
+  .menu-govco .navbar-nav .dropdown-item,
+  .menu-govco .navbar-nav .dropdown-menu .nav-link,
+  .menu-govco .navbar-nav .dropdown-menu a {
+    height: auto;
+    min-height: 2.75rem;
+    max-height: none;
+    overflow: visible;
+
+    /*
+     * **`display: block`, y es la pieza que faltaba.**
+     *
+     * El Kit pone `display: flex` en el `dropdown-item`. Con flex, el texto del
+     * enlace se convierte en un elemento flex anónimo que **no se encoge**: no
+     * parte la línea por mucho `white-space: normal` que se le ponga, y se sale
+     * de la caja a lo ancho. Medido a 320 px, la página tenía **375 px de ancho
+     * de scroll en una ventana de 320** —55 px de desborde— y los rótulos largos
+     * de Participa se recortaban.
+     *
+     * Con `block` el texto vuelve a ser texto y fluye solo. El alineado
+     * vertical que daba el flex no hace falta aquí: en una lista desplegada el
+     * texto ocupa su caja entera, no se centra dentro de ella.
+     */
+    display: block;
+
+    white-space: normal;
+    overflow-wrap: anywhere;
+
+    /* Sangría para que se lea la jerarquía respecto a su ítem padre, y ritmo
+       vertical propio. */
+    padding: 0.75rem 1rem 0.75rem 2rem;
+    line-height: 1.4;
+    text-align: left;
+    justify-content: flex-start;
+  }
+
+  /*
+   * **El panel no lleva título, y no hay que quitárselo.** El nombre de la
+   * subsección existe en el marcado como `title` y `aria-label` del `<ul>`, que
+   * es donde tiene que estar —describe el grupo a quien usa un lector de
+   * pantalla— pero **no se dibuja**. El padre ya está a la vista justo encima,
+   * así que repetirlo como encabezado visible sólo añadiría ruido.
+   *
+   * Se deja constancia porque es tentador «arreglarlo» añadiendo un `<h3>` al
+   * panel: sería duplicar el rótulo del padre y romper la jerarquía de
+   * encabezados de la página, que ya tiene su `<h1>`.
+   */
+
+  /* 5. Separación entre ítems de primer nivel, no dentro de un mismo panel:
+     una lista con una línea por fila se lee como una rejilla. */
+  .menu-govco .navbar-nav > .nav-item + .nav-item {
+    border-top: 1px solid var(--govcolor-silver, #b9b9b9);
+  }
+
+  /* El panel abierto no necesita separador: su propio fondo ya lo delimita. */
+  .menu-govco .navbar-nav .dropdown-menu .dropdown-item + .dropdown-item {
+    border-top: 0;
+  }
+
+  /*
+   * La barra del menú, en móvil, no lleva el filete inferior de 4 px: ese
+   * filete pertenece a la barra horizontal de escritorio, y colgado de una
+   * lista vertical se lee como un subrayado mal puesto.
+   */
+  .menu-govco {
+    border-bottom: 0;
+  }
 }

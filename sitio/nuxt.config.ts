@@ -31,9 +31,20 @@ export default defineNuxtConfig({
   components: [{ path: '~/components', pathPrefix: false }],
 
   css: [
-    // Lo propio del sitio. El grueso de la capa visual es el Kit gov.co, que se
-    // enlaza desde `app.head` por ser un archivo servido tal cual; aquí va sólo
-    // lo que el Kit no resuelve, como el modo de alto contraste.
+    /*
+     * **El orden es la arquitectura, no una preferencia.**
+     *
+     * `tokens.css` va primero porque es la capa de la que todo lo demás toma
+     * sus valores: declara la paleta de la Entidad una sola vez, con sus
+     * contrastes medidos al lado. `sitio.css` va después y **consume** esos
+     * tokens en vez de repetir colores en crudo.
+     *
+     * El grueso de la capa visual sigue siendo el Kit gov.co, que se enlaza
+     * desde `app.head` por ser un archivo servido tal cual —y vendorizado byte a
+     * byte contra el CDN del Ministerio—. Aquí va sólo lo que el Kit no
+     * resuelve.
+     */
+    '~/assets/css/tokens.css',
     '~/assets/css/sitio.css',
   ],
 

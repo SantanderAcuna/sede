@@ -38,11 +38,20 @@ class DatabaseSeeder extends Seeder
             'email' => 'test@example.com',
         ]);
 
+        // Los datos institucionales de la entidad titular.
+        // Alimentan la cabecera y el pie de página de la sede.
+        $this->call(EntidadSeeder::class);
+
         // El catálogo de trámites de la Entidad. Va aquí y no en un comando
         // aparte porque `php artisan migrate:fresh --seed` —lo que ejecuta
         // `make preparar`— tiene que dejar la sede con el mismo catálogo que
         // sirve en producción: una base de desarrollo sin trámites esconde
         // justo el estado vacío que no se quiere volver a tener.
         $this->call(TramiteSeeder::class);
+
+        // Y el super-admin. Sin él, una base recién sembrada no tiene quién
+        // conceda permisos: es la cuenta que el `Gate::before` deja pasar
+        // siempre, así que su ausencia deja el panel inaccesible.
+        $this->call(SuperAdminSeeder::class);
     }
 }

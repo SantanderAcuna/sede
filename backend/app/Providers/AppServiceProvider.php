@@ -9,11 +9,17 @@ use App\Contracts\Repositories\IngestaTramiteRepositoryInterface;
 use App\Contracts\Repositories\TramiteRepositoryInterface;
 use App\Contracts\Services\IngestaTramitesInterface;
 use App\Contracts\Services\TramiteServiceInterface;
+use App\Models\User;
 use App\Repositories\Eloquent\IngestaTramiteRepository;
 use App\Repositories\Eloquent\TramiteRepository;
 use App\Services\GovCo\FuenteFichaGovCo;
 use App\Services\IngestaTramites;
 use App\Services\TramiteService;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -42,10 +48,41 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Bootstrap any application services.
+     * Arranca los servicios transversales: sobre plano, autorización y límites.
      */
     public function boot(): void
     {
-        //
+        // El sobre plano es global, no del controlador. Sin esto, cualquier
+        // `JsonResource` que se devuelva sin pasar por `ApiResponse` sale con el
+        // envoltorio `{"data": …}` de Laravel y aparecen dos formas de respuesta
+        // según quién escriba la línea; con esto, `data` es siempre el objeto que
+        // el contrato declara.
+        JsonResource::withoutWrapping();
+
+        // El super-admin no pasa por las comprobaciones de permisos. El `null` del
+        // caso contrario no es un descuido: devolver `false` aquí negaría el
+        // permiso antes de que la Policy o el `Gate` pudieran concederlo, y un
+        // `Gate::before` que deniega no se puede revertir después.
+        Gate::before(function (User $usuario, string $habilidad) {
+            return $usuario->hasRole('super-admin') ? true : null;
+        });
+
+        // El acceso se limita por correo y por IP a la vez: el primer límite frena
+        // el ataque contra una cuenta concreta —cinco intentos— y el segundo frena
+        // el barrido de muchas cuentas desde una misma máquina, que el primero no
+        // vería porque cada correo es distinto.
+        RateLimiter::for('login', function (Request $peticion) {
+            return [
+                Limit::perMinute(5)->by($peticion->input('email').'|'.$peticion->ip()),
+                Limit::perMinute(20)->by($peticion->ip()),
+            ];
+        });
+
+        // La API entera cabe en sesenta peticiones por minuto. Se cuenta por
+        // usuario cuando hay sesión y por IP cuando no, para que un cliente
+        // autenticado no consuma el cupo de la oficina entera que comparte salida.
+        RateLimiter::for('api', function (Request $peticion) {
+            return Limit::perMinute(60)->by($peticion->user()?->id ?: $peticion->ip());
+        });
     }
 }

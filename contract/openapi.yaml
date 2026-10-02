@@ -33,6 +33,12 @@ info:
     | Actualización | Verbo `PATCH`, nunca `PUT` |
     | Paginación | `page` y `per_page`; `per_page` máximo 100 |
     | Errores de validación | `errors` con clave por campo |
+
+    # Historia de cambios
+
+    | Fecha | Versión | Cambio |
+    |---|---|---|
+    | 2026-10-02 | 1.0.0 | Unificación de contract/openapi.yaml + entidad-transparencia/openapi-3.1.yaml |
   contact:
     name: Equipo de la Sede Electrónica
   license:
@@ -49,8 +55,30 @@ tags:
     description: Datos institucionales de la autoridad titular
   - name: Trámites
     description: Catálogo de trámites y servicios
+  - name: Salud
+    description: Health check
+  - name: Identidad
+    description: Top bar, footer, menú, políticas
+  - name: Noticias
+    description: Noticias del home y detalle
+  - name: Transparencia
+    description: 10 subsecciones de Ley 1712, documentos, búsqueda
+  - name: Buscar
+    description: Búsqueda full-text unificada
+  - name: Panel — Auth
+    description: Autenticación del panel (Sanctum)
+  - name: Panel — Transparencia
+    description: CRUD de documentos de transparencia (autenticado)
+  - name: Panel — ITA
+    description: Tablero ITA interno (admin)
+  - name: Panel — Auditoría
+    description: Log de auditoría (admin)
 
 paths:
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # ENTIDAD (recurso público básico)
+  # ══════════════════════════════════════════════════════════════════════════════
   /entidad:
     get:
       tags: [Entidad]
@@ -88,19 +116,19 @@ paths:
                       type: entidad
                       nombre: Alcaldía Distrital de Santa Marta
                       sigla: D.T.C.H.
-                      nit: '891.780.009-4'
-                      direccion: Calle 14 No. 2-49, Palacio Municipal
+                      nit: "891.780.009-4"
+                      direccion: "Calle 14 No. 2-49, Palacio Municipal"
                       municipio: Santa Marta
                       departamento: Magdalena
                       pais: Colombia
-                      telefono: '(+57) 605 420 9600'
-                      linea_atencion: '(+57) 605 4351719'
-                      linea_gratuita: '018000 955 532'
-                      linea_anticorrupcion: '(+57) 605 4351719'
+                      telefono: "(+57) 605 420 9600"
+                      linea_atencion: "(+57) 605 4351719"
+                      linea_gratuita: "018000 955 532"
+                      linea_anticorrupcion: "(+57) 605 4351719"
                       correo_atencion: atencionalciudadano@santamarta.gov.co
                       correo_notificaciones_judiciales: notificacionesalcaldiadistrital@santamarta.gov.co
-                      horario: Lunes a viernes de 8:00 a 12:00 y de 14:00 a 18:00
-                      codigo_postal: '470004'
+                      horario: "Lunes a viernes de 8:00 a 12:00 y de 14:00 a 18:00"
+                      codigo_postal: "470004"
                       dominio: https://staging.santamarta.gov.co
                       logo: /storage/entidad/escudo.svg
                       redes:
@@ -109,23 +137,26 @@ paths:
                       politicas:
                         - slug: terminos-y-condiciones
                           nombre: Términos y condiciones
-                          actualizada_en: '2026-09-30'
+                          actualizada_en: "2026-09-30"
                         - slug: seguridad-y-privacidad
                           nombre: Seguridad y privacidad
-                          actualizada_en: '2026-09-30'
+                          actualizada_en: "2026-09-30"
                         - slug: tratamiento-de-datos
                           nombre: Protección y tratamiento de datos personales
-                          actualizada_en: '2026-09-30'
+                          actualizada_en: "2026-09-30"
                         - slug: uso-de-cookies
                           nombre: Uso de cookies
-                          actualizada_en: '2026-09-30'
+                          actualizada_en: "2026-09-30"
                         - slug: derechos-de-autor
                           nombre: Derechos de autor y uso sobre los contenidos
-                          actualizada_en: '2026-09-30'
+                          actualizada_en: "2026-09-30"
                       datos_por_confirmar: []
                     errors: null
       security: []
 
+  # ══════════════════════════════════════════════════════════════════════════════
+  # TRÁMITES
+  # ══════════════════════════════════════════════════════════════════════════════
   /tramites:
     get:
       tags: [Trámites]
@@ -155,7 +186,8 @@ paths:
           description: Colección paginada de trámites
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/TramiteCollection' }
+              schema:
+                $ref: '#/components/schemas/TramiteCollection'
               examples:
                 paginada:
                   summary: Primera página de trámites
@@ -175,14 +207,14 @@ paths:
                           tiene_costo: con_costo
                           tipo_valor: avaluo_liquidacion
                           valor: null
-                          moneda: Pesos ($)
+                          moneda: "Pesos ($)"
                           url_pago: https://impuestos.santamarta.gov.co:8443/autoservicios.jsf
-                          descripcion: De acuerdo con el avalúo catastral del predio y el Estatuto Tributario Distrital del Acuerdo 004 del 2016, el pago se puede realizar con PSE y con tarjeta débito.
+                          descripcion: De acuerdo con el avalúo catastral del predio y el Estatuto Tributario Distrital del Acuerdo 004 del 2016.
                           cuentas:
                             - entidad: Banco de Bogotá
                               tipo_cuenta: AHORROS
-                              titular: D.T.C.H Santa Marta
-                              numero_cuenta: '070091897'
+                              titular: "D.T.C.H Santa Marta"
+                              numero_cuenta: "070091897"
                               codigo_recaudo: null
                         tiempo_solucion_dias: 1
                         canal_inicio: propio
@@ -214,8 +246,8 @@ paths:
                             formato: HTML
                         puntos_atencion:
                           - nombre: Dirección de Impuestos
-                            direccion: Calle 14 N 2-49 Primer Piso
-                            horario: Lunes a viernes de 8:00 a 11:30 am y 2:00 a 5:30 pm
+                            direccion: "Calle 14 No. 2-49 Primer Piso"
+                            horario: "Lunes a viernes de 8:00 a 11:30 am y 2:00 a 5:30 pm"
                             telefono: null
                             municipio: Santa Marta
                             departamento: Magdalena
@@ -223,9 +255,9 @@ paths:
                             longitud: null
                         normativa:
                           - tipo: Acuerdo
-                            numero: '004'
+                            numero: "004"
                             anio: 2016
-                            articulos: articulo 27, 40
+                            articulos: "articulo 27, 40"
                             url: null
                             url_descarga: https://tramites1.suit.gov.co/registro-web/suit_descargar_archivo?A=79463
                         canales_consulta_estado:
@@ -242,12 +274,12 @@ paths:
                             url: null
                             correo: null
                             telefono: null
-                            horario: Lunes a viernes de 8:00 a 11:30 am y 2:00 a 5:30 pm
+                            horario: "Lunes a viernes de 8:00 a 11:30 am y 2:00 a 5:30 pm"
                         categoria: null
                         procedencia:
-                          fuente: SUIT — Función Pública (entidad 0043)
+                          fuente: "SUIT — Función Pública (entidad 0043)"
                           url: https://www.funcionpublica.gov.co/es/suit/buscador-de-tramites
-                          obtenido_en: '2026-09-30'
+                          obtenido_en: "2026-09-30"
                           nota: null
                           api: https://api-interno.www.gov.co/api/ficha-tramites-y-servicios/
                           origen_por_campo:
@@ -264,10 +296,12 @@ paths:
                             puntos_atencion: fuente
                           derivados:
                             - campo: tiempo_solucion_dias
-                              regla: 'El término lo declara la fuente como «2 HORA(S)» y se publica en 1 día hábil: una jornada son 8 horas.'
+                              regla: "El término lo declara la fuente como «2 HORA(S)» y se publica en 1 día hábil."
                             - campo: canal_inicio
-                              regla: 'El trámite en línea vive en un dominio de la Entidad, así que el canal de inicio es propio.'
+                              regla: "El trámite en línea vive en un dominio de la Entidad, así que el canal de inicio es propio."
                           faltantes: []
+                        publicado_en: "2026-09-30T00:00:00.000000Z"
+                        actualizado_en: "2026-09-30T14:30:00.000000Z"
                     meta:
                       current_page: 1
                       from: 1
@@ -313,12 +347,983 @@ paths:
                   - type: object
                     required: [data]
                     properties:
-                      data: { $ref: '#/components/schemas/TramiteItem' }
+                      data:
+                        $ref: '#/components/schemas/TramiteItem'
         '404':
           $ref: '#/components/responses/NoEncontrado'
       security: []
 
+  # ══════════════════════════════════════════════════════════════════════════════
+  # SALUD — FUERA DE LA API VERSIONADA
+  # ══════════════════════════════════════════════════════════════════════════════
+  # NOTA: Las sondas de salud (/health, /ready) viven en routes/salud.php
+  # Deliberadamente FUERA de la API versionada y sin middleware de sesión.
+  # No son parte del contrato público. Ver backend/AGENTS.md §"Las sondas de salud".
+  # ══════════════════════════════════════════════════════════════════════════════
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # IDENTIDAD
+  # ══════════════════════════════════════════════════════════════════════════════
+  /identidad/top-bar:
+    get:
+      tags: [Identidad]
+      operationId: obtenerTopBar
+      summary: Configuración del top bar GOV.CO
+      description: Alimenta la barra superior institucional con el logo y enlace a GOV.CO. RF-01-001.
+      x-status: pending
+      x-criterios: [RF-01-001, RNF-ACES-01]
+      responses:
+        '200':
+          description: Top bar
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TopBarItem'
+              examples:
+                completa:
+                  value:
+                    success: true
+                    message: null
+                    data:
+                      id: 1
+                      type: top-bar
+                      logo_path: /storage/entidad/logo.svg
+                      url_govco: https://www.gov.co/home/
+                      altura_px: 56
+                      idioma_default: es-CO
+                    errors: null
+      security: []
+
+  /identidad/footer:
+    get:
+      tags: [Identidad]
+      operationId: obtenerFooter
+      summary: Configuración del footer GOV.CO
+      description: Alimenta el pie de página con los 8 datos institucionales, redes y las 5 políticas. RF-01-002, RF-01-018.
+      x-status: pending
+      x-criterios: [RF-01-002, RF-01-018, FUN-014]
+      responses:
+        '200':
+          description: Footer completo
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FooterItem'
+              examples:
+                completa:
+                  value:
+                    success: true
+                    message: null
+                    data:
+                      id: 1
+                      type: footer
+                      nombre_autoridad: "Alcaldía Distrital de Santa Marta"
+                      nit: "891.780.009-4"
+                      direccion: "Calle 14 No. 2-49, Palacio Municipal"
+                      codigo_postal: "470004"
+                      municipio: Santa Marta
+                      departamento: Magdalena
+                      horario: "Lunes a viernes de 8:00 a 12:00 y de 14:00 a 18:00"
+                      commutador: "(+57) 605 420 9600"
+                      linea_anticorrupcion: "(+57) 605 4351719"
+                      correo_institucional: atencionalciudadano@santamarta.gov.co
+                      correo_notificaciones: notificacionesalcaldiadistrital@santamarta.gov.co
+                      redes:
+                        - red: facebook
+                          url: https://www.facebook.com/SantaMartaDTCH
+                      politicas:
+                        - slug: terminos-y-condiciones
+                          nombre: "Términos y condiciones"
+                          actualizada_en: "2026-09-30"
+                        - slug: seguridad-y-privacidad
+                          nombre: "Seguridad y privacidad"
+                          actualizada_en: "2026-09-30"
+                        - slug: tratamiento-de-datos
+                          nombre: "Protección y tratamiento de datos personales"
+                          actualizada_en: "2026-09-30"
+                        - slug: uso-de-cookies
+                          nombre: "Uso de cookies"
+                          actualizada_en: "2026-09-30"
+                        - slug: derechos-de-autor
+                          nombre: "Derechos de autor y uso sobre los contenidos"
+                          actualizada_en: "2026-09-30"
+                    errors: null
+      security: []
+
+  /identidad/menu:
+    get:
+      tags: [Identidad]
+      operationId: obtenerMenu
+      summary: Menú principal de navegación
+      description: Árbol de navegación del sitio. RF-01-007.
+      x-status: pending
+      x-criterios: [RF-01-007]
+      parameters:
+        - name: rol
+          in: query
+          required: false
+          description: Filtrar menú por rol (panel)
+          schema: { type: string }
+      responses:
+        '200':
+          description: Árbol de menú
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/MenuItem' }
+      security: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # POLÍTICAS
+  # ══════════════════════════════════════════════════════════════════════════════
+  /politicas:
+    get:
+      tags: [Identidad]
+      operationId: listarPoliticas
+      summary: Listado de políticas
+      description: Lista las 5 políticas obligatorias vigentes. RF-01-018.
+      x-status: pending
+      x-criterios: [RF-01-018, RN-04]
+      responses:
+        '200':
+          description: Lista de políticas vigentes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/PoliticaItem' }
+      security: []
+
+  /politicas/{codigo}:
+    get:
+      tags: [Identidad]
+      operationId: obtenerPolitica
+      summary: Detalle de una política
+      x-status: pending
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [terminos, privacidad, cookies, derechos-autor, accesibilidad]
+      responses:
+        '200':
+          description: Política
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PoliticaItem'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # NOTICIAS
+  # ══════════════════════════════════════════════════════════════════════════════
+  /noticias:
+    get:
+      tags: [Noticias]
+      operationId: listarNoticias
+      summary: Listado de noticias
+      description: Lista paginada de noticias del home. RF-01-013.
+      x-status: pending
+      x-criterios: [RF-01-013]
+      parameters:
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+        - name: categoria
+          in: query
+          required: false
+          schema: { type: string }
+        - name: destacada
+          in: query
+          required: false
+          schema: { type: boolean }
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, default: "-fecha_publicacion" }
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoticiaCollection'
+      security: []
+
+  /noticias/{slug}:
+    get:
+      tags: [Noticias]
+      operationId: obtenerNoticia
+      summary: Detalle de una noticia
+      x-status: pending
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Noticia
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/NoticiaItem'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # TRANSPARENCIA (Módulo 02)
+  # ══════════════════════════════════════════════════════════════════════════════
+  /transparencia/subsecciones:
+    get:
+      tags: [Transparencia]
+      operationId: listarSubseccionesTransparencia
+      summary: 10 subsecciones de Ley 1712
+      description: Lista las 10 subsecciones obligatorias de transparencia. RF-02-001.
+      x-status: pending
+      x-criterios: [RF-02-001, RN-02]
+      responses:
+        '200':
+          description: Lista de subsecciones
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/SubseccionTransparenciaItem' }
+              examples:
+                diezSubsecciones:
+                  value:
+                    success: true
+                    message: null
+                    data:
+                      - id: 1
+                        type: subseccion-transparencia
+                        codigo: informacion-entidad
+                        nombre: "Información de la entidad"
+                        descripcion: "Datos abiertos sobre la estructura y funcionamiento"
+                        orden: 1
+                        numero_ley: 1
+                      - id: 2
+                        type: subseccion-transparencia
+                        codigo: normativa
+                        nombre: Normativa
+                        descripcion: Leyes, acuerdos, resoluciones aplicables
+                        orden: 2
+                        numero_ley: 2
+                      - id: 3
+                        type: subseccion-transparencia
+                        codigo: contratacion
+                        nombre: Contratación
+                        descripcion: Planes, procesos y contratos
+                        orden: 3
+                        numero_ley: 3
+                      - id: 4
+                        type: subseccion-transparencia
+                        codigo: planeacion
+                        nombre: Planeación
+                        descripcion: Planes, programas y proyectos
+                        orden: 4
+                        numero_ley: 4
+                      - id: 5
+                        type: subseccion-transparencia
+                        codigo: tramites
+                        nombre: "Trámites y servicios"
+                        descripcion: Catálogo de trámites
+                        orden: 5
+                        numero_ley: 5
+                      - id: 6
+                        type: subseccion-transparencia
+                        codigo: participa
+                        nombre: "Participación ciudadana"
+                        descripcion: Mecanismos de participación
+                        orden: 6
+                        numero_ley: 6
+                      - id: 7
+                        type: subseccion-transparencia
+                        codigo: datos-abiertos
+                        nombre: "Datos abiertos"
+                        descripcion: "Conjuntos de datos en formato abierto"
+                        orden: 7
+                        numero_ley: 7
+                      - id: 8
+                        type: subseccion-transparencia
+                        codigo: grupos-interes
+                        nombre: "Grupos de interés"
+                        descripcion: "Información para ciudadanos y empresas"
+                        orden: 8
+                        numero_ley: 8
+                      - id: 9
+                        type: subseccion-transparencia
+                        codigo: reporte-especifico
+                        nombre: "Reportes específicos"
+                        descripcion: "Informes de gestión e informes específicos"
+                        orden: 9
+                        numero_ley: 9
+                      - id: 10
+                        type: subseccion-transparencia
+                        codigo: tributaria
+                        nombre: "Información tributaria"
+                        descripcion: "Impuestos, tasas y contribuciones"
+                        orden: 10
+                        numero_ley: 10
+                    errors: null
+      security: []
+
+  /transparencia/documentos:
+    get:
+      tags: [Transparencia]
+      operationId: listarDocumentosTransparencia
+      summary: Listado de documentos de transparencia
+      description: Documentos publicados de las 10 subsecciones de Ley 1712. RF-02-002, RF-02-028.
+      x-status: pending
+      x-criterios: [RF-02-002, RF-02-028]
+      parameters:
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+        - name: subseccion
+          in: query
+          required: false
+          description: Código de subsección
+          schema: { type: string }
+        - name: categoria
+          in: query
+          required: false
+          schema: { type: string }
+        - name: vigencia
+          in: query
+          required: false
+          description: Año de vigencia (2012-2100)
+          schema: { type: integer, minimum: 2012, maximum: 2100 }
+        - name: formato_abierto
+          in: query
+          required: false
+          schema: { type: boolean }
+        - name: destacado
+          in: query
+          required: false
+          schema: { type: boolean }
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, default: "-fecha_publicacion" }
+      responses:
+        '200':
+          description: Lista paginada de documentos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentoCollection'
+      security: []
+
+  /transparencia/documentos/{slug}:
+    get:
+      tags: [Transparencia]
+      operationId: obtenerDocumentoTransparencia
+      summary: Detalle de un documento
+      description: Detalle con metadatos, archivo y versiones. RF-02-004, RF-02-024.
+      x-status: pending
+      x-criterios: [RF-02-004, RF-02-024]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+        - name: include
+          in: query
+          required: false
+          description: Relaciones a incluir (metadatos,archivo,versiones)
+          schema: { type: string }
+      responses:
+        '200':
+          description: Documento completo
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DocumentoItem'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security: []
+
+  /transparencia/buscar:
+    get:
+      tags: [Transparencia, Buscar]
+      operationId: buscarTransparencia
+      summary: Búsqueda full-text con tolerancia ortográfica
+      description: Búsqueda en documentos de transparencia. RF-02-027.
+      x-status: pending
+      x-criterios: [RF-02-027, RNF-REND-01]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Término de búsqueda (mínimo 3 caracteres)
+          schema: { type: string, minLength: 3 }
+        - name: subseccion
+          in: query
+          required: false
+          schema: { type: string }
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+      responses:
+        '200':
+          description: Resultados de búsqueda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusquedaResult'
+        '400':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security: []
+
+  /transparencia/directorio:
+    get:
+      tags: [Transparencia, Directorio]
+      operationId: listarDirectorio
+      summary: Directorio de servidores públicos
+      description: Lista de servidores públicos activos. RF-02-006.
+      x-status: pending
+      x-criterios: [RF-02-006, RN-03]
+      parameters:
+        - name: dependencia
+          in: query
+          required: false
+          description: Código de dependencia
+          schema: { type: string }
+        - name: cargo
+          in: query
+          required: false
+          schema: { type: string }
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+      responses:
+        '200':
+          description: Listado de servidores públicos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - $ref: '#/components/schemas/PaginatedEnvelope'
+                  - type: object
+                    required: [data, meta, links]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/ServidorPublicoItem' }
+      security: []
+
+  /transparencia/calendario-tributario:
+    get:
+      tags: [Transparencia]
+      operationId: obtenerCalendarioTributario
+      summary: Calendario tributario
+      description: Fechas de vencimiento de obligaciones tributarias. RF-02-016.
+      x-status: pending
+      x-criterios: [RF-02-016]
+      parameters:
+        - name: vigencia
+          in: query
+          required: false
+          description: Año de vigencia
+          schema: { type: integer, example: 2026 }
+      responses:
+        '200':
+          description: Calendario
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/CalendarioTributarioItem' }
+      security: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # BÚSQUEDA GLOBAL
+  # ══════════════════════════════════════════════════════════════════════════════
+  /buscar:
+    get:
+      tags: [Buscar]
+      operationId: buscarGlobal
+      summary: Búsqueda global con autocompletado
+      description: Motor de búsqueda unificado con sugerencias. RF-01-009.
+      x-status: pending
+      x-criterios: [RF-01-009, RNF-REND-01]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Término de búsqueda (mínimo 3 caracteres)
+          schema: { type: string, minLength: 3 }
+        - name: autocompletar
+          in: query
+          required: false
+          description: Modo autocompletar (máx 10 sugerencias)
+          schema: { type: boolean, default: false }
+        - name: limite
+          in: query
+          required: false
+          description: Límite de resultados
+          schema: { type: integer, default: 10, maximum: 10 }
+      responses:
+        '200':
+          description: Sugerencias o resultados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/SugerenciaBusquedaItem' }
+        '400':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security: []
+
+  /sitemap.xml:
+    get:
+      tags: [Identidad]
+      operationId: obtenerSitemap
+      summary: Sitemap XML
+      description: Mapa del sitio para SEO. RF-01-010.
+      x-status: pending
+      x-criterios: [RF-01-010, RNF-ACES-01]
+      responses:
+        '200':
+          description: Sitemap XML
+          content:
+            application/xml:
+              schema:
+                type: string
+      security: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PANEL — AUTH (Sanctum)
+  # ══════════════════════════════════════════════════════════════════════════════
+  /panel/login:
+    post:
+      tags: [Panel — Auth]
+      operationId: login
+      summary: Iniciar sesión
+      description: Autenticación con Sanctum. Puede requerir MFA si está habilitado. RF-SEG-02.
+      x-status: pending
+      x-criterios: [RF-SEG-02, RNF-SEG-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+            example:
+              email: usuario@santamarta.gov.co
+              password: "********"
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          require_mfa: { type: boolean }
+                          mfa_token: { type: [string, 'null'] }
+                          csrf_token: { type: [string, 'null'] }
+                          user: { $ref: '#/components/schemas/UsuarioItem' }
+              examples:
+                simple:
+                  value:
+                    success: true
+                    message: "Sesión iniciada"
+                    data:
+                      require_mfa: false
+                      mfa_token: null
+                      csrf_token: "eyJ..."
+                      user:
+                        id: 1
+                        type: usuario
+                        email: admin@santamarta.gov.co
+                        mfa_habilitado: false
+                        estado: activo
+                        roles:
+                          - id: 1
+                            type: rol
+                            nombre: super-admin
+                            permisos: ["*"]
+                    errors: null
+                con_mfa:
+                  value:
+                    success: true
+                    message: "Código MFA requerido"
+                    data:
+                      require_mfa: true
+                      mfa_token: "eyJ..."
+                      csrf_token: null
+                      user: null
+                    errors: null
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
+  /panel/mfa:
+    post:
+      tags: [Panel — Auth]
+      operationId: verificarMfa
+      summary: Verificar código MFA TOTP
+      x-status: pending
+      x-criterios: [RF-SEG-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mfa_token, code]
+              properties:
+                mfa_token: { type: string }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+            example:
+              mfa_token: "eyJ..."
+              code: "123456"
+      responses:
+        '200':
+          description: MFA verificado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          csrf_token: { type: string }
+                          user: { $ref: '#/components/schemas/UsuarioItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security: []
+
+  /panel/logout:
+    post:
+      tags: [Panel — Auth]
+      operationId: logout
+      summary: Cerrar sesión
+      x-status: pending
+      responses:
+        '204':
+          description: Sesión cerrada
+      security:
+        - cookieSesion: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PANEL — TRANSPARENCIA (CRUD autenticado)
+  # ══════════════════════════════════════════════════════════════════════════════
+  /panel/transparencia/documentos:
+    get:
+      tags: [Panel — Transparencia]
+      operationId: listarDocumentosPanel
+      summary: Listado de documentos (incluye borradores)
+      description: CRUD completo para administradores. RF-02-021.
+      x-status: pending
+      x-criterios: [RF-02-021]
+      parameters:
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+        - name: estado
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [borrador, revision, publicado, despublicado, archivado]
+        - name: autor_id
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Lista completa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentoCollection'
+      security:
+        - cookieSesion: []
+
+    post:
+      tags: [Panel — Transparencia]
+      operationId: crearDocumento
+      summary: Crear documento (multipart)
+      x-status: pending
+      x-criterios: [RF-02-021]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [archivo, titulo, subseccion_id, tipo_documento_id]
+              properties:
+                archivo: { type: string, format: binary }
+                titulo: { type: string }
+                descripcion: { type: string }
+                subseccion_id: { type: integer }
+                categoria_id: { type: integer }
+                tipo_documento_id: { type: integer }
+                fecha_publicacion: { type: string, format: date }
+                periodicidad:
+                  type: string
+                  enum: [anual, semestral, trimestral, mensual, eventual]
+                destacado: { type: boolean }
+      responses:
+        '201':
+          description: Documento creado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DocumentoItem'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/transparencia/documentos/{id}:
+    patch:
+      tags: [Panel — Transparencia]
+      operationId: actualizarDocumento
+      summary: Actualizar documento
+      description: Actualiza documento, incluyendo reemplazo de archivo. RF-02-021.
+      x-status: pending
+      x-criterios: [RF-02-021]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                titulo: { type: string }
+                descripcion: { type: string }
+                estado:
+                  type: string
+                  enum: [borrador, revision, publicado, despublicado, archivado]
+                fecha_publicacion: { type: string, format: date }
+                motivo_cambio: { type: string }
+      responses:
+        '200':
+          description: Documento actualizado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DocumentoItem'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+    delete:
+      tags: [Panel — Transparencia]
+      operationId: eliminarDocumento
+      summary: Soft-delete de documento
+      x-status: pending
+      x-criterios: [RF-02-021]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Eliminado (soft delete)
+      security:
+        - cookieSesion: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PANEL — ALERTAS, ITA, AUDITORÍA
+  # ══════════════════════════════════════════════════════════════════════════════
+  /panel/alertas:
+    get:
+      tags: [Panel — Transparencia]
+      operationId: listarAlertas
+      summary: Alertas de vencimiento
+      description: Alertas de publicaciones obligatorias. RF-02-022.
+      x-status: pending
+      x-criterios: [RF-02-022]
+      responses:
+        '200':
+          description: Alertas activas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/AlertaPublicacionItem' }
+      security:
+        - cookieSesion: []
+
+  /panel/ita/tablero:
+    get:
+      tags: [Panel — ITA]
+      operationId: obtenerTableroIta
+      summary: Tablero ITA interno
+      description: Porcentaje de cumplimiento del Índice de Transparencia. RF-02-029.
+      x-status: pending
+      x-criterios: [RF-02-029]
+      responses:
+        '200':
+          description: Tablero
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TableroItaItem'
+      security:
+        - cookieSesion: []
+
+  /panel/auditoria:
+    get:
+      tags: [Panel — Auditoría]
+      operationId: listarAuditoria
+      summary: Log de auditoría
+      description: Registro de acciones de usuarios.
+      x-status: pending
+      parameters:
+        - name: usuario_id
+          in: query
+          required: false
+          schema: { type: integer }
+        - name: recurso
+          in: query
+          required: false
+          schema: { type: string }
+        - name: fecha_desde
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: fecha_hasta
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+      responses:
+        '200':
+          description: Log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditoriaCollection'
+      security:
+        - cookieSesion: []
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPONENTS
+# ══════════════════════════════════════════════════════════════════════════════
 components:
+
   securitySchemes:
     cookieSesion:
       type: apiKey
@@ -349,43 +1354,72 @@ components:
       description: El recurso no existe
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ApiEnvelope' }
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
           examples:
             no_encontrado:
               value:
                 success: false
-                message: El recurso no fue encontrado.
+                message: "El recurso no fue encontrado."
                 data: null
                 errors: null
+
     ValidacionInvalida:
       description: La petición no cumple el contrato
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ApiEnvelope' }
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
           examples:
             validacion:
               value:
                 success: false
-                message: Error de validación.
+                message: "Error de validación."
                 data: null
                 errors:
                   per_page:
-                    - El campo per_page no puede ser mayor que 100.
+                    - "El campo per_page no puede ser mayor que 100."
 
+    NoAutenticado:
+      description: No autenticado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+          examples:
+            no_autenticado:
+              value:
+                success: false
+                message: "No autenticado."
+                data: null
+                errors: null
+
+    DemasiadasSolicitudes:
+      description: Demasiadas solicitudes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+          examples:
+            rate_limit:
+              value:
+                success: false
+                message: "Demasiadas solicitudes. Intenta más tarde."
+                data: null
+                errors: null
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # SCHEMAS
+  # ══════════════════════════════════════════════════════════════════════════════
   schemas:
-    # ------------------------------------------------------------------
-    # Esquemas compartidos. Son cinco y no se duplican por recurso.
-    # ------------------------------------------------------------------
+
+    # ─── Esquemas compartidos ───────────────────────────────────────────────
     ApiEnvelope:
       type: object
       required: [success, data]
       properties:
         success: { type: boolean }
         message: { type: [string, 'null'] }
-        # `data` es objeto en un recurso individual y arreglo en una colección;
-        # declararlo sólo como objeto dejaba inválida toda respuesta de
-        # colección, porque `PaginatedEnvelope` compone este esquema y a la vez
-        # exige que `data` sea un arreglo.
         data: { type: [object, array, 'null'] }
         errors: { type: [object, 'null'] }
 
@@ -427,9 +1461,7 @@ components:
         message: { type: string }
         errors: { type: [object, 'null'] }
 
-    # ------------------------------------------------------------------
-    # Entidad — dato único, alimenta la cabecera y el pie
-    # ------------------------------------------------------------------
+    # ─── Entidad ──────────────────────────────────────────────────────────
     EntidadItem:
       type: object
       required: [id, type, nombre]
@@ -482,9 +1514,348 @@ components:
         nombre: { type: string }
         actualizada_en: { type: [string, 'null'], format: date, readOnly: true }
 
-    # ------------------------------------------------------------------
-    # Trámites
-    # ------------------------------------------------------------------
+    # ─── TopBar y Footer ───────────────────────────────────────────────────
+    TopBarItem:
+      type: object
+      required: [id, type]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: top-bar }
+        logo_path: { type: [string, 'null'], format: uri }
+        url_govco: { type: [string, 'null'], format: uri }
+        altura_px: { type: integer }
+        idioma_default: { type: string }
+
+    FooterItem:
+      type: object
+      required: [id, type, nombre_autoridad]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: footer }
+        nombre_autoridad: { type: string }
+        nit: { type: [string, 'null'] }
+        direccion: { type: [string, 'null'] }
+        codigo_postal: { type: [string, 'null'] }
+        municipio: { type: [string, 'null'] }
+        departamento: { type: [string, 'null'] }
+        horario: { type: [string, 'null'] }
+        commutador: { type: [string, 'null'] }
+        linea_anticorrupcion: { type: [string, 'null'] }
+        correo_institucional: { type: [string, 'null'], format: email }
+        correo_notificaciones: { type: [string, 'null'], format: email }
+        redes:
+          type: array
+          items: { $ref: '#/components/schemas/EntidadRed' }
+        politicas:
+          type: array
+          items: { $ref: '#/components/schemas/EntidadPolitica' }
+
+    # ─── Menú ─────────────────────────────────────────────────────────────
+    MenuItem:
+      type: object
+      required: [id, type, slug, etiqueta, orden, visible, tipo]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: menu-item }
+        slug: { type: string }
+        etiqueta: { type: string }
+        ruta: { type: [string, 'null'] }
+        descripcion: { type: [string, 'null'] }
+        orden: { type: integer }
+        visible: { type: boolean }
+        tipo: { type: string, enum: [interno, externo, ancla, modal] }
+        hijos:
+          type: array
+          description: Submenús (máximo 2 niveles)
+          items: { $ref: '#/components/schemas/MenuItem' }
+
+    # ─── Política ──────────────────────────────────────────────────────────
+    PoliticaItem:
+      type: object
+      required: [id, type, codigo, nombre]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: politica }
+        codigo:
+          type: string
+          enum: [terminos, privacidad, cookies, derechos-autor, accesibilidad]
+        nombre: { type: string }
+        contenido_html: { type: [string, 'null'] }
+        tipo:
+          type: string
+          enum: [legal, seguridad, privacidad, institucional]
+        vigente: { type: boolean }
+        actualizada_en: { type: [string, 'null'], format: date, readOnly: true }
+
+    # ─── Noticias ──────────────────────────────────────────────────────────
+    NoticiaItem:
+      type: object
+      required: [id, type, slug, titulo, fecha_publicacion]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: noticia }
+        slug: { type: string }
+        titulo: { type: string }
+        descripcion_corta: { type: [string, 'null'] }
+        contenido_html: { type: [string, 'null'] }
+        fecha_publicacion: { type: string, format: date-time }
+        destacada: { type: boolean }
+        activo: { type: boolean }
+        imagen_url: { type: [string, 'null'], format: uri }
+        categorias:
+          type: array
+          items: { type: string }
+        created_at: { type: string, format: date-time, readOnly: true }
+        updated_at: { type: string, format: date-time, readOnly: true }
+
+    NoticiaCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/NoticiaItem' }
+
+    # ─── Subsección Transparencia ──────────────────────────────────────────
+    SubseccionTransparenciaItem:
+      type: object
+      required: [id, type, codigo, nombre, orden]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: subseccion-transparencia }
+        codigo:
+          type: string
+          enum: [informacion-entidad, normativa, contratacion, planeacion, tramites, participa, datos-abiertos, grupos-interes, reporte-especifico, tributaria]
+        nombre: { type: string }
+        descripcion: { type: [string, 'null'] }
+        orden: { type: integer, minimum: 1, maximum: 10 }
+        numero_ley: { type: integer, minimum: 1, maximum: 10 }
+        url: { type: [string, 'null'], format: uri }
+
+    # ─── Documentos ────────────────────────────────────────────────────────
+    DocumentoItem:
+      type: object
+      required: [id, type, slug, titulo, estado]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: documento }
+        slug: { type: string }
+        titulo: { type: string }
+        descripcion: { type: [string, 'null'] }
+        fecha_publicacion: { type: [string, 'null'], format: date }
+        fecha_documento: { type: [string, 'null'], format: date }
+        periodicidad:
+          type: [string, 'null']
+          enum: [anual, semestral, trimestral, mensual, eventual, null]
+        estado:
+          type: string
+          enum: [borrador, revision, publicado, despublicado, archivado]
+        destacado: { type: boolean }
+        indice_lecturabilidad: { type: [number, 'null'] }
+        hash_sha256: { type: [string, 'null'] }
+        tamano_bytes: { type: [integer, 'null'] }
+        formato_abierto: { type: boolean }
+        subseccion: { $ref: '#/components/schemas/SubseccionTransparenciaItem' }
+        categoria: { type: [object, 'null'] }
+        tipo_documento: { type: [object, 'null'] }
+        archivo_url: { type: [string, 'null'], format: uri }
+        autor:
+          type: object
+          properties:
+            id: { type: integer }
+            nombre: { type: string }
+        metadatos:
+          type: array
+          items: { $ref: '#/components/schemas/MetadatoItem' }
+        versiones:
+          type: array
+          items: { $ref: '#/components/schemas/DocumentoVersionItem' }
+        created_at: { type: string, format: date-time, readOnly: true }
+        updated_at: { type: string, format: date-time, readOnly: true }
+
+    MetadatoItem:
+      type: object
+      required: [id, type, clave, valor]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: metadato }
+        clave: { type: string }
+        valor: { type: string }
+
+    DocumentoVersionItem:
+      type: object
+      required: [id, version, fecha]
+      properties:
+        id: { type: integer }
+        version: { type: string }
+        fecha: { type: string, format: date-time }
+        hash_sha256: { type: string }
+        url: { type: string, format: uri }
+
+    DocumentoCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/DocumentoItem' }
+
+    # ─── Servidor Público ─────────────────────────────────────────────────
+    ServidorPublicoItem:
+      type: object
+      required: [id, type, nombres, apellidos, cargo]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: servidor-publico }
+        codigo_sigep: { type: [string, 'null'] }
+        nombres: { type: string }
+        apellidos: { type: string }
+        cargo: { type: string }
+        correo_institucional: { type: [string, 'null'], format: email }
+        extension: { type: [string, 'null'] }
+        dependencia:
+          type: object
+          properties:
+            id: { type: integer }
+            codigo: { type: string }
+            nombre: { type: string }
+
+    # ─── Calendario Tributario ─────────────────────────────────────────────
+    CalendarioTributarioItem:
+      type: object
+      required: [id, type, impuesto, vigencia, fecha_vencimiento]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: calendario-tributario }
+        impuesto:
+          type: string
+          enum: [predial, ica, otros]
+        vigencia: { type: integer }
+        fecha_vencimiento: { type: string, format: date }
+        descripcion: { type: [string, 'null'] }
+        aplica_a: { type: [string, 'null'] }
+
+    # ─── Búsqueda ──────────────────────────────────────────────────────────
+    SugerenciaBusquedaItem:
+      type: object
+      required: [id, type, texto, url]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: sugerencia }
+        texto: { type: string }
+        url: { type: string, format: uri }
+        tipo_recurso:
+          type: string
+          enum: [documento, noticia, tramite, servidor]
+        score: { type: number }
+
+    BusquedaResult:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data, meta]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/DocumentoItem' }
+            meta:
+              type: object
+              required: [total, termino]
+              properties:
+                total: { type: integer }
+                termino: { type: string }
+                tiempo_ms: { type: integer }
+
+    # ─── Alertas ───────────────────────────────────────────────────────────
+    AlertaPublicacionItem:
+      type: object
+      required: [id, type, tipo, mensaje, dias_anticipacion]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: alerta-publicacion }
+        tipo:
+          type: string
+          enum: [plan-accion-31ene, informe-gestion-31ene, pqrsd-trimestral, control-interno-semestral, calendario-tributario]
+        mensaje: { type: string }
+        dias_anticipacion: { type: integer }
+        activa: { type: boolean }
+        vence_en: { type: [string, 'null'], format: date }
+
+    # ─── Tablero ITA ──────────────────────────────────────────────────────
+    TableroItaItem:
+      type: object
+      required: [id, type, porcentaje_cumplimiento]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: tablero-ita }
+        porcentaje_cumplimiento: { type: number, minimum: 0, maximum: 100 }
+        items_cumplen: { type: integer }
+        items_no_cumplen: { type: integer }
+        items_parcial: { type: integer }
+        items_no_aplica: { type: integer }
+        ultima_actualizacion: { type: string, format: date-time, readOnly: true }
+
+    # ─── Auditoría ────────────────────────────────────────────────────────
+    AuditoriaItem:
+      type: object
+      required: [id, type, accion, recurso, created_at]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: auditoria }
+        accion:
+          type: string
+          enum: [crear, actualizar, eliminar, login, logout]
+        recurso: { type: string }
+        recurso_id: { type: [integer, 'null'] }
+        cambios: { type: [object, 'null'] }
+        ip_origen: { type: [string, 'null'] }
+        user_agent: { type: [string, 'null'] }
+        usuario:
+          type: object
+          properties:
+            id: { type: integer }
+            email: { type: string }
+        created_at: { type: string, format: date-time, readOnly: true }
+
+    AuditoriaCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/AuditoriaItem' }
+
+    # ─── Usuario ──────────────────────────────────────────────────────────
+    UsuarioItem:
+      type: object
+      required: [id, type, email, estado]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: usuario }
+        email: { type: string, format: email }
+        mfa_habilitado: { type: boolean }
+        estado:
+          type: string
+          enum: [activo, inactivo, bloqueado, pendiente]
+        roles:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              type: { type: string, const: rol }
+              nombre: { type: string }
+              permisos:
+                type: array
+                items: { type: string }
+
+    # ─── Trámites (completo) ───────────────────────────────────────────────
     TramiteItem:
       type: object
       required:
@@ -500,47 +1871,6 @@ components:
         - consulta_estado
         - requisitos
         - url_ficha_gov_co
-      description: |
-        Los seis atributos obligatorios de un trámite son `modalidad`,
-        `tiene_costo`, `tiempo_solucion_dias`, `canal_inicio`, `consulta_estado`
-        y `requisitos`. Sin ellos el trámite no se publica, de modo que los campos
-        marcados como requeridos siempre viajan.
-
-        La misma regla alcanza a `url_ficha_gov_co`: el Anexo 2.1 de la Guía de
-        diseño para sedes electrónicas hace que el nombre del trámite lleve a su
-        ficha en GOV.CO, y un trámite sin ficha no tiene a dónde llevar. No se
-        publica, exactamente igual que este contrato no publica un recurso al que
-        le falte un atributo obligatorio.
-
-        # Lo que la ficha añade a los seis atributos
-
-        El §9.1 de la misma Guía hace de la actualización de esta información en el
-        SUIT **requisito para integrarse a Gov.co**. Publicar los seis atributos en
-        una frase cada uno no alcanza para eso: el ciudadano necesita saber dónde
-        se inicia el trámite, dónde se pregunta por él, qué documentos lleva
-        encima y qué norma lo obliga, y ninguno de esos cuatro cabe en un rótulo
-        de una línea. De ahí los cuatro bloques que acompañan a los seis:
-
-        | Bloque | Para qué |
-        |---|---|
-        | `requisitos` | Cinco naturalezas distintas, no una lista de frases |
-        | `puntos_atencion` | Dónde ir, con la dirección y el horario oficiales |
-        | `canales_consulta_estado` | Por dónde preguntar, y si ese canal ya atiende |
-        | `normativa` | La norma que faculta la exigencia |
-
-        Ninguno de ellos sustituye a un atributo obligatorio: los acompañan. Un
-        trámite con sus seis atributos y sin normativa se publica —la exigencia de
-        la Guía es sobre los seis—; uno al que le falte `modalidad` no se publica
-        aunque traiga la dirección exacta de la ventanilla.
-
-        # La procedencia, campo por campo
-
-        `procedencia` deja de decir sólo de dónde salió el trámite y pasa a decir
-        **qué salió de la fuente, qué se derivó con qué regla y qué falta**. La
-        razón es la de siempre, aplicada un nivel más abajo: cuando la fuente no
-        declara el término en días, publicarlo convertido sin decir que se convirtió
-        deja un dato que parece declarado y no lo está. Un solo campo de procedencia
-        para todo el trámite no puede contar eso; uno por campo, sí.
       properties:
         id: { type: integer }
         type: { type: string, const: tramites }
@@ -555,19 +1885,6 @@ components:
         tiene_costo:
           type: string
           enum: [gratuito, con_costo]
-          description: |
-            El segundo atributo obligatorio, con el nombre que le da la Guía. Es la
-            respuesta de una línea que el ciudadano lee de un vistazo, y por eso no
-            desaparece al estructurarse `costo`.
-
-            **`costo.tiene_costo` repite este campo, y es deliberado.** El bloque
-            `costo` tiene que poder leerse solo —quien dibuja el apartado de pago
-            no debería tener que mirar fuera de él para saber si el trámite es
-            gratuito—, y este campo tiene que seguir en la raíz porque es el nombre
-            con el que el atributo obligatorio viaja y con el que ya lo leen los
-            clientes. Los dos salen de la misma columna del catálogo en la misma
-            respuesta, así que no pueden discrepar; lo que no se hace es dejar que
-            los escriba una petición.
         costo:
           $ref: '#/components/schemas/TramiteCosto'
         tiempo_solucion_dias: { type: integer, minimum: 0 }
@@ -582,54 +1899,20 @@ components:
         documentos:
           type: array
           items: { $ref: '#/components/schemas/TramiteDocumento' }
-
-        # --- Lo que acompaña a los seis atributos (§9.1 de la Guía) -----------
-
         perfiles:
           type: array
-          description: |
-            A quién está dirigido el trámite, con los nombres que declara la fuente
-            —«Ciudadano», «Extranjero», «Empresa privada», «Entidad pública»—. No es
-            una lista de relleno: hay requisitos que sólo aplican a un perfil, y
-            quien lee la ficha necesita saber si el suyo está entre ellos.
           items: { type: string, maxLength: 60 }
-        resultado:
-          type: [string, 'null']
-          description: |
-            Qué obtiene quien adelanta el trámite, tal como lo declara la fuente
-            —«Formulario o factura del impuesto predial con sello de pago»—. Va
-            aparte de `resumen` porque no es lo mismo para qué sirve el trámite que
-            qué entrega a cambio.
+        resultado: { type: [string, 'null'] }
         puntos_atencion:
           type: array
-          description: |
-            Dónde se atiende presencialmente, con la dirección y el horario
-            oficiales. **Sólo el dato institucional**: el nombre del punto, su
-            dirección y su horario. Ni el nombre de un funcionario ni su teléfono
-            entran aquí, vengan o no de una API pública (Ley 1581 de 2012).
           items: { $ref: '#/components/schemas/TramitePuntoAtencion' }
         normativa:
           type: array
-          description: |
-            La norma que faculta al trámite. Es lo que permite al ciudadano
-            discutir una exigencia con el texto delante en vez de con la palabra
-            de quien lo atiende.
           items: { $ref: '#/components/schemas/TramiteNorma' }
         canales_consulta_estado:
           type: array
-          description: |
-            Por dónde se puede preguntar por el estado de una solicitud. Cada canal
-            declara si **ya atiende** (`habilitado`): la sede anuncia el suyo —la
-            consulta por radicado en `/seguimiento`— y lo declara no habilitado
-            mientras el expediente electrónico no exista. Declarar el canal sin
-            fingir el servicio es el punto entero del campo.
           items: { $ref: '#/components/schemas/TramiteCanalConsulta' }
         categoria:
-          description: |
-            La fuente oficial de la que se siembra el catálogo no clasifica los
-            trámites por categoría. Mientras la Entidad no las declare, el campo
-            viaja en `null`: inventar la clasificación sería tan falso como
-            inventar el trámite.
           oneOf:
             - $ref: '#/components/schemas/TramiteCategoria'
             - type: 'null'
@@ -656,21 +1939,6 @@ components:
         slug: { type: string }
         nombre: { type: string }
 
-    # Un requisito del trámite, con la naturaleza que la fuente le declara.
-    #
-    # No es texto libre, y esa es toda la decisión. La ficha oficial distingue
-    # cinco cosas que el ciudadano necesita separadas y que un párrafo mezclaría:
-    # un documento que hay que llevar encima, una condición que hay que cumplir
-    # sin aportar nada, una solicitud que se presenta por un canal, un formulario
-    # que hay que diligenciar y un pago que hay que hacer. Publicarlas como una
-    # lista de frases obligaría a quien lee a interpretar cuál es cuál, y a la
-    # sede a no poder comprobar que están todas.
-    #
-    # Los campos de detalle son opcionales y dependen de `tipo`: un documento
-    # lleva `cantidad` y `unidad_cantidad`; una solicitud o un formulario llevan
-    # `canal` y, si el canal es web, `url`; si es correo, `correo`. Un
-    # `verificacion_institucional` no lleva ninguno de ellos porque no hay nada
-    # que aportar: o se cumple la condición o no se cumple.
     TramiteRequisito:
       type: object
       required: [tipo, descripcion]
@@ -680,30 +1948,13 @@ components:
           enum: [documento, verificacion_institucional, solicitud, formulario, pago]
         descripcion: { type: string, maxLength: 500 }
         obligatorio: { type: boolean, default: true }
-        # Sólo `documento`: cuántos ejemplares y en qué forma se aportan.
         cantidad: { type: [integer, 'null'], minimum: 0 }
         unidad_cantidad: { type: [string, 'null'], maxLength: 40 }
-        # Cualquiera de las cinco naturalezas: la salvedad que la fuente añade.
         nota: { type: [string, 'null'], maxLength: 500 }
-        # Sólo `solicitud` y `formulario`.
         canal: { type: [string, 'null'], enum: [web, presencial, correo, telefonico, null] }
         url: { type: [string, 'null'], format: uri }
         correo: { type: [string, 'null'], format: email }
 
-    # El costo del trámite.
-    #
-    # Deja de ser un decimal suelto, y no es una preferencia de forma: la ficha
-    # oficial **no siempre declara un importe**. Para el impuesto predial devuelve
-    # `Valor: null` junto a `TipoValor: "AVALUO_LIQUIDACION"`, es decir un costo
-    # que se calcula a partir del avalúo del predio. Un decimal no puede
-    # representar eso, y rellenarlo con cero sería peor que dejarlo nulo: el
-    # ciudadano leería «$0» donde la Entidad dice «depende de su predio», y sobre
-    # esa lectura decide si paga o no. Por eso el tipo del valor viaja junto al
-    # valor, y `valor` sólo se llena cuando la fuente declara un importe.
-    #
-    # Es lo que hace que este bloque sea un dato y no un adorno: `tipo_valor` sin
-    # `valor` es un costo calculado y se declara como tal; `valor` sin
-    # `tipo_valor` no debería ocurrir, y el cliente lo trata como importe fijo.
     TramiteCosto:
       type: object
       required: [tiene_costo]
@@ -712,36 +1963,16 @@ components:
         tipo_valor:
           type: [string, 'null']
           enum: [fijo, smlv, avaluo_liquidacion, rango, null]
-          description: |
-            Cómo se determina el importe. `avaluo_liquidacion` y `rango` significan
-            que **no hay un número que publicar** y que `valor` viaja nulo a
-            propósito; `smlv` significa que la fuente lo expresa en salarios
-            mínimos y `valor` trae esa cantidad, no pesos.
         valor:
           type: [string, 'null']
           maxLength: 30
-          description: |
-            El importe declarado, como texto y nunca como número: es la forma en
-            que la fuente lo entrega, y convertir «2» a un decimal obligaría a
-            decidir una moneda y unos decimales que la fuente no declara.
         moneda: { type: [string, 'null'], maxLength: 20 }
         url_pago: { type: [string, 'null'], format: uri }
         descripcion: { type: [string, 'null'], maxLength: 1000 }
         cuentas:
           type: array
-          description: |
-            Las cuentas en las que la Entidad recauda, cuando la fuente las
-            declara. Son cuentas institucionales de la Entidad, no de una persona,
-            y son lo que permite pagar cuando no hay pasarela contratada. **No
-            convierten esto en una pasarela**: el contrato publica el canal, no
-            cobra.
           items: { $ref: '#/components/schemas/TramiteCuentaBancaria' }
 
-    # Una cuenta de recaudo de la Entidad.
-    #
-    # Se publica tal como la fuente la declara. El titular es la Entidad —«D.T.C.H
-    # Santa Marta»— y por eso no es un dato personal; una cuenta a nombre de una
-    # persona no entra aquí, y la ingesta no la publica.
     TramiteCuentaBancaria:
       type: object
       required: [entidad, numero_cuenta]
@@ -752,15 +1983,6 @@ components:
         numero_cuenta: { type: string, maxLength: 40 }
         codigo_recaudo: { type: [string, 'null'], maxLength: 40 }
 
-    # Un punto de atención presencial del trámite.
-    #
-    # **Sólo el dato institucional.** El nombre del punto, su dirección, su horario
-    # y sus coordenadas. Ni el nombre de un funcionario ni su teléfono viajan en
-    # este esquema aunque la fuente los traiga: la Ley 1581 de 2012 no admite
-    # excepciones por venir de una API pública, y una sede electrónica que publica
-    # el móvil de un empleado lo está publicando igual que si lo hubiera escrito a
-    # mano. `telefono` existe para la línea institucional del punto —la que la
-    # Entidad declara como suya— y no para un número personal.
     TramitePuntoAtencion:
       type: object
       required: [nombre, direccion]
@@ -774,7 +1996,6 @@ components:
         latitud: { type: [number, 'null'], minimum: -90, maximum: 90 }
         longitud: { type: [number, 'null'], minimum: -180, maximum: 180 }
 
-    # Una norma que faculta el trámite.
     TramiteNorma:
       type: object
       required: [tipo]
@@ -786,14 +2007,6 @@ components:
         url: { type: [string, 'null'], format: uri }
         url_descarga: { type: [string, 'null'], format: uri }
 
-    # Un canal por el que se puede consultar el estado de una solicitud.
-    #
-    # `habilitado` es el campo que impide que esto sea una promesa. La sede
-    # electrónica anuncia su propio canal —la consulta por radicado— y lo declara
-    # **no habilitado** mientras el expediente electrónico no exista: el ciudadano
-    # ve que el canal está previsto y que todavía no atiende, en vez de pulsar un
-    # formulario que no consulta nada. Un canal declarado y no habilitado es
-    # información; uno declarado y fingido es una llamada perdida.
     TramiteCanalConsulta:
       type: object
       required: [canal, habilitado]
@@ -803,7 +2016,6 @@ components:
           enum: [sede, presencial, telefonico, web, correo, otro]
         habilitado:
           type: boolean
-          description: Si el canal ya atiende hoy. `false` es un dato, no un hueco.
         nombre: { type: [string, 'null'], maxLength: 160 }
         url: { type: [string, 'null'] }
         correo: { type: [string, 'null'], format: email }
@@ -826,19 +2038,6 @@ components:
         titulo: { type: string }
         descripcion: { type: [string, 'null'] }
 
-    # La procedencia de los datos de un trámite.
-    #
-    # Existe por una razón concreta y no de estilo: el catálogo se siembra desde
-    # la fuente oficial del Estado —SUIT, a través de GOV.CO— y quien lee la sede
-    # tiene derecho a saber de dónde salió lo que se le publica y cuándo se
-    # obtuvo (Ley 1712 de 2014, artículo 11.b). Publicar un dato sembrado como si
-    # la Entidad lo hubiera ratificado es la misma clase de mentira que publicar
-    # un trámite inventado, y sin este campo la sede no puede distinguir los dos
-    # casos ni el ciudadano puede comprobarlos.
-    #
-    # Es opcional a propósito: un trámite cargado a mano en el CMS no tiene
-    # fuente externa que declarar, y obligarlo a inventar una sería peor que su
-    # ausencia.
     TramiteProcedencia:
       type: object
       required: [fuente, obtenido_en]
@@ -847,48 +2046,17 @@ components:
         url: { type: [string, 'null'], format: uri }
         obtenido_en: { type: string, format: date }
         nota: { type: [string, 'null'], maxLength: 500 }
-        api:
-          type: [string, 'null']
-          description: |
-            El servicio del que se copiaron los datos, cuando no son los del
-            catálogo sino los de la ficha. Se publica para que la procedencia se
-            pueda **repetir**: sin la dirección exacta, «lo saqué de GOV.CO» no es
-            una afirmación comprobable.
-
-            **Esto no es un contrato que gov.co imponga a la Entidad.** Es un
-            servicio público de contenido que GOV.CO no documenta ni ofrece como
-            servicio: de él se copia la **forma** de los datos, y ninguna de sus
-            condiciones se hereda como obligación. La obligación de la Entidad es
-            con la Guía de la Resolución 2893 y con el SUIT, no con esta API.
+        api: { type: [string, 'null'] }
         origen_por_campo:
           type: object
-          description: |
-            Por cada campo del trámite, de dónde salió. Los valores posibles son
-            `fuente` —lo declara el origen tal cual—, `derivado` —lo calculó la
-            ingesta con una regla que se declara en `derivados`—, `entidad` —lo
-            puso la Entidad, y no viene de ninguna fuente externa— y `ausente` —el
-            origen no lo declara—.
-
-            Las claves son los nombres de los campos de `TramiteItem`, en la misma
-            grafía. Se declaran las que tienen algo que contar; un campo que no
-            aparece aquí no está en discusión.
           additionalProperties:
             type: string
             enum: [fuente, derivado, entidad, ausente]
         derivados:
           type: array
-          description: |
-            Los campos que la ingesta calculó, con la regla que aplicó. Existe
-            porque un dato derivado y no declarado es un dato que parece de la
-            fuente: convertir «2 HORA(S)» en un día de término está bien mientras
-            se diga que se convirtió y con qué.
           items: { $ref: '#/components/schemas/TramiteDerivacion' }
         faltantes:
           type: array
-          description: |
-            Los campos que el origen no declara y por los que la Entidad todavía
-            tiene que responder. Un catálogo a medias que no dice dónde está a
-            medias es peor que uno incompleto declarado.
           items: { type: string, maxLength: 60 }
 
     TramiteDerivacion:
@@ -916,11 +2084,6 @@ components:
         modalidad: { type: string, enum: [en_linea, parcialmente_en_linea, presencial] }
         tiene_costo: { type: string, enum: [gratuito, con_costo] }
         costo:
-          description: |
-            Misma forma que en la lectura, para que lo que se escribe y lo que se
-            publica no sean dos vocabularios. Es nulo mientras nadie lo declare: un
-            trámite cargado a mano puede no tener todavía el costo detallado, y
-            estrenarlo con ceros sería publicar un precio que nadie fijó.
           oneOf:
             - $ref: '#/components/schemas/TramiteCosto'
             - type: 'null'
@@ -928,4 +2091,3 @@ components:
         canal_inicio: { type: string, enum: [propio, portal_nacional] }
         url_inicio: { type: [string, 'null'], maxLength: 500 }
         consulta_estado: { type: string, maxLength: 500 }
-        categoria_slug: { type: [string, 'null'], maxLength: 120 }

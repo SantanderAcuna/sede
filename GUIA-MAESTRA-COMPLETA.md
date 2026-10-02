@@ -40,6 +40,27 @@ Stack personal para todos los proyectos de desarrollo.
    └── frontend/         ← Vue 3 + TypeScript (cliente SPA)
    ```
 
+   > **EXCEPCIÓN DECLARADA — proyecto Sede Electrónica (Santa Marta), 2026-10-02.**
+   >
+   > Este proyecto usa **tres** piezas y **conserva sus nombres**, por decisión expresa del
+   > responsable:
+   >
+   > ```
+   > backend/   ← Laravel (API REST)
+   > sitio/     ← Nuxt 4 · sitio público (solo lectura: index y show)
+   > panel/     ← Vue 3 <script setup> + TS · CMS que administra el contenido
+   > ```
+   >
+   > **Por qué no se renombra a `frontend/`:** el sitio público y el CMS tienen ciclos de vida,
+   > despliegues y audiencias distintos —el sitio lo ve el ciudadano, el panel lo usa un
+   > funcionario— y separarlos en dos carpetas lo hace visible en la estructura. **El espíritu de
+   > la regla se cumple**: backend y frontend están desacoplados, se comunican solo por HTTP API,
+   > y cada pieza es un proyecto independiente. Lo que cambia es el número de clientes, no el
+   > principio.
+   >
+   > `sitio/` consume **únicamente** las operaciones `index` y `show` del contrato (lectura
+   > pública); la escritura vive en `panel/`.
+
 4. **Clean Architecture con Contracts.** Separación estricta de capas con interfaces.
 
 5. **Desarrollo Full-Stack con integración continua.** Cada funcionalidad del backend se integra inmediatamente con el frontend y se valida con pruebas completas antes de pasar a la siguiente.
@@ -85,6 +106,45 @@ Stack personal para todos los proyectos de desarrollo.
 13. **Usar Graphify para diagramas de arquitectura.**
 
 14. **Actualizar memoria después de cada regla o aprendizaje.**
+
+---
+
+### 0.1.1 Requisitos de dominio: dónde se buscan
+
+> **AÑADIDO 2026-10-02.** Esta guía es **metodología y stack genéricos**. Se comprobó con
+> búsqueda exhaustiva que **no menciona** PQRSD, captcha, radicación, radicado, consecutivo,
+> numeración ni folio —y tampoco «sede electrónica», «trámite» ni «ciudadano»—. Quien busque
+> esos requisitos aquí **no los va a encontrar**, y eso ya costó un malentendido real.
+
+Los requisitos **de dominio** de este proyecto viven en:
+
+| Documento | Qué manda |
+|---|---|
+| `docs/GUIA Maestra Sede Electronica Colombia.md` | Criterios de aceptación, seguridad, accesibilidad y funcionalidad de la Sede |
+| `plan.md` | Las 12 fases de construcción (FASE 5 = radicación, PQRSD, captcha, expediente) |
+| `sede-electronica-doc/` | Módulos, modelo de datos y reglas de negocio (incluido el formato del radicado) |
+| `entidad-transparencia/` | Paquete de transparencia (ITA), con su propio plan de 8 sprints |
+
+**Regla de precedencia:** ante conflicto entre esta guía y las anteriores, **manda la guía de la
+Sede** en todo lo que sea requisito de dominio o criterio de aceptación; esta guía manda en
+stack, arquitectura, capas, contrato y proceso.
+
+### 0.1.2 Excepción declarada: SDD, Engram y Graphify
+
+Las reglas 11, 12 y 13 exigen el flujo **SDD**, **Engram** para memoria persistente y
+**Graphify** para diagramas. **Ninguna de las tres herramientas está disponible en este
+entorno**, y fingir que se usan sería peor que declararlo.
+
+Se sustituyen por su **equivalente verificable**, que es lo que las reglas persiguen:
+
+| Regla | Sustituto en este proyecto |
+|---|---|
+| SDD (11) | **Contract-first** (cap. 1) + vertical slice (0.2) + PR encadenados ≤400 líneas |
+| Engram (12) | La memoria vive en `docs/`, en los ADR (`docs/adr/`) y en los comentarios del código, que documentan el **porqué** de cada decisión |
+| Graphify (13) | Diagramas Mermaid versionados dentro de los `.md` del paquete documental |
+
+**Esta excepción no autoriza a saltarse el contrato, los slices ni las puertas de verificación.**
+Solo cambia la herramienta, no el rigor.
 
 ---
 
@@ -191,7 +251,19 @@ feat/{modulo} (desarrollo)
 > **Posición en el flujo SDD:** este capítulo se ejecuta DESPUÉS de `sdd-tasks` y ANTES de `sdd-apply`.
 >
 > **Convención de respuesta:** Flat Envelope — `{success, message, data, meta, errors}`
-> **Media type:** `application/json` (NO SE DEBE USAR ES PROHIBIDO `application/vnd.api+json`)
+> **Media type:** `application/json` (PROHIBIDO: `application/vnd.api+json`)
+>
+> ⚠️ **NOTA HISTÓRICA — UNIFICACIÓN 2026-10-02**
+>
+> Existían DOS archivos OpenAPI con contradicciones:
+> - `contract/openapi.yaml` — ✅ usaba `application/json` (correcto)
+> - `entidad-transparencia/05-especificaciones-api/openapi-3.1.yaml` — ❌ usaba `application/vnd.api+json` (incorrecto)
+>
+> **Decisión:** Se unificaron en `contract/openapi-unified.yaml` siguiendo la convención correcta.
+> El archivo `entidad-transparencia/openapi-3.1.yaml` queda **DEPRECADO**.
+>
+> **Regla dorada:** Todo archivo OpenAPI en este proyecto DEBE usar `application/json` con Flat Envelope.
+> Si se detecta `application/vnd.api+json` en cualquier contrato, es un ERROR que debe corregirse.
 
 ---
 

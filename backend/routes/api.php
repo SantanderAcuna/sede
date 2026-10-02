@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\EntidadController;
 use App\Http\Controllers\Api\V1\TramiteController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,11 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1')->name('v1.')->group(function (): void {
+    // Datos institucionales — pública (sin autenticación)
+    Route::get('/entidad', [EntidadController::class, 'mostrar'])
+        ->name('entidad.mostrar')
+        ->withoutMiddleware('auth:sanctum');
+
     // El catálogo de trámites. Las dos operaciones son públicas —el contrato las
     // declara con `security: []`— y por eso no llevan middleware de sesión.
     Route::get('/tramites', [TramiteController::class, 'listar'])->name('tramites.listar');

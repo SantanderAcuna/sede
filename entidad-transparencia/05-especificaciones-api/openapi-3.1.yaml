@@ -1,0 +1,1194 @@
+openapi: 3.1.0
+
+info:
+  title: API Sede Electrónica — Alcaldía Distrital de Santa Marta
+  version: 1.0.0
+  description: |
+    API REST JSON:API 1.0 para la Sede Electrónica del Distrito de Santa Marta.
+    Cumplimiento Ley 1712/2014, Res. MinTIC 1519/2020 Anexo 2, Decreto 2106/2019.
+    Stack: Laravel 13, PostgreSQL 15+, Sanctum.
+  contact:
+    name: G-CIO Alcaldía de Santa Marta
+    email: gc@santamarta.gov.co
+  license:
+    name: Privado (uso público)
+    url: https://www.santamarta.gov.co
+
+servers:
+  - url: https://api.santamarta.gov.co/api/v1
+    description: Producción
+  - url: https://staging-api.santamarta.gov.co/api/v1
+    description: Staging
+  - url: http://localhost:8080/api/v1
+    description: Local
+
+tags:
+  - name: Identidad
+    description: Top bar, footer, menú, configuración GOV.CO
+  - name: Transparencia
+    description: 10 subsecciones de Ley 1712/2014, documentos, búsqueda
+  - name: Directorio
+    description: Servidores públicos, dependencias, escala salarial
+  - name: Noticias
+    description: Noticias del home y detalle
+  - name: Buscar
+    description: Búsqueda full-text unificada
+  - name: Salud
+    description: Health check
+  - name: Panel — Auth
+    description: Autenticación del panel (Sanctum)
+  - name: Panel — Transparencia
+    description: CRUD de documentos de transparencia (autenticado)
+  - name: Panel — Usuarios
+    description: Gestión de usuarios y roles (admin)
+  - name: Panel — Auditoría
+    description: Log de auditoría (admin)
+  - name: Panel — ITA
+    description: Tablero ITA interno (admin)
+
+security:
+  - {}  # Por defecto, las rutas son públicas
+  - SanctumCookie: []
+  - SanctumBearer: []
+
+paths:
+
+  # ─────────────────────────────────────────────────────────────────────
+  # SALUD
+  # ─────────────────────────────────────────────────────────────────────
+  /salud:
+    get:
+      tags: [Salud]
+      summary: Health check de la API
+      security: []
+      responses:
+        '200':
+          description: Servicio operativo
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    type: object
+                    properties:
+                      status: { type: string, example: ok }
+                      timestamp: { type: string, format: date-time }
+                      version: { type: string, example: "1.0.0" }
+        '503':
+          $ref: '#/components/responses/ServicioCaido'
+
+  # ─────────────────────────────────────────────────────────────────────
+  # IDENTIDAD (Módulo 01)
+  # ─────────────────────────────────────────────────────────────────────
+  /identidad/top-bar:
+    get:
+      tags: [Identidad]
+      summary: Configuración del top bar GOV.CO (RF-01-001)
+      security: []
+      responses:
+        '200':
+          description: Top bar
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TopBar'
+
+  /identidad/footer:
+    get:
+      tags: [Identidad]
+      summary: Configuración del footer GOV.CO (RF-01-002)
+      security: []
+      responses:
+        '200':
+          description: Footer
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Footer'
+
+  /identidad/menu:
+    get:
+      tags: [Identidad]
+      summary: Menú principal de navegación (RF-01-007)
+      security: []
+      parameters:
+        - in: query
+          name: rol
+          schema: { type: string }
+          description: Filtrar menú por rol (panel)
+      responses:
+        '200':
+          description: Árbol de menú
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MenuItem' }
+
+  # ─────────────────────────────────────────────────────────────────────
+  # NOTICIAS
+  # ─────────────────────────────────────────────────────────────────────
+  /noticias:
+    get:
+      tags: [Noticias]
+      summary: Listado de noticias (RF-01-013)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: 'filter[categoria]'
+          schema: { type: string }
+        - in: query
+          name: 'filter[destacada]'
+          schema: { type: boolean }
+        - in: query
+          name: 'sort'
+          schema: { type: string, default: '-fecha_publicacion' }
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/NoticiaCollection'
+
+  /noticias/{slug}:
+    get:
+      tags: [Noticias]
+      summary: Detalle de una noticia
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Noticia
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Noticia' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ─────────────────────────────────────────────────────────────────────
+  # TRANSPARENCIA (Módulo 02)
+  # ─────────────────────────────────────────────────────────────────────
+  /transparencia/subsecciones:
+    get:
+      tags: [Transparencia]
+      summary: 10 subsecciones de Ley 1712 (RF-02-001)
+      security: []
+      responses:
+        '200':
+          description: Lista de subsecciones
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SubseccionTransparencia' }
+
+  /transparencia/documentos:
+    get:
+      tags: [Transparencia]
+      summary: Listado de documentos (RF-02-002, RF-02-028)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: 'filter[subseccion]'
+          schema: { type: string }
+          description: 'Código de subsección: informativa-entidad, normativa, ...'
+        - in: query
+          name: 'filter[categoria]'
+          schema: { type: string }
+        - in: query
+          name: 'filter[vigencia]'
+          schema: { type: integer, minimum: 2012, maximum: 2100 }
+        - in: query
+          name: 'filter[formato_abierto]'
+          schema: { type: boolean }
+        - in: query
+          name: 'filter[destacado]'
+          schema: { type: boolean }
+        - in: query
+          name: 'sort'
+          schema: { type: string, default: '-fecha_publicacion' }
+        - in: query
+          name: 'include'
+          schema: { type: string, example: 'metadatos,categoria,archivo' }
+        - in: query
+          name: 'fields[documento]'
+          schema: { type: string, example: 'titulo,fecha_publicacion,hash_sha256' }
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/DocumentoCollection'
+
+  /transparencia/documentos/{slug}:
+    get:
+      tags: [Transparencia]
+      summary: Detalle de un documento (RF-02-004, RF-02-024)
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: query
+          name: 'include'
+          schema: { type: string, example: 'metadatos,archivo,versiones' }
+        - in: query
+          name: 'fields[documento]'
+          schema: { type: string }
+      responses:
+        '200':
+          description: Documento completo
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Documento' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /transparencia/buscar:
+    get:
+      tags: [Transparencia, Buscar]
+      summary: Búsqueda full-text con tolerancia ortográfica (RF-02-027)
+      security: []
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 3 }
+        - in: query
+          name: 'filter[subseccion]'
+          schema: { type: string }
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Resultados
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/BusquedaResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /transparencia/directorio:
+    get:
+      tags: [Transparencia, Directorio]
+      summary: Directorio de servidores públicos (RF-02-006)
+      security: []
+      parameters:
+        - in: query
+          name: 'filter[dependencia]'
+          schema: { type: string, description: 'Código de dependencia' }
+        - in: query
+          name: 'filter[cargo]'
+          schema: { type: string }
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Listado de servidores públicos activos
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ServidorPublico' }
+
+  /transparencia/calendario-tributario:
+    get:
+      tags: [Transparencia]
+      summary: Calendario tributario (RF-02-016)
+      security: []
+      parameters:
+        - in: query
+          name: vigencia
+          schema: { type: integer, example: 2026 }
+      responses:
+        '200':
+          description: Calendario
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/CalendarioTributario' }
+
+  # ─────────────────────────────────────────────────────────────────────
+  # POLÍTICAS (Módulo 01)
+  # ─────────────────────────────────────────────────────────────────────
+  /politicas:
+    get:
+      tags: [Identidad]
+      summary: Listado de políticas (RF-01-018)
+      security: []
+      responses:
+        '200':
+          description: Lista de políticas vigentes
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Politica' }
+
+  /politicas/{codigo}:
+    get:
+      tags: [Identidad]
+      summary: Detalle de una política
+      security: []
+      parameters:
+        - in: path
+          name: codigo
+          required: true
+          schema:
+            type: string
+            enum: [terminos, privacidad, cookies, derechos-autor, accesibilidad]
+      responses:
+        '200':
+          description: Política
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Politica' }
+
+  # ─────────────────────────────────────────────────────────────────────
+  # BUSCAR (motor unificado)
+  # ─────────────────────────────────────────────────────────────────────
+  /buscar:
+    get:
+      tags: [Buscar]
+      summary: Búsqueda global con autocompletado (RF-01-009)
+      security: []
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 3 }
+        - in: query
+          name: autocompletar
+          schema: { type: boolean, default: false }
+        - in: query
+          name: limite
+          schema: { type: integer, default: 10, maximum: 10 }
+      responses:
+        '200':
+          description: Sugerencias o resultados
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SugerenciaBusqueda' }
+
+  /sitemap.xml:
+    get:
+      tags: [Identidad]
+      summary: Sitemap XML (RF-01-010)
+      security: []
+      responses:
+        '200':
+          description: Sitemap XML
+          content:
+            application/xml:
+              schema: { type: string }
+
+  # ─────────────────────────────────────────────────────────────────────
+  # PANEL — AUTH (Sanctum)
+  # ─────────────────────────────────────────────────────────────────────
+  /panel/login:
+    post:
+      tags: [Panel — Auth]
+      summary: Iniciar sesión (RF-SEG-02)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    type: { type: string, example: sesion }
+                    attributes:
+                      type: object
+                      required: [email, password]
+                      properties:
+                        email: { type: string, format: email }
+                        password: { type: string, format: password }
+      responses:
+        '200':
+          description: Login exitoso (puede requerir MFA)
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    type: object
+                    properties:
+                      require_mfa: { type: boolean }
+                      mfa_token: { type: string, nullable: true }
+                      csrf_token: { type: string }
+                      user: { $ref: '#/components/schemas/Usuario' }
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /panel/mfa:
+    post:
+      tags: [Panel — Auth]
+      summary: Verificar código MFA TOTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    type: { type: string, example: mfa }
+                    attributes:
+                      type: object
+                      required: [mfa_token, code]
+                      properties:
+                        mfa_token: { type: string }
+                        code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200':
+          description: MFA verificado, sesión iniciada
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    type: object
+                    properties:
+                      csrf_token: { type: string }
+                      user: { $ref: '#/components/schemas/Usuario' }
+
+  /panel/logout:
+    post:
+      tags: [Panel — Auth]
+      summary: Cerrar sesión
+      responses:
+        '204':
+          description: Sesión cerrada
+
+  # ─────────────────────────────────────────────────────────────────────
+  # PANEL — TRANSPARENCIA (CRUD autenticado)
+  # ─────────────────────────────────────────────────────────────────────
+  /panel/transparencia/documentos:
+    get:
+      tags: [Panel — Transparencia]
+      summary: Listado de documentos (incluye borradores) (RF-02-021)
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: 'filter[estado]'
+          schema: { type: string, enum: [borrador, revision, publicado, despublicado, archivado] }
+        - in: query
+          name: 'filter[autor_id]'
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Lista completa
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/DocumentoCollection'
+
+    post:
+      tags: [Panel — Transparencia]
+      summary: Crear documento (multipart) (RF-02-021)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [archivo, titulo, subseccion_id, tipo_documento_id]
+              properties:
+                archivo:
+                  type: string
+                  format: binary
+                titulo: { type: string }
+                descripcion: { type: string }
+                subseccion_id: { type: integer }
+                categoria_id: { type: integer }
+                tipo_documento_id: { type: integer }
+                fecha_publicacion: { type: string, format: date }
+                periodicidad:
+                  type: string
+                  enum: [anual, semestral, trimestral, mensual, eventual]
+                destacado: { type: boolean }
+      responses:
+        '201':
+          description: Documento creado
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Documento' }
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /panel/transparencia/documentos/{id}:
+    patch:
+      tags: [Panel — Transparencia]
+      summary: Actualizar documento (incluye reemplazo de archivo → nueva versión) (RF-02-021)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: Idempotency-Key
+          schema: { type: string }
+          in: header
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    type: { type: string, example: documento }
+                    id: { type: string }
+                    attributes:
+                      type: object
+                      properties:
+                        titulo: { type: string }
+                        descripcion: { type: string }
+                        estado: { type: string }
+                        fecha_publicacion: { type: string, format: date }
+                        motivo_cambio: { type: string, description: 'Obligatorio si se reemplaza archivo' }
+      responses:
+        '200':
+          description: Documento actualizado
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Documento' }
+
+    delete:
+      tags: [Panel — Transparencia]
+      summary: Soft-delete de documento (RF-02-021)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Eliminado
+
+  # ─────────────────────────────────────────────────────────────────────
+  # PANEL — ALERTAS, ITA, AUDITORÍA
+  # ─────────────────────────────────────────────────────────────────────
+  /panel/alertas:
+    get:
+      tags: [Panel — Transparencia]
+      summary: Alertas de vencimiento de publicaciones obligatorias (RF-02-022)
+      responses:
+        '200':
+          description: Alertas activas
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AlertaPublicacion' }
+
+  /panel/ita/tablero:
+    get:
+      tags: [Panel — ITA]
+      summary: Tablero ITA interno (RF-02-029)
+      responses:
+        '200':
+          description: Tablero
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/TableroIta' }
+
+  /panel/auditoria:
+    get:
+      tags: [Panel — Auditoría]
+      summary: Log de auditoría
+      parameters:
+        - in: query
+          name: 'filter[usuario_id]'
+          schema: { type: integer }
+        - in: query
+          name: 'filter[recurso]'
+          schema: { type: string }
+        - in: query
+          name: 'filter[fecha_desde]'
+          schema: { type: string, format: date }
+        - in: query
+          name: 'filter[fecha_hasta]'
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Log
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/AuditoriaCollection'
+
+components:
+
+  securitySchemes:
+    SanctumCookie:
+      type: apiKey
+      in: cookie
+      name: laravel_session
+      description: Cookie HttpOnly emitida por Sanctum
+    SanctumBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Bearer token para integraciones externas
+
+  parameters:
+    PageNumber:
+      in: query
+      name: 'page[number]'
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      in: query
+      name: 'page[size]'
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+
+  responses:
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/vnd.api+json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    BadRequest:
+      description: Parámetros inválidos
+      content:
+        application/vnd.api+json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthenticated:
+      description: No autenticado
+      content:
+        application/vnd.api+json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ValidationFailed:
+      description: Validación fallida
+      content:
+        application/vnd.api+json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    RateLimited:
+      description: Demasiadas requests
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/vnd.api+json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ServicioCaido:
+      description: Servicio degradado
+      content:
+        application/vnd.api+json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+
+    # ─── Top Bar ───
+    TopBar:
+      type: object
+      properties:
+        type: { type: string, example: top-bar }
+        id: { type: string, example: "1" }
+        attributes:
+          type: object
+          properties:
+            logo_path: { type: string, format: uri }
+            url_govco: { type: string, format: uri, example: "https://www.gov.co/home/" }
+            altura_px: { type: integer, example: 56 }
+            idioma_default: { type: string, example: "es-CO" }
+
+    # ─── Footer ───
+    Footer:
+      type: object
+      properties:
+        type: { type: string, example: footer }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            nombre_autoridad: { type: string, example: "Alcaldía Distrital de Santa Marta" }
+            nit: { type: string, example: "891.780.009-4" }
+            direccion: { type: string, example: "Calle 14 No. 2 - 49 Palacio Municipal" }
+            codigo_postal: { type: string, example: "470001" }
+            municipio: { type: string, example: "Santa Marta" }
+            departamento: { type: string, example: "Magdalena" }
+            horario: { type: string, example: "L-V 8:00-12:00 / 14:00-18:00" }
+            commutador: { type: string, example: "+57 (5) 420 9600" }
+            linea_anticorrupcion: { type: string, example: "018000 123 456" }
+            correo_institucional: { type: string, format: email }
+            correo_notificaciones: { type: string, format: email }
+        relationships:
+          type: object
+          properties:
+            items:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/FooterItem' }
+
+    FooterItem:
+      type: object
+      properties:
+        type: { type: string, example: footer-item }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            tipo: { type: string, enum: [red_social, politica, enlace, sitemap] }
+            etiqueta: { type: string }
+            url: { type: string, format: uri }
+            icono: { type: string, nullable: true }
+            orden: { type: integer }
+
+    # ─── Menú ───
+    MenuItem:
+      type: object
+      properties:
+        type: { type: string, example: menu-item }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            slug: { type: string }
+            etiqueta: { type: string }
+            ruta: { type: string, nullable: true }
+            descripcion: { type: string, nullable: true }
+            orden: { type: integer }
+            visible: { type: boolean }
+            tipo: { type: string, enum: [interno, externo, ancla, modal] }
+        relationships:
+          type: object
+          properties:
+            padre:
+              type: object
+              properties:
+                data: { $ref: '#/components/schemas/Identificador' }
+            hijos:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Identificador' }
+
+    Identificador:
+      type: object
+      properties:
+        type: { type: string }
+        id: { type: string }
+
+    # ─── Noticia ───
+    Noticia:
+      type: object
+      properties:
+        type: { type: string, example: noticia }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            slug: { type: string }
+            titulo: { type: string, maxLength: 150 }
+            descripcion_corta: { type: string, maxLength: 200 }
+            contenido_html: { type: string }
+            fecha_publicacion: { type: string, format: date-time }
+            destacada: { type: boolean }
+            activo: { type: boolean }
+        relationships:
+          type: object
+          properties:
+            categorias:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Identificador' }
+            imagenes:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Identificador' }
+
+    NoticiaCollection:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Noticia' }
+        links: { $ref: '#/components/schemas/PageLinks' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+
+    # ─── Subsección Transparencia ───
+    SubseccionTransparencia:
+      type: object
+      properties:
+        type: { type: string, example: subseccion-transparencia }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            codigo: { type: string, enum: [informacion-entidad, normativa, contratacion, planeacion, tramites, participa, datos-abiertos, grupos-interes, reporte-especifico, tributaria] }
+            nombre: { type: string }
+            descripcion: { type: string }
+            orden: { type: integer, minimum: 1, maximum: 10 }
+            numero_ley: { type: integer, minimum: 1, maximum: 10 }
+        relationships:
+          type: object
+          properties:
+            categorias:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Identificador' }
+
+    # ─── Documento ───
+    Documento:
+      type: object
+      properties:
+        type: { type: string, example: documento }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            slug: { type: string }
+            titulo: { type: string }
+            descripcion: { type: string, nullable: true }
+            fecha_publicacion: { type: string, format: date, nullable: true }
+            fecha_documento: { type: string, format: date }
+            periodicidad: { type: string, enum: [anual, semestral, trimestral, mensual, eventual] }
+            estado: { type: string, enum: [borrador, revision, publicado, despublicado, archivado] }
+            destacado: { type: boolean }
+            indice_lecturabilidad: { type: number, nullable: true, minimum: 0, maximum: 100 }
+            hash_sha256: { type: string, pattern: '^[a-f0-9]{64}$', description: 'RN-06' }
+            tamano_bytes: { type: integer }
+            formato_abierto: { type: boolean }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+        relationships:
+          type: object
+          properties:
+            subseccion:
+              type: object
+              properties:
+                data: { $ref: '#/components/schemas/Identificador' }
+            categoria:
+              type: object
+              properties:
+                data: { $ref: '#/components/schemas/Identificador', nullable: true }
+            tipoDocumento:
+              type: object
+              properties:
+                data: { $ref: '#/components/schemas/Identificador' }
+            archivo:
+              type: object
+              properties:
+                data: { $ref: '#/components/schemas/Identificador' }
+            autor:
+              type: object
+              properties:
+                data: { $ref: '#/components/schemas/Identificador' }
+            metadatos:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Identificador' }
+            dependencias:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Identificador' }
+            versiones:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Identificador' }
+
+    DocumentoCollection:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Documento' }
+        links: { $ref: '#/components/schemas/PageLinks' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+
+    # ─── Servidor Público ───
+    ServidorPublico:
+      type: object
+      properties:
+        type: { type: string, example: servidor-publico }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            codigo_sigep: { type: string, nullable: true }
+            nombres: { type: string }
+            apellidos: { type: string }
+            cargo: { type: string }
+            correo_institucional: { type: string, format: email, nullable: true }
+            extension: { type: string, nullable: true }
+        relationships:
+          type: object
+          properties:
+            dependencia:
+              type: object
+              properties:
+                data: { $ref: '#/components/schemas/Identificador' }
+
+    # ─── Política ───
+    Politica:
+      type: object
+      properties:
+        type: { type: string, example: politica }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            codigo: { type: string, enum: [terminos, privacidad, cookies, derechos-autor, accesibilidad] }
+            nombre: { type: string }
+            contenido_html: { type: string }
+            tipo: { type: string, enum: [legal, seguridad, privacidad, institucional] }
+            vigente: { type: boolean }
+
+    # ─── Calendario Tributario ───
+    CalendarioTributario:
+      type: object
+      properties:
+        type: { type: string, example: calendario-tributario }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            impuesto: { type: string, enum: [predial, ica, otros] }
+            vigencia: { type: integer }
+            fecha_vencimiento: { type: string, format: date }
+            descripcion: { type: string }
+            aplica_a: { type: string, description: "Personas naturales o jurídicas" }
+
+    # ─── Sugerencia Búsqueda ───
+    SugerenciaBusqueda:
+      type: object
+      properties:
+        type: { type: string, example: sugerencia }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            texto: { type: string }
+            url: { type: string }
+            tipo_recurso: { type: string, enum: [documento, noticia, tramite, servidor] }
+            score: { type: number }
+
+    # ─── Búsqueda Result ───
+    BusquedaResult:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Documento' }
+        meta:
+          type: object
+          properties:
+            total: { type: integer }
+            termino: { type: string }
+            tiempo_ms: { type: integer }
+
+    # ─── Alerta ───
+    AlertaPublicacion:
+      type: object
+      properties:
+        type: { type: string, example: alerta-publicacion }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            tipo: { type: string, enum: [plan-accion-31ene, informe-gestion-31ene, pqrsd-trimestral, control-interno-semestral, calendario-tributario] }
+            mensaje: { type: string }
+            dias_anticipacion: { type: integer }
+            activa: { type: boolean }
+
+    # ─── Tablero ITA ───
+    TableroIta:
+      type: object
+      properties:
+        type: { type: string, example: tablero-ita }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            porcentaje_cumplimiento: { type: number, minimum: 0, maximum: 100 }
+            items_cumplen: { type: integer }
+            items_no_cumplen: { type: integer }
+            items_parcial: { type: integer }
+            items_no_aplica: { type: integer }
+            ultima_actualizacion: { type: string, format: date-time }
+
+    # ─── Auditoría ───
+    AuditoriaCollection:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string, example: auditoria }
+              id: { type: string }
+              attributes:
+                type: object
+                properties:
+                  accion: { type: string, enum: [crear, actualizar, eliminar, login, logout] }
+                  recurso: { type: string }
+                  recurso_id: { type: integer, nullable: true }
+                  cambios: { type: object, additionalProperties: true }
+                  ip_origen: { type: string, format: ipv4 }
+                  user_agent: { type: string }
+                  created_at: { type: string, format: date-time }
+
+    # ─── Usuario ───
+    Usuario:
+      type: object
+      properties:
+        type: { type: string, example: usuario }
+        id: { type: string }
+        attributes:
+          type: object
+          properties:
+            email: { type: string, format: email }
+            mfa_habilitado: { type: boolean }
+            estado: { type: string, enum: [activo, inactivo, bloqueado, pendiente] }
+        relationships:
+          type: object
+          properties:
+            roles:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Identificador' }
+            servidor_publico:
+              type: object
+              properties:
+                data: { $ref: '#/components/schemas/Identificador', nullable: true }
+
+    # ─── Pagination ───
+    PageLinks:
+      type: object
+      properties:
+        first: { type: string, format: uri }
+        last: { type: string, format: uri }
+        prev: { type: string, format: uri, nullable: true }
+        next: { type: string, format: uri, nullable: true }
+
+    PageMeta:
+      type: object
+      properties:
+        total: { type: integer }
+        per_page: { type: integer }
+        current_page: { type: integer }
+        last_page: { type: integer }
+
+    # ─── Error estándar JSON:API ───
+    ErrorResponse:
+      type: object
+      properties:
+        jsonapi:
+          type: object
+          properties:
+            version: { type: string, example: "1.0" }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { type: string, example: "404" }
+              code: { type: string, example: "NOT_FOUND" }
+              title: { type: string, example: "Recurso no encontrado" }
+              detail: { type: string }
+              source:
+                type: object
+                properties:
+                  pointer: { type: string, example: "/data/attributes/titulo" }
+              meta:
+                type: object
+                properties:
+                  request_id: { type: string }

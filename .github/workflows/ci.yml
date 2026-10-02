@@ -214,16 +214,15 @@ jobs:
 
       - name: Auditoría del panel y del sitio
         run: |
-          # Esta puerta falla ante vulnerabilidades altas o críticas **corregibles**,
-          # que es lo que su propio mensaje declara. La distinción importa: hay
-          # advisories que ninguna actualización de `package-lock.json` puede
-          # resolver porque no existe versión corregida aguas arriba, y una puerta
-          # que falla en esos casos no protege nada — se acaba desactivando.
+          # Falla ante vulnerabilidades altas o críticas **corregibles**, que es lo
+          # que declara el mensaje de esta puerta. La distinción vive en
+          # `.github/scripts/auditar-dependencias.py`, porque `npm audit` sólo
+          # devuelve un código de salida y no separa las que tienen arreglo de las
+          # que no lo tienen aguas arriba.
           #
-          # Una vulnerabilidad sin arreglo disponible sólo se tolera si está en la
-          # lista de abajo **con su identificador y su motivo**. La lista es
-          # explícita para que una vulnerabilidad nueva no pueda colarse: si no está
-          # nombrada, rompe la construcción.
+          # Una vulnerabilidad sin arreglo sólo se tolera si su advisory está
+          # nombrado aquí con su identificador. La lista es explícita para que una
+          # nueva no pueda colarse: si no está nombrada, rompe la construcción.
           permitidas="GHSA-86w9-cpqp-85rv"
 
           fallos=0
@@ -231,83 +230,15 @@ jobs:
             echo "--- $d ---"
             (cd "$d" && npm audit --json > audit.json 2>/dev/null) || true
 
-            # Se cuentan las altas y críticas, separando las que tienen arreglo de
-            # las que no, en vez de mirar sólo el código de salida de `npm audit`,
-            # que no distingue ambas.
-            lectura=$(python3 - "$d/audit.json" "$permitidas" <<'PY'
-import json, sys
-
-ruta, permitidas = sys.argv[1], set(sys.argv[2].split())
-try:
-    with open(ruta) as f:
-        informe = json.load(f)
-except Exception:
-    print("0 0 0")
-    raise SystemExit
-
-vulns = informe.get("vulnerabilities") or {}
-
-
-def advisories(v):
-    """Los identificadores de advisory que afectan directamente a este paquete."""
-    return {
-        a.get("url", "").rstrip("/").split("/")[-1]
-        for a in (v.get("via") or [])
-        if isinstance(a, dict)
-    }
-
-
-def padres(v):
-    """Los paquetes que arrastran a éste: en `via` van como texto."""
-    return {p for p in (v.get("via") or []) if isinstance(p, str)}
-
-
-# Un paquete está justificado si el advisory tolerado lo alcanza, y no tiene
-# ningún advisory PROPIO sin justificar.
-#
-# La propagación tiene que ser «alguno de sus padres», no «todos»: `nuxt` y
-# `@nuxt/nitro-server` se referencian mutuamente, y con «todos» el ciclo no se
-# cierra nunca y la puerta fallaría para siempre. Con «alguno» el ciclo se
-# resuelve, y la segunda condición evita el abuso: un paquete que además tenga su
-# propio advisory no tolerado sigue contando como fallo.
-alcanzados = {n for n, v in vulns.items() if advisories(v) & permitidas}
-cambio = True
-while cambio:
-    cambio = False
-    for n, v in vulns.items():
-        if n in alcanzados:
-            continue
-        if padres(v) & alcanzados:
-            alcanzados.add(n)
-            cambio = True
-
-corregibles = 0
-sin_justificar = []
-toleradas = 0
-for n, v in vulns.items():
-    if v.get("severity") not in ("high", "critical"):
-        continue
-    propias = advisories(v)
-    if n in alcanzados and not (propias - permitidas):
-        toleradas += 1
-        continue
-    if v.get("fixAvailable"):
-        corregibles += 1
-        print(f"::error::{n}: {v.get('severity')}, con arreglo disponible", file=sys.stderr)
-    else:
-        sin_justificar.append(n)
-        print(f"::error::{n}: alta o crítica SIN arreglo y SIN justificar", file=sys.stderr)
-
-print(corregibles, toleradas, len(sin_justificar))
-PY
-)
+            lectura=$(python3 "$GITHUB_WORKSPACE/.github/scripts/auditar-dependencias.py" \
+              "$d/audit.json" $permitidas)
+            codigo=$?
             set -- $lectura
-            corregibles=${1:-0}; toleradas=${2:-0}; injustificadas=${3:-0}
-            [ "$toleradas" -gt 0 ] && echo "    $toleradas tolerada(s) por no existir versión corregida (ver la lista del flujo)"
-            if [ "$corregibles" -ne 0 ] || [ "$injustificadas" -ne 0 ]; then
-              fallos=$((fallos + 1))
-            fi
+            toleradas=${2:-0}
+            [ "$toleradas" -gt 0 ] && echo "    $toleradas tolerada(s): su advisory no tiene versión corregida"
             rm -f "$d/audit.json"
+
+            [ "$codigo" -ne 0 ] && fallos=$((fallos + 1))
           done
 
           if [ "$fallos" -ne 0 ]; then

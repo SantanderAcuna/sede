@@ -1,14 +1,7 @@
 /**
  * Sesión del panel.
  *
- * **Hoy este almacén siempre está vacío.** El módulo de identidad no existe
- * todavía, así que no hay de dónde traer un usuario ni sus permisos: no se
- * inventa ninguno. Lo que sí existe ya es el punto único donde el enrutador
- * pregunta «¿hay sesión?» (`src/router/index.ts`) y el menú pregunta «¿tiene
- * este permiso?» (`src/layouts/AdminLayout.vue`). Conectar la autenticación
- * real será sustituir `iniciarSesion` por la llamada al backend, sin tocar las
- * guardias ni el filtrado del menú.
- *
+ * Conecta con el backend a través del servicio de autenticación.
  * La sesión vive **en memoria** y a propósito: un usuario o unos permisos
  * guardados en `localStorage` sobreviven al cierre de sesión del servidor y
  * siguen afirmando una identidad que ya caducó. El contrato ya transporta la
@@ -17,45 +10,103 @@
  */
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { login as loginApi, logout as logoutApi, perfil as perfilApi, type Credenciales, type UsuarioItem } from '@/services/auth'
+import type { RespuestaLogin } from '@/services/auth'
 
-/** Identidad y permisos que el backend entregará cuando exista el módulo. */
 export interface UsuarioSesion {
+  id: number
+  email: string
   nombre: string
   permisos: string[]
 }
 
 export const useSesionStore = defineStore('sesion', () => {
   const usuario = ref<UsuarioSesion | null>(null)
+  const token = ref<string | null>(null)
 
-  /** ¿Hay una sesión iniciada? Es la pregunta que responde `requiereSesion`. */
+  /** ¿Hay una sesión iniciada? */
   const iniciada = computed(() => usuario.value !== null)
 
-  const permisos = computed(() => new Set(usuario.value?.permisos ?? []))
+  const permisos = computed(() => {
+    const lista = usuario.value?.permisos ?? []
+    return new Set(lista)
+  })
 
   /**
-   * Sin permiso declarado, la ruta se considera pública dentro del panel. Se
-   * decide así para que un módulo nuevo que aún no tenga permiso asignado no
-   * quede invisible por omisión.
+   * Sin permiso declarado, la ruta se considera pública dentro del panel.
    */
   function tienePermiso(permiso?: string): boolean {
     if (!permiso) return true
+    if (permisos.value.has('*')) return true
     return permisos.value.has(permiso)
   }
 
   /**
-   * Único punto de entrada para la identidad real.
-   *
-   * Todavía **no valida credenciales**: existe para que la guardia y el menú
-   * tengan un destino el día que el backend responda. Hoy nadie lo invoca, y
-   * por eso la interfaz no puede afirmar que hay sesión.
+   * Extrae los permisos de los roles del usuario.
    */
-  function iniciarSesion(datos: UsuarioSesion): void {
-    usuario.value = datos
+  function extraerPermisos(roles: UsuarioItem['roles']): string[] {
+    const permisos = new Set<string>()
+    for (const rol of roles) {
+      if (rol.permisos.includes('*')) {
+        permisos.add('*')
+      }
+      for (const p of rol.permisos) {
+        permisos.add(p)
+      }
+    }
+    return Array.from(permisos)
   }
 
-  function cerrarSesion(): void {
-    usuario.value = null
+  /**
+   * Inicia sesión con credenciales.
+   */
+  async function iniciarSesion(credenciales: Credenciales): Promise<void> {
+    const respuesta: RespuestaLogin = await loginApi(credenciales)
+    token.value = respuesta.csrf_token
+
+    if (respuesta.user) {
+      usuario.value = {
+        id: respuesta.user.id,
+        email: respuesta.user.email,
+        nombre: respuesta.user.email.split('@')[0],
+        permisos: extraerPermisos(respuesta.user.roles),
+      }
+    }
   }
 
-  return { usuario, iniciada, permisos, tienePermiso, iniciarSesion, cerrarSesion }
+  /**
+   * Cierra la sesión actual.
+   */
+  async function cerrarSesion(): Promise<void> {
+    try {
+      await logoutApi()
+    } finally {
+      usuario.value = null
+      token.value = null
+    }
+  }
+
+  /**
+   * Carga el perfil del usuario autenticado.
+   */
+  async function cargarPerfil(): Promise<void> {
+    const perfil = await perfilApi()
+    usuario.value = {
+      id: perfil.id,
+      email: perfil.email,
+      nombre: perfil.email.split('@')[0],
+      permisos: extraerPermisos(perfil.roles),
+    }
+  }
+
+  return {
+    usuario,
+    token,
+    iniciada,
+    permisos,
+    tienePermiso,
+    iniciarSesion,
+    cerrarSesion,
+    cargarPerfil,
+  }
 })

@@ -82,6 +82,12 @@ const rutas: RouteRecordRaw[] = [
         // misma entrada alimenta el menú lateral, así que no pueden divergir.
         meta: { requiereSesion: true, permiso: PERMISO_POR_RUTA['/'], titulo: 'Dashboard' },
       },
+      {
+        path: 'perfil',
+        name: 'panel.perfil',
+        component: () => import('@/views/admin/PerfilView.vue'),
+        meta: { requiereSesion: true, titulo: 'Mi perfil' },
+      },
       ...MODULOS.map(
         (modulo): RouteRecordRaw => ({
           path: modulo.ruta,

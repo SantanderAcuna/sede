@@ -2871,7 +2871,7 @@ Las integraciones externas que toda Sede Electrónica colombiana debe soportar, 
 | INT-07 | **Notificaciones electrónicas** (correo, SMS, push) | Comunicación de eventos del trámite (radicación, cambios, respuesta) | Ley 1437/2011 (notificaciones electrónicas); Decreto 491/2020 | SMTP/SES/SendGrid para correo; proveedor SMS (a confirmar) |
 | INT-08 | **Archivo General de la Nación (AGN) — preservación documental** | Implementar mecanismos de preservación de la información pública | Ley 594/2000 (Ley General de Archivos); Decreto 2106/2019 (transparencia); PPT diap. 19 | Directrices técnicas AGN (a confirmar versión) |
 | INT-09 | **Sistema de PQRSD** | Recepción, radicación, seguimiento y respuesta a PQRSD | Ley 1755/2011 (derecho de petición); Ley 1437/2011 (CPACA) | API propia o gov.co (a confirmar) |
-| INT-10 | **Captcha / anti-bot** | Protección de formularios contra envíos automatizados | PDF pág. 1, criterio 4 | reCAPTCHA v3 / hCaptcha / Turnstile (a confirmar) |
+| INT-10 | **Captcha / anti-bot** | Protección de formularios contra envíos automatizados | PDF pág. 1, criterio 4 | **Cloudflare Turnstile** — *decidido el 2026-10-02* |
 | INT-11 | **Buscador interno indexado** | Búsqueda dentro de la Sede (prohibido usar Google) | PDF pág. 1, criterio 1 | PostgreSQL Full-Text Search, ElasticSearch u OpenSearch (a confirmar) |
 | INT-12 | **Gestor de cookies / consent management** | Aceptar, denegar o revocar cookies | Ley 1581/2012 (Habeas Data); PPT diap. 15 | Cookiebot / OneTrust / implementación propia (a confirmar) |
 | INT-13 | **Kit UI 9.2 — Gov.co** | Componentes UI oficiales para la Sede | Resolución 1519/2020 Anexo 2.1 | https://gitlab.com/govco/layout-govco/-/tree/v5 |

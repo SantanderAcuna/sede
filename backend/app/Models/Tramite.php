@@ -57,10 +57,22 @@ use Illuminate\Support\Str;
  * @property string|null $costo_descripcion
  * @property list<array<string, string|null>> $costo_cuentas
  * @property string|null $resultado
+ * @property string|null $producto_final
+ * @property string|null $observaciones_resultado
+ * @property bool|null $fecha_cualquiera
+ * @property string|null $cuando_se_puede_realizar
+ * @property string|null $url_calendario
+ * @property string|null $palabras_relacionadas
+ * @property string|null $url_manual_tramite_en_linea
+ * @property list<array<string, mixed>> $momentos
+ * @property list<string> $medios_resultado
+ * @property list<array<string, mixed>> $audiencias
+ * @property list<array<string, mixed>> $cuentas
  * @property list<string> $perfiles
  * @property list<array<string, mixed>> $puntos_atencion
  * @property list<array<string, mixed>> $normativa
  * @property list<array<string, mixed>> $canales_consulta_estado
+ * @property array<string, mixed>|null $seguimiento
  * @property string|null $categoria_slug
  * @property string|null $categoria_nombre
  * @property string|null $url_ficha_gov_co
@@ -88,19 +100,31 @@ use Illuminate\Support\Str;
     'tiempo_solucion_dias',
     'canal_inicio',
     'url_inicio',
+    'url_manual_tramite_en_linea',
     'consulta_estado',
     'requisitos',
     'documentos',
+    'momentos',
     'resultado',
+    'producto_final',
+    'observaciones_resultado',
+    'fecha_cualquiera',
+    'cuando_se_puede_realizar',
+    'url_calendario',
+    'palabras_relacionadas',
+    'medios_resultado',
     'perfiles',
+    'audiencias',
     'puntos_atencion',
     'normativa',
     'canales_consulta_estado',
+    'seguimiento',
     'costo_tipo_valor',
     'costo_moneda',
     'costo_url_pago',
     'costo_descripcion',
     'costo_cuentas',
+    'cuentas',
     'categoria_slug',
     'categoria_nombre',
     'url_ficha_gov_co',
@@ -138,11 +162,17 @@ final class Tramite extends Model
             'costo' => 'decimal:2',
             'requisitos' => 'array',
             'documentos' => 'array',
+            'momentos' => 'array',
+            'medios_resultado' => 'array',
+            'fecha_cualquiera' => 'boolean',
             'perfiles' => 'array',
+            'audiencias' => 'array',
             'puntos_atencion' => 'array',
             'normativa' => 'array',
             'canales_consulta_estado' => 'array',
+            'seguimiento' => 'array',
             'costo_cuentas' => 'array',
+            'cuentas' => 'array',
             'procedencia_origen_por_campo' => 'array',
             'procedencia_derivados' => 'array',
             'procedencia_faltantes' => 'array',

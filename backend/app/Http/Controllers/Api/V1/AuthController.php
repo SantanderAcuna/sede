@@ -1,0 +1,77 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Contracts\Services\AuthServiceInterface;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\LoginRequest;
+use App\Support\Api\ApiResponse;
+use Illuminate\Http\JsonResponse;
+
+/**
+ * Controlador de autenticación para el panel.
+ *
+ * @tags Panel — Auth
+ */
+final class AuthController extends Controller
+{
+    public function __construct(
+        private readonly AuthServiceInterface $authService,
+    ) {}
+
+    /**
+     * Iniciar sesión.
+     *
+     * @operationId login
+     *
+     * @response 200 {
+     *   "success": true,
+     *   "message": "Sesión iniciada",
+     *   "data": { "require_mfa", "mfa_token", "csrf_token", "user" }
+     * }
+     */
+    public function login(LoginRequest $request): JsonResponse
+    {
+        /** @var array{email:string,password:string} $credentials */
+        $credentials = $request->validated();
+
+        $result = $this->authService->login($credentials);
+
+        if (! $result['success']) {
+            return ApiResponse::error($result['message'], 401);
+        }
+
+        return ApiResponse::ok($result['data'] ?? [], $result['message']);
+    }
+
+    /**
+     * Cerrar sesión.
+     *
+     * @operationId logout
+     *
+     * @response 204
+     */
+    public function logout(): JsonResponse
+    {
+        $this->authService->logout();
+
+        return response()->json(null, 204);
+    }
+
+    /**
+     * Obtener perfil del usuario autenticado.
+     *
+     * @operationId perfil
+     *
+     * @response 200 {
+     *   "success": true,
+     *   "data": { "id", "type": "usuario", "email", ... }
+     * }
+     */
+    public function perfil(): JsonResponse
+    {
+        return ApiResponse::objeto($this->authService->perfil());
+    }
+}

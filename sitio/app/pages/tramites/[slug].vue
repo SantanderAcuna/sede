@@ -53,6 +53,57 @@ type Requisito = components['schemas']['TramiteRequisito']
 type PuntoAtencion = components['schemas']['TramitePuntoAtencion']
 type Norma = components['schemas']['TramiteNorma']
 type Cuenta = components['schemas']['TramiteCuentaBancaria']
+type TramitePaso = components['schemas']['TramitePaso']
+type TramiteMomento = components['schemas']['TramiteMomento']
+type TramiteRequisitoVisor = components['schemas']['TramiteRequisitoVisor']
+type TramiteCuentaPago = {
+  banco?: string
+  tipo?: string
+  numero?: string
+  titular?: string
+}
+type TramitePagoValor = {
+  valor?: string | number | null
+  moneda?: string
+  tipo_valor?: string
+  descripcion?: string
+}
+/**
+ * Un requisito en la forma que ve la ficha: una mezcla del `TramiteRequisito`
+ * del contrato y del `TramiteRequisitoVisor` que el visor publica dentro de
+ * los momentos. La unión es necesaria porque los requisitos del listado
+ * (campos `requisitos[]` en `TramiteItem`) y los requisitos de los momentos
+ * (`momentos[].requisitos[]`) comparten la mayoría de los campos pero no
+ * todos: el visor trae `documento`, `formulario`, `pago[]` y `cuentas[]`,
+ * que el contrato base no declara.
+ *
+ * Los tipos se declaran manualmente y no se derivan del contrato porque
+ * OpenAPI no soporta bien la unión con campos opcionales: el compilador
+ * pierde precisión al inferir la unión, y las dos ramas terminan con
+ * `unknown` en sus campos diferenciales.
+ */
+type RequisitoExtendido = {
+  tipo: 'documento' | 'verificacion_institucional' | 'solicitud' | 'formulario' | 'pago'
+  descripcion: string | null
+  obligatorio?: boolean
+  orden?: number | null
+  cantidad?: number | null
+  unidad_cantidad?: string | null
+  nota?: string | null
+  canal?: 'web' | 'presencial' | 'correo' | 'telefonico' | null
+  url?: string | null
+  correo?: string | null
+  documento?: string | null
+  formulario?: string | null
+  formulario_nombre?: string | null
+  formulario_url?: string | null
+  url_pago?: string | null
+  pago?: TramitePagoValor[]
+  pago_valor?: TramitePagoValor[]
+  cuentas?: TramiteCuentaPago[]
+  pago_cuentas?: TramiteCuentaPago[]
+  canales?: Array<{ tipo: string; email?: string | null; url?: string | null }>
+}
 
 /** La naturaleza de un requisito, tal como la declara el contrato. */
 type TipoRequisito = Requisito['tipo']
@@ -225,17 +276,52 @@ const EXPLICACION_TIPO_VALOR: Record<string, string> = {
 // Derivados de la ficha
 // ---------------------------------------------------------------------------
 
-/** Los requisitos, agrupados por naturaleza y en el orden del recorrido. */
-const requisitosPorTipo = computed<{ tipo: TipoRequisito; titulo: string; items: Requisito[] }[]>(
-  () => {
-    const todos = tramite.value?.requisitos ?? []
+/**
+ * Los requisitos, agrupados por naturaleza y en el orden del recorrido.
+ *
+ * **Aquí no se filtra por audiencia, y es a propósito.** El contenido de una
+ * sede electrónica tiene que ser rastreable y auditable **sin ejecutar
+ * JavaScript** —es la razón de ser del renderizado en servidor, declarada en
+ * `nuxt.config.ts`—. Si los requisitos de las audiencias no activas salieran del
+ * HTML, un rastreador o una auditoría sólo verían la pestaña por defecto. Por eso
+ * se dibujan **todos** y cada uno se oculta con el atributo `hidden` cuando no
+ * aplica a la audiencia elegida; el cambio de pestaña es instantáneo y el HTML
+ * del servidor queda completo.
+ *
+ * Tampoco se deduplica aquí: los requisitos repetidos se colapsan en la ingesta
+ * (`TramiteSeeder::deduplicarRequisitos`), que es donde se normaliza la fuente.
+ */
+const requisitosPorTipo = computed<{
+  tipo: TipoRequisito
+  titulo: string
+  items: RequisitoExtendido[]
+}[]>(() => {
+  const todos = (tramite.value?.requisitos ?? []) as unknown as RequisitoExtendido[]
+  // Se descartan los requisitos sin nada que mostrar: un `SOLICITUD` sin texto
+  // es un marcador de posición del SUIT, no un dato del trámite. Se filtra en la
+  // presentación, no en la base, para que la Entidad pueda verlo y completarlo.
+  const visibles = todos.filter(requisitoEsVisible)
 
-    return ORDEN_REQUISITO.map((tipo) => ({
-      tipo,
-      titulo: TITULO_REQUISITO[tipo],
-      items: todos.filter((requisito) => requisito.tipo === tipo),
-    })).filter((grupo) => grupo.items.length > 0)
-  },
+  return ORDEN_REQUISITO.map((tipo) => ({
+    tipo,
+    titulo: TITULO_REQUISITO[tipo],
+    items: visibles.filter((requisito) => requisito.tipo === tipo),
+  })).filter((grupo) => grupo.items.length > 0)
+})
+
+/**
+ * Cuántos requisitos ve el ciudadano con la audiencia elegida.
+ *
+ * Es el número que declara «Información general». Tiene que ser el de la vista
+ * activa y no el de la lista cruda: decir «14 requisitos» cuando la pestaña
+ * muestra 6 es mentir en el resumen de la propia ficha.
+ */
+const totalRequisitosVisibles = computed<number>(() =>
+  requisitosPorTipo.value.reduce(
+    (total, grupo) =>
+      total + grupo.items.filter((req) => requisitoAplicaA(req, audienciaActiva.value)).length,
+    0,
+  ),
 )
 
 /**
@@ -262,6 +348,32 @@ const notaTermino = computed<string | null>(
   () =>
     tramite.value?.procedencia?.derivados?.find((d) => d.campo === 'tiempo_solucion_dias')?.regla ??
     null,
+)
+
+/**
+ * La respuesta a «¿Cuándo se puede realizar?», o `undefined` si la fuente no
+ * la declara.
+ *
+ * El visor no publica una frase: publica tres hechos y la Sede los compone en
+ * este orden, que es el de mayor a menor amplitud. **«Cualquier fecha» es una
+ * transcripción**, no una invención: es literalmente lo que el visor responde
+ * cuando la fuente marca `fechaCualquiera`. Si no, se publica la condición en
+ * prosa de la fuente y, en su defecto, el calendario externo.
+ *
+ * Devolver `undefined` es lo que evita dibujar la fila cuando no hay dato: una
+ * fila vacía en la ficha parece un dato que falta, y aquí es un dato que la
+ * fuente no declara.
+ */
+const cuandoSePuedeRealizar = computed<string | undefined>(() => {
+  const t = tramite.value
+  if (t === null || t === undefined) return undefined
+  if (t.fecha_cualquiera === true) return 'Cualquier fecha'
+  return opcional(t.cuando_se_puede_realizar)
+})
+
+/** El calendario externo donde la Entidad publica las fechas, si lo declara. */
+const urlCalendario = computed<string | undefined>(() =>
+  opcional(tramite.value?.url_calendario),
 )
 
 /**
@@ -304,6 +416,140 @@ const canalesConsulta = computed(() => tramite.value?.canales_consulta_estado ??
 
 /** El mecanismo de consulta que la Sede declara en el atributo obligatorio. */
 const consultaEstado = computed<string>(() => tramite.value?.consulta_estado ?? '')
+
+/**
+ * Los pasos (momentos) del trámite, en el orden oficial del visor de SUIT.
+ *
+ * Cada momento es un paso narrativo («Reunir documentos», «Radicar la
+ * documentación») con sus requisitos dentro. La Sede los publica como una
+ * línea de tiempo, que es la forma en que el visor oficial los presenta.
+ */
+const momentos = computed<TramiteMomento[]>(() => {
+  const raw = tramite.value?.momentos
+  if (!Array.isArray(raw)) return []
+  return raw as unknown as TramiteMomento[]
+})
+
+/** Los medios por los que la Entidad entrega el resultado, según el visor. */
+const mediosResultado = computed<string[]>(() => {
+  const raw = tramite.value?.medios_resultado
+  if (!Array.isArray(raw)) return []
+  return raw.filter((m): m is string => typeof m === 'string' && m.length > 0)
+})
+
+/** El conjunto de cuentas de recaudo del trámite, deduplicado por banco+número. */
+const cuentasVisor = computed<TramiteCuentaPago[]>(() => {
+  const raw = tramite.value?.cuentas
+  if (!Array.isArray(raw)) return []
+  return raw as unknown as TramiteCuentaPago[]
+})
+
+/**
+ * Las palabras clave con las que la fuente también nombra el trámite.
+ *
+ * El visor las publica bajo el título como «(También se conoce como: …)» y son
+ * la forma en que el ciudadano encuentra el trámite cuando lo busca con el
+ * nombre que usa la calle y no el nombre oficial.
+ */
+const palabrasRelacionadas = computed<string[]>(() => {
+  const raw = tramite.value?.palabras_relacionadas
+  if (typeof raw !== 'string' || raw.length === 0) return []
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+})
+
+/**
+ * El orden en que la fuente presenta las audiencias.
+ *
+ * No es alfabético ni inventado: es el orden de las pestañas del visor,
+ * comprobado en `fi=28610` y `fi=40900`, que son los que declaran las cuatro.
+ * Un grupo que la fuente añada en el futuro se coloca al final en lugar de
+ * desaparecer.
+ */
+const ORDEN_AUDIENCIAS: readonly string[] = [
+  'Ciudadano',
+  'Extranjeros',
+  'Instituciones o dependencias públicas',
+  'Organizaciones',
+]
+
+/**
+ * Los grupos de audiencia que este trámite declara.
+ *
+ * **Sale de los requisitos, no del campo `audiencias`.** Se comprobó contra el
+ * visor: el SISBÉN (`fi=6139`) declara en su ficha de entidad sólo «Ciudadano»,
+ * pero su visor muestra dos pestañas —Ciudadano y Extranjeros— porque los
+ * requisitos sí declaran las dos. La unión de `tipos_audiencia` de los
+ * requisitos es lo que reproduce el visor.
+ */
+const gruposAudiencia = computed<string[]>(() => {
+  const declaradas = new Set<string>()
+  for (const requisito of tramite.value?.requisitos ?? []) {
+    // El contrato declara las audiencias como una unión cerrada, pero el campo
+    // es opcional y la fuente podría añadir un grupo nuevo: se lee como texto
+    // para que un valor desconocido se publique en vez de romper el tipo.
+    const audiencias = (requisito.tipos_audiencia ?? []) as unknown as string[]
+    for (const audiencia of audiencias) {
+      if (typeof audiencia === 'string' && audiencia.trim() !== '') {
+        declaradas.add(audiencia.trim())
+      }
+    }
+  }
+  const ordenadas = ORDEN_AUDIENCIAS.filter((audiencia) => declaradas.has(audiencia))
+  for (const audiencia of declaradas) {
+    if (!ORDEN_AUDIENCIAS.includes(audiencia)) ordenadas.push(audiencia)
+  }
+  return [...ordenadas]
+})
+
+/**
+ * La audiencia que el ciudadano eligió, o nula si todavía no eligió.
+ *
+ * Es un `ref` aparte del valor efectivo porque la página se renderiza en el
+ * servidor antes de que exista una elección: la pestaña por defecto tiene que
+ * salir de los datos, no del estado del navegador.
+ */
+const audienciaElegida = ref<string | null>(null)
+
+/**
+ * La audiencia activa: la elegida si sigue existiendo, y si no la primera que
+ * el trámite declare. Es `null` cuando el trámite no declara ninguna, y en ese
+ * caso no hay filtro ni pestañas.
+ *
+ * **No hay pestaña «Todos».** El visor no la tiene —comprobado en su DOM— y es
+ * lo que hacía que el ciudadano viera juntas las exigencias que no le aplican:
+ * «Cédula de ciudadanía» y «Cédula de extranjería» en la misma lista.
+ */
+const audienciaActiva = computed<string | null>(() => {
+  const grupos = gruposAudiencia.value
+  if (grupos.length === 0) return null
+  const elegida = audienciaElegida.value
+  return elegida !== null && grupos.includes(elegida) ? elegida : grupos[0] ?? null
+})
+
+/** Devuelve si un requisito aplica a la audiencia activa. */
+function requisitoAplicaA(req: unknown, audiencia: string | null): boolean {
+  if (audiencia === null || audiencia === '') return true
+  const r = req as { tipos_audiencia?: string[] | null }
+  const audiencias = r.tipos_audiencia
+  if (!audiencias || audiencias.length === 0) {
+    // Sin audiencia declarada, el requisito es universal: aparece en todos los
+    // grupos. Es la opción conservadora: mejor mostrar un requisito que el
+    // ciudadano quizá no necesita que ocultar uno que sí necesita.
+    return true
+  }
+  return audiencias.includes(audiencia)
+}
+
+/** Si este trámite necesita selector de audiencia (dos grupos o más). */
+const haySelectorAudiencia = computed<boolean>(() => gruposAudiencia.value.length >= 2)
+
+/** Cambia la audiencia activa. */
+function elegirAudiencia(audiencia: string): void {
+  audienciaElegida.value = audiencia
+}
 
 /**
  * Los campos cuya procedencia **no** es la fuente.
@@ -377,15 +623,115 @@ function encabezadoNorma(norma: Norma): string {
 }
 
 /** La cantidad de ejemplares de un documento: «1 Original(es)». */
-function cantidadDocumento(requisito: Requisito): string | undefined {
-  const cantidad = requisito.cantidad ?? null
-  const unidad = opcional(requisito.unidad_cantidad)
+function cantidadDocumento(requisito: unknown): string | undefined {
+  const r = requisito as { cantidad?: number | null; unidad_cantidad?: string | null }
+  const cantidad = r.cantidad ?? null
+  const unidad = opcional(r.unidad_cantidad)
 
   if (cantidad === null && unidad === undefined) return undefined
   if (cantidad === null) return unidad
   if (unidad === undefined) return String(cantidad)
 
   return `${cantidad} ${unidad}`
+}
+
+/** Las cuentas de un requisito de pago, en la forma normalizada del visor. */
+function cuentasDeRequisito(req: unknown): TramiteCuentaPago[] {
+  const r = req as { cuentas?: TramiteCuentaPago[]; pago_cuentas?: TramiteCuentaPago[] }
+  return r.cuentas ?? r.pago_cuentas ?? []
+}
+
+/** Los valores de pago declarados, en la forma del visor. */
+function pagosDeRequisito(req: unknown): TramitePagoValor[] {
+  const r = req as { pago?: TramitePagoValor[]; pago_valor?: TramitePagoValor[] }
+  return r.pago ?? r.pago_valor ?? []
+}
+
+/** El nombre del formulario, si el requisito lo declara. */
+function formularioDeRequisito(req: unknown): string | undefined {
+  const r = req as { formulario?: string | null; formulario_nombre?: string | null }
+  return opcional(r.formulario ?? r.formulario_nombre)
+}
+
+/**
+ * La etiqueta legible de un tipo de requisito, para el chip en el paso.
+ * Reutiliza la tabla `TITULO_REQUISITO` definida más arriba.
+ */
+function tipoRequisitoLabel(tipo: string | null | undefined): string {
+  return TITULO_REQUISITO[tipo as TipoRequisito] ?? 'Requisito'
+}
+
+/**
+ * El título de un requisito: **qué** tiene que llevar o hacer el ciudadano.
+ *
+ * El orden es el de la fuente: el documento manda sobre la descripción, porque
+ * el documento es lo que el ciudadano tiene que conseguir y la descripción es
+ * la condición que lo acompaña («En caso de ser persona natural»). Poner la
+ * condición como título —que es lo que hacía la versión anterior— dejaba al
+ * ciudadano sin saber **qué** documento llevar.
+ */
+function tituloRequisito(req: unknown): string | undefined {
+  const r = req as { descripcion?: string | null; documento?: string | null }
+  return opcional(r.documento) ?? formularioDeRequisito(req) ?? opcional(r.descripcion)
+}
+
+/**
+ * La aclaración que acompaña al título, cuando la fuente la declara y aporta
+ * algo que el título no dice.
+ *
+ * Si la descripción es el propio título —un requisito que sólo trae descripción—
+ * no se repite: devolver `undefined` es lo que evita que el mismo texto se
+ * publique dos veces seguidas.
+ */
+function detalleRequisito(req: unknown): string | undefined {
+  const r = req as { descripcion?: string | null }
+  const descripcion = opcional(r.descripcion)
+  if (descripcion === undefined) return undefined
+  return descripcion === tituloRequisito(req) ? undefined : descripcion
+}
+
+/**
+ * Si un requisito tiene algo que mostrar al ciudadano, lo conservamos; si no,
+ * lo descartamos.
+ *
+ * El visor publica requisitos que en la práctica son ruido para el ciudadano:
+ * un `SOLICITUD` sin texto, sin URL, sin correo, sólo con `orden: 11` y
+ * `tipo: 'solicitud'`. No es un dato del trámite, es una entrada vacía que
+ * el SUIT no terminó de llenar, y la Sede no la publica: es exactamente la
+ * decisión de "no inventar" del §3 del AGENTS.md.
+ */
+function requisitoEsVisible(req: unknown): boolean {
+  if (tituloRequisito(req) !== undefined) return true
+  const r = req as {
+    nota?: string | null
+    url?: string | null
+    correo?: string | null
+    url_pago?: string | null
+  }
+  if (opcional(r.nota) !== undefined) return true
+  if (opcional(r.url) !== undefined) return true
+  if (opcional(r.correo) !== undefined) return true
+  if (cuentasDeRequisito(req).length > 0) return true
+  if (pagosDeRequisito(req).length > 0) return true
+  if (formularioDeRequisito(req) !== undefined) return true
+  if (opcional(r.url_pago) !== undefined) return true
+  return false
+}
+
+/** El tipo de valor del pago, en lenguaje del ciudadano. */
+function formatoTipoValor(tipo: string | null | undefined): string {
+  switch (tipo) {
+    case 'avaluo_liquidacion':
+      return 'El importe se calcula con el avalúo y la liquidación del predio'
+    case 'smlv':
+      return 'El importe se expresa en salarios mínimos legales mensuales vigentes (SMLMV)'
+    case 'fijo':
+      return 'El trámite tiene un importe fijo'
+    case 'rango':
+      return 'El importe depende del rango que la Entidad declara'
+    default:
+      return 'El trámite tiene costo; la Entidad debe declarar el importe'
+  }
 }
 </script>
 
@@ -412,6 +758,17 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
 
     <template v-else-if="tramite !== null">
       <h1>{{ tramite.nombre }}</h1>
+
+      <!--
+        Los otros nombres con los que la fuente conoce el trámite. Van justo
+        bajo el título y entre paréntesis, como en el visor, porque no son un
+        dato del trámite sino la forma en que el ciudadano lo llama: quien
+        busca «Permiso Publicidad Exterior Visual» tiene que reconocer aquí lo
+        que busca. Sólo se dibuja cuando la fuente los declara.
+      -->
+      <p v-if="palabrasRelacionadas.length > 0" class="tambien-conocido">
+        (También se conoce como: {{ palabrasRelacionadas.join(', ') }})
+      </p>
 
       <div class="row">
         <div class="col-lg-8">
@@ -442,9 +799,28 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
         abajo, para que quien sólo quiere la respuesta la tenga de un vistazo y
         quien necesita el detalle no tenga que buscarlo en otro sitio.
       -->
-      <h2 class="h3 mt-4">Ficha del trámite</h2>
+      <h2 class="h3 mt-4">Información general</h2>
 
       <dl class="row datos-tramite">
+        <!--
+          «¿Cuándo se puede realizar?» va primero porque es la pregunta que el
+          ciudadano se hace antes de organizar el desplazamiento, y porque es el
+          orden del visor. La fila sólo se dibuja cuando la fuente responde algo.
+        -->
+        <template v-if="cuandoSePuedeRealizar !== undefined || urlCalendario !== undefined">
+          <dt class="col-sm-4">¿Cuándo se puede realizar?</dt>
+          <dd class="col-sm-8">
+            <template v-if="cuandoSePuedeRealizar !== undefined">
+              {{ cuandoSePuedeRealizar }}
+            </template>
+            <span v-if="urlCalendario !== undefined" class="d-block">
+              <a :href="urlCalendario" class="enlace-externo" rel="noopener">
+                Consultar el calendario de la Entidad
+              </a>
+            </span>
+          </dd>
+        </template>
+
         <dt class="col-sm-4">Modalidad</dt>
         <dd class="col-sm-8">
           {{ MODALIDAD[tramite.modalidad] ?? tramite.modalidad }}
@@ -488,8 +864,8 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
         <dt class="col-sm-4">Requisitos</dt>
         <dd class="col-sm-8">
           <template v-if="requisitosPorTipo.length > 0">
-            {{ tramite.requisitos.length }}
-            <template v-if="tramite.requisitos.length === 1">requisito</template>
+            {{ totalRequisitosVisibles }}
+            <template v-if="totalRequisitosVisibles === 1">requisito</template>
             <template v-else>requisitos</template>
             en {{ requisitosPorTipo.length }}
             <template v-if="requisitosPorTipo.length === 1">categoría</template>
@@ -510,14 +886,61 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
         párrafo lo obligaría a interpretar cuál es cuál.
       -->
       <section v-if="requisitosPorTipo.length > 0" aria-labelledby="titulo-requisitos">
-        <h2 id="titulo-requisitos" class="h3 mt-5">Requisitos</h2>
+        <h2 id="titulo-requisitos" class="h3 mt-5">¿Qué necesito para hacer mi trámite?</h2>
+
+        <!--
+          Selector de audiencia. Es el mismo que usa «¿Cómo hago mi trámite?»:
+          una elección filtra los dos bloques, como en el visor de SUIT.
+
+          Son botones con `aria-pressed` y no un juego de pestañas ARIA: el
+          contenido no son paneles que cada pestaña posea, sino la misma lista
+          con los elementos que no aplican ocultos. Declarar `role="tab"` sin
+          `tabpanel` propio sería mentir sobre la estructura —el mismo criterio
+          del selector de grupo del catálogo—.
+        -->
+        <div
+          v-if="haySelectorAudiencia"
+          class="audiencia-filtro mt-3"
+          role="group"
+          aria-label="Tipo de persona que realiza el trámite"
+        >
+          <button
+            v-for="grupo in gruposAudiencia"
+            :key="grupo"
+            type="button"
+            class="audiencia-tab"
+            :class="{ 'audiencia-tab-activa': audienciaActiva === grupo }"
+            :aria-pressed="audienciaActiva === grupo"
+            @click="elegirAudiencia(grupo)"
+          >
+            {{ grupo }}
+          </button>
+        </div>
 
         <div v-for="grupo in requisitosPorTipo" :key="grupo.tipo" class="grupo-requisitos">
           <h3 class="h5 mt-4">{{ grupo.titulo }}</h3>
 
           <ul class="lista-requisitos">
-            <li v-for="(requisito, indice) in grupo.items" :key="indice">
-              <span class="requisito-descripcion">{{ requisito.descripcion }}</span>
+            <li
+              v-for="(requisito, indice) in grupo.items"
+              :key="indice"
+              :hidden="!requisitoAplicaA(requisito, audienciaActiva)"
+            >
+              <!--
+                El título es **qué** hay que conseguir («Cédula de ciudadanía»);
+                la aclaración es la condición que lo acompaña («Del nuevo
+                propietario…»). Cuando el requisito sólo trae descripción, el
+                título es esa descripción y `detalleRequisito` devuelve
+                `undefined`, así que el texto no se publica dos veces.
+              -->
+              <span class="requisito-descripcion">{{ tituloRequisito(requisito) }}</span>
+
+              <span
+                v-if="detalleRequisito(requisito)"
+                class="d-block nota-derivado"
+              >
+                {{ detalleRequisito(requisito) }}
+              </span>
 
               <!-- La cantidad sólo la declara la fuente para los documentos. -->
               <span v-if="cantidadDocumento(requisito)" class="d-block nota-derivado">
@@ -548,9 +971,179 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
                   :aria-label="`${requisito.correo} (abre el programa de correo)`"
                 >{{ requisito.correo }}</a>
               </span>
+
+              <!--
+                BLOQUE DE PAGO: si el requisito es de tipo PAGO, mostramos el
+                importe declarado por el visor y la lista de cuentas donde el
+                ciudadano puede pagar. Las cuentas son la ruta real de pago
+                porque la Sede no tiene pasarela de pagos contratada.
+              -->
+              <template v-if="grupo.tipo === 'pago'">
+                <div v-if="pagosDeRequisito(requisito).length > 0" class="bloque-pago mt-2">
+                  <p
+                    v-for="(pago, idxPago) in pagosDeRequisito(requisito)"
+                    :key="idxPago"
+                    class="mb-1"
+                  >
+                    <strong v-if="pago.valor">Importe: {{ pago.valor }} {{ pago.moneda ?? '' }}.</strong>
+                    <strong v-else-if="pago.tipo_valor">Importe: {{ formatoTipoValor(pago.tipo_valor) }}.</strong>
+                    <span v-if="pago.descripcion" class="d-block nota-derivado">
+                      {{ pago.descripcion }}
+                    </span>
+                  </p>
+                </div>
+
+                <div
+                  v-if="cuentasDeRequisito(requisito).length > 0"
+                  class="cuentas-pago mt-2"
+                >
+                  <p class="nota-derivado mb-1">Cuentas de recaudo para este pago:</p>
+                  <ul class="lista-cuentas-pequena">
+                    <li
+                      v-for="(cuenta, idxCta) in cuentasDeRequisito(requisito)"
+                      :key="idxCta"
+                    >
+                      <strong v-if="opcional(cuenta.banco)">{{ cuenta.banco }}</strong>
+                      <span v-if="opcional(cuenta.tipo)"> — {{ cuenta.tipo }}</span>
+                      <span v-if="opcional(cuenta.numero)" class="dato-largo"> — N° {{ cuenta.numero }}</span>
+                      <span v-if="opcional(cuenta.titular)"> — {{ cuenta.titular }}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <p
+                  v-if="opcional(requisito.url_pago)"
+                  class="mt-2"
+                >
+                  <a
+                    :href="requisito.url_pago ?? undefined"
+                    class="enlace-externo"
+                    rel="noopener"
+                  >Pagar en línea en el portal de la Entidad</a>
+                </p>
+              </template>
+
+              <!--
+                BLOQUE DE FORMULARIO: si el requisito es de tipo FORMULARIO,
+                mostramos el nombre y la URL del formulario.
+              -->
+              <template v-if="grupo.tipo === 'formulario'">
+                <p
+                  v-if="formularioDeRequisito(requisito)"
+                  class="mt-2 mb-0"
+                >
+                  <strong>Formulario:</strong> {{ formularioDeRequisito(requisito) }}
+                </p>
+                <p
+                  v-if="opcional(requisito.formulario_url)"
+                  class="mt-1"
+                >
+                  <a
+                    :href="requisito.formulario_url ?? undefined"
+                    class="enlace-externo"
+                    rel="noopener"
+                  >Diligenciar en línea</a>
+                </p>
+              </template>
             </li>
           </ul>
         </div>
+      </section>
+
+      <!--
+        =====================================================================
+        Pasos del trámite (momentos)
+        =====================================================================
+        Cada paso es un momento narrativo con un orden oficial. El visor los
+        publica con su `descripcion` («Reunir documentos», «Radicar la
+        documentación»). Aquí se separan en **título** y **descripción** y se
+        renderizan como tarjetas expandibles: el cuerpo del paso (los
+        requisitos por tipo) sólo se muestra cuando se despliega, y el
+        ciudadano encuentra la información de un vistazo sin tener que
+        cargar la página completa.
+
+        El filtro de **audiencia** que muestra arriba es la forma que el visor
+        oficial de SUIT propone: el ciudadano se reconoce en uno de los
+        grupos (Ciudadano, Organizaciones, etc.) y ve sólo los pasos que
+        aplican a su rol. Es una mejora de UX que el §3 del Anexo 2.1
+        recomienda pero no obliga.
+      -->
+      <section
+        v-if="momentos.length > 0"
+        aria-labelledby="titulo-pasos"
+        class="mt-5"
+      >
+        <h2 id="titulo-pasos" class="h3">¿Cómo hago mi trámite?</h2>
+
+        <!--
+          El mismo selector de audiencia que «¿Qué necesito?»: una sola
+          elección gobierna los dos bloques, como en el visor. Los requisitos
+          que no aplican a la audiencia activa se ocultan con `hidden` en vez de
+          salir del HTML, para que el contenido siga siendo rastreable sin
+          ejecutar JavaScript.
+        -->
+        <div
+          v-if="haySelectorAudiencia"
+          class="audiencia-filtro mt-3"
+          role="group"
+          aria-label="Tipo de persona que realiza el trámite"
+        >
+          <button
+            v-for="grupo in gruposAudiencia"
+            :key="`pasos-${grupo}`"
+            type="button"
+            class="audiencia-tab"
+            :class="{ 'audiencia-tab-activa': audienciaActiva === grupo }"
+            :aria-pressed="audienciaActiva === grupo"
+            @click="elegirAudiencia(grupo)"
+          >
+            {{ grupo }}
+          </button>
+        </div>
+
+        <ol class="pasos-listado list-unstyled mt-3">
+          <li
+            v-for="(paso, idx) in momentos"
+            :key="idx"
+            class="paso-card"
+          >
+            <details :open="idx === 0">
+              <summary class="paso-encabezado">
+                <span class="paso-chevron" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M6 3l5 5-5 5V3z"/>
+                  </svg>
+                </span>
+                <span class="paso-orden">{{ paso.orden ?? idx + 1 }}</span>
+                <span class="paso-titulo">{{ paso.titulo }}</span>
+              </summary>
+
+              <div v-if="opcional(paso.descripcion)" class="paso-descripcion">
+                {{ paso.descripcion }}
+              </div>
+
+              <ul
+                v-if="(paso.requisitos ?? []).length > 0"
+                class="paso-requisitos list-unstyled"
+              >
+                <li
+                  v-for="(req, idxReq) in paso.requisitos"
+                  :key="idxReq"
+                  class="paso-requisito"
+                  :hidden="!requisitoAplicaA(req, audienciaActiva)"
+                >
+                  <span class="paso-requisito-tipo">{{ tipoRequisitoLabel(req.tipo) }}</span>
+                  <span class="paso-requisito-texto">
+                    <span class="requisito-descripcion">{{ tituloRequisito(req) }}</span>
+                    <span v-if="detalleRequisito(req)" class="d-block nota-derivado">
+                      {{ detalleRequisito(req) }}
+                    </span>
+                  </span>
+                </li>
+              </ul>
+            </details>
+          </li>
+        </ol>
       </section>
 
       <!--
@@ -564,7 +1157,7 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
         pagar.
       -->
       <section aria-labelledby="titulo-costo">
-        <h2 id="titulo-costo" class="h3 mt-5">Costo y pago</h2>
+        <h2 id="titulo-costo" class="h3 mt-5">¿Cuánto cuesta?</h2>
 
         <p>{{ costoCifra }}</p>
 
@@ -641,7 +1234,7 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
         eso —dónde y cuándo ir—.
       -->
       <section v-if="(tramite.puntos_atencion ?? []).length > 0" aria-labelledby="titulo-puntos">
-        <h2 id="titulo-puntos" class="h3 mt-5">Dónde se atiende</h2>
+        <h2 id="titulo-puntos" class="h3 mt-5">¿Cuál es el horario y los puntos de atención?</h2>
 
         <ul class="lista-puntos">
           <li
@@ -667,25 +1260,49 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
 
       <!--
         =====================================================================
-        A quién va dirigido y qué entrega
+        ¿Qué resultado obtengo luego de hacer mi trámite?
         =====================================================================
-        Dos datos cortos que la ficha oficial declara y que no caben en ninguno
-        de los seis atributos: los perfiles deciden si el trámite le aplica a
-        quien está leyendo, y el resultado dice qué se lleva a cambio.
-      -->
-      <div v-if="(tramite.perfiles ?? []).length > 0 || opcional(tramite.resultado)" class="row mt-5">
-        <div v-if="(tramite.perfiles ?? []).length > 0" class="col-md-6">
-          <h2 class="h3">A quién va dirigido</h2>
-          <ul class="lista-simple">
-            <li v-for="perfil in tramite.perfiles" :key="perfil">{{ perfil }}</li>
-          </ul>
-        </div>
+        El resultado es lo que el ciudadano recibe al terminar; los medios
+        son por dónde se lo entregan. En el visor aparecen en un solo
+        bloque rojo; aquí se conservan juntos pero con la pregunta del
+        Anexo 2.1 como encabezado.
 
-        <div v-if="opcional(tramite.resultado)" class="col-md-6">
-          <h2 class="h3">Qué obtiene</h2>
-          <p>{{ tramite.resultado }}</p>
-        </div>
-      </div>
+        «¿Quién puede realizarlo?» **no** se publica como bloque: la
+        audiencia se gestiona a través del filtro que hay en «¿Qué
+        necesito?» y «¿Cómo hago mi trámite?». Mostrarla además
+        repetiría la información sin que aporte nada nuevo —el ciudadano
+        ya la filtró al elegir su pestaña—.
+      -->
+      <section
+        v-if="opcional(tramite.resultado) || mediosResultado.length > 0 || opcional(tramite.observaciones_resultado)"
+        aria-labelledby="titulo-resultado"
+        class="mt-5"
+      >
+        <h2 id="titulo-resultado" class="h3">¿Qué resultado obtengo luego de hacer mi trámite?</h2>
+        <p v-if="opcional(tramite.resultado)">{{ tramite.resultado }}</p>
+        <p
+          v-if="mediosResultado.length > 0"
+          class="nota-derivado mb-0"
+        >
+          <strong>Lo recibe por:</strong>
+          <span v-for="(medio, idx) in mediosResultado" :key="idx">
+            {{ medio }}<span v-if="idx < mediosResultado.length - 1">, </span>
+          </span>
+        </p>
+
+        <!--
+          La aclaración que el visor publica bajo el resultado: de qué depende
+          el plazo. Va aquí y no junto al término porque es donde la fuente la
+          declara, y porque quien lee «se obtiene en N días» necesita la
+          salvedad en el mismo sitio, no tres bloques más arriba.
+        -->
+        <p
+          v-if="opcional(tramite.observaciones_resultado)"
+          class="nota-derivado mt-2 mb-0"
+        >
+          <strong>Observaciones:</strong> {{ tramite.observaciones_resultado }}
+        </p>
+      </section>
 
       <!--
         =====================================================================
@@ -696,7 +1313,7 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
         atiende.
       -->
       <section v-if="(tramite.normativa ?? []).length > 0" aria-labelledby="titulo-normativa">
-        <h2 id="titulo-normativa" class="h3 mt-5">Normativa</h2>
+        <h2 id="titulo-normativa" class="h3 mt-5">¿Cuál es la normativa relacionada con este trámite?</h2>
 
         <ul class="lista-normativa">
           <li v-for="(norma, indice) in (tramite.normativa as Norma[])" :key="indice">
@@ -730,7 +1347,7 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
         está construida.
       -->
       <section aria-labelledby="titulo-consulta">
-        <h2 id="titulo-consulta" class="h3 mt-5">Cómo consultar el estado</h2>
+        <h2 id="titulo-consulta" class="h3 mt-5">¿Cómo consulto el estado de mi solicitud?</h2>
 
         <ul class="lista-canales">
           <li v-for="(canal, indice) in canalesConsulta" :key="indice">
@@ -903,6 +1520,18 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
   color: #4b4b4b;
 }
 
+/*
+  «También se conoce como: …». Es un subtítulo del trámite, no una nota al
+  margen: mismo tamaño pequeño y color atenuado que las notas, pero con el
+  cuerpo del texto y sin negrita, para que no compita con el título.
+*/
+.tambien-conocido {
+  font-size: 0.95rem;
+  color: #4b4b4b;
+  margin-top: -0.25rem;
+  overflow-wrap: anywhere;
+}
+
 .grupo-requisitos:first-of-type h3 {
   margin-top: 1rem;
 }
@@ -958,5 +1587,204 @@ function cantidadDocumento(requisito: Requisito): string | undefined {
 
 .estado-fallo {
   max-width: 65ch;
+}
+
+/*
+  Pasos del trámite: tarjetas expandibles con el patrón del visor de GOV.CO,
+  adaptado a la paleta institucional de la Sede (cobalto del Kit).
+
+  Cada paso es un `<details>` con un `<summary>` que tiene un chevron a la
+  izquierda, el número del paso y el título. El cuerpo se expande con los
+  requisitos del paso, cada uno con su tipo y descripción. La paleta
+  institucional es la misma del Kit: el cobalto `#004884` para el borde
+  activo y el chip de tipo, el cyan `#00ADE7` para el número del paso.
+*/
+.pasos-listado {
+  margin-top: 1.5rem;
+}
+
+.paso-card {
+  margin-bottom: 0.75rem;
+  background: #fff;
+  border: 1px solid #d6d6d6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.paso-card details {
+  margin: 0;
+}
+
+.paso-card details[open] {
+  border-left: 4px solid #004884;
+}
+
+.paso-encabezado {
+  display: grid;
+  grid-template-columns: 2.25rem 2.25rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+  background: #f4f8fc;
+  color: #004884;
+  font-size: 1rem;
+}
+
+.paso-card details[open] .paso-encabezado {
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.paso-encabezado::-webkit-details-marker {
+  display: none;
+}
+
+.paso-encabezado::marker {
+  display: none;
+  content: '';
+}
+
+.paso-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #004884;
+  transition: transform 0.2s ease;
+}
+
+.paso-card details[open] .paso-chevron {
+  transform: rotate(90deg);
+}
+
+.paso-orden {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: #00ade7;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.paso-titulo {
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.4;
+}
+
+.paso-descripcion {
+  padding: 0.75rem 1rem 0.5rem 3.5rem;
+  color: #4b4b4b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.paso-requisitos {
+  padding: 0.5rem 1rem 1rem 1rem;
+  margin: 0;
+}
+
+.paso-requisito {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 0.75rem;
+  align-items: start;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed #e5e5e5;
+}
+
+.paso-requisito:last-child {
+  border-bottom: none;
+}
+
+.paso-requisito-tipo {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #004884;
+  background: #e9eef9;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  white-space: nowrap;
+  align-self: start;
+}
+
+.paso-requisito-texto {
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+/*
+  Filtro de audiencia: pestañas con el cobalto del Kit.
+  El borde inferior azul marca la pestaña activa, igual que en el visor de
+  GOV.CO y que en la galería de aplicaciones del Kit.
+*/
+.audiencia-filtro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border-bottom: 2px solid #d6d6d6;
+  margin-bottom: 1rem;
+}
+
+.audiencia-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 0.5rem 1rem;
+  margin-bottom: -2px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #4b4b4b;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.audiencia-tab:hover {
+  color: #004884;
+}
+
+.audiencia-tab-activa {
+  color: #004884;
+  border-bottom-color: #004884;
+  font-weight: 600;
+}
+
+/* Bloque de pago dentro de un requisito */
+.bloque-pago {
+  background: #fff8e1;
+  border-left: 3px solid #f2c94c;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.cuentas-pago {
+  background: #f4f8fc;
+  border-left: 3px solid #004884;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.lista-cuentas-pequena {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+
+.lista-cuentas-pequena > li {
+  padding: 0.25rem 0;
+  border-bottom: 1px dashed #d0d0d0;
+}
+
+.lista-cuentas-pequena > li:last-child {
+  border-bottom: none;
 }
 </style>

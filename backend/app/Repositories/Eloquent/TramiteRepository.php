@@ -19,6 +19,12 @@ final class TramiteRepository implements TramiteRepositoryInterface
     {
         $consulta = $this->publicados();
 
+        if ($filtros->tipo !== null) {
+            // El filtro de modalidad acota el catálogo a uno de los tres grupos
+            // del Anexo 2.1. Sin él, la consulta devuelve las tres modalidades.
+            $consulta->where('type', $filtros->tipo);
+        }
+
         if ($filtros->categoria !== null) {
             $consulta->where('categoria_slug', $filtros->categoria);
         }

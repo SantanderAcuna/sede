@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Support\Api\Respuesta;
+use App\Http\Middleware\CabecerasDeSeguridad;
+use App\Support\Api\ApiResponse;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -12,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -26,7 +30,15 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Las cabeceras de seguridad se añaden a todas las respuestas —también a
+        // las sondas— porque un `nosniff` que sólo proteja unas rutas deja el
+        // resto a merced del navegador, y el coste de la cabecera de más es cero.
+        $middleware->append(CabecerasDeSeguridad::class);
+
+        // El limitador `api` se registra en `AppServiceProvider`, pero Laravel 11+
+        // no lo aplica al grupo de la API por su cuenta: sin esta llamada el
+        // limitador existiría y no limitaría nada.
+        $middleware->throttleApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -39,20 +51,48 @@ return Application::configure(basePath: dirname(__DIR__))
         // para que cualquier operación futura herede la forma y no haya dos
         // maneras de responder mal según quién escriba el controlador.
         //
+        // La guarda `api/*` es deliberada: fuera de la API la aplicación no
+        // responde JSON —las sondas de salud incluidas—, y devolver un sobre aquí
+        // convertiría un error de una página en algo que su cliente no sabe leer.
+        //
         // Las dos primeras devuelven el mismo texto a propósito: distinguir «no
         // existe» de «no está publicado» revelaría qué trámites tiene la Entidad
         // sin publicar.
         $exceptions->render(function (ModelNotFoundException $excepcion, Request $peticion): ?JsonResponse {
-            return $peticion->is('api/*') ? Respuesta::error('El recurso no fue encontrado.', 404) : null;
+            return $peticion->is('api/*') ? ApiResponse::notFound('El recurso no fue encontrado.') : null;
         });
 
         $exceptions->render(function (NotFoundHttpException $excepcion, Request $peticion): ?JsonResponse {
-            return $peticion->is('api/*') ? Respuesta::error('El recurso no fue encontrado.', 404) : null;
+            return $peticion->is('api/*') ? ApiResponse::notFound('El recurso no fue encontrado.') : null;
         });
 
         $exceptions->render(function (ValidationException $excepcion, Request $peticion): ?JsonResponse {
             return $peticion->is('api/*')
-                ? Respuesta::error('Error de validación.', 422, $excepcion->errors())
+                ? ApiResponse::validationError($excepcion->errors())
                 : null;
+        });
+
+        // Los tres estados que la guía pide y que faltaban: autenticación,
+        // autorización y límite de peticiones. Sin ellos, un `401`, un `403` o un
+        // `429` salían con el cuerpo por defecto de Laravel y el cliente tenía que
+        // adivinar el sobre según el código, que es justo lo que el contrato evita.
+        $exceptions->render(function (AuthenticationException $excepcion, Request $peticion): ?JsonResponse {
+            return $peticion->is('api/*') ? ApiResponse::unauthorized() : null;
+        });
+
+        $exceptions->render(function (AuthorizationException $excepcion, Request $peticion): ?JsonResponse {
+            return $peticion->is('api/*') ? ApiResponse::forbidden() : null;
+        });
+
+        $exceptions->render(function (TooManyRequestsHttpException $excepcion, Request $peticion): ?JsonResponse {
+            if (! $peticion->is('api/*')) {
+                return null;
+            }
+
+            // Las cabeceras traen `Retry-After`, y el contrato las expone en CORS
+            // justamente para que el cliente sepa cuándo volver. Un render propio
+            // las perdería: Laravel no las copia de la excepción a la respuesta
+            // que devuelve el callback.
+            return ApiResponse::tooManyRequests()->withHeaders($excepcion->getHeaders());
         });
     })->create();

@@ -176,6 +176,16 @@ paths:
           required: false
           description: Slug de la categoría por la que filtrar
           schema: { type: string, maxLength: 120 }
+        - name: type
+          in: query
+          required: false
+          description: |
+            Tipo de procedimiento: `tramites`, `opa` o `consultas`. Filtra el
+            catálogo a una de las tres modalidades que el Anexo 2.1 expone.
+            Sin valor, devuelve los tres.
+          schema:
+            type: string
+            enum: [tramites, opa, consultas]
         - name: buscar
           in: query
           required: false

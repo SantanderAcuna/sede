@@ -195,13 +195,92 @@ Medidos sobre blanco:
 
 - **D-15:** 18 de las 19 rutas siguen siendo un marcador. La guardia y el filtrado por permiso
   hacen que ahora **se vea** que no existen, que es la mejora posible sin CMS ni backend.
+  *(Comprobado el 2026-10-02 y **confirmado**: el router de `develop` no declara esas rutas una a
+  una, sino que las **genera desde una lista `MODULOS`** con exactamente **18 entradas** —`pqrsd`,
+  `tramites`, `citas`, `notificaciones`, `sede`, `carpeta`, `autenticacion`, `cms`, `portal`,
+  `transparencia`, `gestion-documental`, `sigmi`, `integraciones`, `usuarios`, `auditoria`,
+  `reportes`, `asignacion`, `configuracion`— más el comodín. **La cifra original era correcta.**)*
 - **La autenticación real** (SCD de Autenticación / SSO): el almacén es la costura, no la solución.
   Mientras no exista, el panel no es un producto desplegable.
 - **D-35, parte de dependencias:** `@tanstack/vue-query`, `vue3-toastify` y `zod` siguen declarados
   y sin usar. Retirarlos toca `package.json` y `package-lock.json`, lo que quedaba fuera del
   encargo; es un cambio de una línea para quien tenga red para regenerar el bloqueo.
+  → **RESUELTO (2026-10-02).** Los tres ya no están en `panel/package.json` y **ningún archivo de
+  `panel/src` los importa**. Se deja el hallazgo en pie, marcado, en vez de borrarlo: una auditoría
+  que elimina sus propias conclusiones pierde la traza de qué se comprobó y cuándo.
 - **`/admin/no-existe` no pasa por la guardia** (es el 404 genérico). Si se quiere que **todo**
   `/admin/*` exija sesión, es una línea en el `meta` del comodín.
+
+### 5.1 El prototipo de vistas: qué boceta y en qué estado está
+
+Existe un **prototipo de panel** que nunca se integró con `panel/`. No está en ninguna rama: vive
+en la etiqueta **`panel-diseno-prototipo`** (`6d914b3`, 89 archivos bajo `panel-diseño/`). Para
+recuperarlo:
+
+```bash
+git show panel-diseno-prototipo:"panel-diseño/src/views/DashboardView.vue"
+git ls-tree -r --name-only panel-diseno-prototipo | grep "src/views/"
+```
+
+**Lo primero que hay que decir, porque es lo que corrige la intuición: no es un panel distinto.**
+Su router declara **19 módulos frente a los 18 del panel**, y comparando las dos listas:
+
+```
+solo en el panel:      (ninguno)
+solo en el prototipo:  dashboard
+```
+
+Es decir: **la lista del prototipo es exactamente la del panel más `dashboard`.** Se construyó
+contra la misma lista de módulos, y sus vistas corresponden **una a una** con ellos. Es el boceto
+de las pantallas de esa lista, no una arquitectura alternativa:
+
+| Módulo declarado en `panel/` | Vista del prototipo | Tamaño |
+|---|---|---|
+| `pqrsd` | `pqrsd/PqrsdListView` + `PqrsdDetailView` | 2.751 + 3.716 B |
+| `tramites` | `tramites/TramitesView` | 234 B |
+| `citas` | `citas/CitasView` | 204 B |
+| `notificaciones` | `notificaciones/NotificacionesView` | 223 B |
+| `sede` | `servicios/SedeElectronicaView` | 203 B |
+| `carpeta` | `servicios/CarpetaCiudadanaView` | 196 B |
+| `autenticacion` | `servicios/AutenticacionDigitalView` | 229 B |
+| `cms` | `cms/CmsView` | 199 B |
+| `portal` | `cms/PortalCiudadanoView` | 225 B |
+| `transparencia` | `transparencia/TransparenciaView` | 204 B |
+| `gestion-documental` | `documental/GestionDocumentalView` | 217 B |
+| `sigmi` | `integraciones/SigmiView` | 217 B |
+| `integraciones` | `integraciones/IntegracionesView` | 241 B |
+| `usuarios` | `admin/UsuariosView` | 208 B |
+| `auditoria` | `admin/AuditoriaView` | 197 B |
+| `reportes` | `admin/ReportesView` | 196 B |
+| `asignacion` | `admin/AsignacionView` | 214 B |
+| `configuracion` | `admin/ConfiguracionView` | 201 B |
+
+Las seis vistas restantes hasta 25 son el marco: `DashboardView` (2.511 B), `_PlaceholderView`
+(510 B, la plantilla que envuelven las cáscaras), `auth/LoginView` (3.364 B), `auth/MfaView`
+(2.008 B), `errors/ForbiddenView` (210 B) y `errors/NotFoundView` (203 B).
+
+**Y el estado real de esos bocetos, medido por tamaño de archivo:**
+
+| | Vistas | Tamaño |
+|---|---|---|
+| **Con contenido** | 5 | 2.008 – 3.716 B |
+| Plantilla compartida | 1 | 510 B |
+| **Cáscaras** | **19** | **196 – 241 B** |
+
+Las cinco con contenido son `pqrsd/PqrsdDetailView`, `auth/LoginView`, `pqrsd/PqrsdListView`,
+`DashboardView` y `auth/MfaView`. **Las 18 vistas que corresponden a módulos —todas menos
+`pqrsd`— son cáscaras de ~200 B**: envoltorios sobre `_PlaceholderView` sin contenido propio.
+
+**Comparación con el panel real, sin exagerar en ninguna dirección.** El tablero real
+(`admin/InicioView`, 3.449 B) **supera** al del prototipo (2.511 B); pero el Login del prototipo
+(3.364 B) y su MFA (2.008 B) **son mayores** que los reales (`acceso/EntrarView` 2.721 B,
+`acceso/MfaView` 1.275 B). **No hay una regla general**: el prototipo aporta más en dos pantallas
+y menos en otra, y en PQRSD no hay nada con qué comparar porque el panel real no lo tiene.
+
+**Para qué sirve entonces.** No como trabajo hecho —de 25 vistas, cinco tienen contenido—, sino
+como **la única referencia visual de qué debería haber dentro de cada uno de los 18 módulos**,
+que hoy son todos `EnConstruccionView`. Si la Entidad prioriza módulos, aquí está el boceto de
+cada uno; si descarta alguno, esta tabla dice qué se está descartando.
 
 ---
 

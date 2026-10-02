@@ -137,6 +137,14 @@ export default defineNuxtConfig({
     compressPublicAssets: { gzip: true, brotli: true },
   },
 
+  vite: {
+    server: {
+      proxy: {
+        '/api': 'http://127.0.0.1:8000',
+      },
+    },
+  },
+
   typescript: {
     // La comprobación de tipos no se cuela en cada compilación, pero SÍ es una
     // puerta: `make compilar` ejecuta `nuxt typecheck` aparte. Tenerla apagada

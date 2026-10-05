@@ -15,20 +15,78 @@ import { useSesionStore } from '../src/stores/sesion'
 
 let pinia: Pinia
 
+// Permissions granted to the "full access" mock user.
+const ALL_PERMISSIONS = [
+  'panel-administrative',
+  'pqrsd.ver',
+  'tramites.ver',
+  'citas.ver',
+  'notificaciones.ver',
+  'sede.publicar',
+  'carpeta.ver',
+  'autenticacion.gestionar',
+  'cms.gestionar',
+  'portal.publicar',
+  'transparencia.ver',
+  'documental.gestionar',
+  'sigmi.ver',
+  'integraciones.gestionar',
+  'usuarios.gestionar',
+  'auditoria.ver',
+  'reportes.ver',
+  'asignacion.gestionar',
+  'entidad.gestionar',
+  'configuracion.gestionar',
+  'perfil.ver',
+]
+
+/**
+ * Inicia sesión de prueba sin hacer llamadas HTTP.
+ *
+ * El store tiene `iniciarSesion` que llama a la API. Para los tests del router
+ * necesitamos una sesión ya establecida. Esta función manipula el estado interno
+ * del store directamente.
+ */
+function establecerSesion(permisos: string[]): void {
+  const sesion = useSesionStore()
+  // @ts-ignore — accedemos al estado interno del store para los tests.
+  sesion.usuario = {
+    id: 99,
+    email: 'test@santamarta.gov.co',
+    nombre: 'Test User',
+    permisos,
+  }
+  // @ts-ignore
+  sesion.token = 'test-token'
+  // @ts-ignore
+  sesion.inicializado = true
+}
+
+/**
+ * Limpia la sesión de prueba.
+ */
+function limpiarSesion(): void {
+  const sesion = useSesionStore()
+  // @ts-ignore
+  sesion.usuario = null
+  // @ts-ignore
+  sesion.token = null
+  // @ts-ignore
+  sesion.inicializado = false
+}
+
 beforeEach(() => {
+  vi.clearAllMocks()
+  localStorage.clear()
   vi.stubGlobal('useHead', () => undefined)
+  // Stub location.href para que no hayan errores de navegación.
+  Object.defineProperty(window, 'location', {
+    value: { href: '', pathname: '/', assign: vi.fn(), replace: vi.fn() },
+    writable: true,
+  })
   pinia = createPinia()
   setActivePinia(pinia)
 })
-
-/** Inicia sesión con todos los permisos declarados, para poder recorrer el panel. */
-function entrarConTodo(): void {
-  const sesion = useSesionStore()
-  sesion.iniciarSesion({
-    nombre: 'Verificación',
-    permisos: [...Object.values(PERMISO_POR_RUTA), 'sin-permiso'],
-  })
-}
 
 describe('guardias de navegación (D-04, D-42)', () => {
   it('un invitado que pide un módulo acaba en la pantalla de acceso', async () => {
@@ -40,34 +98,36 @@ describe('guardias de navegación (D-04, D-42)', () => {
   })
 
   it('con sesión y permiso, el módulo se abre', async () => {
-    entrarConTodo()
+    establecerSesion(Object.values(PERMISO_POR_RUTA))
     await enrutador.push('/pqrsd')
     await enrutador.isReady()
 
     expect(enrutador.currentRoute.value.path).toBe('/pqrsd')
+    limpiarSesion()
   })
 
   it('con sesión pero sin el permiso del módulo, se avisa en vez de abrirlo', async () => {
-    const sesion = useSesionStore()
-    sesion.iniciarSesion({ nombre: 'Sin permisos', permisos: [] })
+    establecerSesion([]) // Sin permisos.
     await enrutador.push('/tramites')
     await enrutador.isReady()
 
     expect(enrutador.currentRoute.value.name).toBe('sin-permiso')
+    limpiarSesion()
   })
 
   it('un invitado no puede quedarse en la pantalla de acceso si ya entró', async () => {
-    entrarConTodo()
+    establecerSesion(Object.values(PERMISO_POR_RUTA))
     await enrutador.push('/acceso')
     await enrutador.isReady()
 
     expect(enrutador.currentRoute.value.name).not.toBe('acceso.entrar')
+    limpiarSesion()
   })
 })
 
 describe('títulos y recorrido de todos los módulos', () => {
   it('cada módulo se abre y titula la pestaña (D-47)', async () => {
-    entrarConTodo()
+    establecerSesion(Object.values(PERMISO_POR_RUTA))
     const rutas = enrutador
       .getRoutes()
       .filter((ruta) => ruta.meta?.requiereSesion && ruta.meta?.titulo && !ruta.path.includes(':'))
@@ -81,15 +141,17 @@ describe('títulos y recorrido de todos los módulos', () => {
       // El nombre del producto va siempre delante del título del módulo.
       expect(document.title).toContain('SGDI')
     }
+    limpiarSesion()
   })
 
   it('una dirección que no existe cae en el comodín, no en un módulo', async () => {
-    entrarConTodo()
+    establecerSesion(Object.values(PERMISO_POR_RUTA))
     await enrutador.push('/modulo-que-no-existe')
     await enrutador.isReady()
 
     const ruta = enrutador.currentRoute.value
     expect(ruta.matched.length).toBeGreaterThan(0)
     expect(ruta.meta?.requiereSesion).toBeUndefined()
+    limpiarSesion()
   })
 })

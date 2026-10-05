@@ -781,6 +781,93 @@
       security:
         - cookieSesion: []
 
+  /panel/perfil:
+    get:
+      tags: [Panel — Auth]
+      operationId: perfil
+      summary: Perfil del usuario autenticado
+      description: Devuelve los datos del usuario autenticado y sus roles.
+      x-status: implemented
+      responses:
+        '200':
+          description: Perfil del usuario
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UsuarioItem'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+      security:
+        - cookieSesion: []
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PANEL — ENTIDAD (Gestión de datos institucionales)
+# ══════════════════════════════════════════════════════════════════════════════
+  /panel/entidad:
+    patch:
+      tags: [Panel — Entidad]
+      operationId: actualizarEntidad
+      summary: Actualizar datos de la entidad
+      description: |
+        Actualiza los datos institucionales de la entidad (nombre, NIT, dirección,
+        redes sociales, políticas, etc.) desde el panel de administración.
+        Todos los campos son opcionales para permitir actualizaciones parciales.
+        Los campos no enviados mantienen su valor actual.
+      x-status: implemented
+      x-criterios: [RF-01-001, RF-01-002, RF-01-003, RF-01-018]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntidadInput'
+            example:
+              nombre: Alcaldía Distrital de Santa Marta
+              sigla: D.T.C.H.
+              nit: "891.780.009-4"
+              direccion: "Calle 14 No. 2-49, Palacio Municipal"
+              municipio: Santa Marta
+              departamento: Magdalena
+              telefono: "(+57) 605 420 9600"
+              linea_atencion: "(+57) 605 4351719"
+              redes:
+                - red: facebook
+                  url: "https://www.facebook.com/AlcaldiaSantaMarta"
+                - red: instagram
+                  url: "https://www.instagram.com/alcaldiabtchsantamarta"
+              politicas:
+                - slug: terminos-y-condiciones
+                  nombre: Términos y Condiciones
+                - slug: politica-de-privacidad
+                  nombre: Política de Privacidad
+      responses:
+        '200':
+          description: Entidad actualizada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Entidad actualizada correctamente."
+                      data:
+                        $ref: '#/components/schemas/EntidadItem'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PANEL — TRANSPARENCIA (CRUD autenticado)
 # ══════════════════════════════════════════════════════════════════════════════

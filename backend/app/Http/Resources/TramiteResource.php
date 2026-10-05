@@ -30,6 +30,7 @@ final class TramiteResource extends JsonResource
         /** @var array<string, mixed> $datos */
         $datos = [
             'id' => $tramite->id,
+            'uuid' => $tramite->uuid,
             'type' => 'tramites',
             'slug' => $tramite->slug,
             'nombre' => $tramite->nombre,

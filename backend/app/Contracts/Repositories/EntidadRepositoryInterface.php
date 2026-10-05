@@ -17,4 +17,13 @@ interface EntidadRepositoryInterface
      * Obtiene la primera entidad configurada.
      */
     public function findFirst(): ?Entidad;
+
+    /**
+     * Actualiza la primera entidad con los datos proporcionados.
+     *
+     * @param  array<string, mixed>  $datos
+     *
+     * @throws \RuntimeException si no existe la entidad
+     */
+    public function update(array $datos): Entidad;
 }

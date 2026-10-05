@@ -73,6 +73,8 @@ tags:
     description: Tablero ITA interno (admin)
   - name: Panel — Auditoría
     description: Log de auditoría (admin)
+  - name: Panel — Archivos
+    description: Gestión de archivos subidos (autenticado)
 
 paths:
 
@@ -1142,6 +1144,217 @@ paths:
       security:
         - cookieSesion: []
 
+  /panel/entidad:
+    patch:
+      tags: [Panel — Entidad]
+      operationId: actualizarEntidad
+      summary: Actualizar datos de la entidad
+      description: |
+        Actualiza los datos institucionales de la entidad (nombre, NIT, dirección,
+        redes sociales, políticas, etc.) desde el panel de administración.
+        Todos los campos son opcionales para permitir actualizaciones parciales.
+        Los campos no enviados mantienen su valor actual.
+      x-status: implemented
+      x-criterios: [RF-01-001, RF-01-002, RF-01-003, RF-01-018]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntidadInput'
+            example:
+              nombre: Alcaldía Distrital de Santa Marta
+              sigla: D.T.C.H.
+              nit: "891.780.009-4"
+              direccion: "Calle 14 No. 2-49, Palacio Municipal"
+              municipio: Santa Marta
+              departamento: Magdalena
+              telefono: "(+57) 605 420 9600"
+              linea_atencion: "(+57) 605 4351719"
+              redes:
+                - red: facebook
+                  url: "https://www.facebook.com/AlcaldiaSantaMarta"
+                - red: instagram
+                  url: "https://www.instagram.com/alcaldiabtchsantamarta"
+              politicas:
+                - slug: terminos-y-condiciones
+                  nombre: Términos y Condiciones
+                - slug: politica-de-privacidad
+                  nombre: Política de Privacidad
+      responses:
+        '200':
+          description: Entidad actualizada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Entidad actualizada correctamente."
+                      data:
+                        $ref: '#/components/schemas/EntidadItem'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PANEL — ARCHIVOS (gestión de archivos subidos)
+  # ══════════════════════════════════════════════════════════════════════════════
+  /panel/entidad/{modelUuid}/archivos:
+    get:
+      tags: [Panel — Archivos]
+      operationId: listarArchivosEntidad
+      summary: Listar archivos de una entidad por colección
+      description: |
+        Devuelve todos los archivos de una colección específica para una entidad.
+        Requiere autenticación. RF-01-XXX.
+      x-status: implemented
+      x-criterios: []
+      parameters:
+        - name: modelUuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: collection
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Lista de archivos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/FileMediaItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: Entidad no encontrada
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Archivos]
+      operationId: subirArchivoEntidad
+      summary: Subir un archivo a una entidad
+      description: |
+        Guarda un archivo en disco y registra sus metadatos en file_media.
+        Requiere autenticación. RF-01-XXX.
+      x-status: implemented
+      x-criterios: []
+      parameters:
+        - name: modelUuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [archivo, collection]
+              properties:
+                archivo:
+                  type: string
+                  format: binary
+                  description: Archivo binario (máximo 50 MB)
+                collection:
+                  type: string
+                  description: Nombre de la colección (ej. logos, documentos)
+                metadata:
+                  type: object
+                  description: Metadatos opcionales en formato JSON
+      responses:
+        '200':
+          description: Archivo subido correctamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/FileMediaItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: Entidad no encontrada
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/archivos/{uuid}:
+    get:
+      tags: [Panel — Archivos]
+      operationId: obtenerArchivo
+      summary: Obtener un archivo por su UUID
+      description: Devuelve los metadatos de un archivo. Requiere autenticación.
+      x-status: implemented
+      x-criterios: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Metadatos del archivo
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/FileMediaItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: Archivo no encontrado
+      security:
+        - cookieSesion: []
+    delete:
+      tags: [Panel — Archivos]
+      operationId: eliminarArchivo
+      summary: Eliminar un archivo por su UUID
+      description: Elimina el archivo físico de disco y su registro. Requiere autenticación.
+      x-status: implemented
+      x-criterios: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Archivo eliminado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: Archivo no encontrado
+      security:
+        - cookieSesion: []
+
   # ══════════════════════════════════════════════════════════════════════════════
   # PANEL — TRANSPARENCIA (CRUD autenticado)
   # ══════════════════════════════════════════════════════════════════════════════
@@ -1551,6 +1764,26 @@ components:
             como pendientes en lugar de inventarse.
           items: { type: string }
 
+    FileMediaItem:
+      type: object
+      required: [uuid, filename, original_filename, mime_type, size, collection, url]
+      properties:
+        uuid: { type: string, format: uuid }
+        model_uuid: { type: [string, 'null'], format: uuid }
+        model_type: { type: string }
+        model_id: { type: [integer, 'null'] }
+        collection: { type: string }
+        filename: { type: string }
+        original_filename: { type: string }
+        mime_type: { type: string }
+        size: { type: integer, description: Tamaño en bytes }
+        disk: { type: string }
+        path: { type: string }
+        url: { type: string, format: uri }
+        metadata: { type: [object, 'null'] }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+
     EntidadRed:
       type: object
       required: [red, url]
@@ -1565,6 +1798,53 @@ components:
         slug: { type: string }
         nombre: { type: string }
         actualizada_en: { type: [string, 'null'], format: date, readOnly: true }
+
+    # ─── Entidad Input (Panel) ─────────────────────────────────────────────
+    EntidadInput:
+      type: object
+      description: Datos para actualizar la entidad institucional desde el panel.
+      properties:
+        nombre: { type: string, maxLength: 200 }
+        sigla: { type: [string, 'null'], maxLength: 20 }
+        nit: { type: [string, 'null'], maxLength: 30 }
+        direccion: { type: [string, 'null'], maxLength: 240 }
+        municipio: { type: [string, 'null'], maxLength: 120 }
+        departamento: { type: [string, 'null'], maxLength: 120 }
+        pais: { type: [string, 'null'], maxLength: 80 }
+        telefono: { type: [string, 'null'], maxLength: 40 }
+        linea_atencion: { type: [string, 'null'], maxLength: 40 }
+        linea_gratuita: { type: [string, 'null'], maxLength: 40 }
+        linea_anticorrupcion: { type: [string, 'null'], maxLength: 40 }
+        correo_atencion: { type: [string, 'null'], format: email, maxLength: 240 }
+        correo_notificaciones_judiciales: { type: [string, 'null'], format: email, maxLength: 240 }
+        horario: { type: [string, 'null'], maxLength: 240 }
+        codigo_postal: { type: [string, 'null'], maxLength: 20 }
+        dominio: { type: [string, 'null'], format: uri, maxLength: 240 }
+        logo: { type: [string, 'null'], maxLength: 500 }
+        redes:
+          type: array
+          description: Redes sociales de la entidad
+          items:
+            type: object
+            required: [red, url]
+            properties:
+              red: { type: string, enum: [facebook, instagram, x, youtube, linkedin] }
+              url: { type: string, format: uri }
+        politicas:
+          type: array
+          description: Las cinco políticas obligatorias
+          items:
+            type: object
+            required: [slug, nombre]
+            properties:
+              slug: { type: string, maxLength: 100 }
+              nombre: { type: string, maxLength: 200 }
+        datos_por_confirmar:
+          type: array
+          description: Lista de campos pendientes de ratificación
+          items:
+            type: string
+            maxLength: 200
 
     # ─── TopBar y Footer ───────────────────────────────────────────────────
     TopBarItem:

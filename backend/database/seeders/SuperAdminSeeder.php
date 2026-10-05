@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Ramsey\Uuid\Uuid;
 use RuntimeException;
 use Spatie\Permission\Models\Role;
 
@@ -61,6 +62,11 @@ final class SuperAdminSeeder extends Seeder
                 'password' => $clave,
             ],
         );
+
+        // Asegurar que el UUID está poblado (filas preexistentes en migrate normal)
+        if ($usuario->uuid === null) {
+            $usuario->forceFill(['uuid' => Uuid::uuid4()->toString()])->save();
+        }
 
         // `syncRoles` y no `assignRole`: repetir la siembra no debe acumular filas
         // en el pivote ni conservar un rol que ya no se declara aquí.

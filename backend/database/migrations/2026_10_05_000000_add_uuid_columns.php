@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -20,30 +21,36 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Users: nullable + unique (tabla con datos preexistentes en staging)
         Schema::table('users', function (Blueprint $table): void {
-            $table->uuid('uuid')->unique()->after('id');
+            $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
+        // Las demás tablas: nullable + unique desde el inicio
         Schema::table('entidads', function (Blueprint $table): void {
-            $table->uuid('uuid')->unique()->after('id');
+            $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
         Schema::table('menus', function (Blueprint $table): void {
-            $table->uuid('uuid')->unique()->after('id');
+            $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
         Schema::table('tramites', function (Blueprint $table): void {
-            $table->uuid('uuid')->unique()->after('id');
+            $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
         Schema::table('ingesta_tramites', function (Blueprint $table): void {
-            $table->uuid('uuid')->unique()->after('id');
+            $table->uuid('uuid')->nullable()->unique()->after('id');
         });
+
+        // Poblar filas existentes de users (las demás tablas se seedean desde cero)
+        DB::statement('UPDATE users SET uuid = gen_random_uuid() WHERE uuid IS NULL');
     }
 
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table): void {
+            $table->dropUnique(['uuid']);
             $table->dropColumn('uuid');
         });
 

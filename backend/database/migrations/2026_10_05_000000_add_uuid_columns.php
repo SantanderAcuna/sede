@@ -43,14 +43,15 @@ return new class extends Migration
             $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
-        // Poblar filas existentes de users (las demás tablas se seedean desde cero)
-        DB::statement('UPDATE users SET uuid = gen_random_uuid() WHERE uuid IS NULL');
+        // Poblar filas existentes de users (solo en PostgreSQL; en tests se crean desde el seeder)
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement('UPDATE users SET uuid = gen_random_uuid() WHERE uuid IS NULL');
+        }
     }
 
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table): void {
-            $table->dropUnique(['uuid']);
             $table->dropColumn('uuid');
         });
 

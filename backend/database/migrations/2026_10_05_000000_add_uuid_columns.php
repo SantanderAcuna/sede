@@ -43,13 +43,14 @@ return new class extends Migration
             $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
-        // Poblar filas existentes de users (en migrate:fresh las crea el seeder)
+        // Poblar filas existentes de users (las demás tablas se seedean desde cero)
         DB::statement('UPDATE users SET uuid = gen_random_uuid() WHERE uuid IS NULL');
     }
 
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table): void {
+            $table->dropUnique(['uuid']);
             $table->dropColumn('uuid');
         });
 

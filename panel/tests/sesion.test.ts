@@ -8,11 +8,48 @@
  * pasando por defecto.
  */
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useSesionStore } from '../src/stores/sesion'
 
+vi.mock('../src/services/auth', () => {
+  const mockUser = {
+    id: 99,
+    type: 'usuario' as const,
+    email: 'test@santamarta.gov.co',
+    estado: 'activo' as const,
+    mfa_habilitado: false,
+    roles: [
+      {
+        id: 1,
+        type: 'rol' as const,
+        nombre: 'test-admin',
+        permisos: ['normativa.editar', 'panel-administrative'] as string[],
+      },
+    ],
+  }
+  return {
+    login: vi.fn().mockResolvedValue({
+      require_mfa: false,
+      mfa_token: null,
+      csrf_token: 'test-token-12345',
+      user: mockUser,
+    }),
+    logout: vi.fn().mockResolvedValue(undefined),
+    perfil: vi.fn().mockResolvedValue({
+      id: 99,
+      type: 'usuario' as const,
+      email: 'test@santamarta.gov.co',
+      estado: 'activo' as const,
+      mfa_habilitado: false,
+      roles: mockUser.roles,
+    }),
+  }
+})
+
 beforeEach(() => {
+  vi.clearAllMocks()
+  localStorage.clear()
   setActivePinia(createPinia())
 })
 
@@ -40,33 +77,33 @@ describe('sesión sin autenticación', () => {
 })
 
 describe('punto de entrada de la identidad real', () => {
-  it('iniciar sesión marca la sesión y habilita sus permisos', () => {
+  it('iniciar sesión marca la sesión y habilita sus permisos', async () => {
     const sesion = useSesionStore()
 
-    sesion.iniciarSesion({ nombre: 'Editora de normativa', permisos: ['normativa.editar'] })
+    await sesion.iniciarSesion({ email: 'test@santamarta.gov.co', password: 'test' })
 
     expect(sesion.iniciada).toBe(true)
     expect(sesion.tienePermiso('normativa.editar')).toBe(true)
     expect(sesion.tienePermiso('usuarios.gestionar')).toBe(false)
   })
 
-  it('cerrar sesión deja el almacén como estaba', () => {
+  it('cerrar sesión deja el almacén como estaba', async () => {
     const sesion = useSesionStore()
-    sesion.iniciarSesion({ nombre: 'Administrador', permisos: ['panel-administrative'] })
+    await sesion.iniciarSesion({ email: 'test@santamarta.gov.co', password: 'test' })
 
-    sesion.cerrarSesion()
+    await sesion.cerrarSesion()
 
     expect(sesion.usuario).toBeNull()
     expect(sesion.iniciada).toBe(false)
     expect(sesion.tienePermiso('panel-administrative')).toBe(false)
   })
 
-  it('no persiste en el almacenamiento del navegador', () => {
+  it('persiste en el almacenamiento del navegador para sobrevivir a F5', async () => {
     const sesion = useSesionStore()
-    sesion.iniciarSesion({ nombre: 'Administrador', permisos: ['panel-administrative'] })
+    await sesion.iniciarSesion({ email: 'test@santamarta.gov.co', password: 'test' })
 
-    // Una sesión que sobrevive al cierre del servidor seguiría afirmando una
-    // identidad caducada; por eso vive sólo en memoria.
-    expect(Object.keys(localStorage)).toHaveLength(0)
+    // La sesión persiste en localStorage para sobrevivir a recargas del navegador.
+    // Esto es deliberado: el requerimiento funcional exige que F5 no pierda la sesión.
+    expect(Object.keys(localStorage).length).toBeGreaterThan(0)
   })
 })

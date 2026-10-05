@@ -86,7 +86,7 @@ const rutas: RouteRecordRaw[] = [
         path: 'perfil',
         name: 'panel.perfil',
         component: () => import('@/views/admin/PerfilView.vue'),
-        meta: { requiereSesion: true, titulo: 'Mi perfil' },
+        meta: { requiereSesion: true, titulo: 'Mi perfil', permiso: PERMISO_POR_RUTA['/perfil'] },
       },
       // Ruta para el CMS de Entidad (datos institucionales)
       {

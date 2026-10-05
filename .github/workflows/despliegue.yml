@@ -44,6 +44,24 @@ jobs:
   comprobar:
     name: Comprobar
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+        env:
+          POSTGRES_DB: sede_pruebas
+          POSTGRES_USER: sede
+          POSTGRES_PASSWORD: prueba
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sede" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: sede_pruebas
+      DB_USERNAME: sede
+      DB_PASSWORD: prueba
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
@@ -59,7 +77,6 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
-          sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
       - name: Formato, análisis y pruebas
         working-directory: backend
         run: |

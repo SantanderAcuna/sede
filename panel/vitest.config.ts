@@ -23,11 +23,9 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['tests/**/*.test.ts'],
     /*
-     * Cobertura actual ~57 % líneas / ~44 % funciones (71 tests).
-     * Los umbrales se ajustan ligeramente por encima de lo actual para crear
-     * un efecto trinquete: la cobertura puede mejorar pero no empeorar.
-     * A medida que se agreguen tests para servicios, componentes y manejo
-     * de errores, los valores subirán.
+     * Cobertura tras auditoría 3-skills: ~66% líneas / ~45% ramas.
+     * Trinquete: los umbrales superan lo actual para garantizar mejora continua.
+     * Meta final: líneas ≥70% / ramas ≥57% / funciones ≥59% / statements ≥66%.
      */
     coverage: {
       provider: 'v8',
@@ -35,10 +33,10 @@ export default defineConfig({
       include: ['src/**/*.{ts,vue}'],
       exclude: ['src/**/*.d.ts', 'src/main.ts'],
       thresholds: {
-        statements: 53,
-        branches: 35,
-        functions: 43,
-        lines: 56,
+        statements: 62,
+        branches: 45,
+        functions: 56,
+        lines: 66,
       },
     },
   },

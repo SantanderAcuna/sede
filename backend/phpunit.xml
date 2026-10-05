@@ -16,6 +16,16 @@
         <include>
             <directory>app</directory>
         </include>
+        <exclude>
+            <!-- DTOs: estructuras de datos sin lógica -->
+            <file>app/DTOs/Auth/LoginCredentials.php</file>
+            <!-- Enums: tipos puros, probados a través del código que los usa -->
+            <file>app/Enums/CanalInicioTramite.php</file>
+            <file>app/Enums/CostoTramite.php</file>
+            <file>app/Enums/ModalidadTramite.php</file>
+            <!-- Traits internos -->
+            <file>app/Models/Traits/HasUuids.php</file>
+        </exclude>
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>

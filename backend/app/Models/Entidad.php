@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Traits\HasUuids;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * Entidad institucional titular de la sede electrónica.
  *
  * @property int $id
+ * @property string $uuid
  * @property string $nombre
  * @property string|null $sigla
  * @property string|null $nit
@@ -36,6 +38,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class Entidad extends Model
 {
+    use HasUuids;
+
     protected $table = 'entidads';
 
     /** @var list<string> */

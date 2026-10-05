@@ -6,15 +6,13 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\Services\IdentidadServiceInterface;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ObtenerMenuRequest;
 use App\Support\Api\ApiResponse;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Controlador para los elementos de identidad institucional.
- *
  * @tags Identidad
  */
 final class IdentidadController extends Controller
@@ -24,8 +22,6 @@ final class IdentidadController extends Controller
     ) {}
 
     /**
-     * Configuración del top bar GOV.CO.
-     *
      * @operationId obtenerTopBar
      *
      * @response 200 {
@@ -47,8 +43,6 @@ final class IdentidadController extends Controller
     }
 
     /**
-     * Configuración del footer con 8 datos institucionales, redes y políticas.
-     *
      * @operationId obtenerFooter
      *
      * @response 200 {
@@ -70,8 +64,6 @@ final class IdentidadController extends Controller
     }
 
     /**
-     * Árbol de navegación del menú.
-     *
      * @operationId obtenerMenu
      *
      * @response 200 {
@@ -79,10 +71,10 @@ final class IdentidadController extends Controller
      *   "data": [{ "id", "type": "menu-item", "slug", "etiqueta", ... }]
      * }
      */
-    public function menu(Request $request): JsonResponse
+    public function menu(ObtenerMenuRequest $request): JsonResponse
     {
         try {
-            $rol = $request->query('rol');
+            $rol = $request->validated()['rol'] ?? null;
             $menuResource = $this->identidadService->obtenerMenu($rol);
 
             return ApiResponse::ok($menuResource->resolve());

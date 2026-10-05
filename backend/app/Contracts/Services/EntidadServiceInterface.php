@@ -8,8 +8,6 @@ use App\Http\Resources\EntidadResource;
 
 /**
  * Contrato para el servicio de Entidad.
- *
- * Define las operaciones de negocio para la entidad institucional.
  */
 interface EntidadServiceInterface
 {
@@ -23,7 +21,7 @@ interface EntidadServiceInterface
     /**
      * Actualiza los datos de la entidad desde el panel de administración.
      *
-     * @param  array<string, mixed>  $datos
+     * @param  array<string, mixed>  $datos  Datos validados por ActualizarEntidadRequest
      *
      * @throws \RuntimeException si no hay entidad configurada
      */

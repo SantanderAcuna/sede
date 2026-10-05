@@ -48,7 +48,7 @@ Leyenda de **Estado**: `Aprobado` = confirmado por el usuario o decidido por el 
 | R-13 | Infraestructura | Proveedor cloud + borde | DigitalOcean + Cloudflare | plan D-xx, corpus | Aprobado |
 | R-14 | Infraestructura | Región | `nyc3` (Nueva York 3) | plan §13.1 | Aprobado |
 | R-15 | Infraestructura | Droplet actual | `165.22.46.11`, **4 vCPU / 7,8 GB / 154 GB** (Básico s-4vcpu-8gb) | plan §13.1 + SA-4 | Confirmado |
-| R-16 | Infraestructura | Orquestación | **DOKS (Kubernetes gestionado por DigitalOcean)** con 3 nodos s-4vcpu-8gb, HPA + Cluster Autoscaler (min 3, max 6), 3 réplicas de cada servicio web, 2–3 workers. Costo: ~$156/mes (nodos + LB) | plan D-13 + usuario (2026-10-05) | Aprobado (D-06) |
+| R-16 | Infraestructura | Orquestación | **Docker Compose en 3 droplets** con Load Balancer de DigitalOcean. Despliegue via Ansible multi-host. Costo: ~$156/mes | plan D-13 + usuario (2026-10-05) | Aprobado (D-06) |
 | R-17 | Infraestructura | Reverse proxy / TLS | nginx **1.30.5** stable + certificado de origen; TLS en el borde Cloudflare Full Strict | plan D-12, §13.3 | Aprobado |
 | R-18 | Infraestructura | SO | Ubuntu **24.04.5** LTS (kernel 6.8.0-142); **26.04 contradicho en §14.0** (ver C-01) | plan §13.1 | Confirmado (24.04.5) |
 | R-19 | BD | Motor | PostgreSQL **18.6** | plan D-11, compose.yaml | Aprobado |
@@ -68,7 +68,7 @@ Leyenda de **Estado**: `Aprobado` = confirmado por el usuario o decidido por el 
 | R-33 | Respaldos | Estrategia | Diario (volcado PG cifrado AES-256 + docs incremental), 7/30/365, object lock, simulacro mensual | plan §16 | Aprobado |
 | R-34 | Observabilidad | Alcance real | **Journald + logs nginx/contenedores + alertas DigitalOcean + check externo + informe disponibilidad**; Prometheus/Grafana/Loki/Jaeger/Sentry **FUERA de alcance** (D-15) — entidad-transparencia los propone pero no aplican a la sede | plan D-15, §13.4 | Aprobado |
 | R-35 | CI/CD | Puertas en PR | **NO**: auditoria-sede.md §21.3 documenta que las puertas existen pero **nadie las ejecuta en cada propuesta de cambio** | auditoria-sede.md:2445-2448 | Pendiente |
-| R-36 | Arquitectura | Conflicto entidad-transparencia vs plan.md | `entidad-transparencia/` propone ADR-015: GCP + GKE + Cloud SQL HA + Prometheus/Grafana/Loki/Jaeger/Sentry (~USD 928–1200/mes). **RESUELTO (D-03, D-06, D-07)**: sede usa **DigitalOcean + DOKS + Managed PostgreSQL**; transparencia es Módulo 02 | usuario 2026-10-05 | ✅ Resuelto |
+| R-36 | Arquitectura | Conflicto entidad-transparencia vs plan.md | `entidad-transparencia/` propone ADR-015: GCP + GKE + Cloud SQL HA + Prometheus/Grafana/Loki/Jaeger/Sentry (~USD 928–1200/mes). **RESUELTO (D-03, D-06, D-07)**: sede usa **DigitalOcean + Docker Compose en 3 droplets + Managed PostgreSQL**; transparencia es Módulo 02 | usuario 2026-10-05 | ✅ Resuelto |
 | R-37 | Interoperabilidad | Servidor X-Road/PDI | 3 ambientes (QA 1C/4G · Preprod 2C/6G · Prod 4C/16G, HA) | módulo 10, RF-B1-028 | Aprobado |
 
 ---
@@ -84,7 +84,7 @@ Leyenda de **Estado**: `Aprobado` = confirmado por el usuario o decidido por el 
 | D-03 | Proveedor cloud | **DigitalOcean** (GCP descartado) | usuario |
 | D-04 | BD | **Self-hosted en contenedor** (no gestionada por DO) | usuario |
 | D-05 | Acceso DB desde local | **Túnel SSH** vía **bastión dedicado** ($6/mes). `AllowTcpForwarding no` se mantiene en app; se habilita solo en droplet bastión | usuario |
-| D-06 | Orquestación | **DOKS (Kubernetes gestionado por DigitalOcean)** desde la Fase 0. 3 nodos s-4vcpu-8gb, HPA + Cluster Autoscaler (min 3, max 6), 3 réplicas de cada servicio web, 2–3 workers. Costo: ~$144/mes (nodos) + LB (~$12) | usuario (2026-10-05) |
+| D-06 | Orquestación | **Docker Compose en 3 droplets** con Load Balancer de DigitalOcean. Cada droplet ejecuta compose.yaml idéntico. Despliegue via Ansible playbook multi-host. Costo: ~$156/mes (3 droplets + LB) | usuario (2026-10-05) |
 | D-07 | Transparencia | Es **Módulo 02** de los 12 módulos. NO es proyecto independiente; ADR-015 de entidad-transparencia NO aplica a la sede | usuario |
 
 ### 3.2 Pendientes abiertos
@@ -116,15 +116,15 @@ Leyenda de **Estado**: `Aprobado` = confirmado por el usuario o decidido por el 
 
 > Los módulos **07 (Accesibilidad), 08 (Usabilidad) y 09 (Seguridad)** son **transversales**: se **verifican en cada módulo**, no como fases independientes. El plan.md Fase 10 valida la conformidad transversal.
 
-#### FASE 0 — Cimientos (DOKS + Managed DB)
+#### FASE 0 — Cimientos (3 Droplets + Docker Compose)
 | Módulo | Nombre | Prioridad | Dependencias |
 |---|---|---|---|
-| M00a | Cluster DOKS (3 nodos s-4vcpu-8gb) con HPA y Cluster Autoscaler (min 3, max 6) | Must | ninguna |
-| M00b | Managed PostgreSQL Production con Standby (2 vCPU / 4 GB RAM, 38 GB SSD) | Must | ninguna |
-| M00c | Load Balancer de DigitalOcean (entry point del cluster) | Must | M00a |
-| M00d | Droplet bastión SSH ($6/mes) | Must | ninguna |
-| M00e | CI/CD actualizado para DOKS (Helm charts o kustomize, no docker-compose) | Must | M00a–c |
-| M00f | SeaweedFS como storage compartido (API S3, para archivos de usuario en volúmenes persistentes) | Must | M00a |
+| M00a | 3 Droplets s-4vcpu-8gb con Docker Compose idéntico en cada uno | Must | ninguna |
+| M00b | DigitalOcean Load Balancer (entry point, health checks) | Must | M00a |
+| M00c | Managed PostgreSQL Production con Standby (2 vCPU / 4 GB RAM, 38 GB SSD) | Must | ninguna |
+| M00d | Droplet Storage con SeaweedFS (API S3, archivos de usuario) | Must | ninguna |
+| M00e | Droplet bastión SSH ($6/mes) | Must | ninguna |
+| M00f | Ansible playbooks para despliegue multi-host + CI/CD actualizado | Must | M00a–e |
 
 #### FASE 1 — Identidad y envolvente
 | Módulo | Nombre | Prioridad | Dependencias | Contenido clave |
@@ -178,7 +178,7 @@ M01 (identidad) ─────────────────────�
     └── M06 ────────────── M12
 ```
 
-> **Nota presupuesto ($200/mes):** DOKS 3 nodos (~$144) + LB (~$12) + Managed PostgreSQL (~$45–60) + bastión ($6) = **~$207–222/mes**. Excede el presupuesto por $7–22. Solución: comenzar con DOKS 3 nodos + Managed PostgreSQL (~$201–210) Y diferir el bastión ($6/mes) o iniciar con Managed PostgreSQL Essentials ($25/mes, sin standby) e inmediatamente planificar la migración a Production. X-Road QA (~$30/mes) queda diferido a la Fase 6.
+> **Nota presupuesto ($200/mes):** 3 droplets (~$144) + LB ($12) + Managed PostgreSQL (~$45–60) + Droplet Storage ($24) + bastión ($6) = **~$231–246/mes**. Excede por $31–46. Plan de inicio: Essentials DB ($25) + SeaweedFS en droplet App-3 ($0) + bastión diferido ($0) = **~$181/mes**. Upgrade progresivo cuando haya presupuesto.
 
 ---
 
@@ -199,11 +199,12 @@ M01 (identidad) ─────────────────────�
 
 | Riesgo | Probabilidad | Impacto | Mitigación preliminar |
 |---|---|---|---|
-| ~~Escala horizontal obligatoria~~ | ~~Cierto~~ | ~~Crítico~~ | **RESUELTA (D-06):** DOKS con 3 nodos s-4vcpu-8gb, HPA, 3 réplicas |
+| ~~Escala horizontal obligatoria~~ | ~~Cierto~~ | ~~Crítico~~ | **RESUELTA (D-06):** Docker Compose en 3 droplets con Load Balancer |
 | ~~PostgreSQL como SPOF~~ | ~~Alta~~ | ~~Crítico~~ | **RESUELTO (P-24):** Managed PostgreSQL Production con Standby desde día 1 |
-| **Presupuesto $200/mes ajustado**: DOKS + Managed PostgreSQL sale ~$201–222/mes, ligeramente por encima del límite | Alta | Alto | Iniciar con Managed PostgreSQL Essentials ($25/mes, sin standby) y planificar migración a Production cuando hayan usuarios; o diferir el bastión ($6/mes) e invertir en Managed DB completo |
-| **Competencia Kubernetes en el equipo**: DOKS requiere conocimiento de K8s (deployments, services, ingress, volumes, secrets) | Media | Alto | Capacitación del equipo antes de Fase 0; considerar contratar soporte de DigitalOcean o un ingeniero DevOps con experiencia K8s |
-| **Storage compartido en DOKS**: los volúmenes locales de un pod no son visibles en otro pod. Archivos de usuario (adjuntos, documentos) deben ir a SeaweedFS (API S3), no a volúmenes emptyDir/hostPath | Alta | Alto | Todos los archivos de usuario van a SeaweedFS self-hosted (ya en el stack); ningún archivo se guarda en volumen local de un pod |
+| **Presupuesto $200/mes**: la arquitectura completa (3 droplets + LB + Managed DB + SeaweedFS + Bastión) cuesta $231–246/mes. Plan de inicio: Essentials + SeaweedFS en droplet App-3 + bastión diferido = ~$181/mes | Alta | Alto | Monitorear costos; hacer upgrade a configuración completa cuando haya presupuesto |
+| **Storage compartido**: si SeaweedFS corre en droplet App-3 y ese droplet cae, los archivos siguen en los otros droplets pero no en App-3 | Media | Medio | Monitorear; migrar a droplet storage dedicado cuando haya presupuesto |
+| ~~Competencia Kubernetes~~ | ~~Media~~ | ~~Alto~~ | **N/A**: se usa Docker Compose con Ansible, no DOKS |
+| ~~Storage compartido en DOKS~~ | ~~Alta~~ | ~~Alto~~ | **RESUELTO**: SeaweedFS en droplet storage dedicado |
 | ~~Conflicto túnel SSH~~ | ~~Cierto~~ | ~~Alto~~ | **RESUELTO (D-05):** bastión dedicado con `AllowTcpForwarding yes` solo ahí |
 | Nube extranjera (nyc3) con datos de ciudadanos | Media | Medio | Declaración de conformidad SIC (Art. 26 Ley 1581); evaluar residencia de datos |
 | Inconsistencias documentales no corregidas (OS, tamaño, versiones) | Media | Medio | Verificar en el droplet y ratificar (§6) |

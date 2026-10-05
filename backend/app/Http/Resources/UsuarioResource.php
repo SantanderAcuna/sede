@@ -43,6 +43,7 @@ final class UsuarioResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'uuid' => $this->uuid,
             'type' => 'usuario',
             'email' => $this->email,
             'mfa_habilitado' => $this->mfa_habilitado ?? false,

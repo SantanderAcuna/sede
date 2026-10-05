@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\CanalInicioTramite;
 use App\Enums\CostoTramite;
 use App\Enums\ModalidadTramite;
+use App\Models\Traits\HasUuids;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -33,6 +34,7 @@ use Illuminate\Support\Str;
  */
 /**
  * @property int $id
+ * @property string $uuid
  * @property string $codigo
  * @property string $slug
  * @property string $nombre
@@ -140,6 +142,8 @@ use Illuminate\Support\Str;
 ])]
 final class Tramite extends Model
 {
+    use HasUuids;
+
     /**
      * Cuántas palabras caben en el resumen.
      *

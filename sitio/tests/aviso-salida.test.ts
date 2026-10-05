@@ -151,3 +151,31 @@ describe('pedir, confirmar y cancelar el aviso', () => {
     abrir.mockRestore()
   })
 })
+
+describe('nombreDelDestino — inferencia legible de hostname', () => {
+  const { nombreDelDestino } = useAvisoSalida()
+
+  it('detecta Facebook', () => expect(nombreDelDestino('https://www.facebook.com/user')).toBe('Facebook'))
+  it('detecta Instagram', () => expect(nombreDelDestino('https://instagram.com/user')).toBe('Instagram'))
+  it('detecta X/Twitter', () => expect(nombreDelDestino('https://x.com/user')).toBe('X (Twitter)'))
+  it('detecta YouTube', () => expect(nombreDelDestino('https://youtube.com/watch')).toBe('YouTube'))
+  it('detecta LinkedIn', () => expect(nombreDelDestino('https://linkedin.com/in/user')).toBe('LinkedIn'))
+  it('detecta SECOP', () => expect(nombreDelDestino('https://secop.gov.co/portal')).toBe('SECOP — Sistema Electrónico de Contratación Pública'))
+  it('detecta SUIN', () => expect(nombreDelDestino('https://suin.gov.co/norma')).toBe('SUIN — Sistema Único de Información Normativa'))
+  it('detecta Portal GOV.CO', () => expect(nombreDelDestino('https://www.gov.co')).toBe('Portal Único del Estado — GOV.CO'))
+  it('detecta Colombia.co', () => expect(nombreDelDestino('https://www.colombia.co')).toBe('Marca País Colombia'))
+  it('hostname genérico devuelve hostname sin www', () => expect(nombreDelDestino('https://ejemplo.gov.co/page')).toBe('ejemplo.gov.co'))
+  it('URL inválida devuelve la cadena original', () => expect(nombreDelDestino('no-es-url')).toBe('no-es-url'))
+})
+
+describe('entidadDelDestino — identificación del responsable', () => {
+  const { entidadDelDestino } = useAvisoSalida()
+
+  it('gov.co devuelve entidad pública', () => expect(entidadDelDestino('https://www.gov.co')).toBe('Entidad pública del Estado colombiano'))
+  it('Facebook/Instagram devuelve Meta', () => expect(entidadDelDestino('https://facebook.com/user')).toBe('Meta Platforms, Inc.'))
+  it('X/Twitter devuelve X Corp.', () => expect(entidadDelDestino('https://x.com/user')).toBe('X Corp.'))
+  it('YouTube devuelve Google', () => expect(entidadDelDestino('https://youtube.com')).toBe('Google LLC'))
+  it('LinkedIn devuelve LinkedIn Corp.', () => expect(entidadDelDestino('https://linkedin.com')).toBe('LinkedIn Corporation'))
+  it('dominio desconocido devuelve tercero externo', () => expect(entidadDelDestino('https://ejemplo.com')).toBe('Tercero externo'))
+  it('URL inválida devuelve entidad externa', () => expect(entidadDelDestino('invalido')).toBe('Entidad externa'))
+})

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Traits\HasUuids;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Elemento del menú de navegación.
  *
  * @property int $id
+ * @property string $uuid
  * @property string $slug
  * @property string $etiqueta
  * @property string|null $ruta
@@ -27,6 +29,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 final class Menu extends Model
 {
+    use HasUuids;
+
     protected $table = 'menus';
 
     /** @var list<string> */

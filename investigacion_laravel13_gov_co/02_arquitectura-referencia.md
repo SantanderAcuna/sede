@@ -6,7 +6,8 @@
 **Estado:** Pendiente (en revisión por el usuario)
 **Aprobado por:** [usuario]
 
-> **Documento precedente:** `01_requisitos.md` (Fase 1, aprobado por el usuario 2026-10-05). Este documento asume todas las decisiones de la Fase 1.
+> **Decisión del usuario (2026-10-05):** Docker Compose (no DOKS), mismo número de droplets (3).
+> **Documento precedente:** `01_requisitos.md` (Fase 1, aprobado por el usuario 2026-10-05).
 
 ---
 
@@ -19,7 +20,7 @@
 | D-03 | Proveedor cloud | DigitalOcean (GCP descartado) |
 | D-04 | BD | DigitalOcean Managed PostgreSQL Production con Standby |
 | D-05 | Acceso DB desde local | Túnel SSH vía bastión dedicado ($6/mes) |
-| D-06 | Orquestación | **DOKS (Kubernetes gestionado)** con 3 nodos s-4vcpu-8gb, HPA + Cluster Autoscaler |
+| D-06 | **Orquestación** | **Docker Compose en 3 droplets** con Load Balancer de DigitalOcean |
 | D-07 | Transparencia | Módulo 02 de los 12 módulos de la sede |
 
 ---
@@ -30,432 +31,513 @@
                             ┌─────────────────────────────────────────┐
                             │         INTERNET / GOV.CO               │
                             │   (redirección con enmascaramiento)     │
-                            └──────────────┬──────────────────────────┘
-                                           │
-                                           ▼
-                              ┌────────────────────────┐
-                              │   Cloudflare (WAF)     │
-                              │   Full Strict TLS      │
-                              └────────────┬───────────┘
-                                           │443
-                                           ▼
-                              ┌────────────────────────┐
-                              │  DigitalOcean Load     │  ← M00c
-                              │  Balancer (entry)     │
-                              └────────────┬───────────┘
-                                           │
-                    ┌──────────────────────┼──────────────────────┐
-                    │                      │                      │
-                    ▼                      ▼                      ▼
-           ┌────────────┐         ┌────────────┐         ┌────────────┐
-           │  DOKS Node │         │  DOKS Node │         │  DOKS Node │
-           │  #1        │         │  #2        │         │  #3        │
-           │ 4 vCPU/8GB│         │ 4 vCPU/8GB│         │ 4 vCPU/8GB│
-           └─────┬──────┘         └─────┬──────┘         └─────┬──────┘
-                 │                      │                      │
-    ┌────────────┼──────────────────────┼──────────────────────┼────────────┐
-    │            │                      │                      │            │
-    ▼            ▼                      ▼                      ▼            ▼
-┌───────┐  ┌───────┐           ┌───────┐              ┌───────┐  ┌───────┐
-│ nginx │  │ PHP   │           │ PHP   │              │ PHP   │  │redis- │
-│(ingress)│ │FPM/Horizon│     │FPM/Horizon│          │FPM/Horizon│ │session│
-└───────┘  └───────┘           └───────┘              └───────┘  └───────┘
-    │           │                   │                      │
-    │           ▼                   ▼                      │
-    │     ┌──────────┐        ┌──────────┐                │
-    │     │ Nuxt SSR │        │ Nuxt SSR │  ← 3 réplicas │
-    │     │ (sitio/) │        │ (sitio/) │                │
-    │     └──────────┘        └──────────┘                │
-    │           │                   │                      │
-    │           ▼                   ▼                      │
-    │     ┌──────────┐        ┌──────────┐                │
-    │     │ Nuxt SPA │        │ Nuxt SPA │  ← 3 réplicas │
-    │     │ (panel/) │        │ (panel/) │                │
-    │     └──────────┘        └──────────┘                │
-    │                                                   │
-    ▼                                                   │
-┌─────────────────────────────────────────────────────────┐
-│              SeaweedFS StatefulSet                     │  ← M00f
-│         (PersistentVolumeClaim, API S3)                │
-│    Todos los archivos de usuario (adjuntos, docs)      │
-└─────────────────────────────────────────────────────────┘
+                            └──────────────────────┬──────────────────┘
+                                                   │
+                                                   ▼
+                                    ┌────────────────────────┐
+                                    │   Cloudflare (WAF)      │
+                                    │   Full Strict TLS       │
+                                    └────────────┬───────────┘
+                                                   │443
+                                                   ▼
+                                    ┌────────────────────────┐
+                                    │  DigitalOcean Load     │  ← M00c
+                                    │  Balancer              │  $12/mes
+                                    │  healthcheck en :443   │
+                                    └────────────┬───────────┘
+                                                   │
+                     ┌─────────────────────────────┼─────────────────────────────┐
+                     │                             │                             │
+                     ▼                             ▼                             ▼
+            ┌───────────────┐            ┌───────────────┐            ┌───────────────┐
+            │  Droplet App  │            │  Droplet App  │            │  Droplet App  │
+            │  #1           │            │  #2           │            │  #3           │
+            │ 4 vCPU / 8 GB │            │ 4 vCPU / 8 GB │            │ 4 vCPU / 8 GB │
+            │ NYC3          │            │ NYC3          │            │ NYC3          │
+            └───────┬───────┘            └───────┬───────┘            └───────┬───────┘
+                    │                              │                              │
+                    │   ┌──────────────────────────┴──────────────────────────┐   │
+                    │   │           Docker Compose en cada droplet              │   │
+                    │   │                                                      │   │
+                    │   │  ┌──────────────┐  ┌──────────────┐  ┌─────────┐   │   │
+                    │   │  │ nginx:1.30  │  │              │  │         │   │   │
+                    │   │  │ (reverse     │  │ php-fpm +    │  │  Redis  │   │   │
+                    │   │  │  proxy TLS)  │  │ Laravel +    │  │  8.10   │   │   │
+                    │   │  │              │  │ Horizon      │  │         │   │   │
+                    │   │  └──────┬───────┘  └──────┬───────┘  └─────────┘   │   │
+                    │   │         │                 │                       │   │
+                    │   │         ▼                 ▼                       │   │
+                    │   │  ┌──────────────┐  ┌──────────────┐             │   │
+                    │   │  │ Nuxt SSR     │  │ Nuxt SPA     │             │   │
+                    │   │  │ (sitio/)     │  │ (panel/)     │             │   │
+                    │   │  └──────────────┘  └──────────────┘             │   │
+                    │   └──────────────────────────────────────────────────┘   │
+                    └──────────────────────────────────────────────────────────────┘
+                                        │
+                                        │ Puerto 9000 (solo red privada)
+                                        ▼
+                               ┌─────────────────────┐
+                               │ Droplet Storage      │  ← M00f
+                               │ 2 vCPU / 4 GB / 80GB│  $24/mes
+                               │ SeaweedFS (API S3)  │
+                               │ Puerto 8332          │
+                               └─────────────────────┘
 
-    ┌──────────────────────────────────────────────┐
-    │      DigitalOcean Managed PostgreSQL           │  ← M00b
-    │  Production 2 vCPU / 4 GB RAM / 38 GB SSD     │
-    │            + Standby replica (HA)              │
-    │          Connection string via private network  │
-    └──────────────────────────────────────────────┘
+    ┌──────────────────────────────────────────────────────────┐
+    │      DigitalOcean Managed PostgreSQL                       │  ← M00b
+    │  Production + Standby 2 vCPU / 4 GB RAM / 38 GB SSD    │  $45–60/mes
+    │  Private network (solo accesible desde droplets)          │
+    └──────────────────────────────────────────────────────────┘
 
-    ┌─────────────┐          ┌──────────────────────────┐
-    │  Bastión    │ ◄── SSH ─│  Admin local             │  ← M00d
-    │  Droplet    │  túnel   │  (psql, pgAdmin, etc.)    │
-    │  $6/mes     │          └──────────────────────────┘
-    │  AllowTcp   │              ┌──────────────────────────┐
-    │  Forwarding │              │  GitHub Actions          │
-    │  yes (solo) │              │  CI/CD pipeline          │
-    └─────────────┘              │  (build → trivy →       │
-                                 │   helm deploy → DOKS)   │
-                                 └──────────────────────────┘
+    ┌─────────────┐       SSH túnel      ┌──────────────────────┐
+    │  Bastión     │ ◄─────────────────► │  Admin local          │  ← M00d
+    │  Droplet     │  (AllowTcpForward)   │  (psql, pgAdmin)     │  $6/mes
+    │  1 vCPU/1GB  │                     └──────────────────────┘
+    └─────────────┘
+         │
+         │ SSH jump
+         ▼
+    ┌──────────────────────────────────────────────────────┐
+    │              GitHub Actions CI/CD                      │
+    │  Build → Trivy → ghcr.io → Ansible → 3 droplets     │
+    └──────────────────────────────────────────────────────┘
+```
+
+### Topología de red
+
+```
+┌─────────────────────────────────────────────────────┐
+│              VPC DigitalOcean (nyc3)                  │
+│                                                      │
+│  app-droplet-1  10.XXX.0.1   (nginx + php + nuxt) │
+│  app-droplet-2  10.XXX.0.2   (nginx + php + nuxt) │
+│  app-droplet-3  10.XXX.0.3   (nginx + php + nuxt) │
+│  storage-droplet 10.XXX.0.4  (SeaweedFS :8332)     │
+│  bastion         10.XXX.0.5  (SSH externo solo)    │
+│                                                      │
+│  Managed PostgreSQL: endpoint privado               │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 3. Proyectos de infraestructura
 
-Cada proyecto es un bloque de trabajo autónomo con su propia referencia arquitectónica, criterios de	done y costo estimado.
-
 ---
 
-### PROYECTO-01: Migración Docker Compose → DOKS
+### PROYECTO-01: 3 Droplets con Docker Compose + Load Balancer
 
-**Objetivo:** Migrar la aplicación de un droplet único con Docker Compose a un cluster DOKS con 3 nodos, alta disponibilidad y auto-scaling.
+**Objetivo:** Replicar la aplicación en 3 droplets idénticos con balanceador de carga, eliminando el SPOF del droplet único actual.
 
-#### 3.1.1 Arquitectura de referencia — DOKS
+#### 3.1.1 Arquitectura de referencia
 
 | Componente | Especificación |
 |---|---|
-| **Plataforma** | DigitalOcean Kubernetes (DOKS) — managed Kubernetes |
-| **Versión K8s** | 1.30+ (más reciente estable disponible en DO) |
-| **Node pool** | 3 nodos `s-4vcpu-8gb` (4 vCPU / 8 GB RAM / 80 GB SSD) |
-| **Auto-scaling** | Cluster Autoscaler: min 3 / max 6 nodos |
-| **HPA** | Horizontal Pod Autoscaler en todos los deployments (web, workers) |
-| **Kubernetes networking** | Cilium o kube-proxy (default DO) con network policies |
-| **Ingress** | NGINX Ingress Controller via Helm, con TLS terminates en Cloudflare (origen HTTP) |
-| **DNS interno** | CoreDNS (gestionado por DOKS) |
+| **Droplets** | 3 × `s-4vcpu-8gb` (4 vCPU / 8 GB RAM / 80 GB SSD) en nyc3 |
+| **Load Balancer** | DigitalOcean Load Balancer (entry point en puerto 443) |
+| **Health checks** | HTTP cada 10s en `/health`; elimina droplet no responde en 3 intentos |
+| **Docker Compose** | Idéntico en los 3 droplets (`/opt/sede/compose.yaml`) |
+| **Conexión entre droplets** | Red privada de DigitalOcean (VPC) en 10.XXX.0.0/16 |
+| **Despliegue** | Ansible playbook que ejecuta `docker compose pull && docker compose up -d` en los 3 droplets en paralelo |
 
-#### Servicios desplegados en DOKS
+#### Docker Compose en cada droplet
 
-| Deployment | Réplicas | Recursos (request/limit) | Notas |
-|---|---|---|---|
-| `sitio` (Nuxt SSR) | 3 | 500m / 1000m CPU, 512Mi / 1Gi RAM | SSR rendering, público |
-| `panel` (Nuxt SPA) | 3 | 250m / 500m CPU, 256Mi / 512Mi RAM | Admin, autenticado |
-| `backend` (Laravel / Octane) | 3 | 1000m / 2000m CPU, 1Gi / 2Gi RAM | API PHP |
-| `worker` (Laravel Horizon) | 2 | 500m / 1000m CPU, 512Mi / 1Gi RAM | Colas, no expose puerto |
-| `redis` | 2 | 250m / 500m CPU, 256Mi / 512Mi RAM | Cache + sessions |
-| `seaweedfs` | 2 | 500m / 1000m CPU, 1Gi / 2Gi RAM | Storage S3-compatible |
-| `nginx-ingress` | 2 | 200m / 400m CPU, 256Mi / 512Mi RAM | Ingress controller |
+```yaml
+# /opt/sede/compose.yaml
+version: '3.9'
 
-#### Helm charts requeridos
+services:
+  nginx:
+    image: nginx:1.30.5-alpine
+    container_name: sede-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - sitio
+      - panel
 
+  php:
+    image: ghcr.io/sede/backend:${IMAGE_TAG}
+    container_name: sede-php
+    restart: always
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html:ro
+    environment:
+      - APP_ENV=${APP_ENV}
+      - APP_DEBUG=${APP_DEBUG}
+      - DB_CONNECTION=pgsql
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - REDIS_HOST=127.0.0.1
+    depends_on:
+      - redis
+
+  sitio:
+    image: ghcr.io/sede/sitio:${IMAGE_TAG}
+    container_name: sede-sitio
+    restart: always
+    environment:
+      - NUXT_HOST=0.0.0.0
+      - NUXT_PORT=3000
+
+  panel:
+    image: ghcr.io/sede/panel:${IMAGE_TAG}
+    container_name: sede-panel
+    restart: always
+    environment:
+      - NUXT_HOST=0.0.0.0
+      - NUXT_PORT=3001
+
+  horizon:
+    image: ghcr.io/sede/backend:${IMAGE_TAG}
+    container_name: sede-horizon
+    restart: always
+    command: php artisan horizon
+    depends_on:
+      - php
+      - redis
+
+  redis:
+    image: redis:8-alpine
+    container_name: sede-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+
+networks:
+  default:
+    driver: bridge
 ```
-helm repo add bitnami https://charts.bitnami.com/nginx
-helm repo add codecentric https://codecentric.github.io/helm-charts  # for keycloak
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana.github.io/helm-charts
-```
 
-#### Migración de volúmenes
+#### Configuración del Load Balancer
 
-| Tipo de dato | Estrategia |
+| Parámetro | Valor |
 |---|---|
-| Código fuente | Imagen Docker en ghcr.io, no volumen |
-| Archivos de usuario (adjuntos, docs) | **SeaweedFS** con PVC RWX (ReadWriteMany) — NO volume hostPath ni emptyDir |
-| Sessiones PHP / cache | Redis (ya en DOKS) |
-| Uploads temporales | emptyDir (no persistente, OK para tmp) |
+| **Tipo** | DigitalOcean Load Balancer (regional) |
+| **Región** | nyc3 |
+| **Entrada** | 443 → targets :443 en los 3 droplets |
+| **Health check** | `http://:443/health` cada 10s, timeout 5s |
+| **SSL** | TLS terminates en Cloudflare (origen HTTP); el LB recibe HTTP y reenvía a droplets |
+| **Sticky sessions** | No (sessions en Redis compartido) |
+| **Backend protocol** | HTTP (interno, red privada) |
 
-**Criterio crítico:** ningún archivo de usuario se guarda en un volumen local de un pod. Si un pod muere y se rearranca en otro nodo, el archivo debe seguir accesible. Esa es la razón de SeaweedFS con PVC.
+#### Ansible para despliegue multi-host
 
-#### Conexión a Managed PostgreSQL
+```ini
+# ansible/inventory.ini
+[droplets]
+app-1 ansible_host=165.22.46.11 ansible_user=deploy
+app-2 ansible_host=165.22.46.12 ansible_user=deploy
+app-3 ansible_host=165.22.46.13 ansible_user=deploy
 
-```
-# En el Secret de Kubernetes (no en configmap)
-POSTGRES_HOST= приватный_ендпоинт_DO_ManagedDB.private
-POSTGRES_PORT=5432
-POSTGRES_DB=sede
-POSTGRES_USER=sede_app
-POSTGRES_PASSWORD=<Kubernetes Secret>
-```
-
-El endpoint privado de DigitalOcean (private network) evita que el tráfico de BD cruce internet.
-
-#### Conexión al Bastión SSH
-
-```
-BASTION_HOST= <IP del droplet bastión>
-BASTION_USER=deploy
-SSH_KEY_PATH=/etc/secrets/ssh_key
-LOCAL_PORT=5433  # tunnel: localhost:5433 → bastion → managed DB:5432
+[droplets:vars]
+ansible_ssh_private_key_file=~/.ssh/id_rsa_deploy
+compose_path=/opt/sede
+registry=ghcr.io
 ```
 
-El túnel SSH se levanta manualmente desde el bastion hacia el Managed PostgreSQL (el bastion no puede recibir conexiones externas, solo se accede a él por VPN o SSH desde la red de la entidad).
+```yaml
+# ansible/deploy.yml
+- hosts: droplets
+  become: true
+  gather_facts: true
+  vars:
+    compose_path: /opt/sede
+    registry: ghcr.io
+
+  tasks:
+    - name: Ensure /opt/sede exists
+      file:
+        path: "{{ compose_path }}"
+        state: directory
+        owner: deploy
+        mode: '0755'
+
+    - name: Copy compose file
+      template:
+        src: compose.yaml.j2
+        dest: "{{ compose_path }}/compose.yaml"
+      notify: Restart services
+
+    - name: Pull images
+      docker_image:
+        name: "{{ registry }}/sede/{{ item }}:{{ image_tag }}"
+        source: pull
+      loop:
+        - backend
+        - sitio
+        - panel
+      notify: Restart services
+
+    - name: Tag images locally
+      command: >
+        docker tag {{ registry }}/sede/{{ item }}:{{ image_tag }}
+        sede/{{ item }}:latest
+      loop:
+        - backend
+        - sitio
+        - panel
+
+    - name: Restart services
+      docker_compose:
+        project_src: "{{ compose_path }}"
+        state: restarted
+      register: result
+
+    - name: Health check
+      uri:
+        url: "http://localhost/health"
+        status_code: 200
+      register: health
+      until: health.status == 200
+      retries: 5
+      delay: 10
+
+  handlers:
+    - name: Restart services
+      docker_compose:
+        project_src: "{{ compose_path }}"
+        restarted: yes
+```
 
 #### Costo mensual
 
 | Recurso | Especificación | Costo/mes |
 |---|---|---|
-| DOKS cluster fee | flat | $0 |
-| 3 × s-4vcpu-8gb | nyc3 | $144 |
-| DigitalOcean Load Balancer | entry point | $12 |
-| Volume (block storage) | solo si se necesita | $0–10 |
+| 3 × Droplet s-4vcpu-8gb | nyc3 | $144 |
+| DigitalOcean Load Balancer | regional entry point | $12 |
 | **Subtotal** | | **$156/mes** |
 
 #### Criterios de	done
 
-- [ ] Cluster DOKS creado con 3 nodos s-4vcpu-8gb
-- [ ] `sitio`, `panel`, `backend`, `worker`, `redis`, `seaweedfs` desplegados con Helm
-- [ ] 3 réplicas de cada servicio web verificadas (`kubectl get pods -o wide`)
-- [ ] HPA configurado y verificado con `kubectl autoscale` o HPA manifest
-- [ ] Cluster Autoscaler habilitado (min 3 / max 6)
-- [ ] NGINX Ingress funcionando con TLS de Cloudflare (origen HTTP → Cloudflare Full Strict)
-- [ ] Secretos de BD y Redis en Kubernetes Secrets (no en configmap)
-- [ ] SeaweedFS responde en `http://seaweedfs.default.svc.cluster.local:8332`
-- [ ] Despliegue via GitHub Actions (Helm upgrade) funciona en staging
+- [ ] 3 droplets creados con Ubuntu 24.04 LTS
+- [ ] Docker Compose idéntico en los 3 droplets (`/opt/sede/compose.yaml`)
+- [ ] Load Balancer creado y verificando health check hacia los 3 droplets
+- [ ] Sessions y cache en Redis local del droplet (no sticky sessions)
+- [ ] Ansible playbook ejecuta despliegue simultáneo en los 3 droplets
+- [ ] Al apagar un droplet, el LB deja de enviarle tráfico en ≤30s
+- [ ] Ansible `deploy.yml` invocado desde GitHub Actions
 
 ---
 
-### PROYECTO-02: DigitalOcean Managed PostgreSQL Production con Standby
+### PROYECTO-02: Droplet de Storage con SeaweedFS
+
+**Objetivo:** Storage compartido S3-compatible (archivos de usuario) accesible desde los 3 droplets de aplicación. Resuelve el problema de archivos subidos en droplet-1 no visibles en droplet-2 o droplet-3.
+
+#### 3.2.1 Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Droplet Storage (10.XXX.0.4)                     │
+│                    2 vCPU / 4 GB / 80 GB                    │
+│                                                              │
+│   SeaweedFS Master  :8888 (metadata, solo red interna)      │
+│   SeaweedFS Volume  :8332 (API S3, lectura/escritura)       │
+│                                                              │
+│   Firewall UFW: acepta tráfico solo desde 10.XXX.0.0/16    │
+└─────────────────────────────────────────────────────────────┘
+          ▲
+          │ S3 PUT/GET (puerto 8332, red privada)
+          │
+┌─────────┴──────────────────────────────────────────────────┐
+│  Droplet App #1, #2, #3                                     │
+│  Laravel → S3_ENDPOINT=http://10.XXX.0.4:8332               │
+│            AWS_ACCESS_KEY_ID=<generado>                      │
+│            AWS_SECRET_ACCESS_KEY=<generado>                  │
+│            AWS_DEFAULT_REGION=nyc3                           │
+│            AWS_S3_BUCKET=sede-files                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Configuración Laravel (S3)
+
+```php
+// config/filesystems.php
+'s3' => [
+    'driver' => 's3',
+    'endpoint' => env('AWS_ENDPOINT', 'http://10.XXX.0.4:8332'),
+    'use_path_style_endpoint' => true,  // IMPORTANTE para SeaweedFS
+    'key' => env('AWS_ACCESS_KEY_ID'),
+    'secret' => env('AWS_SECRET_ACCESS_KEY'),
+    'region' => 'nyc3',
+    'bucket' => env('AWS_BUCKET', 'sede-files'),
+],
+```
+
+#### Costo mensual
+
+| Recurso | Costo/mes |
+|---|---|
+| Droplet Storage | 2 vCPU / 4 GB / 80 GB SSD | $24 |
+| **Subtotal** | | **$24/mes** |
+
+#### Criterios de	done
+
+- [ ] Droplet Storage creado (2 vCPU / 4 GB)
+- [ ] SeaweedFS instalado y respondiendo en `:8332`
+- [ ] Bucket `sede-files` creado
+- [ ] Credenciales S3 en `secrets.env` de cada droplet app
+- [ ] Upload de archivo desde droplet #1 → descarga desde droplet #2 → verificado
+- [ ] Backups de volumen configurados (snapshot diario a DO Spaces)
+
+---
+
+### PROYECTO-03: DigitalOcean Managed PostgreSQL Production con Standby
 
 **Objetivo:** Reemplazar PostgreSQL self-hosted en contenedor por una base de datos gestionada con alta disponibilidad.
 
-#### 3.2.1 Arquitectura de referencia
+#### 3.3.1 Arquitectura
 
 ```
-┌─────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────┐
 │         DigitalOcean Managed PostgreSQL               │
-│                                                     │
-│  ┌──────────────┐    Sincrónico    ┌──────────────┐│
-│  │   Primary    │◄────────────────►│   Standby    ││
-│  │  (escribe)   │   replication    │  (replica)   ││
-│  └──────┬───────┘                  └──────────────┘│
-│         │                                          │
-│  ←─ Public endpoint (privado)                      │
-│  ←─ Private network (para DOKS pods)               │
-└─────────────────────────────────────────────────────┘
-         ▲
-         │ read replica (opcional, para queries de reporting)
+│                                                       │
+│  Primary  ────── replicate ──────►  Standby         │
+│  (escribe)       síncrono            (replica HA)   │
+│                                                       │
+│  Private network ──► Droplets app (no internet)     │
+└──────────────────────────────────────────────────────┘
 ```
 
 #### Especificaciones
 
 | Parámetro | Valor |
 |---|---|
-| **Plan** | Production (no Essentials — incluye standby) |
+| **Plan** | Production (incluye Standby) |
 | **vCPU** | 2 vCPU |
 | **RAM** | 4 GB |
 | **Storage** | 38 GB SSD |
-| **Región** | nyc3 (misma que DOKS) |
+| **Región** | nyc3 (misma que droplets) |
 | **Alta disponibilidad** | Standby replica síncrona, failover automático |
-| **Backups** | Automáticos (7 días retention en plan Production) + punto-in-time recovery |
-| **Conexión** | Private network hacia DOKS (no tráfico por internet) |
-| **Usuarios** | Mínimo 2: app (aplicación) + admin (para túnel SSH vía bastion) |
-| **Contraseñas** | Generadas con `openssl rand -hex 32`, almacenadas en GitHub Secrets + 1Password |
+| **Backups** | Automáticos 7 días + point-in-time recovery |
+| **Conexión** | Private network hacia droplets (no tráfico por internet) |
 
-#### Configuración de conexión (DOKS Secret)
-
-```yaml
-# kubernetes/secrets.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: db-credentials
-  namespace: default
-type: Opaque
-stringData:
-  POSTGRES_HOST: "privado.private.postgresql.database.azure.com"  # DO proporciona esto
-  POSTGRES_PORT: "5432"
-  POSTGRES_DB: "sede_production"
-  POSTGRES_USER: "sede_app"
-  POSTGRES_PASSWORD: "<generated>"
-  POSTGRES_ADMIN_USER: "sede_admin"
-  POSTGRES_ADMIN_PASSWORD: "<generated>"
-```
-
-#### Permitted networks
+#### Connection string
 
 ```
-# Agregar el CIDR del DOKS cluster a permitted networks
-# Para que los pods puedan conectarse sin exponer PostgreSQL a internet
-DO Managed DB → Allowed Connections → DigitalOcean Kubernetes (automatic)
+POSTGRES_HOST= privado.private.postgresql.database.digitalocean.com
+POSTGRES_PORT=5432
+POSTGRES_DB=sede_production
+POSTGRES_USER=sede_app
+POSTGRES_PASSWORD=<generado con openssl rand -hex 32>
 ```
 
 #### Costo mensual
 
-| Recurso | Especificación | Costo/mes |
-|---|---|---|
-| Managed PostgreSQL Production | 2 vCPU / 4 GB RAM / 38 GB SSD + Standby | $45–60 |
-| Point-in-time recovery | Incluido en Production | $0 |
-| **Subtotal** | | **$45–60/mes** |
+| Recurso | Costo/mes |
+|---|---|
+| Managed PostgreSQL Production + Standby | $45–60 |
+| **Subtotal** | **$45–60/mes** |
 
 #### Criterios de	done
 
 - [ ] Managed PostgreSQL Production creado en nyc3 con Standby
-- [ ] Private network connectivity verificada desde DOKS pods
-- [ ] Tablas de la aplicación creadas con migrations
-- [ ] Usuario `sede_app` creado con privilegios mínimos (no superuser)
-- [ ] Backups automáticos configurados (Retention ≥ 7 días)
-- [ ] Failover automático probado (matar el primary, verificar que standby toma)
-- [ ] Connection string almacenada en GitHub Secrets + 1Password del equipo
-- [ ] Punto de conexión desde el túnel SSH verificado (bastion → Managed DB)
+- [ ] Private network connectivity verificada desde los 3 droplets app
+- [ ] Migrations aplicadas (`php artisan migrate`)
+- [ ] Usuario `sede_app` con privilegios mínimos (no superuser)
+- [ ] Backups automáticos activos (retention ≥ 7 días)
+- [ ] Failover automático probado (matar primary, verificar standby toma)
+- [ ] Connection string en `secrets.env` de cada droplet app
 
 ---
 
-### PROYECTO-03: Túnel SSH vía Droplet Bastión
+### PROYECTO-04: Túnel SSH vía Droplet Bastión
 
-**Objetivo:** Permitir administración de la BD (psql, pg_dump, pg_restore) desde la red local sin exponer PostgreSQL a internet.
+**Objetivo:** Permitir administración de la BD (psql, pg_dump) desde la red local sin exponer PostgreSQL a internet.
 
-#### 3.3.1 Arquitectura de referencia
+#### 3.4.1 Arquitectura
 
 ```
-┌────────────────┐    SSH (puerto 22)    ┌────────────────┐
-│  Estación de    │ ──────────────────────►  Droplet        │
-│  trabajo del   │   (solo conexión SSH    Bastión         │
-│  admin (local) │    desde IP whitelist) │  $6/mes        │
-│                │                        │                │
-│  psql -h localhost│                       │  AllowTcp     │
-│  -p 5433       │      SSH tunnel         │  Forwarding   │
-│                │ ◄──────────────────────│  yes          │
-└────────────────┘                        └───────┬────────┘
-                                                  │
-                                          SSH jump
-                                                  │
-                                                  ▼
-                                         ┌────────────────┐
-                                         │  Managed        │
-                                         │  PostgreSQL     │
-                                         │  (sin acceso    │
-                                         │   a internet)   │
-                                         └────────────────┘
+┌────────────────┐    SSH puerto 22    ┌────────────────┐
+│  Admin local   │ ───────────────────►  Droplet Bastión  │
+│  (psql,        │    (solo IP fija     │  1 vCPU / 1 GB  │
+│   pgAdmin)     │     de la Alcaldía)  │  $6/mes         │
+└───────┬────────┘                     │  AllowTcpFwd yes │
+        │                              └────────┬────────┘
+        │ SSH túnel (-L 5433:...)                 │ SSH jump
+        │                                        │
+        ▼                                        ▼
+┌─────────────────────────────────────────────────┐
+│  Managed PostgreSQL (sin acceso a internet)       │
+└─────────────────────────────────────────────────┘
 ```
 
-#### Especificaciones del droplet bastión
+#### Especificaciones del bastión
 
 | Parámetro | Valor |
 |---|---|
-| **Droplet** | `s-1vcpu-1gb` (el más pequeño, solo para SSH) |
-| **SO** | Ubuntu 24.04 LTS |
-| **Región** | nyc3 (misma que DOKS y Managed DB) |
-| **Firewall** | UFW: solo puerto 22, source = IP fija de la Alcaldía |
-| **SSH** | Clave pública/privada, sin contraseña. `AllowTcpForwarding yes`. `PasswordAuthentication no` |
-| **Usuarios** | `deploy` (para pipelines) + `admin_<nombre>` (uno por administrador) |
-| **Auditoría** | `journalctl -u sshd` + `auditd` para registrar comandos |
+| **Droplet** | `s-1vcpu-1gb` Ubuntu 24.04 LTS |
+| **Región** | nyc3 |
+| **Firewall** | UFW: solo 22/tcp desde IP fija de la Alcaldía |
+| **SSH** | Clave pública/privada. `AllowTcpForwarding yes`. `PasswordAuthentication no` |
+| **Usuarios** | `deploy` (pipeline) + `admin_<nombre>` (uno por admin) |
 
-#### Configuración SSH del bastión
-
-```bash
-# /etc/ssh/sshd_config (bastión)
-AllowTcpForwarding yes
-AllowStreamLocalForwarding no
-PasswordAuthentication no
-PermitRootLogin no
-X11Forwarding no
-PrintMotd yes
-
-# /etc/ssh/sshd_config.d/bastion.conf
-# Restringir por IP
-Match Address 192.168.1.0/24,10.0.0.0/8
-    AllowTcpForwarding yes
-```
-
-#### Script de túnel (para el admin)
+#### Script de túnel para el admin
 
 ```bash
 #!/bin/bash
 # conectar-bastion.sh
 BASTION_HOST="<IP_DEL_BASTION>"
-BASTION_USER="admin_tu_nombre"
-LOCAL_PORT="5433"         # puerto local para el túnel
-REMOTE_HOST="<DO_ManagedDB_PrivateHost>"
-REMOTE_PORT="5432"
+ADMIN_USER="admin_tu_nombre"
+LOCAL_PORT="5433"
+REMOTE_DB_HOST="<DO_ManagedDB_PrivateHost>"
+REMOTE_DB_PORT="5432"
 
-# Abrir túnel: localhost:5433 → bastion → managed_db:5432
-ssh -L ${LOCAL_PORT}:${REMOTE_HOST}:${REMOTE_PORT} \
-    -N -C ${BASTION_USER}@${BASTION_HOST} &
-SSH_TUNNEL_PID=$!
+echo "Abriendo túnel: localhost:${LOCAL_PORT} → ${BASTION_HOST} → ${REMOTE_DB_HOST}:${REMOTE_DB_PORT}"
+ssh -L ${LOCAL_PORT}:${REMOTE_DB_HOST}:${REMOTE_DB_PORT} \
+    -N -C ${ADMIN_USER}@${BASTION_HOST} &
+SSH_PID=$!
 
-echo "Túnel abierto en localhost:${LOCAL_PORT}"
-echo "Presiona Ctrl+C para cerrar"
-
-# Verificar conexión
-sleep 2
-psql -h localhost -p ${LOCAL_PORT} -U sede_admin -d sede_production
-
-# Al salir, cerrar el túnel
-kill $SSH_TUNNEL_PID 2>/dev/null
+echo "Túnel PID: $SSH_PID"
+echo "Conectar con: psql -h localhost -p ${LOCAL_PORT} -U sede_admin -d sede_production"
+echo "Ctrl+C para cerrar"
+wait $SSH_PID
 ```
-
-#### Permitted networks en Managed PostgreSQL
-
-Agregar a allowed connections del Managed PostgreSQL:
-- La IP pública del droplet bastión
-- Opcionalmente: el CIDR interno de DigitalOcean para droplets (`10.XXX.0.0/16`)
-
-> **Nota de seguridad:** la IP del bastión debe ser fija o estar en una red con IP fija. Si la Alcaldía usa IP dinámica, se requiere VPN o un rango de IPs blancas documentado.
 
 #### Costo mensual
 
-| Recurso | Especificación | Costo/mes |
-|---|---|---|
-| Droplet bastión | 1 vCPU / 1 GB RAM | $6 |
-| **Subtotal** | | **$6/mes** |
+| Recurso | Costo/mes |
+|---|---|
+| Droplet bastión | $6 |
+| **Subtotal** | **$6/mes** |
 
 #### Criterios de	done
 
 - [ ] Droplet bastión creado con Ubuntu 24.04
-- [ ] Usuario admin personal creado con clave SSH
+- [ ] Usuario admin personal con clave SSH
 - [ ] `AllowTcpForwarding yes` verificado
-- [ ] UFW configurado con IP fija de la Alcaldía
-- [ ] Túnel SSH funcionando: `psql -h localhost -p 5433 -U sede_admin`
-- [ ] Auditoría SSH (`journalctl -u sshd`) accesible
+- [ ] UFW con IP fija de la Alcaldía
+- [ ] Túnel funcional: `psql -h localhost -p 5433 -U sede_admin`
 - [ ] Script `conectar-bastion.sh` entregado al equipo
 
 ---
 
-### PROYECTO-04: Pipeline CI/CD para DOKS
+### PROYECTO-05: Pipeline CI/CD Multi-Host con Ansible
 
-**Objetivo:** Reemplazar el pipeline actual (`docker compose push` + `desplegar.sh` SSH) por un pipeline GitHub Actions que construya imágenes, escanee y despliegue a DOKS via Helm.
+**Objetivo:** Reemplazar `desplegar.sh` (un solo host) por un pipeline GitHub Actions que despliegue simultáneamente a los 3 droplets usando Ansible.
 
-#### 3.4.1 Pipeline actual (lo que existe)
-
-```
-GitHub Actions: ci.yml + despliegue.yml
-├── Build (docker build)
-├── Trivy scan (HIGH/CRITICAL blocking)
-├── Push to ghcr.io
-└── SSH to droplet + docker compose pull && docker compose up -d
-```
-
-**Problemas del pipeline actual:**
-1. No escala a múltiples nodos DOKS (docker compose solo funciona en un host)
-2. No soporta Helm ni rollback basado en releases
-3. No tiene environment promotions (staging → production)
-4. Secrets en GitHub Secrets pero no en Kubernetes Secrets
-
-#### 3.4.2 Pipeline objetivo (DOKS-ready)
+#### 3.5.1 Pipeline objetivo
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     GitHub Actions Pipeline                       │
-│                                                                  │
-│  ┌─────────┐   ┌──────────┐   ┌──────────┐   ┌────────────┐  │
-│  │  PR     │──►│   CI     │──►│  Build   │──►│   Push     │  │
-│  │ Trigger │   │ (lint,   │   │  (docker │   │  (ghcr.io) │  │
-│  │         │   │  test)   │   │  build)  │   │            │  │
-│  └─────────┘   └──────────┘   └──────────┘   └─────┬──────┘  │
-│                                                     │           │
-│                                           ┌─────────▼────────┐   │
-│                                           │    Trivy Scan   │   │
-│                                           │ (block HIGH/    │   │
-│                                           │  CRITICAL)      │   │
-│                                           └─────────┬────────┘   │
-│                                                     │           │
-│                              ┌──────────────────────┼─────────┐  │
-│                              │                      │         │  │
-│                   ┌──────────▼──────┐   ┌──────────▼────┐  │  │
-│                   │   Staging       │   │   Production   │  │
-│                   │   deploy        │   │   deploy       │  │
-│                   │   (auto)        │   │   (manual      │  │
-│                   │                 │   │    approval)   │  │
-│                   └─────────────────┘   └────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+push (PR/branch) ──► lint + test ──► build + push ──► Trivy ──►
+                                         │
+                    ┌────────────────────┴────────────────────┐
+                    │                                         │
+          Staging auto-deploy                        Production manual
+          (ansible-playbook a 3 pods)              (ansible-playbook a 3 pods)
 ```
 
-#### Arquitectura de GitHub Actions para DOKS
+#### GitHub Actions workflow
 
 ```yaml
-# .github/workflows/doks-deploy.yml
-name: DOKS Deploy
+# .github/workflows/multi-host-deploy.yml
+name: Multi-Host Docker Deploy
 
 on:
   push:
@@ -465,16 +547,13 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-  CLUSTER_NAME: sede-electonica-cluster
-  REGION: nyc3
+  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-  # ── JOB 1: Build y scan (corre en PR y push) ──────────────────────
   build:
     runs-on: ubuntu-latest
     outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
+      image-tag: ${{ env.IMAGE_TAG }}
 
     steps:
       - uses: actions/checkout@v4
@@ -489,41 +568,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/backend
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=semver,pattern={{version}}
+      - name: Build and push backend
+        run: |
+          docker build -t $REGISTRY/sede/backend:$IMAGE_TAG ./backend
+          docker push $REGISTRY/sede/backend:$IMAGE_TAG
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Build and push sitio
+        run: |
+          docker build -t $REGISTRY/sede/sitio:$IMAGE_TAG ./sitio
+          docker push $REGISTRY/sede/sitio:$IMAGE_TAG
+
+      - name: Build and push panel
+        run: |
+          docker build -t $REGISTRY/sede/panel:$IMAGE_TAG ./panel
+          docker push $REGISTRY/sede/panel:$IMAGE_TAG
 
       - name: Run Trivy scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.meta.outputs.tags }}
+          image-ref: $REGISTRY/sede/backend:$IMAGE_TAG
           format: sarif
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
-          exit-code: '1'  # Block on HIGH/CRITICAL
+          exit-code: '1'
 
-      - name: Upload Trivy results to Security tab
+      - name: Upload to Security tab
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
           sarif_file: trivy-results.sarif
 
-  # ── JOB 2: Deploy a staging (auto en push a staging) ─────────────
   deploy-staging:
     runs-on: ubuntu-latest
     needs: build
@@ -532,123 +606,124 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Setup Python + Ansible
+        run: pip install ansible
 
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: '3.14.0'
-
-      - name: Configure kubectl for DOKS
-        uses: digitalocean/kubectl-config@v1
-        with:
-          token: ${{ secrets.DOKS_TOKEN_STAGING }}
-
-      - name: Deploy via Helm
+      - name: Deploy via Ansible
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
         run: |
-          helm upgrade --install sede-backend ./helm/sede-backend \
-            --namespace sede-staging \
-            --create-namespace \
-            --set image.tag=${{ needs.build.outputs.image-tag }} \
-            --set env.APP_ENV=staging \
-            --wait --timeout 5m
+          ansible-playbook ansible/deploy.yml \
+            -i ansible/inventory.staging.ini \
+            --extra-vars "image_tag=$IMAGE_TAG"
 
-  # ── JOB 3: Deploy a producción (manual approval) ─────────────────────
   deploy-production:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
     environment: production
-    # Require manual approval in GitHub Environments
-    # (needs GitHub Pro or Team plan)
 
     steps:
       - uses: actions/checkout@v4
+      - name: Setup Python + Ansible
+        run: pip install ansible
 
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: '3.14.0'
-
-      - name: Configure kubectl for DOKS
-        uses: digitalocean/kubectl-config@v1
-        with:
-          token: ${{ secrets.DOKS_TOKEN_PROD }}
-
-      - name: Run pre-deployment smoke tests
+      - name: Deploy via Ansible
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
         run: |
-          kubectl run smoke-test --image=${{ needs.build.outputs.image-tag }} \
-            --restart=Never -n sede-production -- \
-            curl -f http://sede-backend:8000/health
-        continue-on-error: true
-
-      - name: Deploy via Helm
-        run: |
-          helm upgrade --install sede-backend ./helm/sede-backend \
-            --namespace sede-production \
-            --create-namespace \
-            --set image.tag=${{ needs.build.outputs.image-tag }} \
-            --set env.APP_ENV=production \
-            --atomic \
-            --cleanup-on-fail \
-            --wait --timeout 10m
+          ansible-playbook ansible/deploy.yml \
+            -i ansible/inventory.production.ini \
+            --extra-vars "image_tag=$IMAGE_TAG"
 
       - name: Verify deployment
         run: |
-          kubectl rollout status deployment/sede-backend -n sede-production
-          kubectl rollout status deployment/sede-worker -n sede-production
+          curl -f https://www.santamarta.gov.co/health || exit 1
 ```
 
-#### GitHub Secrets requeridos
+#### Ansible playbook (deploy.yml)
 
-| Secret | Descripción |
-|---|---|
-| `DOKS_TOKEN_STAGING` | Token de DigitalOcean con acceso K8s para staging |
-| `DOKS_TOKEN_PROD` | Token de DigitalOcean con acceso K8s para producción |
-| `POSTGRES_PASSWORD_STAGING` | Password de BD staging |
-| `POSTGRES_PASSWORD_PROD` | Password de BD producción |
-| `REDIS_PASSWORD_STAGING` | Password de Redis staging |
-| `REDIS_PASSWORD_PROD` | Password de Redis producción |
-| `APP_KEY_STAGING` | Laravel APP_KEY staging |
-| `APP_KEY_PROD` | Laravel APP_KEY producción |
-| `S3_SECRET_KEY` | Secret para SeaweedFS S3 |
+```yaml
+# ansible/deploy.yml
+- hosts: droplets
+  become: true
+  gather_facts: true
+  vars:
+    compose_path: /opt/sede
+    registry: ghcr.io
 
-> **Nota sobre GitHub Environments:** las protecciones de entorno (`required_reviewers`, `deployment_branch_policy`) requieren GitHub Pro o Team. Si la entidad no tiene ese plan, la aprobación manual se hace fuera de GitHub (por ejemplo, el lead de proyecto合併 manualmente запускает deploy desde su cuenta).
+  tasks:
+    - name: Ensure /opt/sede exists
+      file:
+        path: "{{ compose_path }}"
+        state: directory
+        owner: deploy
+        mode: '0755'
 
-#### Helm chart structure
+    - name: Copy secrets
+      copy:
+        content: "{{ secrets_content }}"
+        dest: "{{ compose_path }}/.env"
+        mode: '0600'
 
-```
-helm/sede-backend/
-├── Chart.yaml
-├── values.yaml              # valores por defecto
-├── values.staging.yaml     # override para staging
-├── values.production.yaml  # override para producción
-└── templates/
-    ├── deployment-backend.yaml
-    ├── deployment-worker.yaml
-    ├── deployment-sitio.yaml
-    ├── deployment-panel.yaml
-    ├── deployment-redis.yaml
-    ├── deployment-seaweedfs.yaml
-    ├── ingress.yaml
-    ├── service.yaml
-    ├── secret.yaml           # DB passwords, APP_KEY, etc.
-    ├── configmap.yaml        # vars no secret
-    └── hpa.yaml
+    - name: Pull images
+      docker_image:
+        name: "{{ registry }}/sede/{{ item }}:{{ image_tag }}"
+        source: pull
+      loop:
+        - backend
+        - sitio
+        - panel
+
+    - name: Tag images locally
+      command: >
+        docker tag {{ registry }}/sede/{{ item }}:{{ image_tag }}
+        sede/{{ item }}:latest
+      loop:
+        - backend
+        - sitio
+        - panel
+
+    - name: Restart services
+      docker_compose:
+        project_src: "{{ compose_path }}"
+        state: restarted
+
+    - name: Wait for services to be ready
+      wait_for:
+        timeout: 30
+
+    - name: Health check
+      uri:
+        url: "http://localhost/health"
+        status_code: 200
+      register: health
+      until: health.status == 200
+      retries: 5
+      delay: 10
+
+  handlers:
+    - name: Restart services
+      docker_compose:
+        project_src: "{{ compose_path }}"
+        restarted: yes
 ```
 
 #### Costo
 
-No hay costo adicional de pipeline (GitHub Actions gratis para repos públicos, minutos incluidos en el plan).
+Sin costo adicional (GitHub Actions gratis para repositorios públicos).
 
 #### Criterios de	done
 
-- [ ] `doks-deploy.yml` creado en `.github/workflows/`
-- [ ] `helm/sede-backend/` chart creado y funcional
-- [ ] `ci.yml`原来的 lint + test jobs migrados al nuevo pipeline
-- [ ] Trivy blocking on HIGH/CRITICAL
+- [ ] `multi-host-deploy.yml` creado en `.github/workflows/`
+- [ ] `ansible/deploy.yml` funcional (despliegue simultáneo a 3 droplets)
+- [ ] `ansible/inventory.production.ini` con las IPs de los 3 droplets
+- [ ] `ansible/inventory.staging.ini` con IPs de staging
+- [ ] Trivy blocking on HIGH/CRITICAL en el pipeline
 - [ ] Deploy a staging automático en push a `staging`
 - [ ] Deploy a producción con approval manual en push a `main`
-- [ ] Rollback verificado (`helm rollback sede-backend`)
+- [ ] Rollback funcional: `ansible-playbook ansible/rollback.yml -e "image_tag=<previous>"`
+- [ ] `secrets.env` en cada droplet (postgres, redis, S3 credentials)
 
 ---
 
@@ -659,56 +734,83 @@ No hay costo adicional de pipeline (GitHub Actions gratis para repos públicos, 
 | Portal público | Nuxt 4 SSR | 4.5.2 | Sitio público |
 | Panel admin | Nuxt SPA | 4.5.2 | Sin SSR |
 | Backend API | Laravel 13 (Octane/FrankenPHP) | 13.34 | PHP 8.5 |
-| Colas | Laravel Horizon | 5.50 | Supervisor en DOKS |
+| Colas | Laravel Horizon | 5.50 | Supervisor en Docker Compose |
 | BD | PostgreSQL (Managed) | 18.6 | Production + Standby |
-| Cache/sessions | Redis | 8.10 | En DOKS, 2 réplicas |
-| Storage | SeaweedFS | latest | StatefulSet en DOKS |
-| Orquestación | DOKS (Kubernetes gestionado) | 1.30+ | 3 nodos |
-| Ingress | NGINX Ingress Controller | Helm | TLS en Cloudflare |
-| CI/CD | GitHub Actions | — | DOKS deploy |
+| Cache/sessions | Redis | 8.10 | En cada droplet |
+| Storage archivos | SeaweedFS | latest | Droplet storage dedicado, API S3 |
+| Orquestación | Docker Compose | 5.5.1 | En cada droplet (idéntico) |
+| Despliegue | Ansible | 2.17+ | Playbook multi-host |
+| Ingress | DigitalOcean Load Balancer + nginx | — | TLS en Cloudflare |
+| CI/CD | GitHub Actions | — | Build → Trivy → Ansible → 3 droplets |
 | Registry | ghcr.io | — | Imágenes privadas |
 | Escaneo | Trivy | — | Blocking HIGH/CRITICAL |
 | Borde TLS | Cloudflare | Full Strict | Origen HTTP |
-| Hardening host | UFW, fail2ban, auditd, AIDE | — | Solo en droplet bastión |
-| Backups BD | DigitalOcean Managed backups + PITR | — | Automático |
-| Backups archivos | SeaweedFS snapshots | — | Programado |
+| Hardening host | UFW, fail2ban, auditd, AIDE | — | En todos los droplets |
+| Backups BD | Managed PostgreSQL backups + PITR | — | Automático |
+| Backups archivos | SeaweedFS snapshots + DO Spaces | — | Programado |
 
 ---
 
 ## 5. Costo mensual consolidado
 
-| Servicio | Costo/mes |
-|---|---|
-| DOKS 3 × s-4vcpu-8gb | $144 |
-| DigitalOcean Load Balancer | $12 |
-| DigitalOcean Managed PostgreSQL Production + Standby | $45–60 |
-| Droplet bastión SSH | $6 |
-| DigitalOcean Spaces (backups off-site, opcional) | $5 |
-| **Total infraestructura** | **$212–227/mes** |
+| Servicio | Especificación | Costo/mes |
+|---|---|---|
+| 3 × Droplet s-4vcpu-8gb | nyc3 | $144 |
+| DigitalOcean Load Balancer | regional | $12 |
+| Droplet Storage (SeaweedFS) | 2 vCPU / 4 GB | $24 |
+| DigitalOcean Managed PostgreSQL Production + Standby | 2 vCPU / 4 GB / 38 GB SSD | $45–60 |
+| Droplet Bastión SSH | 1 vCPU / 1 GB | $6 |
+| **Total infraestructura completa** | | **$231–246/mes** |
 
-> **Brecha con presupuesto ($200/mes):** hay un sobrecosto de **$12–27/mes**. Soluciones posibles:
-> 1. Iniciar con Managed PostgreSQL **Essentials** ($25/mes, sin standby) y hacer upgrade a Production cuando el tráfico real justifique el costo.
-> 2. Reducir el bastión a un droplet temporal ($4/mes) hasta que haya presupuesto.
-> 3. Usar el Load Balancer básico ($10/mes) en lugar del plan con más features.
->
-> **Recomendación:** opción 1 (Managed PostgreSQL Essentials + planificar upgrade a Production en 3 meses con crecimiento de usuarios). El costo de Essentials + DOKS + LB + Bastión = **~$189/mes**, dentro del presupuesto.
+### Plan para caber en $200/mes
+
+**Total: $231–246/mes — supera el presupuesto por $31–46/mes.**
+
+| Servicio | Inicio ($/mes) | Futuro ($/mes) |
+|---|---|---|
+| 3 × Droplet s-4vcpu-8gb | $144 | $144 |
+| Load Balancer | $12 | $12 |
+| Managed PostgreSQL **Essentials** (sin standby) | **$25** | → $45–60 (upgrade) |
+| SeaweedFS en droplet App-3 (no dedicado) | **$0** | → $24 (droplet propio) |
+| Bastión SSH | **$0** (diferido) | → $6 (cuando haya presupuesto) |
+| **Total inicio** | **$181/mes** ✅ | → $231–246 (cuando crezca) |
+
+> Managed PostgreSQL Essentials incluye backups automáticos y PITR pero **no tiene standby** (SPOF temporal). Para mitigar: monitorear activamente y hacer upgrade a Production + Standby en ≤3 meses.
 
 ---
 
-## 6. Riesgos residuales de los proyectos
+## 6. Comparativa: Docker Compose 3 droplets vs DOKS
+
+| Criterio | Docker Compose (3 droplets) | DOKS (3 nodos) |
+|---|---|---|
+| Costo mensual | $231–246 | $207–222 |
+| Auto-scaling | No | Sí (HPA + Cluster Autoscaler) |
+| Gestión de secretos | Manual (`secrets.env` por droplet) | Kubernetes Secrets centralizado |
+| Despliegue | Ansible playbook | Helm upgrade |
+| Rollback | Ansible con `image_tag` anterior | `helm rollback` |
+| Alta disponibilidad app | LB + 3 droplets (nginx reinicia si cae) | DOKS reinicia pods automáticamente |
+| Experiencia requerida | Ansible + Docker Compose | Kubernetes + Helm |
+| Tiempo de setup | ~1–2 semanas | ~3–4 semanas |
+| Sessions | Redis local (no sticky sessions gracias a LB) | Redis cluster o session affinity |
+
+**Razón de la elección del usuario:** menor complejidad operacional (equipo ya conoce Docker Compose), mismo número de droplets, misma resiliencia a nivel de aplicación.
+
+---
+
+## 7. Riesgos residuales
 
 | # | Riesgo | Probabilidad | Impacto | Mitigación |
 |---|---|---|---|---|
-| KR-01 | El equipo no tiene experiencia con Kubernetes/DOKS | Media | Alto | Capacitación Kubernetes (CKA o curso en línea) antes de la Fase 0. Contratar soporte DevOps si el equipo no tiene tiempo |
-| KR-02 | Migración de volúmenes emptyDir/hostPath a SeaweedFS rompe los uploads existentes | Baja | Alto | Hacer backup completo de SeaweedFS antes de la migración. Validar que todos los archivos son accesibles post-migración |
-| KR-03 | Managed PostgreSQL Essentials no tiene standby → SPOF temporal | Alta | Alto | Planificar upgrade a Production en ≤3 meses. Monitorear con check externo |
-| KR-04 | GitHub Environments sin protección (plan no Pro/Team) → no hay approval automático | Media | Medio | Aprobación manual documentada fuera de GitHub; el lead de proyecto合併 запускает el deploy |
-| KR-05 | IP dinámica en la Alcaldía impide restringir el acceso SSH al bastión | Alta | Alto | Solicitar rango de IPs fijas a la entidad o implementar VPN (WireGuard) |
-| KR-06 | Docker Compose existente no se migra automáticamente a Helm charts | Alta | Medio | Los Charts se escriben desde cero basándose en los manifests de producción actuales. Tiempo estimado: 2–3 semanas |
+| KR-01 | Managed PostgreSQL Essentials = SPOF temporal (sin standby) | Alta | Alto | Monitoreo constante; upgrade a Production en ≤3 meses; PITR de Essentials mitiga pérdida de datos |
+| KR-02 | SeaweedFS en droplet App-3 = bottleneck de I/O si mucho tráfico de archivos | Media | Medio | Monitorear I/O; migrar a droplet dedicado cuando haya presupuesto |
+| KR-03 | Sin bastión, acceso SSH directo a droplets (riesgo si IP admin cambia) | Media | Medio | Solicitar IP fija a la entidad; o VPN de DigitalOcean ($10/mes) |
+| KR-04 | Ansible playbook desincroniza los 3 droplets | Baja | Alto | Probar siempre en staging; snapshot de cada droplet antes de deploy |
+| KR-05 | Docker compose up -d causa micro-cortes (< 5s) en cada restart | Baja | Medio | Implementar healthchecks + `docker compose up -d --no-deps` con rolling restart |
+| KR-06 | Presupuesto ligeramente sobre ($181 vs $200 disponible) | Alta | Medio | Monitoreo de costos semanal; buscar optimización (droplet storage más pequeño si hay poco tráfico archivos) |
 
 ---
 
-## 7. Firmas
+## 8. Firmas
 
 - Usuario: ______________________ Fecha: __________
 - Arquitecto: ___________________ Fecha: __________

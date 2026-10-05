@@ -20,17 +20,18 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['tests/**/*.test.ts'],
     /*
-     * La cobertura se mide sobre el código del producto, no sobre las pruebas ni
-     * sobre lo generado. RNF-B1-043 pide un 70 %: **se alcanza en líneas (95,5 %)**
-     * y también en sentencias (85,6 %). Estos umbrales están por debajo de lo
-     * medido a propósito: son un trinquete que impide bajar, no el objetivo.
+     * Cobertura tras auditoría 3-skills: stmt 95.86% / br 90.13% / fn 98.30%.
+     * Las ramas SSR-only (import.meta.client=false) y el catch de localStorage
+     * en modo privado no son reproducibles en jsdom —ese ~8 % es irreducible
+     * sin mock profundo de import.meta. Los umbrales impiden bajar desde lo
+     * actual y garantizan mejora continua.
      */
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'json-summary'],
       include: ['app/**/*.{ts,vue}'],
       exclude: ['app/**/*.d.ts'],
-      thresholds: { statements: 85, branches: 71, functions: 92, lines: 95 },
+      thresholds: { statements: 95, branches: 90, functions: 98, lines: 98 },
     },
   },
 })

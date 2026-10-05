@@ -223,7 +223,14 @@ jobs:
           # Una vulnerabilidad sin arreglo sólo se tolera si su advisory está
           # nombrado aquí con su identificador. La lista es explícita para que una
           # nueva no pueda colarse: si no está nombrada, rompe la construcción.
-          permitidas="GHSA-86w9-cpqp-85rv"
+          #
+          # GHSA-86w9-cpqp-85rv  node-forge RSA PKCS#1 via listhen → nuxt (dev)
+          # GHSA-vfj7-8cjw-p6xm  braces DoS via chokidar → tailwindcss/vue-router.
+          #   Tailwind CSS 3.x y vue-router 5.x bundlean chokidar 3.x, que depende
+          #   de braces con la vulnerabilidad. No existe versión parcheada de esos
+          #   paquetes que no rompa el build. El arreglo real es Tailwind CSS 4,
+          #   que se evaluará en su momento.
+          permitidas="GHSA-86w9-cpqp-85rv GHSA-vfj7-8cjw-p6xm"
 
           fallos=0
           for d in panel sitio; do

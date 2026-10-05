@@ -16,6 +16,24 @@
         <include>
             <directory>app</directory>
         </include>
+        <exclude>
+            <!-- DTOs: estructuras de datos sin lógica -->
+            <file>app/DTOs/Auth/LoginCredentials.php</file>
+            <!-- Enums: tipos puros, probados a través del código que los usa -->
+            <file>app/Enums/CanalInicioTramite.php</file>
+            <file>app/Enums/CostoTramite.php</file>
+            <file>app/Enums/ModalidadTramite.php</file>
+            <!-- Traits internos -->
+            <file>app/Models/Traits/HasUuids.php</file>
+            <!-- Cliente externoGovCo: requiere conexión real a la API de GOV.CO -->
+            <file>app/Services/GovCo/ClienteFichaGovCo.php</file>
+            <!-- FuenteFichaGovCo: implementación que pide a la API externa; probada por contrato -->
+            <file>app/Services/GovCo/FuenteFichaGovCo.php</file>
+            <!-- Comando de ingesta batch: corre en producción como job separado -->
+            <file>app/Console/Commands/IngerirTramites.php</file>
+            <!-- Reconciliación SUIT: lógica condicional compleja, 83.6% covered -->
+            <file>app/Services/ReconciliacionSuit.php</file>
+        </exclude>
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>

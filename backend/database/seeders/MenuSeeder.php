@@ -42,7 +42,7 @@ final class MenuSeeder extends Seeder
         $panelItems = [
             ['slug' => 'panel-inicio', 'etiqueta' => 'Dashboard', 'ruta' => '/panel', 'orden' => 1, 'visible' => true, 'tipo' => 'interno', 'roles' => '["panel","admin"]'],
             ['slug' => 'panel-tramites', 'etiqueta' => 'Trámites', 'ruta' => '/panel/tramites', 'orden' => 2, 'visible' => true, 'tipo' => 'interno', 'roles' => '["panel","admin"]'],
-            ['slug' => 'panel-entidad', 'etiqueta' => 'Entidad', 'ruta' => '/panel/entidad', 'orden' => 3, 'visible' => true, 'tipo' => 'interno', 'roles' => '["admin"]'],
+            ['slug' => 'panel-entidad', 'etiqueta' => 'Entidad', 'ruta' => '/admin/configuracion/entidad', 'orden' => 3, 'visible' => true, 'tipo' => 'interno', 'roles' => '["admin"]'],
             ['slug' => 'panel-usuarios', 'etiqueta' => 'Usuarios', 'ruta' => '/panel/usuarios', 'orden' => 4, 'visible' => true, 'tipo' => 'interno', 'roles' => '["admin"]'],
         ];
 

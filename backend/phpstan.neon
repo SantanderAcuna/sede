@@ -12,3 +12,10 @@ parameters:
         - vendor
     treatPhpDocTypesAsCertain: false
     reportUnmatchedIgnoredErrors: true
+    ignoreErrors:
+        # Factories live in database/factories/ which is not in PHPStan's path
+        - '/Class App\\Models\\FileMedia uses generic trait/'
+        - '/Class App\\Models\\Entidad uses generic trait/'
+        - '/Class App\\Models\\Tramite uses generic trait/'
+        # json_decode in test context: getContent() is always string but PHPStan sees string|false
+        - '/Parameter #1 \$json of function json_decode expects string, string\|false given/'

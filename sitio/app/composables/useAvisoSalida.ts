@@ -195,5 +195,7 @@ export function useAvisoSalida() {
     cancelarNavegacion,
     esEnlaceExterno,
     esDominioConfianza,
+    nombreDelDestino,
+    entidadDelDestino,
   }
 }

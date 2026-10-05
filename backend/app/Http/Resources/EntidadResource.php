@@ -24,6 +24,7 @@ final class EntidadResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'uuid' => $this->uuid,
             'type' => 'entidad',
             'nombre' => $this->nombre,
             'sigla' => $this->sigla,

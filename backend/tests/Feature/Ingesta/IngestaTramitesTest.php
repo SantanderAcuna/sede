@@ -363,4 +363,74 @@ final class IngestaTramitesTest extends TestCase
             ->assertJsonPath('data.procedencia.origen_por_campo.consulta_estado', 'entidad')
             ->assertJsonPath('data.procedencia.derivados.1.campo', 'url_ficha_gov_co');
     }
+
+    /** El callback $aviso se invoca en cada paso del avance. */
+    public function test_el_callback_de_aviso_se_invoca_en_cada_paso(): void
+    {
+        $this->fuente->agregar('T2621');
+
+        $mensajes = [];
+
+        $this->ingesta()->ejecutar(['T2621'], function (string $mensaje) use (&$mensajes): void {
+            $mensajes[] = $mensaje;
+        });
+
+        $this->assertNotEmpty($mensajes);
+        // Al menos un mensaje contiene el código del trámite
+        $this->assertTrue(
+            collect($mensajes)->contains(fn (string $m) => str_contains($m, 'T2621')),
+        );
+    }
+
+    /** Re-ingestar un trámite existente ejecuta el path de actualización. */
+    public function test_reingestar_actualiza_y_no_crea_duplicado(): void
+    {
+        $this->fuente->agregar('T1');
+        $this->fuente->agregar('T2');
+
+        // Primera ejecución: crea los dos
+        $primera = $this->ingesta()->ejecutar(['T1', 'T2']);
+        $this->assertSame(2, $primera['creados']);
+
+        // Forzar a la segunda pasada a pedir de nuevo: olvidar el punto de control
+        $this->ingesta()->olvidarAvance();
+
+        // Segunda ejecución: los dos tramites ya existen → actualiza (línea 209)
+        $segunda = $this->ingesta()->ejecutar(['T1', 'T2']);
+        $this->assertSame(0, $segunda['creados']);
+        $this->assertSame(2, $segunda['actualizados']);
+    }
+
+    /** La fuente que falla por tasa devuelve fallidos en el informe. */
+    public function test_fallo_por_tasa_devuelve_tramite_fallido(): void
+    {
+        $this->fuente->agregar('T2621');
+        $this->fuente->romper('T2621', 'Límite de tasa excedido.');
+
+        $resultado = $this->ingesta()->ejecutar(['T2621']);
+
+        $this->assertSame(0, $resultado['traidos']);
+        $this->assertCount(1, $resultado['fallidos']);
+        $this->assertSame('T2621', $resultado['fallidos'][0]['codigo']);
+    }
+
+    /** El callback se invoca cuando un trámite ya estaba hecho (reanudado). */
+    public function test_callback_se_invoca_en_reanudacion(): void
+    {
+        $this->fuente->agregar('T2621');
+
+        // Primera pasada
+        $this->ingesta()->ejecutar(['T2621']);
+
+        $mensajes = [];
+
+        // Segunda pasada: todo hecho → reanuda
+        $this->ingesta()->ejecutar(['T2621'], function (string $m) use (&$mensajes): void {
+            $mensajes[] = $m;
+        });
+
+        $this->assertTrue(
+            collect($mensajes)->contains(fn (string $m) => str_contains($m, 'T2621')),
+        );
+    }
 }

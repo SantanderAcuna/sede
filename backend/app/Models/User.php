@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Traits\HasUuids;
 use Carbon\Carbon;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -18,6 +19,7 @@ use Spatie\Permission\Traits\HasRoles;
  * Usuario del panel de administración.
  *
  * @property int $id
+ * @property string $uuid
  * @property string $name
  * @property string $email
  * @property Carbon|null $email_verified_at
@@ -35,7 +37,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable;
 
     /**
      * Get the attributes that should be cast.

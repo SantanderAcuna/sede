@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Contracts\Repositories\AuthRepositoryInterface;
 use App\Contracts\Services\AuthServiceInterface;
+use App\DTOs\Auth\LoginCredentials;
 use App\Http\Resources\UsuarioResource;
 use App\Models\User;
 
@@ -19,14 +20,11 @@ final class AuthService implements AuthServiceInterface
     ) {}
 
     /**
-     * Intenta iniciar sesión con credenciales.
-     *
-     * @param  array{email:string,password:string}  $credentials
      * @return array{success:bool,message:string,data?:array{require_mfa:bool,mfa_token:?string,csrf_token:?string,user:?UsuarioResource}}
      */
-    public function login(array $credentials): array
+    public function login(LoginCredentials $credentials): array
     {
-        $user = $this->authRepository->findByEmail($credentials['email']);
+        $user = $this->authRepository->findByEmail($credentials->email);
 
         if ($user === null) {
             return [
@@ -35,7 +33,7 @@ final class AuthService implements AuthServiceInterface
             ];
         }
 
-        if (! $this->authRepository->verifyPassword($user, $credentials['password'])) {
+        if (! $this->authRepository->verifyPassword($user, $credentials->password)) {
             return [
                 'success' => false,
                 'message' => 'Las credenciales no son válidas.',
@@ -64,11 +62,9 @@ final class AuthService implements AuthServiceInterface
         ];
     }
 
-    /**
-     * Cierra la sesión del usuario actual.
-     */
     public function logout(): void
     {
+        /** @var User|null $user */
         $user = auth()->user();
 
         if ($user !== null) {
@@ -76,9 +72,6 @@ final class AuthService implements AuthServiceInterface
         }
     }
 
-    /**
-     * Obtiene el perfil del usuario autenticado.
-     */
     public function perfil(): UsuarioResource
     {
         /** @var User $user */

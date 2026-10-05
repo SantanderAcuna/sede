@@ -12,6 +12,7 @@ use App\Contracts\Repositories\MenuRepositoryInterface;
 use App\Contracts\Repositories\TramiteRepositoryInterface;
 use App\Contracts\Services\AuthServiceInterface;
 use App\Contracts\Services\EntidadServiceInterface;
+use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Contracts\Services\IdentidadServiceInterface;
 use App\Contracts\Services\IngestaTramitesInterface;
 use App\Contracts\Services\TramiteServiceInterface;
@@ -23,6 +24,7 @@ use App\Repositories\Eloquent\MenuRepository;
 use App\Repositories\Eloquent\TramiteRepository;
 use App\Services\AuthService;
 use App\Services\EntidadService;
+use App\Services\FilesMediaService;
 use App\Services\GovCo\FuenteFichaGovCo;
 use App\Services\IdentidadService;
 use App\Services\IngestaTramites;
@@ -61,6 +63,9 @@ class AppServiceProvider extends ServiceProvider
         // Auth: login, logout y perfil
         $this->app->bind(AuthRepositoryInterface::class, AuthRepository::class);
         $this->app->bind(AuthServiceInterface::class, AuthService::class);
+
+        // FilesMedia: archivos subidos
+        $this->app->bind(FilesMediaServiceInterface::class, FilesMediaService::class);
 
         // La ingesta y su fuente. La interfaz de la fuente es lo que permite probar
         // la ingesta entera —incluido su comportamiento de reanudación— sin salir a

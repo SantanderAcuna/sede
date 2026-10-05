@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Traits\HasUuids;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Entidad institucional titular de la sede electrónica.
  *
  * @property int $id
+ * @property string $uuid
  * @property string $nombre
  * @property string|null $sigla
  * @property string|null $nit
@@ -33,13 +36,18 @@ use Illuminate\Database\Eloquent\Model;
  * @property list<string> $datos_por_confirmar
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ *
+ * @use HasFactory<EntidadFactory>
  */
 final class Entidad extends Model
 {
+    use HasFactory, HasUuids;
+
     protected $table = 'entidads';
 
     /** @var list<string> */
     protected $fillable = [
+        'uuid',
         'nombre',
         'sigla',
         'nit',

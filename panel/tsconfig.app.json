@@ -10,6 +10,10 @@
       "@/*": ["./src/*"]
     },
 
+    /* Strict — Obligatorio según guia-maestra */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

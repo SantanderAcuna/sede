@@ -153,3 +153,22 @@ describe('forma de las rutas', () => {
     expect(configRutas.secciones.length).toBeGreaterThan(0)
   })
 })
+
+describe('etiquetaMenuDe — rótulos cortos', () => {
+  it('devuelve el rótuloMenu cuando existe', async () => {
+    // `/` tiene etiquetaMenu: 'Inicio' además de etiqueta: 'Sede Electrónica'.
+    const { etiquetaMenuDe } = await import('../app/config/sitemap')
+    expect(etiquetaMenuDe('/')).toBe('Inicio')
+  })
+
+  it('devuelve la etiqueta completa cuando no hay rótulo corto', async () => {
+    const { etiquetaMenuDe } = await import('../app/config/sitemap')
+    // `/tramites` no tiene etiquetaMenu, usa etiqueta completa.
+    expect(etiquetaMenuDe('/tramites')).toBe('Trámites y servicios')
+  })
+
+  it('devuelve la ruta tal cual cuando no está registrada', async () => {
+    const { etiquetaMenuDe } = await import('../app/config/sitemap')
+    expect(etiquetaMenuDe('/no-existe')).toBe('/no-existe')
+  })
+})

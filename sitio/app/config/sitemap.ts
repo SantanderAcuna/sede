@@ -323,7 +323,7 @@ for (const ruta of [...RUTAS_SUELTAS, ...SECCIONES.flatMap((seccion) => seccion.
 }
 
 /** El rótulo corto de una ruta registrada; si no está, la ruta tal cual. */
-function etiquetaMenuDe(ruta: string): string {
+export function etiquetaMenuDe(ruta: string): string {
   const registrada = POR_RUTA.get(ruta)
   return registrada?.etiquetaMenu ?? registrada?.etiqueta ?? ruta
 }

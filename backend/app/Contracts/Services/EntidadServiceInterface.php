@@ -19,4 +19,13 @@ interface EntidadServiceInterface
      * @throws \RuntimeException si no hay entidad configurada
      */
     public function obtenerEntidad(): EntidadResource;
+
+    /**
+     * Actualiza los datos de la entidad desde el panel de administración.
+     *
+     * @param  array<string, mixed>  $datos
+     *
+     * @throws \RuntimeException si no hay entidad configurada
+     */
+    public function actualizar(array $datos): EntidadResource;
 }

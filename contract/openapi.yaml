@@ -1142,6 +1142,65 @@ paths:
       security:
         - cookieSesion: []
 
+  /panel/entidad:
+    patch:
+      tags: [Panel — Entidad]
+      operationId: actualizarEntidad
+      summary: Actualizar datos de la entidad
+      description: |
+        Actualiza los datos institucionales de la entidad (nombre, NIT, dirección,
+        redes sociales, políticas, etc.) desde el panel de administración.
+        Todos los campos son opcionales para permitir actualizaciones parciales.
+        Los campos no enviados mantienen su valor actual.
+      x-status: implemented
+      x-criterios: [RF-01-001, RF-01-002, RF-01-003, RF-01-018]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntidadInput'
+            example:
+              nombre: Alcaldía Distrital de Santa Marta
+              sigla: D.T.C.H.
+              nit: "891.780.009-4"
+              direccion: "Calle 14 No. 2-49, Palacio Municipal"
+              municipio: Santa Marta
+              departamento: Magdalena
+              telefono: "(+57) 605 420 9600"
+              linea_atencion: "(+57) 605 4351719"
+              redes:
+                - red: facebook
+                  url: "https://www.facebook.com/AlcaldiaSantaMarta"
+                - red: instagram
+                  url: "https://www.instagram.com/alcaldiabtchsantamarta"
+              politicas:
+                - slug: terminos-y-condiciones
+                  nombre: Términos y Condiciones
+                - slug: politica-de-privacidad
+                  nombre: Política de Privacidad
+      responses:
+        '200':
+          description: Entidad actualizada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Entidad actualizada correctamente."
+                      data:
+                        $ref: '#/components/schemas/EntidadItem'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
   # ══════════════════════════════════════════════════════════════════════════════
   # PANEL — TRANSPARENCIA (CRUD autenticado)
   # ══════════════════════════════════════════════════════════════════════════════
@@ -1565,6 +1624,53 @@ components:
         slug: { type: string }
         nombre: { type: string }
         actualizada_en: { type: [string, 'null'], format: date, readOnly: true }
+
+    # ─── Entidad Input (Panel) ─────────────────────────────────────────────
+    EntidadInput:
+      type: object
+      description: Datos para actualizar la entidad institucional desde el panel.
+      properties:
+        nombre: { type: string, maxLength: 200 }
+        sigla: { type: [string, 'null'], maxLength: 20 }
+        nit: { type: [string, 'null'], maxLength: 30 }
+        direccion: { type: [string, 'null'], maxLength: 240 }
+        municipio: { type: [string, 'null'], maxLength: 120 }
+        departamento: { type: [string, 'null'], maxLength: 120 }
+        pais: { type: [string, 'null'], maxLength: 80 }
+        telefono: { type: [string, 'null'], maxLength: 40 }
+        linea_atencion: { type: [string, 'null'], maxLength: 40 }
+        linea_gratuita: { type: [string, 'null'], maxLength: 40 }
+        linea_anticorrupcion: { type: [string, 'null'], maxLength: 40 }
+        correo_atencion: { type: [string, 'null'], format: email, maxLength: 240 }
+        correo_notificaciones_judiciales: { type: [string, 'null'], format: email, maxLength: 240 }
+        horario: { type: [string, 'null'], maxLength: 240 }
+        codigo_postal: { type: [string, 'null'], maxLength: 20 }
+        dominio: { type: [string, 'null'], format: uri, maxLength: 240 }
+        logo: { type: [string, 'null'], maxLength: 500 }
+        redes:
+          type: array
+          description: Redes sociales de la entidad
+          items:
+            type: object
+            required: [red, url]
+            properties:
+              red: { type: string, enum: [facebook, instagram, x, youtube, linkedin] }
+              url: { type: string, format: uri }
+        politicas:
+          type: array
+          description: Las cinco políticas obligatorias
+          items:
+            type: object
+            required: [slug, nombre]
+            properties:
+              slug: { type: string, maxLength: 100 }
+              nombre: { type: string, maxLength: 200 }
+        datos_por_confirmar:
+          type: array
+          description: Lista de campos pendientes de ratificación
+          items:
+            type: string
+            maxLength: 200
 
     # ─── TopBar y Footer ───────────────────────────────────────────────────
     TopBarItem:

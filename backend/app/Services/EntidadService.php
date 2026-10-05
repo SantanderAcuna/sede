@@ -38,4 +38,20 @@ final class EntidadService implements EntidadServiceInterface
 
         return new EntidadResource($entidad);
     }
+
+    /**
+     * Actualiza los datos de la entidad desde el panel de administración.
+     *
+     * @param  array<string, mixed>  $datos
+     *
+     * @throws \RuntimeException si no hay entidad configurada
+     */
+    public function actualizar(array $datos): EntidadResource
+    {
+        Log::info('Actualizando entidad desde panel', ['campos' => array_keys($datos)]);
+
+        $entidad = $this->entidadRepository->update($datos);
+
+        return new EntidadResource($entidad);
+    }
 }

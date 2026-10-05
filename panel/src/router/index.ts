@@ -88,6 +88,13 @@ const rutas: RouteRecordRaw[] = [
         component: () => import('@/views/admin/PerfilView.vue'),
         meta: { requiereSesion: true, titulo: 'Mi perfil' },
       },
+      // Ruta para el CMS de Entidad (datos institucionales)
+      {
+        path: 'configuracion/entidad',
+        name: 'panel.entidad',
+        component: () => import('@/views/admin/EntidadView.vue'),
+        meta: { requiereSesion: true, titulo: 'Entidad', permiso: PERMISO_POR_RUTA['/configuracion/entidad'] },
+      },
       ...MODULOS.map(
         (modulo): RouteRecordRaw => ({
           path: modulo.ruta,
@@ -154,6 +161,9 @@ const enrutador = createRouter({
  * ella), después el permiso (con sesión, pero sin el permiso del módulo se
  * explica la situación en `sin-permiso`), y por último `soloInvitados` (quien
  * ya entró no vuelve a la pantalla de acceso).
+ *
+ * La sesión se restaura ANTES de montar el router en `main.ts`, así que aquí
+ * ya está disponible de forma síncrona.
  */
 enrutador.beforeEach((destino) => {
   const sesion = useSesionStore()

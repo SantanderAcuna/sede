@@ -43,5 +43,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/login', [AuthController::class, 'login'])->name('login');
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth:sanctum');
         Route::get('/perfil', [AuthController::class, 'perfil'])->name('perfil')->middleware('auth:sanctum');
+
+        // Entidad — gestión de datos institucionales (requiere autenticación)
+        Route::patch('/entidad', [EntidadController::class, 'actualizar'])
+            ->name('entidad.actualizar')
+            ->middleware('auth:sanctum');
     });
 });

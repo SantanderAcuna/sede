@@ -180,4 +180,11 @@ describe('esErrorApi', () => {
     const fakeError = { message: 'falso', response: { status: 401 } }
     expect(esErrorApi(fakeError)).toBe(false)
   })
+
+  it('devuelve true cuando el error es un AxiosError', () => {
+    // Crear un AxiosError mockeado que pase la verificación de axios.isAxiosError.
+    const axios = require('axios')
+    const mockError = new axios.AxiosError('Request failed', 'ERR_BAD_REQUEST', {}, null)
+    expect(esErrorApi(mockError)).toBe(true)
+  })
 })

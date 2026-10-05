@@ -267,4 +267,29 @@ describe('decidir — llamada directa', () => {
     const c = useConsentimientoCookies()
     expect(c.decidido.value).toBe(true)
   })
+
+  it('puedeUsar devuelve false para categoría desconocida', () => {
+    const c = useConsentimientoCookies()
+    expect(c.puedeUsar('analitica')).toBe(false)
+    expect(c.puedeUsar('preferencias')).toBe(false)
+  })
+
+  it('puedeUsar es false aunque las preferencias estén en true si no hay consentimiento vigente', () => {
+    const c = useConsentimientoCookies()
+    c.inicializar()
+    // Sin consentimiento vigente, las preferencias en true no habilitan nada.
+    c.preferencias.value = { analitica: true, preferencias: true }
+    expect(c.puedeUsar('analitica')).toBe(false)
+  })
+
+  it('leerConsentimiento devuelve null cuando localStorage está vacío', () => {
+    localStorage.clear()
+    expect(leerConsentimiento()).toBeNull()
+  })
+
+  it('leerConsentimiento devuelve null cuando los campos tienen tipos incorrectos', () => {
+    // fecha debe ser string y version debe ser number.
+    guardarCrudo({ fecha: 123, version: 'no-es-numero', aceptadas: [] } as Record<string, unknown>)
+    expect(leerConsentimiento()).toBeNull()
+  })
 })

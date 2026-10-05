@@ -16,9 +16,9 @@
 |---------|--------|----------|
 | Archivos auditados | 43 | 20+ |
 | Puntuación SOLID | 28/30 | 25/30 |
-| Coverage actual | 95.0% | 95.86% (stmt) / 90.13% (br) |
-| Coverage meta | ≥95% | ≥95% stmt / ≥90% br |
-| **Veredicto** | ✅ PASS | ⚠️ NEEDS_WORK (branches) |
+| Coverage actual | 97.8% | 95.86% (stmt) / 90.78% (br) |
+| Coverage meta | ≥95% | ≥95% stmt / ≥90% br (umbrales locales) |
+| **Veredicto** | ✅ PASS | ⚠️ NEEDS_WORK (branches <95%) |
 
 ---
 
@@ -70,16 +70,16 @@
 | Resources | 100% | ≥95% | ✅ | Mismo |
 | Feature | 100% | ≥95% | ✅ | Mismo |
 | Contracts | 100% | ≥95% | ✅ | Mismo |
-| **TOTAL** | **95.0%** | ≥95% | ✅ | `XDEBUG_MODE=coverage php artisan test --coverage --min=95` |
+| **TOTAL** | **97.8%** | ≥95% | ✅ | `XDEBUG_MODE=coverage php artisan test --coverage --min=95` |
 
 ### 4.2 Frontend (Vitest)
 
 | Módulo | Coverage Actual | Meta | Estado | Comando |
 |--------|-----------------|------|--------|---------|
 | Panel TypeScript | 0 errors (vue-tsc) | 0 errors | ✅ | `npx vue-tsc -b --noEmit` |
-| Panel Vitest | Baja (thresholds 62% stmt) | N/A | ⚠️ | `npx vitest run` |
+| Panel Vitest | 66.18% stmt / 49.87% br (threshold 67/50/62/70) | Mejorar | ⚠️ | `npx vitest run --coverage` |
 | Sitio Statements | 95.86% | ≥95% | ✅ | `npx vitest run --coverage` |
-| Sitio Branches | 90.13% | ≥90% configured | ✅/⚠️ | `npx vitest run --coverage` |
+| Sitio Branches | 90.78% | ≥90% umbrallocal | ✅/⚠️ | `npx vitest run --coverage` |
 | Sitio Functions | 98.30% | ≥98% | ✅ | `npx vitest run --coverage` |
 | Sitio Lines | 98.55% | ≥98% | ✅ | `npx vitest run --coverage` |
 

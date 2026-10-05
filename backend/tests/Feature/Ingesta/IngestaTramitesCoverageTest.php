@@ -9,6 +9,7 @@ use App\Contracts\Repositories\IngestaTramiteRepositoryInterface;
 use App\Enums\CanalInicioTramite;
 use App\Enums\CostoTramite;
 use App\Enums\ModalidadTramite;
+use App\Exceptions\FuenteNoDisponible;
 use App\Models\Tramite;
 use App\Services\GovCo\ClienteFichaGovCo;
 use App\Services\IngestaTramites;
@@ -50,6 +51,32 @@ final class IngestaTramitesCoverageTest extends TestCase
         $this->assertTrue($avisoLlamado);
         $this->assertStringContainsString('T2621', $avisoMensaje);
         $this->assertSame(1, $resultado['traidos']);
+    }
+
+    public function test_ejecutar_invoca_aviso_cuando_fuente_lanza_fuente_no_disponible(): void
+    {
+        $avisoLlamado = false;
+        $avisoMensaje = '';
+
+        $fuente = $this->createMock(FuenteFichaGovCoInterface::class);
+        $avance = $this->createMock(IngestaTramiteRepositoryInterface::class);
+
+        $avance->method('completos')->willReturn([]);
+
+        $fuente->method('ficha')
+            ->willThrowException(FuenteNoDisponible::porRespuesta('T9999', '/ficha/T9999', 429, 3));
+
+        $service = new IngestaTramites($fuente, $avance, new MapeoFicha, new ClienteFichaGovCo);
+
+        $resultado = $service->ejecutar(['T9999'], function (string $mensaje) use (&$avisoLlamado, &$avisoMensaje) {
+            $avisoLlamado = true;
+            $avisoMensaje = $mensaje;
+        });
+
+        $this->assertTrue($avisoLlamado);
+        $this->assertStringContainsString('T9999', $avisoMensaje);
+        $this->assertStringContainsString('FALLÓ', $avisoMensaje);
+        $this->assertCount(1, $resultado['fallidos']);
     }
 
     public function test_ejecutar_marca_como_fallido_cuando_fuente_lanza_excepcion_general(): void

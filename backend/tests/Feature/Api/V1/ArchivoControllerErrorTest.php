@@ -81,6 +81,16 @@ final class ArchivoControllerErrorTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
+    public function test_index_devuelve_422_cuando_collection_es_null(): void
+    {
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->getJson("/api/v1/panel/entidad/{$this->entidad->uuid}/archivos");
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'El parámetro collection es obligatorio.');
+    }
+
     public function test_index_devuelve_500_cuando_servicio_lanza_excepcion(): void
     {
         $mock = Mockery::mock(FilesMediaServiceInterface::class);

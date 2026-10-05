@@ -26,7 +26,7 @@ final class FilesMediaServiceUuidFallbackTest extends TestCase
 
     public function test_get_by_collection_con_solo_uuid_cuando_id_es_null(): void
     {
-        // Un objeto sin id pero con uuid (como un modelo que aún no se guarda)
+        // Objeto con uuid pero sin id → entra por elseif en getByCollection
         $objeto = new class
         {
             public string $uuid = 'test-uuid-1234';
@@ -35,7 +35,13 @@ final class FilesMediaServiceUuidFallbackTest extends TestCase
         };
 
         $service = new FilesMediaService;
-        $resultado = $service->getByCollection($objeto, 'logos');
+
+        // Invocar getByCollection vía reflexión para forzar cobertura
+        $reflection = new \ReflectionClass($service);
+        $method = $reflection->getMethod('getByCollection');
+        $method->setAccessible(true);
+
+        $resultado = $method->invoke($service, $objeto, 'logos');
 
         $this->assertCount(0, $resultado);
     }

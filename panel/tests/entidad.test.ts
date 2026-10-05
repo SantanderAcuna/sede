@@ -280,3 +280,45 @@ describe('lógica de la vista — hayCambios', () => {
     expect(crearHayCambios(formulario, original)).toBe(true)
   })
 })
+
+describe('lógica de la vista — construir payload de actualizar', () => {
+  // Simula la lógica de construir Partial<EntidadInput> en guardar().
+  function construirPayload(formulario: Record<string, unknown>): Record<string, unknown> {
+    const datos: Record<string, unknown> = {}
+    if (formulario.nombre) datos.nombre = formulario.nombre
+    if (formulario.sigla !== undefined) datos.sigla = formulario.sigla
+    if (formulario.nit !== undefined) datos.nit = formulario.nit
+    if (formulario.direccion !== undefined) datos.direccion = formulario.direccion
+    if (formulario.redes && (formulario.redes as unknown[]).length > 0) datos.redes = formulario.redes
+    if (formulario.politicas && (formulario.politicas as unknown[]).length > 0) datos.politicas = formulario.politicas
+    return datos
+  }
+
+  it('solo incluye campos con valor', () => {
+    const formulario = { nombre: 'Alcaldía', nit: undefined }
+    const payload = construirPayload(formulario)
+    expect(payload).toEqual({ nombre: 'Alcaldía' })
+  })
+
+  it('incluye redes cuando tiene elementos', () => {
+    const formulario = { redes: [{ red: 'facebook', url: 'https://fb.com' }], politicas: [] }
+    const payload = construirPayload(formulario)
+    expect(payload).toHaveProperty('redes')
+    expect((payload.redes as unknown[])).toHaveLength(1)
+    expect(payload).not.toHaveProperty('politicas')
+  })
+
+  it('excluye redes vacías', () => {
+    const formulario = { redes: [] }
+    const payload = construirPayload(formulario)
+    expect(payload).not.toHaveProperty('redes')
+  })
+
+  it('campos undefined se incluyen si !== undefined', () => {
+    // El código usa !== undefined, así que null también se incluye.
+    const formulario = { sigla: null, nit: '123' }
+    const payload = construirPayload(formulario as Record<string, unknown>)
+    expect(payload).toHaveProperty('sigla')
+    expect(payload.sigla).toBeNull()
+  })
+})

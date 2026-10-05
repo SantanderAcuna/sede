@@ -23,9 +23,9 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['tests/**/*.test.ts'],
     /*
-     * Cobertura tras auditoría 3-skills: ~66% líneas / ~45% ramas.
+     * Cobertura tras auditoría 3-skills: stmt 66.18% / br 49.87% / fn 61.2% / ln 69.63%.
      * Trinquete: los umbrales superan lo actual para garantizar mejora continua.
-     * Meta final: líneas ≥70% / ramas ≥57% / funciones ≥59% / statements ≥66%.
+     * Meta: stmt ≥67% / br ≥50% / fn ≥62% / ln ≥70%.
      */
     coverage: {
       provider: 'v8',
@@ -33,10 +33,10 @@ export default defineConfig({
       include: ['src/**/*.{ts,vue}'],
       exclude: ['src/**/*.d.ts', 'src/main.ts'],
       thresholds: {
-        statements: 62,
-        branches: 45,
-        functions: 56,
-        lines: 66,
+        statements: 67,
+        branches: 50,
+        functions: 62,
+        lines: 70,
       },
     },
   },

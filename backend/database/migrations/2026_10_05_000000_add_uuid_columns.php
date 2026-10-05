@@ -6,7 +6,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Ramsey\Uuid\Uuid;
 
 /**
  * Añade columna uuid a las tablas de dominio como identificador público.
@@ -44,10 +43,8 @@ return new class extends Migration
             $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
-        // Poblar filas existentes con UUID (compatible con PostgreSQL y SQLite en tests)
-        foreach (['users'] as $table) {
-            DB::table($table)->whereNull('uuid')->update(['uuid' => Uuid::uuid4()->toString()]);
-        }
+        // Poblar filas existentes de users (las demás tablas se seedean desde cero)
+        DB::statement('UPDATE users SET uuid = gen_random_uuid() WHERE uuid IS NULL');
     }
 
     public function down(): void

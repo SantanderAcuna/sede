@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -20,29 +21,46 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Añadir columna nullable (sin unique) para no fallar con filas existentes
         Schema::table('users', function (Blueprint $table): void {
-            $table->uuid('uuid')->unique()->after('id');
+            $table->uuid('uuid')->nullable()->after('id');
         });
 
         Schema::table('entidads', function (Blueprint $table): void {
-            $table->uuid('uuid')->unique()->after('id');
+            $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
         Schema::table('menus', function (Blueprint $table): void {
-            $table->uuid('uuid')->unique()->after('id');
+            $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
         Schema::table('tramites', function (Blueprint $table): void {
-            $table->uuid('uuid')->unique()->after('id');
+            $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
         Schema::table('ingesta_tramites', function (Blueprint $table): void {
-            $table->uuid('uuid')->unique()->after('id');
+            $table->uuid('uuid')->nullable()->unique()->after('id');
+        });
+
+        // Poblar UUIDs en filas existentes (generadas por Ramsey\Uuid)
+        DB::statement('UPDATE users SET uuid = gen_random_uuid() WHERE uuid IS NULL');
+        DB::statement('UPDATE entidads SET uuid = gen_random_uuid() WHERE uuid IS NULL');
+        DB::statement('UPDATE menus SET uuid = gen_random_uuid() WHERE uuid IS NULL');
+        DB::statement('UPDATE tramites SET uuid = gen_random_uuid() WHERE uuid IS NULL');
+        DB::statement('UPDATE ingesta_tramites SET uuid = gen_random_uuid() WHERE uuid IS NULL');
+
+        // Añadir unique a users (ya sin valores nulos)
+        Schema::table('users', function (Blueprint $table): void {
+            $table->unique('uuid');
         });
     }
 
     public function down(): void
     {
+        Schema::table('users', function (Blueprint $table): void {
+            $table->dropUnique(['uuid']);
+        });
+
         Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn('uuid');
         });

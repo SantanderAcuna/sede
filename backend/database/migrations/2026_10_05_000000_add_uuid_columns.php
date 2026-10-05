@@ -43,10 +43,8 @@ return new class extends Migration
             $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
-        // Poblar filas existentes de users (solo en PostgreSQL; en tests se crean desde el seeder)
-        if (DB::connection()->getDriverName() !== 'sqlite') {
-            DB::statement('UPDATE users SET uuid = gen_random_uuid() WHERE uuid IS NULL');
-        }
+        // Poblar filas existentes de users (en migrate:fresh las crea el seeder)
+        DB::statement('UPDATE users SET uuid = gen_random_uuid() WHERE uuid IS NULL');
     }
 
     public function down(): void

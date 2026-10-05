@@ -29,7 +29,8 @@ final class FilesMediaServiceUuidFallbackTest extends TestCase
         // Objeto con uuid pero sin id → entra por elseif en getByCollection
         $objeto = new class
         {
-            public string $uuid = 'test-uuid-1234';
+            // UUID válido (formato v4) para no romper la restricción UNIQUE de PostgreSQL.
+            public string $uuid = '00000000-0000-0000-0000-000000000001';
 
             public ?int $id = null;
         };

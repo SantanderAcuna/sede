@@ -42,6 +42,12 @@ final class FileMedia extends Model
 
     protected $table = 'file_media';
 
+    /** @var string La PK es uuid, no id. */
+    protected $primaryKey = 'uuid';
+
+    /** @var false No es auto-increment. */
+    public $incrementing = false;
+
     /** @var list<string> */
     protected $fillable = [
         'model_uuid',

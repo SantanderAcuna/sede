@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Models\FileMedia;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -59,11 +60,24 @@ final class FilesMediaService implements FilesMediaServiceInterface
      */
     public function getByCollection(object $model, string $collection): Collection
     {
-        return FileMedia::where('model_type', $model::class)
-            ->where('model_id', $this->getModelId($model))
-            ->where('collection', $collection)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = FileMedia::where('model_type', $model::class)
+            ->where('collection', $collection);
+
+        $modelId = $this->getModelId($model);
+        $modelUuid = $this->getModelUuid($model);
+
+        // Buscar por model_id Y model_uuid a la vez (el caso normal con Eloquent real),
+        // o solo por model_uuid cuando model_id es null (compatibilidad con factories legacy).
+        if ($modelId !== null && $modelUuid !== null) {
+            $query->where(function (Builder $q) use ($modelId, $modelUuid): void {
+                $q->where('model_id', $modelId)
+                    ->where('model_uuid', $modelUuid);
+            });
+        } elseif ($modelUuid !== null) {
+            $query->where('model_uuid', $modelUuid);
+        }
+
+        return $query->orderBy('created_at', 'desc')->get();
     }
 
     /**
@@ -131,7 +145,18 @@ final class FilesMediaService implements FilesMediaServiceInterface
      */
     private function getModelId(object $model): ?int
     {
-        return property_exists($model, 'id') ? (int) $model->id : null;
+        if (method_exists($model, 'getAttribute')) {
+            /** @var mixed $id */
+            $id = $model->getAttribute('id');
+
+            return is_int($id) || is_numeric($id) ? (int) $id : null;
+        }
+
+        if (property_exists($model, 'id')) {
+            return (int) $model->id;
+        }
+
+        return null;
     }
 
     /**
@@ -139,6 +164,16 @@ final class FilesMediaService implements FilesMediaServiceInterface
      */
     private function getModelUuid(object $model): ?string
     {
-        return property_exists($model, 'uuid') ? $model->uuid : null;
+        if (method_exists($model, 'getAttribute')) {
+            /** @var mixed $uuid */
+            $uuid = $model->getAttribute('uuid');
+        } elseif (property_exists($model, 'uuid')) {
+            /** @var mixed $uuid */
+            $uuid = $model->uuid;
+        } else {
+            return null;
+        }
+
+        return is_string($uuid) ? $uuid : null;
     }
 }

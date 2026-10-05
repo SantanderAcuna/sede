@@ -70,16 +70,16 @@ function onKey(e: KeyboardEvent) {
     return;
   }
 
-  const primero = focalizables[0];
-  const ultimo = focalizables[focalizables.length - 1];
+  const primero = focalizables.at(0);
+  const ultimo = focalizables.at(-1);
   const activo = document.activeElement as HTMLElement | null;
 
   if (e.shiftKey && (activo === primero || !panel.contains(activo))) {
     e.preventDefault();
-    ultimo.focus();
+    ultimo!.focus();
   } else if (!e.shiftKey && activo === ultimo) {
     e.preventDefault();
-    primero.focus();
+    primero!.focus();
   }
 }
 

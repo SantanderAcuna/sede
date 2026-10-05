@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api\V1;
 
-use App\Models\Entidad;
 use App\Models\User;
 use Database\Seeders\EntidadSeeder;
 use Database\Seeders\PermissionSeeder;

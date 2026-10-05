@@ -9,6 +9,7 @@ use App\Enums\CostoTramite;
 use App\Enums\ModalidadTramite;
 use App\Models\Traits\HasUuids;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -140,9 +141,12 @@ use Illuminate\Support\Str;
     'procedencia_faltantes',
     'publicado_en',
 ])]
+/**
+ * @use HasFactory<TramiteFactory>
+ */
 final class Tramite extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
     /**
      * Cuántas palabras caben en el resumen.

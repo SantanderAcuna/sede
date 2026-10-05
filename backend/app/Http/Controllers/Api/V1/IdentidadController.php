@@ -75,9 +75,9 @@ final class IdentidadController extends Controller
     {
         try {
             $rol = $request->validated()['rol'] ?? null;
-            $menuResource = $this->identidadService->obtenerMenu($rol);
+            $menu = $this->identidadService->obtenerMenu($rol);
 
-            return ApiResponse::ok($menuResource->resolve());
+            return ApiResponse::ok($menu);
         } catch (\Throwable $e) {
             Log::error('Error al obtener menú', ['exception' => $e]);
 

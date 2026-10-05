@@ -117,7 +117,7 @@ export const useSesionStore = defineStore('sesion', () => {
       const usuarioSesion: UsuarioSesion = {
         id: respuesta.user.id,
         email: respuesta.user.email,
-        nombre: respuesta.user.email.split('@')[0],
+        nombre: respuesta.user.email.split('@')[0] ?? 'usuario',
         permisos: extraerPermisos(respuesta.user.roles),
       }
       usuario.value = usuarioSesion
@@ -147,7 +147,7 @@ export const useSesionStore = defineStore('sesion', () => {
     usuario.value = {
       id: perfil.id,
       email: perfil.email,
-      nombre: perfil.email.split('@')[0],
+      nombre: perfil.email.split('@')[0] ?? 'usuario',
       permisos: extraerPermisos(perfil.roles),
     }
   }

@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Models\Traits\HasUuids;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\Storage;
@@ -37,7 +38,7 @@ use Illuminate\Support\Facades\Storage;
  */
 final class FileMedia extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
     protected $table = 'file_media';
 
@@ -89,6 +90,6 @@ final class FileMedia extends Model
     public function deleteFully(): void
     {
         Storage::disk($this->disk)->delete($this->path);
-        $this->delete();
+        self::where('uuid', $this->uuid)->delete();
     }
 }

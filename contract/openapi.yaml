@@ -73,6 +73,8 @@ tags:
     description: Tablero ITA interno (admin)
   - name: Panel — Auditoría
     description: Log de auditoría (admin)
+  - name: Panel — Archivos
+    description: Gestión de archivos subidos (autenticado)
 
 paths:
 
@@ -1202,6 +1204,158 @@ paths:
         - cookieSesion: []
 
   # ══════════════════════════════════════════════════════════════════════════════
+  # PANEL — ARCHIVOS (gestión de archivos subidos)
+  # ══════════════════════════════════════════════════════════════════════════════
+  /panel/entidad/{modelUuid}/archivos:
+    get:
+      tags: [Panel — Archivos]
+      operationId: listarArchivosEntidad
+      summary: Listar archivos de una entidad por colección
+      description: |
+        Devuelve todos los archivos de una colección específica para una entidad.
+        Requiere autenticación. RF-01-XXX.
+      x-status: implemented
+      x-criterios: []
+      parameters:
+        - name: modelUuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: collection
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Lista de archivos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/FileMediaItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: Entidad no encontrada
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Archivos]
+      operationId: subirArchivoEntidad
+      summary: Subir un archivo a una entidad
+      description: |
+        Guarda un archivo en disco y registra sus metadatos en file_media.
+        Requiere autenticación. RF-01-XXX.
+      x-status: implemented
+      x-criterios: []
+      parameters:
+        - name: modelUuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [archivo, collection]
+              properties:
+                archivo:
+                  type: string
+                  format: binary
+                  description: Archivo binario (máximo 50 MB)
+                collection:
+                  type: string
+                  description: Nombre de la colección (ej. logos, documentos)
+                metadata:
+                  type: object
+                  description: Metadatos opcionales en formato JSON
+      responses:
+        '200':
+          description: Archivo subido correctamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/FileMediaItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: Entidad no encontrada
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/archivos/{uuid}:
+    get:
+      tags: [Panel — Archivos]
+      operationId: obtenerArchivo
+      summary: Obtener un archivo por su UUID
+      description: Devuelve los metadatos de un archivo. Requiere autenticación.
+      x-status: implemented
+      x-criterios: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Metadatos del archivo
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/FileMediaItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: Archivo no encontrado
+      security:
+        - cookieSesion: []
+    delete:
+      tags: [Panel — Archivos]
+      operationId: eliminarArchivo
+      summary: Eliminar un archivo por su UUID
+      description: Elimina el archivo físico de disco y su registro. Requiere autenticación.
+      x-status: implemented
+      x-criterios: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Archivo eliminado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: Archivo no encontrado
+      security:
+        - cookieSesion: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
   # PANEL — TRANSPARENCIA (CRUD autenticado)
   # ══════════════════════════════════════════════════════════════════════════════
   /panel/transparencia/documentos:
@@ -1609,6 +1763,26 @@ components:
             Campos que la entidad todavía no ha ratificado formalmente. Se publican
             como pendientes en lugar de inventarse.
           items: { type: string }
+
+    FileMediaItem:
+      type: object
+      required: [uuid, filename, original_filename, mime_type, size, collection, url]
+      properties:
+        uuid: { type: string, format: uuid }
+        model_uuid: { type: [string, 'null'], format: uuid }
+        model_type: { type: string }
+        model_id: { type: [integer, 'null'] }
+        collection: { type: string }
+        filename: { type: string }
+        original_filename: { type: string }
+        mime_type: { type: string }
+        size: { type: integer, description: Tamaño en bytes }
+        disk: { type: string }
+        path: { type: string }
+        url: { type: string, format: uri }
+        metadata: { type: [object, 'null'] }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
 
     EntidadRed:
       type: object

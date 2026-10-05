@@ -62,6 +62,11 @@ final class SuperAdminSeeder extends Seeder
             ],
         );
 
+        // Asegurar que el UUID está poblado (filas preexistentes en migrate normal)
+        if ($usuario->uuid === null) {
+            $usuario->forceFill(['uuid' => \Ramsey\Uuid\Uuid::uuid4()->toString()])->save();
+        }
+
         // `syncRoles` y no `assignRole`: repetir la siembra no debe acumular filas
         // en el pivote ni conservar un rol que ya no se declara aquí.
         $usuario->syncRoles([$rol]);

@@ -1,128 +1,282 @@
 /**
- * Tests de tipos para la entidad (Vertical Slice 1 — Entidad).
+ * Tests del servicio de entidad y la vista EntidadView (Vertical Slice 1).
  *
- * Solo cubre los tipos TypeScript — no requiere mocks HTTP.
+ * Sección 1 — Servicio entidad.ts: mock de http con vi.mock (datos dentro del factory).
+ * Sección 2 — Lógica de la vista: tabs, redes sociales, políticas, hayCambios.
  */
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { reactive, ref } from 'vue'
 
-import type { EntidadItem, EntidadInput } from '../src/types/api'
+// =============================================================================
+// SECCIÓN 1 — Servicio entidad.ts
+// =============================================================================
 
-beforeEach(() => {
-  // Sin limpieza necesaria para tests de tipos puros.
-})
-
-// ---------------------------------------------------------------------------
-// EntidadItem
-// ---------------------------------------------------------------------------
-describe('EntidadItem — tipo y campos', () => {
-  const entidad: EntidadItem = {
+vi.mock('../src/services/http', () => {
+  const mockEntidadData = {
     id: 1,
-    type: 'entidad',
+    type: 'entidad' as const,
     nombre: 'Alcaldía Distrital de Santa Marta',
     sigla: 'D.T.C.H.',
     nit: '891.780.009-4',
     direccion: 'Calle 14 No. 2-49, Palacio Municipal',
+    municipio: 'Santa Marta',
+    departamento: 'Magdalena',
+    pais: 'Colombia',
     telefono: 'PBX 4201234',
-    correo: 'contacto@santamarta.gov.co',
-    web: 'https://www.santamarta.gov.co',
-    facebook: null,
-    twitter: null,
-    instagram: null,
-    youtube: null,
-    linkedin: null,
-    tiktok: null,
+    linea_atencion: null,
+    linea_gratuita: null,
+    linea_anticorrupcion: null,
+    correo_atencion: 'contacto@santamarta.gov.co',
+    correo_notificaciones_judiciales: null,
+    horario: 'Lunes a viernes 8am-5pm',
+    codigo_postal: '470004',
+    dominio: 'https://www.santamarta.gov.co',
+    logo: null,
+    redes: [] as Array<{ red: string; url: string }>,
+    politicas: [] as Array<{ slug: string; nombre: string }>,
+    datos_por_confirmar: [] as string[],
     latitud: 11.245,
     longitud: -74.2113,
-    horarios_atencion: 'Lunes a viernes 7:30 am a 5:30 pm',
-    politicas_privacidad: 'https://www.santamarta.gov.co/politicas',
-    terminos_condiciones: 'https://www.santamarta.gov.co/terminos',
-    mapa_url: null,
   }
 
-  it('tiene los campos mínimos de identificación', () => {
-    expect(entidad.id).toBe(1)
-    expect(entidad.type).toBe('entidad')
+  return {
+    http: {
+      get: vi.fn().mockResolvedValue({
+        data: { success: true, message: null, data: mockEntidadData, errors: null },
+      }),
+      patch: vi.fn().mockResolvedValue({
+        data: {
+          success: true,
+          message: 'Entidad actualizada correctamente',
+          data: { ...mockEntidadData, nombre: 'Alcaldía Distrital Actualizada' },
+          errors: null,
+        },
+      }),
+    },
+    desenvolver: vi.fn((sobre) => {
+      if (!sobre.success || sobre.data === null) throw new Error(sobre.message ?? 'Error')
+      return sobre.data
+    }),
+    ErrorApi: class ErrorApi extends Error {
+      constructor(
+        public message: string,
+        public estado: number,
+        public errores: Record<string, string[]> | null = null
+      ) { super(message) }
+    },
+  }
+})
+
+import { obtener, actualizar } from '../src/services/entidad'
+import { http } from '../src/services/http'
+
+beforeEach(() => vi.clearAllMocks())
+
+describe('obtener()', () => {
+  it('llama a GET /entidad', async () => {
+    await obtener()
+    expect(http.get).toHaveBeenCalledWith('/entidad')
+  })
+
+  it('devuelve los datos de la entidad', async () => {
+    const entidad = await obtener()
     expect(entidad.nombre).toBe('Alcaldía Distrital de Santa Marta')
     expect(entidad.nit).toBe('891.780.009-4')
+    expect(entidad.sigla).toBe('D.T.C.H.')
   })
 
-  it('campos de contacto son strings', () => {
-    expect(typeof entidad.telefono).toBe('string')
-    expect(typeof entidad.correo).toBe('string')
-    expect(typeof entidad.web).toBe('string')
-  })
-
-  it('redes sociales pueden ser null', () => {
-    expect(entidad.facebook).toBeNull()
-    expect(entidad.twitter).toBeNull()
-    expect(entidad.instagram).toBeNull()
-  })
-
-  it('coordenadas son números', () => {
-    expect(typeof entidad.latitud).toBe('number')
-    expect(typeof entidad.longitud).toBe('number')
+  it('incluye coordenadas y contacto', async () => {
+    const entidad = await obtener()
     expect(entidad.latitud).toBeCloseTo(11.245)
     expect(entidad.longitud).toBeCloseTo(-74.2113)
+    expect(entidad.correo_atencion).toBe('contacto@santamarta.gov.co')
   })
 
-  it('políticas y términos son URLs válidas', () => {
-    expect(entidad.politicas_privacidad).toMatch(/^https?:\/\//)
-    expect(entidad.terminos_condiciones).toMatch(/^https?:\/\//)
+  it('redes y políticas pueden estar vacías', async () => {
+    const entidad = await obtener()
+    expect(entidad.redes).toEqual([])
+    expect(entidad.politicas).toEqual([])
   })
 })
 
-// ---------------------------------------------------------------------------
-// EntidadInput — actualización parcial
-// ---------------------------------------------------------------------------
-describe('EntidadInput — actualización parcial', () => {
-  it('acepta actualización de un solo campo', () => {
-    const actualizacion: EntidadInput = { telefono: 'PBX 4209999' }
-    expect(actualizacion.telefono).toBe('PBX 4209999')
+describe('actualizar()', () => {
+  it('llama a PATCH /panel/entidad con los datos', async () => {
+    await actualizar({ nombre: 'Nuevo Nombre', telefono: '123' })
+    expect(http.patch).toHaveBeenCalledWith('/panel/entidad', {
+      nombre: 'Nuevo Nombre',
+      telefono: '123',
+    })
   })
 
-  it('acepta actualización de varios campos', () => {
-    const actualizacion: EntidadInput = {
+  it('acepta actualización parcial', async () => {
+    await actualizar({ sigla: 'ADM' })
+    expect(http.patch).toHaveBeenCalledWith('/panel/entidad', { sigla: 'ADM' })
+  })
+
+  it('devuelve la entidad actualizada', async () => {
+    const entidad = await actualizar({ nombre: 'Alcaldía Distrital Actualizada' })
+    expect(entidad.nombre).toBe('Alcaldía Distrital Actualizada')
+  })
+
+  it('puede actualizar redes sociales', async () => {
+    const redes = [{ red: 'facebook' as const, url: 'https://facebook.com/alcaldia' }]
+    await actualizar({ redes })
+    expect(http.patch).toHaveBeenCalledWith('/panel/entidad', { redes })
+  })
+
+  it('puede actualizar políticas', async () => {
+    const politicas = [{ slug: 'privacidad', nombre: 'Política de privacidad' }]
+    await actualizar({ politicas })
+    expect(http.patch).toHaveBeenCalledWith('/panel/entidad', { politicas })
+  })
+
+  it('puede actualizar varios campos de contacto', async () => {
+    await actualizar({
       telefono: 'PBX 4209999',
-      correo: 'nuevo@santamarta.gov.co',
-      facebook: 'https://facebook.com/alcaldia',
+      correo_atencion: 'nuevo@santamarta.gov.co',
+      linea_atencion: '605 420 9600',
+    })
+    const llamada = vi.mocked(http.patch).mock.calls[0]
+    expect(llamada[1]).toMatchObject({
+      telefono: 'PBX 4209999',
+      correo_atencion: 'nuevo@santamarta.gov.co',
+    })
+  })
+
+  it('propaga errores de red', async () => {
+    vi.mocked(http.patch).mockRejectedValueOnce(new Error('Network error') as never)
+    await expect(actualizar({ nombre: 'Test' })).rejects.toThrow('Network error')
+  })
+})
+
+// =============================================================================
+// SECCIÓN 2 — Lógica de la vista (sin montar el componente, con unit tests puros)
+// =============================================================================
+
+/**
+ * Simula la lógica de EntidadView.vue para los paths críticos que no requieren
+ * montar el componente completo.
+ */
+describe('lógica de la vista — redes sociales', () => {
+  // Simula las ref() y reactive() que usa la vista.
+  const redes = ref<Array<{ red: string; url: string }>>([])
+
+  beforeEach(() => { redes.value = [] })
+
+  function agregarRed(red: string, url: string) {
+    if (!redes.value.find((r) => r.red === red)) {
+      redes.value.push({ red, url })
     }
-    expect(actualizacion.telefono).toBe('PBX 4209999')
-    expect(actualizacion.correo).toBe('nuevo@santamarta.gov.co')
-    expect(actualizacion.facebook).toBe('https://facebook.com/alcaldia')
+  }
+
+  function eliminarRed(index: number) {
+    redes.value.splice(index, 1)
+  }
+
+  it('agregarRed añade una red nueva', () => {
+    agregarRed('facebook', 'https://facebook.com/alcaldia')
+    expect(redes.value).toHaveLength(1)
+    expect(redes.value[0].red).toBe('facebook')
+    expect(redes.value[0].url).toBe('https://facebook.com/alcaldia')
   })
 
-  it('todos los campos son opcionales', () => {
-    const vacia: EntidadInput = {}
-    expect(vacia.nombre).toBeUndefined()
-    expect(vacia.telefono).toBeUndefined()
-    expect(vacia.direccion).toBeUndefined()
+  it('agregarRed ignora si la red ya existe (sin duplicados)', () => {
+    agregarRed('facebook', 'https://facebook.com/uno')
+    agregarRed('facebook', 'https://facebook.com/dos')
+    expect(redes.value).toHaveLength(1)
   })
 
-  it('redes sociales se actualizan de forma independiente', () => {
-    const redes: EntidadInput = {
-      facebook: 'https://facebook.com/santamarta',
-      twitter: 'https://x.com/alcaldiadecol',
-      instagram: 'https://instagram.com/alcaldiadecol',
-      youtube: 'https://youtube.com/@alcaldia',
-      linkedin: 'https://linkedin.com/company/alcaldia',
-      tiktok: 'https://tiktok.com/@alcaldia',
+  it('eliminarRed elimina por índice', () => {
+    redes.value.push({ red: 'facebook', url: 'https://fb.com' })
+    redes.value.push({ red: 'twitter', url: 'https://x.com' })
+    eliminarRed(0)
+    expect(redes.value).toHaveLength(1)
+    expect(redes.value[0].red).toBe('twitter')
+  })
+
+  it('varias redes se acumulan correctamente', () => {
+    agregarRed('facebook', 'https://facebook.com/a')
+    agregarRed('twitter', 'https://x.com/a')
+    agregarRed('instagram', 'https://ig.com/a')
+    expect(redes.value).toHaveLength(3)
+  })
+})
+
+describe('lógica de la vista — políticas', () => {
+  const politicas = ref<Array<{ slug: string; nombre: string }>>([])
+
+  beforeEach(() => { politicas.value = [] })
+
+  function agregarPolitica(slug: string, nombre: string) {
+    if (!politicas.value.find((p) => p.slug === slug)) {
+      politicas.value.push({ slug, nombre })
     }
-    expect(redes.facebook).toBe('https://facebook.com/santamarta')
-    expect(redes.tiktok).toBe('https://tiktok.com/@alcaldia')
-    expect(redes.youtube).toBe('https://youtube.com/@alcaldia')
+  }
+
+  function eliminarPolitica(index: number) {
+    politicas.value.splice(index, 1)
+  }
+
+  it('agregarPolitica añade una política nueva', () => {
+    agregarPolitica('privacidad', 'Política de privacidad')
+    expect(politicas.value).toHaveLength(1)
+    expect(politicas.value[0].slug).toBe('privacidad')
   })
 
-  it('coordenadas aceptan números decimales', () => {
-    const coords: EntidadInput = { latitud: 4.123456, longitud: -72.987654 }
-    expect(coords.latitud).toBeCloseTo(4.123456)
-    expect(coords.longitud).toBeCloseTo(-72.987654)
+  it('agregarPolitica ignora si el slug ya existe', () => {
+    agregarPolitica('privacidad', 'Política uno')
+    agregarPolitica('privacidad', 'Política dos')
+    expect(politicas.value).toHaveLength(1)
   })
 
-  it('horarios de atención en texto libre', () => {
-    const horarios: EntidadInput = {
-      horarios_atencion: 'Lunes a viernes 8:00 am - 12:00 pm y 2:00 pm - 6:00 pm',
-    }
-    expect(horarios.horarios_atencion).toContain('Lunes')
-    expect(horarios.horarios_atencion).toContain('6:00 pm')
+  it('eliminarPolitica elimina por índice', () => {
+    politicas.value.push({ slug: 'a', nombre: 'Política A' })
+    politicas.value.push({ slug: 'b', nombre: 'Política B' })
+    eliminarPolitica(0)
+    expect(politicas.value).toHaveLength(1)
+    expect(politicas.value[0].slug).toBe('b')
+  })
+})
+
+describe('lógica de la vista — hayCambios', () => {
+  // Simula el computed hayCambios de la vista.
+  function crearHayCambios(formulario: Record<string, unknown>, original: Record<string, unknown>): boolean {
+    return JSON.stringify(formulario) !== JSON.stringify(original)
+  }
+
+  it('sin cambios devuelve false', () => {
+    const original = { nombre: 'Alcaldía', telefono: '123' }
+    const formulario = { nombre: 'Alcaldía', telefono: '123' }
+    expect(crearHayCambios(formulario, original)).toBe(false)
+  })
+
+  it('con cambios en nombre devuelve true', () => {
+    const original = { nombre: 'Alcaldía' }
+    const formulario = { nombre: 'Otra Alcaldía' }
+    expect(crearHayCambios(formulario, original)).toBe(true)
+  })
+
+  it('con cambios en redes devuelve true', () => {
+    const original = { redes: [{ red: 'facebook', url: 'https://fb.com/a' }] }
+    const formulario = { redes: [{ red: 'facebook', url: 'https://fb.com/b' }] }
+    expect(crearHayCambios(formulario, original)).toBe(true)
+  })
+
+  it('con cambios en políticas devuelve true', () => {
+    const original = { politicas: [{ slug: 'a', nombre: 'A' }] }
+    const formulario = { politicas: [{ slug: 'a', nombre: 'B' }] }
+    expect(crearHayCambios(formulario, original)).toBe(true)
+  })
+
+  it('comparación de arrays detecta adiciones', () => {
+    const original = { redes: [] }
+    const formulario = { redes: [{ red: 'x', url: 'https://x.com' }] }
+    expect(crearHayCambios(formulario, original)).toBe(true)
+  })
+
+  it('comparación de arrays detecta eliminaciones', () => {
+    const original = { politicas: [{ slug: 'a', nombre: 'A' }] }
+    const formulario = { politicas: [] }
+    expect(crearHayCambios(formulario, original)).toBe(true)
   })
 })

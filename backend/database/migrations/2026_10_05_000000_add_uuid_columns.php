@@ -21,11 +21,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Añadir columna nullable (sin unique) para no fallar con filas existentes
+        // Users: nullable + unique (tabla con datos preexistentes en staging)
         Schema::table('users', function (Blueprint $table): void {
-            $table->uuid('uuid')->nullable()->after('id');
+            $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
+        // Las demás tablas: nullable + unique desde el inicio
         Schema::table('entidads', function (Blueprint $table): void {
             $table->uuid('uuid')->nullable()->unique()->after('id');
         });
@@ -42,26 +43,14 @@ return new class extends Migration
             $table->uuid('uuid')->nullable()->unique()->after('id');
         });
 
-        // Poblar UUIDs en filas existentes (generadas por Ramsey\Uuid)
+        // Poblar filas existentes de users (las demás tablas se seedean desde cero)
         DB::statement('UPDATE users SET uuid = gen_random_uuid() WHERE uuid IS NULL');
-        DB::statement('UPDATE entidads SET uuid = gen_random_uuid() WHERE uuid IS NULL');
-        DB::statement('UPDATE menus SET uuid = gen_random_uuid() WHERE uuid IS NULL');
-        DB::statement('UPDATE tramites SET uuid = gen_random_uuid() WHERE uuid IS NULL');
-        DB::statement('UPDATE ingesta_tramites SET uuid = gen_random_uuid() WHERE uuid IS NULL');
-
-        // Añadir unique a users (ya sin valores nulos)
-        Schema::table('users', function (Blueprint $table): void {
-            $table->unique('uuid');
-        });
     }
 
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table): void {
             $table->dropUnique(['uuid']);
-        });
-
-        Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn('uuid');
         });
 

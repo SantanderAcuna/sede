@@ -27,6 +27,7 @@ interface IdentidadServiceInterface
      * Obtiene el árbol de menú.
      *
      * @param  string|null  $rol  Filtrar por rol (sitio, panel, admin). Null = menú público.
+     * @return iterable<MenuResource>
      */
-    public function obtenerMenu(?string $rol = null): MenuResource;
+    public function obtenerMenu(?string $rol = null): iterable;
 }

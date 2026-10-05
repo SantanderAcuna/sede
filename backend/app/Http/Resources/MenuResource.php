@@ -24,6 +24,7 @@ final class MenuResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'uuid' => $this->uuid,
             'type' => 'menu-item',
             'slug' => $this->slug,
             'etiqueta' => $this->etiqueta,

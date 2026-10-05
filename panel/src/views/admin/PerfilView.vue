@@ -18,8 +18,7 @@ const error = ref<string | null>(null)
 /** Iniciales del usuario para el avatar. */
 const iniciales = computed(() => {
   if (!datos.value) return ''
-  return datos.value.email
-    .split('@')[0]
+  return (datos.value.email.split('@')[0] ?? '')
     .split(/[._-]/)
     .map((p) => p.charAt(0).toUpperCase())
     .slice(0, 2)
@@ -29,8 +28,7 @@ const iniciales = computed(() => {
 /** Nombre para mostrar: la parte local del email formateada. */
 const nombreDisplay = computed(() => {
   if (!datos.value) return ''
-  return datos.value.email
-    .split('@')[0]
+  return (datos.value.email.split('@')[0] ?? '')
     .replace(/[._-]/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
 })

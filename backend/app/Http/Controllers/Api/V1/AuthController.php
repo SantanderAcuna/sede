@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\Services\AuthServiceInterface;
+use App\DTOs\Auth\LoginCredentials;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Support\Api\ApiResponse;
@@ -22,8 +23,6 @@ final class AuthController extends Controller
     ) {}
 
     /**
-     * Iniciar sesión.
-     *
      * @operationId login
      *
      * @response 200 {
@@ -34,8 +33,11 @@ final class AuthController extends Controller
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        /** @var array{email:string,password:string} $credentials */
-        $credentials = $request->validated();
+        $data = $request->validated();
+        $credentials = new LoginCredentials(
+            email: $data['email'],
+            password: $data['password'],
+        );
 
         $result = $this->authService->login($credentials);
 
@@ -47,8 +49,6 @@ final class AuthController extends Controller
     }
 
     /**
-     * Cerrar sesión.
-     *
      * @operationId logout
      *
      * @response 204
@@ -61,8 +61,6 @@ final class AuthController extends Controller
     }
 
     /**
-     * Obtener perfil del usuario autenticado.
-     *
      * @operationId perfil
      *
      * @response 200 {

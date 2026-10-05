@@ -105,7 +105,7 @@ function guardar(consentimiento: Consentimiento): void {
  */
 export function consentimientoVigente(consentimiento: Consentimiento | null): boolean {
   if (!consentimiento) return false
-  if (consentimiento.version < VERSION_POLITICA) return false
+  if (consentimiento.version !== VERSION_POLITICA) return false
 
   const dias = (Date.now() - new Date(consentimiento.fecha).getTime()) / 86_400_000
   return Number.isFinite(dias) && dias <= DIAS_CADUCIDAD

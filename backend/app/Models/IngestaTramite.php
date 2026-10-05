@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Traits\HasUuids;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -25,6 +26,7 @@ use Illuminate\Support\Carbon;
  * que se quedó a medias y salta entero el que ya terminó.
  *
  * @property int $id
+ * @property string $uuid
  * @property string $codigo
  * @property string $estado
  * @property int $intentos
@@ -42,6 +44,8 @@ use Illuminate\Support\Carbon;
 ])]
 final class IngestaTramite extends Model
 {
+    use HasUuids;
+
     /** Todavía no se ha traído, o se intentó y no se terminó. */
     public const PENDIENTE = 'pendiente';
 

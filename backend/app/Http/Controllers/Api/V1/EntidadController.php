@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\Services\EntidadServiceInterface;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ActualizarEntidadRequest;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -52,6 +53,35 @@ final class EntidadController extends Controller
 
             return ApiResponse::error(
                 'Error interno al obtener los datos de la entidad.',
+                500
+            );
+        }
+    }
+
+    /**
+     * Actualiza los datos de la entidad desde el panel de administración.
+     *
+     * @operationId actualizarEntidad
+     *
+     * @tags Panel — Entidad
+     */
+    public function actualizar(ActualizarEntidadRequest $request): JsonResponse
+    {
+        try {
+            $entidadResource = $this->entidadService->actualizar(
+                $request->validated()
+            );
+
+            return ApiResponse::ok($entidadResource, 'Entidad actualizada correctamente.');
+        } catch (\RuntimeException $e) {
+            return ApiResponse::notFound($e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Error al actualizar entidad', [
+                'exception' => $e,
+            ]);
+
+            return ApiResponse::error(
+                'Error interno al actualizar la entidad.',
                 500
             );
         }

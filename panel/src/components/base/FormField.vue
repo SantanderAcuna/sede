@@ -2,7 +2,7 @@
 import { computed, useId } from 'vue';
 
 interface Props {
-  modelValue: string;
+  modelValue: string | null | undefined;
   label?: string;
   type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'date' | 'search' | 'textarea';
   placeholder?: string;
@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
   hint: undefined,
   autocomplete: undefined,
 });
-const emit = defineEmits<{ 'update:modelValue': [value: string]; blur: [] }>();
+const emit = defineEmits<{ 'update:modelValue': [value: string | null]; blur: [] }>();
 
 const id = useId();
 const describedBy = computed(() => {

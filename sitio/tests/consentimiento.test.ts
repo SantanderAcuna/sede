@@ -127,3 +127,169 @@ describe('revocación (RF-B1-008)', () => {
     expect(consentimiento.puedeUsar('analitica')).toBe(false)
   })
 })
+
+describe('ramas de consentimientoVigente', () => {
+  it('null no es vigente', () => {
+    expect(consentimientoVigente(null)).toBe(false)
+  })
+
+  it('versión diferente no es vigente', () => {
+    const consentimientoParcial = { fecha: new Date().toISOString(), version: 99, aceptadas: ['analitica'] as const }
+    expect(consentimientoVigente(consentimientoParcial)).toBe(false)
+  })
+
+  it('consentimiento del día anterior sí es vigente', () => {
+    guardarCrudo({ fecha: haceDias(1), version: VERSION_POLITICA, aceptadas: ['analitica'] })
+    expect(consentimientoVigente(leerConsentimiento()!)).toBe(true)
+  })
+
+  it('consentimiento de exactamente 365 días sigue vigente', () => {
+    guardarCrudo({ fecha: haceDias(365), version: VERSION_POLITICA, aceptadas: [] })
+    expect(consentimientoVigente(leerConsentimiento()!)).toBe(true)
+  })
+
+  it('consentimiento de 366 días ya no es vigente', () => {
+    guardarCrudo({ fecha: haceDias(366), version: VERSION_POLITICA, aceptadas: ['analitica'] })
+    expect(consentimientoVigente(leerConsentimiento()!)).toBe(false)
+  })
+})
+
+describe('decidido computed', () => {
+  it('inicialmente es falso (no hay elección)', () => {
+    const c = useConsentimientoCookies()
+    expect(c.decidido.value).toBe(false)
+  })
+
+  it('es verdadero tras aceptar todo', () => {
+    consentimiento.aceptarTodo()
+    expect(consentimiento.decidido.value).toBe(true)
+  })
+
+  it('es verdadero tras rechazar opcionales', () => {
+    consentimiento.rechazarOpcionales()
+    expect(consentimiento.decidido.value).toBe(true)
+  })
+})
+
+describe('leerConsentimiento — bordes', () => {
+  it('localStorage vacío devuelve null', () => {
+    localStorage.clear()
+    expect(leerConsentimiento()).toBeNull()
+  })
+
+  it('JSON corrupto devuelve null sin lanzar', () => {
+    localStorage.setItem('sede-consentimiento', '{no es json}')
+    expect(() => expect(leerConsentimiento()).toBeNull()).not.toThrow()
+    localStorage.clear()
+  })
+
+  it('falta la fecha devuelve null', () => {
+    localStorage.setItem('sede-consentimiento', JSON.stringify({ version: 1, aceptadas: [] }))
+    expect(leerConsentimiento()).toBeNull()
+  })
+
+  it('la versión no es número devuelve null', () => {
+    localStorage.setItem('sede-consentimiento', JSON.stringify({ fecha: new Date().toISOString(), version: 'uno', aceptadas: [] }))
+    expect(leerConsentimiento()).toBeNull()
+  })
+
+  it('aceptadas ausente se trata como array vacío', () => {
+    localStorage.setItem('sede-consentimiento', JSON.stringify({ fecha: new Date().toISOString(), version: 1 }))
+    const r = leerConsentimiento()
+    expect(r?.aceptadas).toEqual([])
+  })
+
+  it('puedeUsar con categoría inválida devuelve false', () => {
+    expect(consentimiento.puedeUsar('analitica' as any)).toBe(false)
+  })
+
+  it('abrirBanner muestra el banner con preferencias leídas del almacenamiento', () => {
+    guardarCrudo({ fecha: haceDias(10), version: VERSION_POLITICA, aceptadas: ['analitica'] })
+    localStorage.setItem('sede-consentimiento', JSON.stringify({ fecha: haceDias(10), version: VERSION_POLITICA, aceptadas: ['analitica', 'preferencias'] }))
+    consentimiento.abrirBanner()
+    expect(consentimiento.visible.value).toBe(true)
+    expect(consentimiento.preferencias.value.analitica).toBe(true)
+    expect(consentimiento.preferencias.value.preferencias).toBe(true)
+  })
+
+  it('abrirBanner con preferencias marcadas false', () => {
+    guardarCrudo({ fecha: haceDias(10), version: VERSION_POLITICA, aceptadas: [] })
+    localStorage.setItem('sede-consentimiento', JSON.stringify({ fecha: haceDias(10), version: VERSION_POLITICA, aceptadas: [] }))
+    consentimiento.abrirBanner()
+    expect(consentimiento.preferencias.value.analitica).toBe(false)
+    expect(consentimiento.preferencias.value.preferencias).toBe(false)
+  })
+})
+
+describe('decidir — llamada directa', () => {
+  it('aceptarTodo produce el efecto completo (incluye decidir)', () => {
+    localStorage.clear()
+    const c = useConsentimientoCookies()
+    c.inicializar()
+    c.aceptarTodo()
+    expect(c.visible.value).toBe(false)
+    expect(leerConsentimiento()?.aceptadas).toContain('analitica')
+  })
+
+  it('rechazarOpcionales empty array llega a decidir como []', () => {
+    localStorage.clear()
+    const c = useConsentimientoCookies()
+    c.inicializar()
+    c.rechazarOpcionales()
+    expect(leerConsentimiento()?.aceptadas).toEqual([])
+    expect(c.visible.value).toBe(false)
+  })
+
+  it('guardarPreferencias filtra las no-aceptadas', () => {
+    localStorage.clear()
+    const c = useConsentimientoCookies()
+    c.inicializar()
+    c.abrirBanner()
+    c.preferencias.value = { analitica: true, preferencias: false }
+    c.guardarPreferencias()
+    expect(leerConsentimiento()?.aceptadas).toEqual(['analitica'])
+  })
+
+  it('revocar guarda aceptadas vacías y cierra el banner', () => {
+    localStorage.clear()
+    const c = useConsentimientoCookies()
+    c.inicializar()
+    c.aceptarTodo()
+    expect(c.puedeUsar('analitica')).toBe(true)
+    c.revocar()
+    expect(leerConsentimiento()?.aceptadas).toEqual([])
+    expect(c.puedeUsar('analitica')).toBe(false)
+    expect(c.visible.value).toBe(false)
+  })
+
+  it('decidido es true cuando leerConsentimiento devuelve consentimiento vigente', () => {
+    guardarCrudo({ fecha: new Date().toISOString(), version: VERSION_POLITICA, aceptadas: ['analitica'] })
+    const c = useConsentimientoCookies()
+    expect(c.decidido.value).toBe(true)
+  })
+
+  it('puedeUsar devuelve false para categoría desconocida', () => {
+    const c = useConsentimientoCookies()
+    expect(c.puedeUsar('analitica')).toBe(false)
+    expect(c.puedeUsar('preferencias')).toBe(false)
+  })
+
+  it('puedeUsar es false aunque las preferencias estén en true si no hay consentimiento vigente', () => {
+    const c = useConsentimientoCookies()
+    c.inicializar()
+    // Sin consentimiento vigente, las preferencias en true no habilitan nada.
+    c.preferencias.value = { analitica: true, preferencias: true }
+    expect(c.puedeUsar('analitica')).toBe(false)
+  })
+
+  it('leerConsentimiento devuelve null cuando localStorage está vacío', () => {
+    localStorage.clear()
+    expect(leerConsentimiento()).toBeNull()
+  })
+
+  it('leerConsentimiento devuelve null cuando los campos tienen tipos incorrectos', () => {
+    // fecha debe ser string y version debe ser number.
+    guardarCrudo({ fecha: 123, version: 'no-es-numero', aceptadas: [] } as Record<string, unknown>)
+    expect(leerConsentimiento()).toBeNull()
+  })
+})

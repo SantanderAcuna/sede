@@ -9,7 +9,7 @@
  */
 import { ref, reactive, onMounted, computed } from 'vue'
 import { obtener, actualizar } from '@/services/entidad'
-import type { EntidadItem, EntidadInput } from '@/types/api'
+import type { EntidadItem, EntidadInput, EntidadRed } from '@/types/api'
 import { esErrorApi } from '@/services/http'
 import FormField from '@/components/base/FormField.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -55,6 +55,12 @@ const formulario = reactive<EntidadInput>({
 
 // Estado original para detectar cambios
 let estadoOriginal: EntidadInput = { redes: [], politicas: [] }
+
+/**
+ * Redes sociales tipadas como EntidadRed[] para que vue-tsc resuelva
+ * correctamente los iteradores del v-for sin "Cannot find name 'red'".
+ */
+const redesSociales = computed<EntidadRed[]>(() => formulario.redes as EntidadRed[])
 
 // Pestañas
 const pestanaActiva = ref<'basicos' | 'contacto' | 'redes' | 'politicas'>('basicos')
@@ -420,7 +426,7 @@ function eliminarPolitica(index: number) {
 
           <ul v-else class="space-y-4">
             <li
-              v-for="(red, index) in formulario.redes"
+              v-for="(red, index) in redesSociales"
               :key="index"
               class="flex items-start gap-4 rounded-lg border border-slate-200 p-4"
             >

@@ -42,8 +42,10 @@
     "vue-tsc": "3.3.11"
   },
   "overrides": {
-    "chokidar": "^3.1.0",
+    "chokidar": "^4.0.3",
     "source-map-js": "^1.2.2",
-    "postcss-selector-parser": ">=7.1.6"
+    "postcss-selector-parser": ">=7.1.6",
+    "fast-glob": "^3.3.3",
+    "micromatch": "^4.0.8"
   }
 }

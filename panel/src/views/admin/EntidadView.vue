@@ -226,7 +226,7 @@ function eliminarPolitica(index: number) {
       v-else-if="error && !entidad"
       class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-5"
     >
-      <FaIcon icon="circleXmark" class="h-5 w-5 text-red-500 mt-0.5 shrink-0" aria-hidden="true" />
+      <FaIcon icon='circle-xmark' class="h-5 w-5 text-red-500 mt-0.5 shrink-0" aria-hidden="true" />
       <div>
         <p class="font-medium text-red-800">No se pudieron cargar los datos</p>
         <p class="mt-1 text-sm text-red-600">{{ error }}</p>
@@ -238,7 +238,7 @@ function eliminarPolitica(index: number) {
       <!-- Barra de acciones -->
       <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
         <div class="flex items-center gap-3">
-          <FaIcon icon="building" class="h-5 w-5 text-slate-400" aria-hidden="true" />
+          <FaIcon icon='building' class="h-5 w-5 text-slate-400" aria-hidden="true" />
           <div>
             <p class="font-medium text-slate-900">{{ entidad.nombre }}</p>
             <p class="text-sm text-slate-500">{{ entidad.sigla ?? 'Sin sigla' }} · NIT: {{ entidad.nit ?? 'No definido' }}</p>
@@ -246,11 +246,11 @@ function eliminarPolitica(index: number) {
         </div>
         <div class="flex items-center gap-3">
           <span v-if="mensajeExito" class="text-sm text-emerald-600 flex items-center gap-1">
-            <FaIcon icon="circleCheck" class="h-4 w-4" aria-hidden="true" />
+            <FaIcon icon='circle-check' class="h-4 w-4" aria-hidden="true" />
             {{ mensajeExito }}
           </span>
           <span v-if="hayCambios" class="text-sm text-amber-600 flex items-center gap-1">
-            <FaIcon icon="circle" class="h-2 w-2" aria-hidden="true" />
+            <FaIcon icon='circle' class="h-2 w-2" aria-hidden="true" />
             Cambios sin guardar
           </span>
           <BaseButton
@@ -259,7 +259,7 @@ function eliminarPolitica(index: number) {
             :loading="guardando"
             @click="guardar"
           >
-            <FaIcon icon="floppyDisk" class="h-4 w-4" aria-hidden="true" />
+            <FaIcon icon='floppy-disk' class="h-4 w-4" aria-hidden="true" />
             Guardar cambios
           </BaseButton>
         </div>
@@ -270,7 +270,7 @@ function eliminarPolitica(index: number) {
         v-if="error"
         class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"
       >
-        <FaIcon icon="triangleExclamation" class="h-5 w-5 text-red-500 mt-0.5 shrink-0" aria-hidden="true" />
+        <FaIcon icon='triangle-exclamation' class="h-5 w-5 text-red-500 mt-0.5 shrink-0" aria-hidden="true" />
         <div>
           <p class="font-medium text-red-800">Error al guardar</p>
           <p class="mt-1 text-sm text-red-600">{{ error }}</p>
@@ -414,13 +414,13 @@ function eliminarPolitica(index: number) {
               <p class="mt-0.5 text-sm text-slate-500">Enlaces a redes sociales de la entidad.</p>
             </div>
             <BaseButton variant="secondary" size="sm" @click="agregarRed">
-              <FaIcon icon="plus" class="h-4 w-4" aria-hidden="true" />
+              <FaIcon icon='plus' class="h-4 w-4" aria-hidden="true" />
               Agregar red
             </BaseButton>
           </div>
 
           <div v-if="!formulario.redes?.length" class="text-center py-8 text-slate-500">
-            <FaIcon icon="shareNodes" class="h-8 w-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
+            <FaIcon icon='share-nodes' class="h-8 w-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
             <p>No hay redes sociales configuradas.</p>
           </div>
 
@@ -455,7 +455,7 @@ function eliminarPolitica(index: number) {
                 title="Eliminar"
                 @click="eliminarRed(index)"
               >
-                <FaIcon icon="trash" class="h-4 w-4" aria-hidden="true" />
+                <FaIcon icon='trash' class="h-4 w-4" aria-hidden="true" />
               </button>
             </li>
           </ul>
@@ -469,13 +469,13 @@ function eliminarPolitica(index: number) {
               <p class="mt-0.5 text-sm text-slate-500">Enlaces a las políticas que deben aparecer en el pie de página.</p>
             </div>
             <BaseButton variant="secondary" size="sm" @click="agregarPolitica">
-              <FaIcon icon="plus" class="h-4 w-4" aria-hidden="true" />
+              <FaIcon icon='plus' class="h-4 w-4" aria-hidden="true" />
               Agregar política
             </BaseButton>
           </div>
 
           <div v-if="!formulario.politicas?.length" class="text-center py-8 text-slate-500">
-            <FaIcon icon="fileContract" class="h-8 w-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
+            <FaIcon icon='file-contract' class="h-8 w-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
             <p>No hay políticas configuradas.</p>
           </div>
 
@@ -503,7 +503,7 @@ function eliminarPolitica(index: number) {
                 title="Eliminar"
                 @click="eliminarPolitica(index)"
               >
-                <FaIcon icon="trash" class="h-4 w-4" aria-hidden="true" />
+                <FaIcon icon='trash' class="h-4 w-4" aria-hidden="true" />
               </button>
             </li>
           </ul>

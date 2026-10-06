@@ -97,7 +97,7 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
               >
                 <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
                 <FaIcon
-                  :icon="header.column.getIsSorted() === 'desc' ? 'arrowDown' : 'arrowUp'"
+                  :icon="header.column.getIsSorted() === 'desc' ? 'arrow-down' : 'arrow-up'"
                   :class="['h-3 w-3', header.column.getIsSorted() ? 'text-gov-blue' : 'text-slate-300']"
                   aria-hidden="true"
                 />
@@ -156,7 +156,7 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
           aria-label="Página anterior"
           @click="table.previousPage()"
         >
-          <FaIcon icon="chevronLeft" class="h-3 w-3" aria-hidden="true" />
+          <FaIcon icon='chevron-left' class="h-3 w-3" aria-hidden="true" />
         </button>
 
         <button
@@ -183,7 +183,7 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
           aria-label="Página siguiente"
           @click="table.nextPage()"
         >
-          <FaIcon icon="chevronRight" class="h-3 w-3" aria-hidden="true" />
+          <FaIcon icon='chevron-right' class="h-3 w-3" aria-hidden="true" />
         </button>
       </nav>
     </div>

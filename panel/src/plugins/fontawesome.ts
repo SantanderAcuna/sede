@@ -12,23 +12,27 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import {
   // Navegación del panel
   faGaugeHigh, faInbox, faFileLines, faCalendarCheck, faBell, faGlobe,
-  faBriefcase, faKey, faPenToSquare, faDisplay, faLandmark, faFolderOpen,
-  faLink, faPlug, faUsers, faMagnifyingGlass, faChartLine, faGear, faSliders,
+  faBriefcase, faKey, faPenToSquare, faDisplay, faLandmark, faBuilding,
+  faFolderOpen, faLink, faPlug, faUsers, faMagnifyingGlass, faChartLine,
+  faGear, faSliders,
   // Acciones y estado
   faRightFromBracket, faBars, faChevronRight, faChevronLeft, faChevronDown,
-  faCircleCheck, faTriangleExclamation, faCircleInfo, faXmark, faPlus,
-  faDownload, faEye, faShieldHalved, faFingerprint, faArrowUp, faArrowDown,
+  faCircleCheck, faCircleExclamation, faTriangleExclamation, faCircleInfo,
+  faXmark, faPlus, faDownload, faEye, faShieldHalved, faFingerprint,
+  faArrowUp, faArrowDown,
   // Barra de accesibilidad
   faUniversalAccess, faMinus, faMoon, faRotateLeft, faCircleHalfStroke,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
   faGaugeHigh, faInbox, faFileLines, faCalendarCheck, faBell, faGlobe,
-  faBriefcase, faKey, faPenToSquare, faDisplay, faLandmark, faFolderOpen,
-  faLink, faPlug, faUsers, faMagnifyingGlass, faChartLine, faGear, faSliders,
+  faBriefcase, faKey, faPenToSquare, faDisplay, faLandmark, faBuilding,
+  faFolderOpen, faLink, faPlug, faUsers, faMagnifyingGlass, faChartLine,
+  faGear, faSliders,
   faRightFromBracket, faBars, faChevronRight, faChevronLeft, faChevronDown,
-  faCircleCheck, faTriangleExclamation, faCircleInfo, faXmark, faPlus,
-  faDownload, faEye, faShieldHalved, faFingerprint, faArrowUp, faArrowDown,
+  faCircleCheck, faCircleExclamation, faTriangleExclamation, faCircleInfo,
+  faXmark, faPlus, faDownload, faEye, faShieldHalved, faFingerprint,
+  faArrowUp, faArrowDown,
   faUniversalAccess, faMinus, faMoon, faRotateLeft, faCircleHalfStroke,
 )
 

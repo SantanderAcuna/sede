@@ -40,6 +40,6 @@
   "overrides": {
     "node-forge": "^1.0.0",
     "source-map-js": "^1.2.2",
-    "@nuxt/devtools": "^3.4.2"
+    "simple-git": "^4.0.2"
   }
 }

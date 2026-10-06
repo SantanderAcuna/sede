@@ -68,7 +68,7 @@ onMounted(async () => {
       v-else-if="error"
       class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-5"
     >
-      <FaIcon icon="circleXmark" class="h-5 w-5 text-red-500 mt-0.5 shrink-0" aria-hidden="true" />
+      <FaIcon icon='circle-xmark' class="h-5 w-5 text-red-500 mt-0.5 shrink-0" aria-hidden="true" />
       <div>
         <p class="font-medium text-red-800">No se pudo cargar el perfil</p>
         <p class="mt-1 text-sm text-red-600">{{ error }}</p>
@@ -114,7 +114,7 @@ onMounted(async () => {
                 v-if="datos.mfa_habilitado"
                 variant="info"
               >
-                <FaIcon icon="shieldHalved" class="h-3 w-3" aria-hidden="true" />
+                <FaIcon icon='shield-halved' class="h-3 w-3" aria-hidden="true" />
                 Doble factor
               </BaseBadge>
               <BaseBadge
@@ -166,7 +166,7 @@ onMounted(async () => {
         <section class="rounded-xl border border-slate-200 bg-white p-5">
           <header class="flex items-center gap-2 mb-4">
             <div class="h-8 w-8 rounded-lg bg-[var(--color-gov-blue-50)] flex items-center justify-center">
-              <FaIcon icon="lock" class="h-4 w-4 text-[var(--color-gov-blue)]" aria-hidden="true" />
+              <FaIcon icon='lock' class="h-4 w-4 text-[var(--color-gov-blue)]" aria-hidden="true" />
             </div>
             <h2 class="text-sm font-semibold text-slate-900">Seguridad</h2>
           </header>
@@ -175,7 +175,7 @@ onMounted(async () => {
               <dt class="text-xs font-medium text-slate-500 uppercase tracking-wide">Doble factor</dt>
               <dd class="mt-0.5 flex items-center gap-1.5 text-sm">
                 <FaIcon
-                  :icon="datos.mfa_habilitado ? 'circleCheck' : 'circleXmark'"
+                  :icon="datos.mfa_habilitado ? 'circle-check' : 'circle-xmark'"
                   :class="datos.mfa_habilitado ? 'text-emerald-500' : 'text-slate-400'"
                   class="h-4 w-4"
                   aria-hidden="true"
@@ -188,7 +188,7 @@ onMounted(async () => {
             <div>
               <dt class="text-xs font-medium text-slate-500 uppercase tracking-wide">Autenticación</dt>
               <dd class="mt-0.5 text-sm text-slate-900 flex items-center gap-1.5">
-                <FaIcon icon="mobileScreen" class="h-4 w-4 text-slate-400" aria-hidden="true" />
+                <FaIcon icon='mobile-screen' class="h-4 w-4 text-slate-400" aria-hidden="true" />
                 Token Sanctum
               </dd>
             </div>
@@ -212,7 +212,7 @@ onMounted(async () => {
             class="flex items-start gap-4 rounded-lg border border-slate-100 bg-slate-50/50 p-4"
           >
             <div class="h-10 w-10 rounded-lg bg-[var(--color-gov-blue-light)] flex items-center justify-center shrink-0">
-              <FaIcon icon="idCardClip" class="h-5 w-5 text-[var(--color-gov-blue)]" aria-hidden="true" />
+              <FaIcon icon='id-card-clip' class="h-5 w-5 text-[var(--color-gov-blue)]" aria-hidden="true" />
             </div>
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
@@ -236,7 +236,7 @@ onMounted(async () => {
                   v-if="rol.permisos.length === 0"
                   class="inline-flex items-center gap-1 text-xs text-slate-400"
                 >
-                  <FaIcon icon="infinity" class="h-3 w-3" aria-hidden="true" />
+                  <FaIcon icon='infinity' class="h-3 w-3" aria-hidden="true" />
                   Acceso total (sin restricciones)
                 </span>
               </div>

@@ -125,7 +125,7 @@ watch(open, async (abierto) => {
             aria-label="Cerrar panel"
             @click="open = false"
           >
-            <FaIcon icon="xmark" aria-hidden="true" />
+            <FaIcon icon='xmark' aria-hidden="true" />
           </button>
         </div>
 
@@ -142,7 +142,7 @@ watch(open, async (abierto) => {
               aria-label="Reducir texto"
               @click="dec"
             >
-              <FaIcon icon="minus" class="text-[10px]" aria-hidden="true" />
+              <FaIcon icon='minus' class="text-[10px]" aria-hidden="true" />
               <span class="text-xs font-medium">A</span>
             </button>
             <span class="w-12 text-center text-sm font-semibold text-slate-700">{{ pct }}</span>
@@ -154,7 +154,7 @@ watch(open, async (abierto) => {
               @click="inc"
             >
               <span class="text-xs font-medium">A</span>
-              <FaIcon icon="plus" class="text-[10px]" aria-hidden="true" />
+              <FaIcon icon='plus' class="text-[10px]" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -168,7 +168,7 @@ watch(open, async (abierto) => {
           @click="contrast = !contrast"
         >
           <span class="flex items-center gap-2 text-sm font-medium text-slate-800">
-            <FaIcon icon="circleHalfStroke" class="text-gov-blue" aria-hidden="true" />
+            <FaIcon icon='circle-half-stroke' class="text-gov-blue" aria-hidden="true" />
             Alto contraste
           </span>
           <span
@@ -191,7 +191,7 @@ watch(open, async (abierto) => {
           @click="dark = !dark"
         >
           <span class="flex items-center gap-2 text-sm font-medium text-slate-800">
-            <FaIcon icon="moon" class="text-gov-blue" aria-hidden="true" />
+            <FaIcon icon='moon' class="text-gov-blue" aria-hidden="true" />
             Modo oscuro
           </span>
           <span
@@ -214,7 +214,7 @@ watch(open, async (abierto) => {
           @click="spacing = !spacing"
         >
           <span class="flex items-center gap-2 text-sm font-medium text-slate-800">
-            <FaIcon icon="sliders" class="text-gov-blue" aria-hidden="true" />
+            <FaIcon icon='sliders' class="text-gov-blue" aria-hidden="true" />
             Espaciado de texto
           </span>
           <span
@@ -234,7 +234,7 @@ watch(open, async (abierto) => {
           class="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors"
           @click="reset"
         >
-          <FaIcon icon="rotateLeft" aria-hidden="true" />
+          <FaIcon icon='rotate-left' aria-hidden="true" />
           Restablecer todo
         </button>
       </div>

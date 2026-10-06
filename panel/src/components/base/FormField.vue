@@ -85,7 +85,7 @@ function onInput(e: Event) {
 
     <p v-if="hint && !error" :id="`${id}-hint`" class="text-xs text-slate-500">{{ hint }}</p>
     <p v-if="error" :id="`${id}-error`" class="text-xs text-red-600 flex items-center gap-1" role="alert">
-      <FaIcon icon="triangle-exclamation" class="h-3 w-3" />
+      <FaIcon icon="triangleExclamation" class="h-3 w-3" />
       {{ error }}
     </p>
   </div>

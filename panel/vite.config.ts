@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
@@ -13,7 +14,10 @@ export default defineConfig({
   // que no protesta en ninguna parte.
   base: '/admin/',
 
-  plugins: [vue()],
+  // Tailwind CSS 4 con el plugin oficial de Vite (sin postcss.config.js)
+  // Resuelve las vulns de braces, chokidar, fast-glob, micromatch heredadas
+  // de la cadena de postcss/tailwindcss 3.x.
+  plugins: [vue(), tailwindcss()],
 
   resolve: {
     alias: {

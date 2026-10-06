@@ -2,9 +2,40 @@
    de que nada pida esas familias. */
 @import './fonts.css';
 @import './tokens.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS 4: nueva sintaxis CSS-first.
+   Los @theme (color, font, shadow) se importan de tokens.css para mantener
+   la única fuente de verdad. */
+@import "tailwindcss";
+
+@theme {
+  /* Colores institucionalmente alineados con tokens.css */
+  --color-gov-blue: var(--color-gov-blue);
+  --color-gov-blue-dark: var(--color-gov-blue-dark);
+  --color-gov-blue-light: var(--color-gov-blue-light);
+  --color-gov-blue-50: var(--color-gov-blue-50);
+  --color-gov-blue-100: var(--color-gov-blue-100);
+  --color-gov-red: var(--color-gov-red);
+  --color-state-green: var(--color-state-green);
+  --color-state-yellow: var(--color-state-yellow);
+  --color-surface: var(--color-surface);
+  --color-surface-alt: var(--color-surface-alt);
+  --color-bg: var(--color-bg);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-soft: var(--color-text-soft);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+
+  /* Tipografía */
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-heading: 'Montserrat', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Sombras */
+  --shadow-card: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}
 
 @layer base {
   html, body, #app { height: 100%; }

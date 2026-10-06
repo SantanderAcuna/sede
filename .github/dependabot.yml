@@ -13,6 +13,10 @@
 # Los grupos reúnen lo que se revisa junto y separan lo que se revisa aparte:
 # una actualización de la versión de Node no se revisa igual que un parche de una
 # biblioteca de utilidades.
+#
+# Security updates: separados y urgentes (revisados diariamente).
+# Patches: agrupados y auto-mergeables si pasan CI.
+# Minor/Major: revisión manual.
 
 # TODAS las entradas fijan `target-branch: develop`, y no es un detalle: sin esa
 # línea Dependabot apunta a la rama por defecto (`main`) y las actualizaciones
@@ -22,6 +26,18 @@
 # que recorrer el mismo camino que el resto, no aparecer directamente en `main`.
 
 version: 2
+
+# Configuración global de auto-merge: solo se permite en parches de seguridad
+# y parches normales, NUNCA en minor/major (cambios breaking).
+#
+# Para que funcione, el repositorio debe tener "Allow auto-merge" habilitado
+# en Settings → General → Pull Requests.
+#
+# Los PRs auto-mergeables requieren:
+# - Tipo de actualización: patch o security
+# - CI 7/7 PASS
+# - Sin conflictos con la rama base
+# - Aprobación de un CODEOWNER (si está configurado)
 
 updates:
   # --- Dependencias de JavaScript ---------------------------------------------
@@ -40,6 +56,14 @@ updates:
         applies-to: version-updates
         update-types: [minor, patch]
     labels: [dependencias]
+    # Ignorar actualizaciones que sabemos que rompen el build
+    ignore:
+      # Tailwind 4 está en plan de migración (ver ADR-0001)
+      - dependency-name: "tailwindcss"
+        update-types: [version-update:semver-major]
+      # vue-router 5 es la rama actual
+      - dependency-name: "vue-router"
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: npm
     target-branch: develop
@@ -53,6 +77,11 @@ updates:
         applies-to: version-updates
         update-types: [minor, patch]
     labels: [dependencias]
+    ignore:
+      - dependency-name: "tailwindcss"
+        update-types: [version-update:semver-major]
+      - dependency-name: "nuxt"
+        update-types: [version-update:semver-major]
 
   # --- Dependencias de PHP -----------------------------------------------------
   - package-ecosystem: composer
@@ -99,3 +128,18 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: [dependencias]
+
+  # --- GitHub Actions Security Updates ----------------------------------------
+  #
+  # Actualizaciones de seguridad de GitHub Actions se manejan por separado
+  # porque se revisan diariamente y se mergean rápido (no esperan al ciclo
+  # semanal).
+  - package-ecosystem: github-actions
+    target-branch: develop
+    directory: /
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 3
+    labels: [seguridad]
+    # Solo security updates
+    open-security-pull-requests-limit: 5

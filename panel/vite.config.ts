@@ -17,7 +17,23 @@ export default defineConfig({
   // Tailwind CSS 4 con el plugin oficial de Vite (sin postcss.config.js)
   // Resuelve las vulns de braces, chokidar, fast-glob, micromatch heredadas
   // de la cadena de postcss/tailwindcss 3.x.
-  plugins: [vue(), tailwindcss()],
+  // El plugin version-json-no-cache añade headers de no-cache a /version.json
+  // para que el cache-buster.ts del cliente pueda verificar la version.
+  plugins: [
+    vue(),
+    tailwindcss(),
+    {
+      name: 'version-json-no-cache',
+      configureServer(server) {
+        server.middlewares.use('/version.json', (_req, res, next) => {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+          res.setHeader('Pragma', 'no-cache')
+          res.setHeader('Expires', '0')
+          next()
+        })
+      },
+    },
+  ],
 
   resolve: {
     alias: {
@@ -58,20 +74,4 @@ export default defineConfig({
     },
   },
 
-  // Handler personalizado para `version.json`: siempre se sirve con
-  // headers de no-cache para que el `cache-buster.ts` del cliente
-  // pueda verificar la versión en cada carga.
-  plugins: [
-    {
-      name: 'version-json-no-cache',
-      configureServer(server) {
-        server.middlewares.use('/version.json', (_req, res, next) => {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-          res.setHeader('Pragma', 'no-cache')
-          res.setHeader('Expires', '0')
-          next()
-        })
-      },
-    },
-  ],
 })

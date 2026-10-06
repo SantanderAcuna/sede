@@ -83,7 +83,7 @@ http.interceptors.response.use(
     // redirige al login con un parámetro para que el usuario sepa que fue
     // bloqueado por exceso de intentos.
     if (axios.isAxiosError(error) && error.response?.status === 429) {
-      window.location.href = '/admin/acceso?rate_limited=1'
+      window.location.href = '/admin/acceso?rate_limited=1' 
     }
     return Promise.reject(error)
   }

@@ -18,9 +18,16 @@
     <!-- Un solo nombre de producto (D-47), idéntico al `TITULO_BASE` del
          enrutador: la pestaña no puede cambiar de nombre al navegar. -->
     <title>SGDI · Alcaldía Distrital de Santa Marta</title>
+    <!-- Cache busting: fuerza al navegador a recargar si tiene versiones
+         cacheadas del bundle antiguo (con iconos en kebab-case). Sin este
+         mecanismo, el cache HTTP del navegador podía servir versiones
+         obsoletas durante horas. -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/main.ts?t=20261006"></script>
   </body>
 </html>

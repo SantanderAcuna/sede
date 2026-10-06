@@ -41,6 +41,15 @@ export default defineConfig({
   server: {
     port: 5190,
     strictPort: true,
+    // Headers anti-cache en dev para forzar recarga de bundles tras
+    // cambios críticos (fixes de iconos, dependencias, etc.).
+    // Sin esto, el navegador puede servir versiones cacheadas del bundle
+    // durante horas aunque el dev server tenga el código nuevo.
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    },
     proxy: {
       // En desarrollo la API vive en otro proceso. En producción es el punto de
       // entrada el que reparte, y este proxy no interviene.

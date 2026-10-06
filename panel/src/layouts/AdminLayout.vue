@@ -37,15 +37,15 @@ const grupos: GrupoNavegacion[] = [
   {
     id: 'principal',
     label: 'Principal',
-    items: [{ label: 'Dashboard', ruta: '/', icono: 'gaugeHigh' }],
+    items: [{ label: 'Dashboard', ruta: '/', icono: 'gauge-high' }],
   },
   {
     id: 'atencion',
     label: 'Atención al ciudadano',
     items: [
       { label: 'PQRSD', ruta: '/pqrsd', icono: 'inbox' },
-      { label: 'Trámites', ruta: '/tramites', icono: 'fileLines' },
-      { label: 'Citas y turnos', ruta: '/citas', icono: 'calendarCheck' },
+      { label: 'Trámites', ruta: '/tramites', icono: 'file-lines' },
+      { label: 'Citas y turnos', ruta: '/citas', icono: 'calendar-check' },
       { label: 'Notificaciones', ruta: '/notificaciones', icono: 'bell' },
     ],
   },
@@ -62,7 +62,7 @@ const grupos: GrupoNavegacion[] = [
     id: 'contenidos',
     label: 'Contenidos',
     items: [
-      { label: 'CMS', ruta: '/cms', icono: 'penToSquare' },
+      { label: 'CMS', ruta: '/cms', icono: 'pen-to-square' },
       { label: 'Portal Ciudadano', ruta: '/portal', icono: 'display' },
       { label: 'Transparencia', ruta: '/transparencia', icono: 'landmark' },
     ],
@@ -70,7 +70,7 @@ const grupos: GrupoNavegacion[] = [
   {
     id: 'documental',
     label: 'Gestión documental',
-    items: [{ label: 'Gestión Documental', ruta: '/gestion-documental', icono: 'folderOpen' }],
+    items: [{ label: 'Gestión Documental', ruta: '/gestion-documental', icono: 'folder-open' }],
   },
   {
     id: 'integraciones',
@@ -85,8 +85,8 @@ const grupos: GrupoNavegacion[] = [
     label: 'Administración',
     items: [
       { label: 'Usuarios y Roles', ruta: '/usuarios', icono: 'users' },
-      { label: 'Auditoría', ruta: '/auditoria', icono: 'magnifyingGlass' },
-      { label: 'Reportes', ruta: '/reportes', icono: 'chartLine' },
+      { label: 'Auditoría', ruta: '/auditoria', icono: 'magnifying-glass' },
+      { label: 'Reportes', ruta: '/reportes', icono: 'chart-line' },
       { label: 'Motor de asignación', ruta: '/asignacion', icono: 'sliders' },
       { label: 'Entidad', ruta: '/configuracion/entidad', icono: 'building' },
       { label: 'Configuración', ruta: '/configuracion', icono: 'gear' },
@@ -511,7 +511,7 @@ const migas = computed(() => {
               role="menuitem"
               @click="cerrarSesion"
             >
-              <FaIcon icon="rightFromBracket" class="h-4 w-4" aria-hidden="true" />
+              <FaIcon icon='right-from-bracket' class="h-4 w-4" aria-hidden="true" />
               Cerrar sesión
             </button>
           </div>

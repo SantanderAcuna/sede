@@ -39,6 +39,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // no lo aplica al grupo de la API por su cuenta: sin esta llamada el
         // limitador existiría y no limitaría nada.
         $middleware->throttleApi();
+
+        // Habilita Sanctum para autenticación con cookie en SPAs (panel Vue).
+        // Registra EnsureFrontendRequestsAreStateful en el grupo api: las peticiones
+        // desde orígenes en SANCTUM_STATEFUL_DOMAINS reciben una cookie CSRF y pueden
+        // usar autenticación por sesión. Sin esto, todo request desde el panel
+        // devuelve 401 aunque el token sea válido.
+        $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

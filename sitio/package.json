@@ -7,6 +7,7 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "preinstall": "node ../scripts/patch-deps.mjs",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
     "test:accesibilidad": "node tests/accesibilidad.mjs",
@@ -14,7 +15,8 @@
     "test": "vitest",
     "trazabilidad": "node scripts/trazabilidad.mjs",
     "test:cobertura": "vitest run --coverage",
-    "test:diseno": "node tests/diseno.mjs"
+    "test:diseno": "node tests/diseno.mjs",
+    "test:braces": "node ../scripts/audit-deps.sh"
   },
   "dependencies": {
     "nuxt": "^4.5.2",

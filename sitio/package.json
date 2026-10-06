@@ -8,7 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "preinstall": "node ../scripts/patch-deps.mjs",
-    "postinstall": "nuxt prepare",
+    "postinstall": "node ../scripts/patch-deps.mjs && nuxt prepare",
     "typecheck": "nuxt typecheck",
     "test:accesibilidad": "node tests/accesibilidad.mjs",
     "test:contraste": "node tests/verificar-modos-contraste.mjs",
@@ -16,7 +16,8 @@
     "trazabilidad": "node scripts/trazabilidad.mjs",
     "test:cobertura": "vitest run --coverage",
     "test:diseno": "node tests/diseno.mjs",
-    "test:braces": "node ../scripts/audit-deps.sh"
+    "test:braces": "node ../scripts/audit-deps.sh",
+    "test:node-forge": "node ../scripts/validate-node-forge.mjs"
   },
   "dependencies": {
     "nuxt": "^4.5.2",

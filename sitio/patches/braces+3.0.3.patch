@@ -1,0 +1,53 @@
+diff --git a/node_modules/braces/lib/expand.js b/node_modules/braces/lib/expand.js
+index 0000001..0000002 100644
+--- a/node_modules/braces/lib/expand.js
++++ b/node_modules/braces/lib/expand.js
+@@ -1,9 +1,16 @@
+ 'use strict';
+
+ const fill = require('fill-range');
+ const stringify = require('./stringify');
+ const utils = require('./utils');
+
++// SECURITY PATCH (CVE-2026-93687): guard against stack exhaustion
++// via deeply nested braces. Default limit: 50.
++const MAX_NESTING_DEPTH = parseInt(process.env.BRACES_MAX_DEPTH || '50', 10);
++let nestingDepth = 0;
++
+ const append = (queue = '', stash = '', enclose = false) => {
+   const result = [];
+
+@@ -33,7 +40,16 @@ const expand = (ast, options = {}) => {
+   const rangeLimit = options.rangeLimit === undefined ? 1000 : options.rangeLimit;
+
+   const walk = (node, parent = {}) => {
+-    node.queue = [];
++    // SECURITY PATCH: enforce nesting depth limit
++    nestingDepth++;
++    if (nestingDepth > MAX_NESTING_DEPTH) {
++      nestingDepth--;
++      throw new RangeError(
++        `braces: nesting depth exceeds ${MAX_NESTING_DEPTH} (CVE-2026-93687 mitigation). ` +
++        `Pattern rejected to prevent stack exhaustion.`
++      );
++    }
++    try {
++      node.queue = [];
+
+     let p = parent;
+     let q = parent.queue;
+@@ -105,7 +121,10 @@ const expand = (ast, options = {}) => {
+         if (child.nodes) {
+           walk(child, node);
+         }
+       }
+
+-      return queue;
++      return queue;
++    } finally {
++      nestingDepth--;
++    }
+   };
+
+   return utils.flatten(walk(ast));
+};

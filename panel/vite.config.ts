@@ -57,4 +57,21 @@ export default defineConfig({
       '/storage': { target: 'http://127.0.0.1:8010', changeOrigin: true },
     },
   },
+
+  // Handler personalizado para `version.json`: siempre se sirve con
+  // headers de no-cache para que el `cache-buster.ts` del cliente
+  // pueda verificar la versión en cada carga.
+  plugins: [
+    {
+      name: 'version-json-no-cache',
+      configureServer(server) {
+        server.middlewares.use('/version.json', (_req, res, next) => {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+          res.setHeader('Pragma', 'no-cache')
+          res.setHeader('Expires', '0')
+          next()
+        })
+      },
+    },
+  ],
 })

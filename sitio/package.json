@@ -38,6 +38,8 @@
     "vue-tsc": "^3.3.11"
   },
   "overrides": {
+    "node-forge": "^1.0.0",
+    "source-map-js": "^1.2.2"
     "node-forge": "^1.0.0"
   }
 }

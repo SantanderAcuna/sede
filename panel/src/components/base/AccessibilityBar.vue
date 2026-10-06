@@ -168,7 +168,7 @@ watch(open, async (abierto) => {
           @click="contrast = !contrast"
         >
           <span class="flex items-center gap-2 text-sm font-medium text-slate-800">
-            <FaIcon icon="circle-half-stroke" class="text-gov-blue" aria-hidden="true" />
+            <FaIcon icon="circleHalfStroke" class="text-gov-blue" aria-hidden="true" />
             Alto contraste
           </span>
           <span
@@ -234,7 +234,7 @@ watch(open, async (abierto) => {
           class="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors"
           @click="reset"
         >
-          <FaIcon icon="rotate-left" aria-hidden="true" />
+          <FaIcon icon="rotateLeft" aria-hidden="true" />
           Restablecer todo
         </button>
       </div>

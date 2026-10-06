@@ -79,6 +79,12 @@ http.interceptors.response.use(
         window.location.href = '/admin/acceso'
       }
     }
+    // Rate limiter: tras 5 intentos fallidos el servidor devuelve 429. Se
+    // redirige al login con un parámetro para que el usuario sepa que fue
+    // bloqueado por exceso de intentos.
+    if (axios.isAxiosError(error) && error.response?.status === 429) {
+      window.location.href = '/admin/acceso?rate_limited=1'
+    }
     return Promise.reject(error)
   }
 )

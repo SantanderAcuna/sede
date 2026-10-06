@@ -41,7 +41,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
 
     // Panel — Auth (requiere autenticación Sanctum)
     Route::prefix('panel')->name('panel.')->group(function (): void {
-        Route::post('/login', [AuthController::class, 'login'])->name('login');
+        Route::post('/login', [AuthController::class, 'login'])
+            ->name('login')
+            ->middleware('throttle:login');
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth:sanctum');
         Route::get('/perfil', [AuthController::class, 'perfil'])->name('perfil')->middleware('auth:sanctum');
 

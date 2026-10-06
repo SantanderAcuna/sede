@@ -30,6 +30,7 @@ use App\Services\IdentidadService;
 use App\Services\IngestaTramites;
 use App\Services\TramiteService;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
@@ -87,6 +88,15 @@ class AppServiceProvider extends ServiceProvider
         // según quién escriba la línea; con esto, `data` es siempre el objeto que
         // el contrato declara.
         JsonResource::withoutWrapping();
+
+        // Las rutas del panel (/panel/*) usan autenticación Bearer con Sanctum
+        // (tokens en headers Authorization), no cookies de sesión. Por eso se
+        // excluyen de la verificación CSRF: el token de Sanctum ya autentica.
+        PreventRequestForgery::except([
+            'api/v1/panel/login',
+            'api/v1/panel/logout',
+            'api/v1/panel/perfil',
+        ]);
 
         // El super-admin no pasa por las comprobaciones de permisos. El `null` del
         // caso contrario no es un descuido: devolver `false` aquí negaría el

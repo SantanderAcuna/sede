@@ -45,6 +45,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // desde orígenes en SANCTUM_STATEFUL_DOMAINS reciben una cookie CSRF y pueden
         // usar autenticación por sesión. Sin esto, todo request desde el panel
         // devuelve 401 aunque el token sea válido.
+        //
+        // NOTA: Las rutas del panel (/panel/*) usan autenticación Bearer (tokens de
+        // Sanctum) y NO requieren verificación CSRF. Se excluyen aquí para que el
+        // flujo de login funcione sin token CSRF.
         $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -226,7 +226,7 @@ function eliminarPolitica(index: number) {
       v-else-if="error && !entidad"
       class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-5"
     >
-      <FaIcon icon="circle-xmark" class="h-5 w-5 text-red-500 mt-0.5 shrink-0" aria-hidden="true" />
+      <FaIcon icon="circleXmark" class="h-5 w-5 text-red-500 mt-0.5 shrink-0" aria-hidden="true" />
       <div>
         <p class="font-medium text-red-800">No se pudieron cargar los datos</p>
         <p class="mt-1 text-sm text-red-600">{{ error }}</p>
@@ -246,7 +246,7 @@ function eliminarPolitica(index: number) {
         </div>
         <div class="flex items-center gap-3">
           <span v-if="mensajeExito" class="text-sm text-emerald-600 flex items-center gap-1">
-            <FaIcon icon="check-circle" class="h-4 w-4" aria-hidden="true" />
+            <FaIcon icon="circleCheck" class="h-4 w-4" aria-hidden="true" />
             {{ mensajeExito }}
           </span>
           <span v-if="hayCambios" class="text-sm text-amber-600 flex items-center gap-1">
@@ -259,7 +259,7 @@ function eliminarPolitica(index: number) {
             :loading="guardando"
             @click="guardar"
           >
-            <FaIcon icon="floppy-disk" class="h-4 w-4" aria-hidden="true" />
+            <FaIcon icon="floppyDisk" class="h-4 w-4" aria-hidden="true" />
             Guardar cambios
           </BaseButton>
         </div>
@@ -270,7 +270,7 @@ function eliminarPolitica(index: number) {
         v-if="error"
         class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"
       >
-        <FaIcon icon="triangle-exclamation" class="h-5 w-5 text-red-500 mt-0.5 shrink-0" aria-hidden="true" />
+        <FaIcon icon="triangleExclamation" class="h-5 w-5 text-red-500 mt-0.5 shrink-0" aria-hidden="true" />
         <div>
           <p class="font-medium text-red-800">Error al guardar</p>
           <p class="mt-1 text-sm text-red-600">{{ error }}</p>
@@ -420,7 +420,7 @@ function eliminarPolitica(index: number) {
           </div>
 
           <div v-if="!formulario.redes?.length" class="text-center py-8 text-slate-500">
-            <FaIcon icon="share-nodes" class="h-8 w-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
+            <FaIcon icon="shareNodes" class="h-8 w-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
             <p>No hay redes sociales configuradas.</p>
           </div>
 
@@ -475,7 +475,7 @@ function eliminarPolitica(index: number) {
           </div>
 
           <div v-if="!formulario.politicas?.length" class="text-center py-8 text-slate-500">
-            <FaIcon icon="file-contract" class="h-8 w-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
+            <FaIcon icon="fileContract" class="h-8 w-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
             <p>No hay políticas configuradas.</p>
           </div>
 

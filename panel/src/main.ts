@@ -11,6 +11,13 @@
  */
 import './assets/styles/main.css'
 
+// Cache-buster: este módulo se ejecuta ANTES de Vue para verificar si la
+// versión del bundle en el servidor coincide con la que el navegador tiene
+// cacheada. Si no coincide, fuerza una recarga dura (location.reload).
+// Sin esto, el navegador puede servir versiones obsoletas con errores de
+// iconos "Could not find" que ya están corregidos en el código.
+import './plugins/cache-buster'
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 

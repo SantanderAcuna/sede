@@ -4,6 +4,8 @@ import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 
+import { versionJsonPlugin } from './vite/plugins/version-json.ts'
+
 export default defineConfig({
   // La ruta bajo la que se sirve el panel. NO es cosmético: sin declararla, Vite
   // emite las direcciones de sus activos desde la RAÍZ (`/assets/…`) mientras el
@@ -17,23 +19,11 @@ export default defineConfig({
   // Tailwind CSS 4 con el plugin oficial de Vite (sin postcss.config.js)
   // Resuelve las vulns de braces, chokidar, fast-glob, micromatch heredadas
   // de la cadena de postcss/tailwindcss 3.x.
-  // El plugin version-json-no-cache añade headers de no-cache a /version.json
-  // para que el cache-buster.ts del cliente pueda verificar la version.
-  plugins: [
-    vue(),
-    tailwindcss(),
-    {
-      name: 'version-json-no-cache',
-      configureServer(server) {
-        server.middlewares.use('/version.json', (_req, res, next) => {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-          res.setHeader('Pragma', 'no-cache')
-          res.setHeader('Expires', '0')
-          next()
-        })
-      },
-    },
-  ],
+  //
+  // `versionJsonPlugin` emite `/version.json` en dev (middleware) y build
+  // (asset en dist/) para que el `cache-buster.ts` del cliente pueda
+  // invalidar caches obsoletos sin intervención del usuario.
+  plugins: [vue(), tailwindcss(), versionJsonPlugin()],
 
   resolve: {
     alias: {
@@ -73,5 +63,4 @@ export default defineConfig({
       '/storage': { target: 'http://127.0.0.1:8010', changeOrigin: true },
     },
   },
-
 })

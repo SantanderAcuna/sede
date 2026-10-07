@@ -86,8 +86,14 @@ final class AuthTest extends TestCase
 
     public function test_perfil_devuelve_los_datos_del_usuario_autenticado(): void
     {
-        $respuesta = $this->actingAs($this->superAdmin, 'sanctum')
-            ->getJson('/api/v1/panel/perfil');
+        // En el flujo stateful, el helper `actingAs` configura la sesion
+        // manualmente, pero Sanctum 4.x requiere que la sesion sea tambien
+        // "authenticated" (con `authenticate_session => null` en el config).
+        // El test pasa cuando se usa el guard de sesion estandar de Laravel
+        // y se añade el header Origin para activar el flujo stateful.
+        $respuesta = $this->actingAs($this->superAdmin, 'web')
+            ->withSession(['_token' => 'test'])
+            ->getJson('/api/v1/panel/perfil', ['Origin' => 'http://localhost:5190']);
 
         $respuesta->assertOk()
             ->assertJsonPath('success', true)

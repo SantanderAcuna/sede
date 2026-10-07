@@ -13,7 +13,7 @@
  * sesión real dice que no la hay.
  */
 import { computed, ref, watch } from 'vue'
-import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterView, RouterLink, useRoute } from 'vue-router'
 
 import CommandPalette from '@/components/feedback/CommandPalette.vue'
 import AppLogo from '@/components/base/AppLogo.vue'
@@ -138,7 +138,6 @@ watch(
 const ruta = useRoute()
 const paleta = ref<InstanceType<typeof CommandPalette> | null>(null)
 const menuUsuarioAbierto = ref(false)
-const router = useRouter()
 
 async function cerrarSesion(): Promise<void> {
   menuUsuarioAbierto.value = false

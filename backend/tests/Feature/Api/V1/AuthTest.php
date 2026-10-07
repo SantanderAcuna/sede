@@ -45,10 +45,13 @@ final class AuthTest extends TestCase
 
     public function test_login_con_credenciales_validas_devuelve_token_y_usuario(): void
     {
-        $respuesta = $this->postJson('/api/v1/panel/login', [
-            'email' => config('superadmin.email'),
-            'password' => $this->clave,
-        ], ['Origin' => 'http://localhost:5190']);  // Activar stateful para tests
+        // Sanctum stateful necesita la sesión iniciada Y un Origin reconocido.
+        // En CI (sin cache de sesión), hay que inicializarla explícitamente.
+        $respuesta = $this->withSession(['_token' => 'test'])
+            ->postJson('/api/v1/panel/login', [
+                'email' => config('superadmin.email'),
+                'password' => $this->clave,
+            ], ['Origin' => 'http://localhost:5190']);
 
         $respuesta->assertOk()
             ->assertJsonPath('success', true)

@@ -46,7 +46,8 @@ final class AuthTest extends TestCase
     public function test_login_con_credenciales_validas_devuelve_token_y_usuario(): void
     {
         // Sanctum stateful necesita la sesión iniciada Y un Origin reconocido.
-        // En CI (sin cache de sesión), hay que inicializarla explícitamente.
+        // En CI (sin cache de sesión), hay que inicializarla explícitamente
+        // ANTES de postJson, no después, porque el helper encadena los métodos.
         $respuesta = $this->withSession(['_token' => 'test'])
             ->postJson('/api/v1/panel/login', [
                 'email' => config('superadmin.email'),

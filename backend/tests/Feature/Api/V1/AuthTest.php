@@ -45,10 +45,10 @@ final class AuthTest extends TestCase
 
     public function test_login_con_credenciales_validas_devuelve_token_y_usuario(): void
     {
-        // Sanctum stateful necesita la sesión iniciada Y un Origin reconocido.
-        // En CI (sin cache de sesión), hay que inicializarla explícitamente
-        // ANTES de postJson, no después, porque el helper encadena los métodos.
-        $respuesta = $this->withSession(['_token' => 'test'])
+        // Sanctum stateful necesita la sesion Y un Origin reconocido.
+        // Con SESSION_DRIVER=array (configurado en phpunit.xml), usamos
+        // el helper session() que inicializa el array store antes de la peticion.
+        $respuesta = $this->session(['_token' => 'test'])
             ->postJson('/api/v1/panel/login', [
                 'email' => config('superadmin.email'),
                 'password' => $this->clave,
@@ -90,13 +90,11 @@ final class AuthTest extends TestCase
 
     public function test_perfil_devuelve_los_datos_del_usuario_autenticado(): void
     {
-        // En el flujo stateful, el helper `actingAs` configura la sesion
-        // manualmente, pero Sanctum 4.x requiere que la sesion sea tambien
-        // "authenticated" (con `authenticate_session => null` en el config).
-        // El test pasa cuando se usa el guard de sesion estandar de Laravel
-        // y se añade el header Origin para activar el flujo stateful.
-        $respuesta = $this->actingAs($this->superAdmin, 'web')
-            ->withSession(['_token' => 'test'])
+        // Con SESSION_DRIVER=array, el helper session() inicializa el store
+        // Y actingAs() autentica al usuario. La combinacion de ambos es
+        // lo que Sanctum 4.x espera con `authenticate_session => null`.
+        $respuesta = $this->session(['_token' => 'test'])
+            ->actingAs($this->superAdmin, 'web')
             ->getJson('/api/v1/panel/perfil', ['Origin' => 'http://localhost:5190']);
 
         $respuesta->assertOk()

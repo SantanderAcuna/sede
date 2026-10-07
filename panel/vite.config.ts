@@ -45,6 +45,7 @@ export default defineConfig({
   },
 
   server: {
+    host: '127.0.0.1',
     port: 5190,
     strictPort: true,
     // Headers anti-cache en dev para forzar recarga de bundles tras
@@ -59,8 +60,21 @@ export default defineConfig({
     proxy: {
       // En desarrollo la API vive en otro proceso. En producción es el punto de
       // entrada el que reparte, y este proxy no interviene.
-      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/storage': { target: 'http://127.0.0.1:8010', changeOrigin: true },
+      '/api': {
+        target: 'http://127.0.0.1:8010',
+        changeOrigin: false,
+      },
+      '/sanctum/csrf-cookie': {
+        target: 'http://127.0.0.1:8010',
+        changeOrigin: false,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            // Sanctum espera la ruta en /admin/sanctum/csrf-cookie (APP_URL del backend).
+            proxyReq.path = '/admin/sanctum/csrf-cookie';
+          })
+        },
+      },
+      '/storage': { target: 'http://127.0.0.1:8010', changeOrigin: false },
     },
   },
 })

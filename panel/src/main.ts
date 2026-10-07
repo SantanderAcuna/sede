@@ -32,17 +32,50 @@ const app = createApp(App)
 
 app.component('FaIcon', FontAwesomeIcon)
 
-// Restaurar la sesión ANTES de montar la app y activar el router.
-// Así, cuando el guardia de navegación se ejecuta, la sesión ya está
-// disponible de forma síncrona y no hay race conditions.
+// Orden crítico para evitar pantallas en blanco y race conditions:
+//
+//   1. Pinia primero (los stores se crean con app.use)
+//   2. Router (registra beforeEach; aún no navega)
+//   3. Restaurar la sesión (await)
+//   5. Esperar a que el router complete la navegación inicial
+//   6. app.mount solo cuando todo lo anterior esté listo
+//
+// ¿Por qué NO app.mount primero?
+//   - createWebHistory() inicia una navegación interna al crearse.
+//   - Si app.mount ocurre ANTES de init(), el beforeEach ve inicializado=false,
+//     ejecuta init() async, y la sesión nunca se restaura correctamente.
+//
+// ¿Por qué se restaura la sesión ANTES de app.mount?
+//   - Para que cuando el router finalmente resuelva la navegación inicial,
+//     la sesión ya esté disponible sincrónicamente.
 const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// Recuperar la sesión del servidor antes de pintar nada. Si el usuario ya tenía
-// una cookie de Sanctum válida, la sesión se re-establece sin necesidad de
-// volver a iniciar. Si no, el guardia del router redirigirá al login.
+// Restaurar la sesión ANTES del primer navegación del router.
 const sesion = useSesionStore()
-sesion.init().finally(() => {
+
+// Hacer la inicialización y luego esperar al router antes de montar.
+// Esto garantiza que el primer render del panel tiene la sesión resuelta
+// y la ruta autorizada.
+async function arranque(): Promise<void> {
+  // 1) Restaurar la sesión del servidor antes que cualquier navegación.
+  await sesion.init()
+
+  // 2) Esperar a que el router complete la navegación inicial.
+  //    El router isReady() resuelve cuando se ha resuelto la primera navegación
+  //    y los componentes lazy (lazy()) están cargados.
+  //    Como el beforeEach hace await sesion.init() cuando inicializado=false,
+  //    y ya hicimos init arriba, el beforeEach verá la sesión resuelta.
+  await router.isReady()
+
+  // 3) Ahora sí, montar. El primer render ya tiene sesión y ruta correcta.
+  app.mount('#app')
+}
+
+arranque().catch((error) => {
+  // Si la inicialización de la sesión falla catastróficamente,
+  // mostrar la app de todas formas — el guardia redirigirá.
+  console.error('Error al arrancar la aplicación:', error)
   app.mount('#app')
 })

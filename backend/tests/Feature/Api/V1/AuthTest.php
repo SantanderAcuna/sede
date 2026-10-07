@@ -48,7 +48,7 @@ final class AuthTest extends TestCase
         $respuesta = $this->postJson('/api/v1/panel/login', [
             'email' => config('superadmin.email'),
             'password' => $this->clave,
-        ]);
+        ], ['Origin' => 'http://localhost:5190']);  // Activar stateful para tests
 
         $respuesta->assertOk()
             ->assertJsonPath('success', true)
@@ -67,7 +67,7 @@ final class AuthTest extends TestCase
         $respuesta = $this->postJson('/api/v1/panel/login', [
             'email' => config('superadmin.email'),
             'password' => 'password-incorrecto',
-        ]);
+        ], ['Origin' => 'http://localhost:5190']);  // Activar stateful para tests
 
         $respuesta->assertStatus(401)
             ->assertJsonPath('success', false);
@@ -78,7 +78,7 @@ final class AuthTest extends TestCase
         $respuesta = $this->postJson('/api/v1/panel/login', [
             'email' => 'nobody@example.com',
             'password' => $this->clave,
-        ]);
+        ], ['Origin' => 'http://localhost:5190']);  // Activar stateful para tests
 
         $respuesta->assertStatus(401)
             ->assertJsonPath('success', false);

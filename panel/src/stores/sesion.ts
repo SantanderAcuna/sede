@@ -2,11 +2,16 @@
  * Sesión del panel.
  *
  * La sesión se gestiona con cookie HttpOnly via Sanctum (cookie-based SPA).
- * No se usa localStorage ni tokens Bearer. La cookie de sesión se envía
+ * No se usan tokens Bearer ni localStorage. La cookie de sesión se envía
  * automáticamente en cada petición (withCredentials: true).
  *
  * La verificación de sesión al arrancar se hace llamando a /perfil:
  * si devuelve 401, la cookie no es válida y se redirige al login.
+ *
+ * El store expone tres signals síncronos para el guardia del router:
+ *   - `inicializado`: true cuando init() ha terminado (éxito o fallo).
+ *   - `iniciada`: true cuando hay un usuario cargado.
+ *   - `usuario`: el usuario actual, o null.
  */
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
@@ -23,10 +28,11 @@ export const useSesionStore = defineStore('sesion', () => {
   // Estado en memoria — la sesión real vive en la cookie HttpOnly del navegador.
   const usuario = ref<UsuarioSesion | null>(null)
   const inicializado = ref(false)
-  /** Promise de la inicialización en curso. Permite que el guardia espere. */
-  let initPromise: Promise<void> | null = null
-  /** Bandera que impide llamadas Concurrentes a cerrarSesion. */
-  let isLoggingOut = false
+
+  // Promesas en vuelo compartidas. Garantizar que init() y cerrarSesion()
+  // son idempotentes: llamadas concurrentes esperan la misma operación.
+  let initEnVuelo: Promise<void> | null = null
+  let logoutEnVuelo: Promise<void> | null = null
 
   /** ¿Hay una sesión iniciada? */
   const iniciada = computed(() => usuario.value !== null)
@@ -70,8 +76,12 @@ export const useSesionStore = defineStore('sesion', () => {
   /**
    * Inicia sesión con credenciales.
    *
-   * El flujo internally ya hace el handshake CSRF y establece la cookie
+   * El flujo internamente ya hace el handshake CSRF y establece la cookie
    * de sesión HttpOnly. Solo se guarda el usuario en memoria.
+   *
+   * Tras iniciar sesión correctamente, marca `inicializado=true` para que
+   * el siguiente init() (ej. tras F5) reutilice el resultado si la cookie
+   * sigue siendo válida.
    */
   async function iniciarSesion(credenciales: Credenciales): Promise<void> {
     const respuesta = await loginApi(credenciales)
@@ -83,36 +93,39 @@ export const useSesionStore = defineStore('sesion', () => {
         nombre: respuesta.user.email.split('@')[0] ?? 'usuario',
         permisos: extraerPermisos(respuesta.user.roles),
       }
+      // Marcar como inicializado: la sesión está activa.
+      inicializado.value = true
+      // Cancelar cualquier init() en vuelo: ya no es necesario.
+      initEnVuelo = null
     }
   }
 
   /**
    * Cierra la sesión actual.
    *
-   * Es idempotente: llamadas Concurrentes devuelven la misma promesa.
-   * NO redirige — el chiamante decide qué hacer tras el cierre.
-   * NO resetea initPromise: si hay un init() en curso (perfilApi pendiente),
-   * la promesa sigue viva y las siguientes llamadas esperan su resultado.
-   * Una vez que init() termina (con 401 por la sesión invalidada),
-   * el guardia redirigirá correctamente al login.
+   * Es idempotente: llamadas concurrentes esperan la misma promesa de logout.
+   * Limpia el estado local incluso si el backend falla (la cookie HttpOnly
+   * se descarta en el navegador cuando se recarga la página).
    */
   async function cerrarSesion(): Promise<void> {
-    if (isLoggingOut) return initPromise ?? Promise.resolve()
+    // Si ya hay un logout en curso, devolver la misma promesa.
+    if (logoutEnVuelo) return logoutEnVuelo
 
-    isLoggingOut = true
-    try {
-      await logoutApi()
-    } catch {
-      // Si el servidor rechaza o hay red, la sesión queda invalidate de todas
-      // formas. No interesa propagar el error — el estado local se limpia.
-    } finally {
-      usuario.value = null
-      inicializado.value = false
-      // NO nullificar initPromise: mantener la promesa en curso para que
-      // las siguientes llamadas a init() esperen en su lugar (y no creen
-      // una nueva con una sesión ya invalidada).
-      isLoggingOut = false
-    }
+    logoutEnVuelo = (async () => {
+      try {
+        await logoutApi()
+      } catch {
+        // Si el servidor rechaza o hay red, la sesión queda invalidada
+        // localmente. No interesa propagar el error.
+      } finally {
+        usuario.value = null
+        inicializado.value = true // Login correcto: ya no hay sesión que verificar.
+        initEnVuelo = null
+        logoutEnVuelo = null
+      }
+    })()
+
+    return logoutEnVuelo
   }
 
   /**
@@ -122,15 +135,20 @@ export const useSesionStore = defineStore('sesion', () => {
    * La cookie de sesión se envía automáticamente con withCredentials.
    * Si /perfil devuelve 401, la sesión no es válida.
    *
-   * Es idempotente: múltiples llamadas concurrentes devuelven la misma promesa.
+   * Es idempotente: múltiples llamadas concurrentes devuelven la misma
+   * promesa, garantizando que solo se hace una petición HTTP al backend.
+   *
+   * Si se llama después de iniciarSesion() o cerrarSesion(), no hace nada
+   * (porque `inicializado=true` indica que la sesión ya está determinada).
    */
   async function init(): Promise<void> {
+    // Si ya se determinó el estado de la sesión, no llamar al backend.
     if (inicializado.value) return
 
-    // Si ya hay una inicialización en curso, devolver esa promesa.
-    if (initPromise) return initPromise
+    // Si hay una inicialización en curso, esperar la misma promesa.
+    if (initEnVuelo) return initEnVuelo
 
-    initPromise = (async () => {
+    initEnVuelo = (async () => {
       try {
         const perfil = await perfilApi()
         usuario.value = {
@@ -140,16 +158,26 @@ export const useSesionStore = defineStore('sesion', () => {
           permisos: extraerPermisos(perfil.roles),
         }
       } catch {
-        // Sin sesión válida — el guardia del router redirigirá al login.
+        // 401 u otro error: usuario = null. El guardia redirigirá.
         usuario.value = null
       } finally {
         inicializado.value = true
-        // NO nullificar initPromise: las llamadasConcurrentes devuelven la misma
-        // promesa y esperan el mismo resultado.
+        initEnVuelo = null
       }
     })()
 
-    return initPromise
+    return initEnVuelo
+  }
+
+  /**
+   * Resetea el estado a los valores iniciales. Usado por tests.
+   * NO debe usarse en producción.
+   */
+  function $reset(): void {
+    usuario.value = null
+    inicializado.value = false
+    initEnVuelo = null
+    logoutEnVuelo = null
   }
 
   return {
@@ -161,5 +189,6 @@ export const useSesionStore = defineStore('sesion', () => {
     iniciarSesion,
     cerrarSesion,
     init,
+    $reset,
   }
 })

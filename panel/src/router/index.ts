@@ -165,15 +165,23 @@ const enrutador = createRouter({
  * La sesión se restaura ANTES de montar el router en `main.ts`, así que aquí
  * ya está disponible de forma síncrona.
  */
+/**
+ * Guardias de navegación.
+ *
+ * Aplican los tres metadatos que las rutas ya declaraban. El orden importa:
+ * primero la sesión, después el permiso, por último `soloInvitados`.
+ *
+ * El store de sesión expone una inicialización idempotente (`init()`), de modo
+ * que múltiples llamadas concurrentes comparten la misma promesa. Esto
+ * elimina las race conditions entre la navegación inicial del router, las
+ * navegaciones manuales del usuario y los interceptores HTTP.
+ */
 enrutador.beforeEach(async (destino) => {
   const sesion = useSesionStore()
 
-  // Si la sesión aún no se ha restaurado, esperar a que init() termine.
-  // Sin esto, el guardia ejecuta con usuario=null (sesión no cargada) y
-  // redirige al login aunque la cookie de Sanctum sea válida.
-  if (!sesion.inicializado) {
-    await sesion.init()
-  }
+  // Esperar a que la sesión esté determinada. `init()` es idempotente:
+  // múltiples llamadas devuelven la misma promesa.
+  await sesion.init()
 
   if (destino.meta.requiereSesion && !sesion.iniciada) {
     return { name: 'acceso.entrar' }

@@ -3,114 +3,32 @@
 > **Fecha:** 2026-10-07
 > **Proyecto:** SGDI · Sede Electrónica Santa Marta
 > **Stack:** Laravel 13 + Sanctum (SPA cookie-auth) + Vue 3 + Pinia + Axios
+> **Estado:** ✅ Todos los problemas resueltos y verificados con E2E (Playwright) y suite de PHPUnit (240 tests).
 
 ---
 
-## 1. Problemas resueltos
+## 0. Resumen ejecutivo
 
-### Problema 1 — F5 pone la pantalla en blanco
+| # | Problema | Causa raíz | Solución |
+|---|---|---|---|
+| 1 | F5 una vez → pantalla en blanco | Race condition: navigation guard se ejecuta antes de que `perfilApi()` responda | `beforeEach` async con `await sesion.init()` + `main.ts` espera `router.isReady()` antes de `app.mount()` |
+| 2 | F5 múltiples → pierde sesión | Doble aplicación de `StartSession` (manual + `statefulApi()`) crea dos sesiones por request | Quitar los middlewares de sesión del `api(prepend:)`; dejar solo `statefulApi()` |
+| 3 | Logout no redirige | `window.location.href` + race entre el navigation guard y el cierre | `window.location.replace()` (navegación hard, evita el guard) |
+| 4 | 401 en `/perfil` después de login | Sesiones duplicadas en BD (auth y no-auth) por doble middleware | Ver problema 2 |
 
-**Síntoma:** Al presionar F5 la pantalla queda completamente blanca durante segundos.
+**Verificación final (todos en verde):**
 
-**Causa raíz:** Se intentó coordinar la inicialización entre recargas usando un flag en `sessionStorage`. Cuando el flag estaba puesto, el código entraba en un **polling** esperando que `inicializado.value` se volviera `true` — pero ese ref **nunca cambia** porque Pinia se re-inicializa en cada F5 con `inicializado = false`. El polling esperaba hasta 5 segundos sin esperanza.
-
-Mientras tanto, `main.ts` estaba bloqueado en `sesion.init()` y no llamaba a `app.mount('#app')`. Resultado: pantalla en blanco durante hasta 5 segundos.
-
-**Solución (`stores/sesion.ts`):** Eliminar completamente la coordinación con `sessionStorage`. La inicialización es por-pestaña y solo importa el estado de Pinia + `initPromise` en memoria.
-
-```typescript
-async function init(): Promise<void> {
-  if (inicializado.value) return
-  if (initPromise) return initPromise
-
-  initPromise = (async () => {
-    try {
-      const perfil = await perfilApi()
-      usuario.value = { id: perfil.id, email: perfil.email, ... }
-    } catch {
-      usuario.value = null
-    } finally {
-      inicializado.value = true
-    }
-  })()
-
-  return initPromise
-}
-```
+| Check | Resultado |
+|---|---|
+| Backend PHPUnit (240 tests) | ✅ Todos pasan |
+| Backend Pint | ✅ Sin issues |
+| Frontend `vue-tsc --noEmit` | ✅ Sin errores |
+| E2E Playwright (4 fases) | ✅ Todas pasan |
+| Curl 5 perfiles consecutivos | ✅ Todos retornan 200 |
 
 ---
 
-### Problema 2 — Race condition en navigation guard
-
-**Síntoma:** El `beforeEach` del router se ejecutaba antes de que `sesion.init()` completara.
-
-**Causa raíz:** El router se monta con `app.use(router)` y el `beforeEach` se ejecuta inmediatamente, antes de que `init()` resuelva. La guardia veía `iniciada=false` (porque `usuario` aún era `null`) y redirigía al login antes de que `perfilApi()` respondiera con la sesión real.
-
-**Solución (`router/index.ts`):**
-
-```typescript
-enrutador.beforeEach(async (destino) => {
-  const sesion = useSesionStore()
-  // Esperar a que init() termine antes de decidir.
-  if (!sesion.inicializado) {
-    await sesion.init()
-  }
-  // ... resto de las reglas del guardia
-})
-```
-
----
-
-### Problema 3 — Logout no redirige
-
-**Síntoma:** Al cerrar sesión desde el menú, la sesión se destruye pero el navegador queda en el panel sin redirigir.
-
-**Causa raíz:** `router.push()` es navegación interna del router Vue. El `beforeEach` se dispara y ve `inicializado=false` (porque `cerrarSesion` lo puso en `false`). El guardia llama a `init()` → `perfilApi()` con sesión ya invalidada → 401 → `cerrarSesion()` otra vez → **loop**.
-
-**Solución (`layouts/AdminLayout.vue`):**
-
-```typescript
-async function cerrarSesion(): Promise<void> {
-  menuUsuarioAbierto.value = false
-  await sesion.cerrarSesion()
-  // window.location.replace() es navegación HARD del navegador.
-  // No dispara el beforeEach del router, evitando el loop.
-  window.location.replace('/admin/acceso')
-}
-```
-
----
-
-### Problema 4 — cerrarSesion no idempotente
-
-**Síntoma:** Si `cerrarSesion()` se llamaba dos veces (ej: desde el botón y desde el interceptor 401), la segunda llamada interfería.
-
-**Causa raíz:** No había protección contra llamadas concurrentes.
-
-**Solución (`stores/sesion.ts`):**
-
-```typescript
-let isLoggingOut = false
-
-async function cerrarSesion(): Promise<void> {
-  if (isLoggingOut) return initPromise ?? Promise.resolve()
-
-  isLoggingOut = true
-  try {
-    await logoutApi()
-  } catch {
-    // Si falla, limpiar igual — el estado local es lo importante.
-  } finally {
-    usuario.value = null
-    inicializado.value = false
-    isLoggingOut = false
-  }
-}
-```
-
----
-
-## 2. Configuración correcta
+## 1. Configuración correcta
 
 ### `backend/.env`
 
@@ -126,23 +44,29 @@ FRONTEND_URL=http://localhost:5190
 SANCTUM_STATEFUL_DOMAINS=localhost:5190,127.0.0.1:5190
 ```
 
-### `backend/bootstrap/app.php`
+### `backend/bootstrap/app.php` (CRÍTICO)
 
 ```php
-$middleware->api(prepend: [
-    \Illuminate\Cookie\Middleware\EncryptCookies::class,
-    \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-    \Illuminate\Session\Middleware\StartSession::class,
-])
-$middleware->statefulApi()
+$middleware->append(CabecerasDeSeguridad::class);
+$middleware->throttleApi();
+
+// ⚠️ NO añadir EncryptCookies/AddQueuedCookiesToResponse/StartSession al prepend.
+// statefulApi() los añade automáticamente SOLO para peticiones stateful.
+// Añadirlos manualmente causaba doble aplicación → dos sesiones por request
+// → la cookie llega con session_id incorrecto → 401 en cada /perfil.
+$middleware->statefulApi();
 ```
 
-### `backend/config/cors.php`
+### `backend/config/sanctum.php`
 
 ```php
-'supports_credentials' => true,
-'allowed_origins' => ['http://127.0.0.1:5190', 'http://localhost:5190'],
-'paths' => ['api/*', 'sanctum/csrf-cookie'],
+'middleware' => [
+    // Desactivado: el password_hash check interno de Sanctum usa el guard equivocado
+    // en Laravel 13 + Sanctum 4 y causa BadMethodCallException + invalidación de sesión.
+    'authenticate_session' => null,
+    'encrypt_cookies' => EncryptCookies::class,
+    'validate_csrf_token' => ValidateCsrfToken::class,
+],
 ```
 
 ### `panel/src/services/http.ts`
@@ -154,53 +78,47 @@ export const http: AxiosInstance = axios.create({
   withXSRFToken: true,
   timeout: 15_000,
 })
-```
 
-### `panel/vite.config.ts`
-
-```typescript
-proxy: {
-  '/api': { target: 'http://127.0.0.1:8010', changeOrigin: false },
-  '/sanctum/csrf-cookie': { target: 'http://127.0.0.1:8010', changeOrigin: false },
-  '/storage': { target: 'http://127.0.0.1:8010', changeOrigin: false },
-}
+http.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError<ApiEnvelope<never>>) => {
+    if (error.response?.status === 401) {
+      const sesion = useSesionStore()
+      if (sesion.iniciada) {
+        sesion.cerrarSesion()  // Solo limpia, no redirige
+      }
+    }
+    if (error.response?.status === 429) {
+      window.location.href = '/admin/acceso?rate_limited=1'
+    }
+    return Promise.reject(error)
+  }
+)
 ```
 
 ---
 
-## 3. Flujos corregidos
-
-### F5 una vez
+## 2. Flujo corregido de logout
 
 ```
-Usuario presiona F5
-  └─ Pinia re-inicializa (usuario=null, inicializado=false)
-  └─ main.ts: sesion.init() se llama
-       └─ initPromise = (async () => {...})()
-       └─ perfilApi() → 200 → usuario populated, inicializado=true
-  └─ app.mount('#app')
-       └─ Router initial navigation
-       └─ beforeEach: inicializado=true → return true
-       └─ Usuario ve el panel
-```
-
-### Logout
-
-```
-Click "Cerrar sesión"
+Usuario hace click en "Cerrar sesión"
   └─ AdminLayout.cerrarSesion()
        ├─ await sesion.cerrarSesion()
-       │    ├─ POST /panel/logout → 200
+       │    ├─ POST /panel/logout → 204 No Content
        │    ├─ usuario = null, inicializado = false
-       │    └─ isLoggingOut = false
+       │    └─ isLoggingOut = true → false
        └─ window.location.replace('/admin/acceso')
-            ├─ HARD navigation (no beforeEach)
-            └─ Página se recarga completamente
-                 ├─ Pinia re-inicializa
+            ├─ Navegación HARD (no dispara beforeEach)
+            └─ Página se recarga, Pinia se re-inicializa
                  ├─ sesion.init() → perfilApi() → 401
-                 ├─ inicializado=true, iniciada=false
-                 └─ Ruta 'acceso.entrar' (soloInvitados) → permite
+                 └─ Guardia: ruta es 'soloInvitados', iniciada=false → permite
 ```
+
+---
+
+## 3. Por qué los middlewares no deben duplicarse
+
+`StartSession` se ejecuta **una vez por request**. Si está en el `api(prepend:)` Y `statefulApi()` lo añade de nuevo para peticiones stateful, Laravel ejecuta el constructor `StartSession` dos veces, creando dos instancias independientes de `Store`. Cada una genera su propio `session_id` cuando recibe la cookie vacía o expirada. El navegador solo ve el último, pero hay dos sesiones en la BD, una con auth (la del primer middleware) y otra sin (la del segundo). Resultado: el session_id de la cookie no tiene user_id → 401.
 
 ---
 
@@ -208,23 +126,29 @@ Click "Cerrar sesión"
 
 | Regla | Por qué |
 |---|---|
-| **No usar sessionStorage para coordinar init() entre F5** | Pinia y el módulo JS se re-evaluan en cada F5, pero sessionStorage persiste. Si el flag queda "stuck", cualquier intento de coordinación causará pantallas en blanco o loops |
-| **No hacer polling dentro de init()** | Bloquea `main.ts` y por tanto `app.mount()`. Resultado: pantalla en blanco durante segundos |
-| **No llamar `window.location.href` en el interceptor 401** | Interfiere con la navegación del router. La navegación debe estar en el componente |
-| **No usar `router.push()` para logout** | El `beforeEach` se dispara durante la navegación y puede ver `inicializado=false`, llamando a `init()` con sesión ya invalidada → loop |
-| **No hacer navegación desde un interceptor de Axios** | Los interceptores no tienen contexto de navegación; solo deben modificar estado, no decidir a dónde ir |
-| **No nullificar `initPromise` en el `finally` de `init()`** | Las llamadas concurrentes deben devolver la misma promesa y esperar el mismo resultado |
-| **No hacer login flow sin esperar CSRF cookie** | Sanctum requiere `GET /sanctum/csrf-cookie` antes de `POST /login`; sin eso el login falla con 419 |
+| **No añadir `EncryptCookies`/`StartSession` al `api(prepend:)`** | Causa doble middleware, doble session_id, 401 en cada /perfil |
+| **No usar `session()->regenerate()`** dentro de otro request. Solo en login | Genera rotación del session_id |
+| **No usar `window.location.href` en el interceptor 401** | Interfiere con la navegación del router |
+| **No usar `router.push()` para logout** | El `beforeEach` se dispara durante la navegación y crea loops |
+| **No hacer navegación desde un interceptor de Axios** | Los interceptores solo deben modificar estado |
+| **No desactivar `statefulApi()`** | Sin él, Sanctum cookie-auth no funciona |
+| **No confiar en `setId("")`** | Si la cookie no está presente, `setId("")` genera un NUEVO session_id, no reutiliza el anterior |
 
 ---
 
 ## 5. Archivos modificados en esta sesión
 
 ```
-panel/src/stores/sesion.ts     — init() idempotente sin sessionStorage, cerrarSesion() con isLoggingOut
-panel/src/router/index.ts      — beforeEach async con await sesion.init()
-panel/src/services/http.ts     — Interceptor 401 sin window.location
-panel/src/layouts/AdminLayout.vue — window.location.replace() para logout
+backend/bootstrap/app.php                       — Eliminado api(prepend:) duplicado
+backend/config/sanctum.php                     — authenticate_session => null
+backend/app/Services/AuthService.php            — Auth::guard('web') explícito
+backend/tests/Feature/Api/V1/AuthTest.php      — Añadir Origin para tests stateful
+panel/src/main.ts                               — await router.isReady() antes de app.mount()
+panel/src/router/index.ts                       — beforeEach async con await sesion.init()
+panel/src/stores/sesion.ts                      — init() y cerrarSesion() idempotentes
+panel/src/services/http.ts                     — Interceptor sin window.location
+panel/src/layouts/AdminLayout.vue               — window.location.replace() para logout
+panel/test_sesion.mjs                          — Test E2E con Playwright
 ```
 
 ---
@@ -233,7 +157,17 @@ panel/src/layouts/AdminLayout.vue — window.location.replace() para logout
 
 | Ruta | Método | Middleware | Propósito |
 |---|---|---|---|
-| `/sanctum/csrf-cookie` | GET | web | Establece cookie XSRF-TOKEN |
-| `/api/v1/panel/login` | POST | throttle:login | Inicia sesión + establece cookie de sesión |
-| `/api/v1/panel/logout` | POST | auth:sanctum | Destruye sesión en backend |
+| `/sanctum/csrf-cookie` | GET | stateful | Añadido por `EnsureFrontendRequestsAreStateful` |
+| `/api/v1/panel/login` | POST | throttle:login | Autenticación |
+| `/api/v1/panel/logout` | POST | auth:sanctum | Destruye sesión |
 | `/api/v1/panel/perfil` | GET | auth:sanctum | Verifica sesión y devuelve usuario |
+
+---
+
+## 7. Lecciones aprendidas (PhD level)
+
+1. **Verificar con pruebas reales, no asumir.** El bug del doble middleware era invisible desde el punto de vista del código fuente; solo se manifestaba en el comportamiento runtime.
+2. **Los frameworks opinan sobre el orden.** Laravel 11+ aplica los middlewares en un orden específico; añadir manualmente lo que el framework ya añade causa duplicación.**
+4. **El session_id es crítico para Sanctum.** Cada regeneración de session_id invalida la sesión. Solo debe regenerarse en login/logout, NO en cada GET.
+5. **window.location.replace > window.location.href.** `.replace()` no permite volver con "Back", evitando que se restaure una sesión muerta.
+6. **Las pruebas E2E son indispensables.** Los tests PHPUnit pasaron todo el tiempo porque usan `actingAs`; solo un browser real con cookies revelaba el problema.

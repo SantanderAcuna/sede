@@ -46,21 +46,21 @@ return Application::configure(basePath: dirname(__DIR__))
         // limitador existiría y no limitaría nada.
         $middleware->throttleApi();
 
-        // Sesión y cookies para el grupo API: necesario para Sanctum cookie-auth.
-        // Sin StartSession, las peticiones stateful no tienen sesión y fallan.
-        // EncryptCookies y AddQueuedCookiesToResponse son necesarios para que las
-        // cookies de sesión (incluida la CSRF de Sanctum) se escriban/leer correctamente.
-        $middleware->api(prepend: [
-            EncryptCookies::class,
-            AddQueuedCookiesToResponse::class,
-            StartSession::class,
-        ]);
-
         // Habilita Sanctum para autenticación con cookie en SPAs (panel Vue).
-        // Registra EnsureFrontendRequestsAreStateful en el grupo api: las peticiones
-        // desde orígenes en SANCTUM_STATEFUL_DOMAINS reciben una cookie CSRF y pueden
-        // usar autenticación por sesión. Sin esto, todo request desde el panel
-        // devuelve 401 aunque el token sea válido.
+        //
+        // IMPORTANTE: Esta llamada registra EnsureFrontendRequestsAreStateful, que
+        // añade los middlewares de sesión (EncryptCookies, AddQueuedCookiesToResponse,
+        // StartSession) SOLO cuando la petición viene de un origen en SANCTUM_STATEFUL_DOMAINS.
+        // Para peticioneses que NO son stateful, esos middlewares NO se aplican.
+        //
+        // NO se añade `prepend` al grupo `api` con esos middlewares porque causaría
+        // que StartSession se ejecutara DOS VECES para peticiones stateful (una
+        // por el prepend y otra por el EnsureFrontendRequestsAreStateful), lo cual
+        // provoca que se creen dos sesiones en la BD por request, una con auth y
+        // otra sin, y el navegador recibe la cookie de la sesión incorrecta.
+        //
+        // Para los tests, el helper `actingAs` configura la sesión manualmente
+        // y los endpoints protegidos con auth:sanctum siguen funcionando.
         $middleware->statefulApi();
 
         // Middleware aliases para Spatie Permission. Permite usar 'role:admin',

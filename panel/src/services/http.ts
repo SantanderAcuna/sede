@@ -49,27 +49,22 @@ export const http: AxiosInstance = axios.create({
 /**
  * Interceptor que maneja errores 401 y 429.
  *
- * 401 — Si la sesión estaba activa (el usuario ya pasó el login), cierra la
- * sesión en el store y deja que el guardia del routerRedirija al login en la
- * siguiente navegación. NO llama a window.location aquí porque interferiría
- * con la navegación del router y causaría loops cuando cerrarSesion se llama
- * dos veces (interceptor + botón).
+ * 401 — Sesión expirada o inválida. Se limpia el estado local del store.
+ * El guardia del router se encargará de redirigir en la siguiente navegación
+ * (porque sesion.iniciada será false).
  *
- * 429 — Redirige directamente porque es un estado irrecuperable sin acción
- * del usuario (rate limit). El parámetro ?rate_limited=1 informa al login.
+ * 429 — Rate limit. Se redirige al login con un parámetro que indica el motivo.
  */
 http.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiEnvelope<never>>) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       const sesion = useSesionStore()
-      // Solo actúa si la sesión ya estaba iniciada. Durante init() la sesión
-      // aún no se había restaurado (inicializado=false) y el guardia se
-      // encarga de redirigir.
-      if (sesion.inicializado && sesion.iniciada) {
+      // Solo actúa si la sesión estaba activa. Si la sesión ya estaba cerrada,
+      // cerrarSesion() es no-op gracias a logoutEnVuelo.
+      if (sesion.iniciada) {
+        // No await: el interceptor no debe bloquear.
         sesion.cerrarSesion()
-        // No se redirige aquí: el guardia del router detectará sesion.iniciada=false
-        // en la siguiente navegación y redirigirá correctamente.
       }
     }
     if (axios.isAxiosError(error) && error.response?.status === 429) {

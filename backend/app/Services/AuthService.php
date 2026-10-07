@@ -57,10 +57,12 @@ final class AuthService implements AuthServiceInterface
             ];
         }
 
-        // Establecer sesión con cookie HttpOnly. Esto es lo que Sanctum SPA espera:
-        // en lugar de crear un token Bearer, se usa la sesión nativa de Laravel.
+        // Establecer sesión con cookie HttpOnly en el guard 'web' explícitamente.
+        // CRÍTICO: especificar 'web' y no usar auth()->login() sin argumentos,
+        // porque en rutas API Sanctum puede cambiar el default guard a 'sanctum',
+        // que no tiene implementación de login() por sesión.
         // Session fixation se previene regenerando el ID tras el login.
-        auth()->login($user);
+        Auth::guard('web')->login($user);
         request()->session()->regenerate();
 
         return [
@@ -79,8 +81,14 @@ final class AuthService implements AuthServiceInterface
 
     public function logout(Request $request): void
     {
-        // Auth::logout() delega al guard actual (web) y destruye la sesión correctamente.
-        Auth::logout();
+        // CRÍTICO: usar explícitamente el guard 'web' para evitar que Sanctum
+        // (que internamente usa RequestGuard en algunas configuraciones) intente
+        // llamar logout() en un guard que no lo soporta, generando un error
+        // BadMethodCallException que ensucia el log y deja la sesión inconsistente.
+        $guard = Auth::guard('web');
+
+        // Cerrar la sesión del usuario en el guard.
+        $guard->logout();
 
         // Invalidar la sesión y regenerar el token CSRF para prevenir
         // session fixation tras el logout.
@@ -90,8 +98,12 @@ final class AuthService implements AuthServiceInterface
 
     public function perfil(): UsuarioResource
     {
-        /** @var User $user */
-        $user = auth()->user();
+        /** @var User|null $user */
+        $user = Auth::guard('web')->user();
+
+        if ($user === null) {
+            throw new \Illuminate\Auth\AuthenticationException('Usuario no autenticado.');
+        }
 
         return new UsuarioResource($user);
     }

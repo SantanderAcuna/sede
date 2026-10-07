@@ -143,9 +143,11 @@ const router = useRouter()
 async function cerrarSesion(): Promise<void> {
   menuUsuarioAbierto.value = false
   await sesion.cerrarSesion()
-  // Usar window.location.replace en lugar de router.push() para evitar
-  // que el guardia del router se dispare mientras la navegación está
-  // en curso y llame a init() con una sesión ya invalidada, creando loops.
+  // Recarga dura del navegador para resetear TODO el estado del cliente:
+  //   - Pinia (incluso con 1 después del logout, queremos resetear)
+  //   - Cualquier cache del router
+  //   - Cualquier cache del cache-buster
+  // window.location.replace() evita que se pueda usar "back" para volver al panel.
   window.location.replace('/admin/acceso')
 }
 

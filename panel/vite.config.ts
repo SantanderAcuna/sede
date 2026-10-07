@@ -67,12 +67,6 @@ export default defineConfig({
       '/sanctum/csrf-cookie': {
         target: 'http://127.0.0.1:8010',
         changeOrigin: false,
-        configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq) => {
-            // Sanctum espera la ruta en /admin/sanctum/csrf-cookie (APP_URL del backend).
-            proxyReq.path = '/admin/sanctum/csrf-cookie';
-          })
-        },
       },
       '/storage': { target: 'http://127.0.0.1:8010', changeOrigin: false },
     },

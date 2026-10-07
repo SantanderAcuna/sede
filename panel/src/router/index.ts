@@ -165,8 +165,15 @@ const enrutador = createRouter({
  * La sesión se restaura ANTES de montar el router en `main.ts`, así que aquí
  * ya está disponible de forma síncrona.
  */
-enrutador.beforeEach((destino) => {
+enrutador.beforeEach(async (destino) => {
   const sesion = useSesionStore()
+
+  // Si la sesión aún no se ha restaurado, esperar a que init() termine.
+  // Sin esto, el guardia ejecuta con usuario=null (sesión no cargada) y
+  // redirige al login aunque la cookie de Sanctum sea válida.
+  if (!sesion.inicializado) {
+    await sesion.init()
+  }
 
   if (destino.meta.requiereSesion && !sesion.iniciada) {
     return { name: 'acceso.entrar' }

@@ -6,14 +6,20 @@ use App\Http\Middleware\CabecerasDeSeguridad;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
@@ -40,16 +46,31 @@ return Application::configure(basePath: dirname(__DIR__))
         // limitador existiría y no limitaría nada.
         $middleware->throttleApi();
 
+        // Sesión y cookies para el grupo API: necesario para Sanctum cookie-auth.
+        // Sin StartSession, las peticiones stateful no tienen sesión y fallan.
+        // EncryptCookies y AddQueuedCookiesToResponse son necesarios para que las
+        // cookies de sesión (incluida la CSRF de Sanctum) se escriban/leer correctamente.
+        $middleware->api(prepend: [
+            EncryptCookies::class,
+            AddQueuedCookiesToResponse::class,
+            StartSession::class,
+        ]);
+
         // Habilita Sanctum para autenticación con cookie en SPAs (panel Vue).
         // Registra EnsureFrontendRequestsAreStateful en el grupo api: las peticiones
         // desde orígenes en SANCTUM_STATEFUL_DOMAINS reciben una cookie CSRF y pueden
         // usar autenticación por sesión. Sin esto, todo request desde el panel
         // devuelve 401 aunque el token sea válido.
-        //
-        // NOTA: Las rutas del panel (/panel/*) usan autenticación Bearer (tokens de
-        // Sanctum) y NO requieren verificación CSRF. Se excluyen aquí para que el
-        // flujo de login funcione sin token CSRF.
         $middleware->statefulApi();
+
+        // Middleware aliases para Spatie Permission. Permite usar 'role:admin',
+        // 'permission:users.create' y 'role_or_permission:admin|users.create' en
+        // las definiciones de rutas.
+        $middleware->alias([
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

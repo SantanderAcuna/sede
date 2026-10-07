@@ -7,7 +7,6 @@
  */
 import axios, { type AxiosInstance, type AxiosError } from 'axios'
 import type { ApiEnvelope, PaginatedEnvelope, PageMeta, CollectionLinks } from '@/types/api'
-import { useSesionStore } from '@/stores/sesion'
 
 /**
  * Error con la forma del contrato, para que la interfaz pueda explicarlo.
@@ -39,22 +38,11 @@ export const http: AxiosInstance = axios.create({
   // La sesión viaja en una cookie `HttpOnly`, nunca en el almacenamiento del
   // navegador: es lo que la protege de un script inyectado.
   withCredentials: true,
+  // Sanctum SPA: Axios lee el token CSRF de la cookie `XSRF-TOKEN` y lo envía
+  // automáticamente en el header `X-XSRF-TOKEN` en cada petición.
+  // Disponible desde axios v1.6.2.
+  withXSRFToken: true,
   timeout: 15_000,
-})
-
-/**
- * Interceptor que añade el token de Sanctum a cada petición.
- *
- * El token se obtiene tras el login y se guarda en el store de sesión.
- * Sanctum acepta el token en el header `Authorization: Bearer <token>`.
- */
-http.interceptors.request.use((config) => {
-  // Se importa aquí para evitar circularidad con el store.
-  const sesion = useSesionStore()
-  if (sesion.token) {
-    config.headers.Authorization = `Bearer ${sesion.token}`
-  }
-  return config
 })
 
 /**

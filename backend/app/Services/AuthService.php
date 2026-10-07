@@ -9,6 +9,7 @@ use App\Contracts\Services\AuthServiceInterface;
 use App\DTOs\Auth\LoginCredentials;
 use App\Http\Resources\UsuarioResource;
 use App\Models\User;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -102,7 +103,7 @@ final class AuthService implements AuthServiceInterface
         $user = Auth::guard('web')->user();
 
         if ($user === null) {
-            throw new \Illuminate\Auth\AuthenticationException('Usuario no autenticado.');
+            throw new AuthenticationException('Usuario no autenticado.');
         }
 
         return new UsuarioResource($user);

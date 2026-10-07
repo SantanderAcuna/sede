@@ -20,15 +20,6 @@ export interface UsuarioSesion {
 }
 
 export const useSesionStore = defineStore('sesion', () => {
-  /**
-   * Flag persistente para coordinar inicialización entre recargas de página.
-   * Pinia se re-inicializa en cada F5 (módulo re-evaluado), pero sessionStorage
-   * persiste en la misma pestaña. Sin esto, múltiples F5 crean promesas concurrentes
-   * de init() y la última en completarse (aunque sea un 401 de una petición older)
-   * determina el estado final, perdiendo la sesión válida.
-   */
-  const INIT_KEY = 'sesion:initInProgress'
-
   // Estado en memoria — la sesión real vive en la cookie HttpOnly del navegador.
   const usuario = ref<UsuarioSesion | null>(null)
   const inicializado = ref(false)
@@ -131,31 +122,12 @@ export const useSesionStore = defineStore('sesion', () => {
    * La cookie de sesión se envía automáticamente con withCredentials.
    * Si /perfil devuelve 401, la sesión no es válida.
    *
-   * Para evitar race conditions con F5 múltiples, usa sessionStorage como
-   * coordinator: si otra recarga de página ya está inicializando (flag en
-   * sessionStorage), esta llamada espera la misma promesa en lugar de crear una nueva.
+   * Es idempotente: múltiples llamadas concurrentes devuelven la misma promesa.
    */
   async function init(): Promise<void> {
     if (inicializado.value) return
 
-    // Si sessionStorage indica que otra recarga ya está inicializando,
-    // esperar la promesa existente (initPromise) en lugar de crear una nueva.
-    // Esto evita que múltiples F5 creen promesas concurrentes.
-    if (sessionStorage.getItem(INIT_KEY)) {
-      // Hay otra recarga en curso. Esperar a que termine.
-      // Poll hasta que inicializado=true o se alcance timeout.
-      const inicio = Date.now()
-      while (!inicializado.value && Date.now() - inicio < 5000) {
-        await new Promise((r) => setTimeout(r, 50))
-      }
-      // Si aún no terminó, crear nueva promesa (evita deadlock).
-      if (!inicializado.value) return init()
-    }
-
-    // Marcar inicio INMEDIATAMENTE para coordinar con otras recargas.
-    sessionStorage.setItem(INIT_KEY, '1')
-
-    // Si ya hay una inicialización en curso (del mismo load), devolver esa promesa.
+    // Si ya hay una inicialización en curso, devolver esa promesa.
     if (initPromise) return initPromise
 
     initPromise = (async () => {
@@ -172,9 +144,8 @@ export const useSesionStore = defineStore('sesion', () => {
         usuario.value = null
       } finally {
         inicializado.value = true
-        // NO nullificar initPromise aquí: así llamadasConcurrentes
-        // devuelven la misma promesa y esperan el mismo resultado.
-        sessionStorage.removeItem(INIT_KEY)
+        // NO nullificar initPromise: las llamadasConcurrentes devuelven la misma
+        // promesa y esperan el mismo resultado.
       }
     })()
 

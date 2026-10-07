@@ -8,73 +8,19 @@
 
 ## 1. Problemas resueltos
 
-### Problema 1 — Sesión se pierde al presionar F5 una vez
+### Problema 1 — F5 pone la pantalla en blanco
 
-**Síntoma:** Login funciona, pero al actualizar con F5 la sesión se pierde y redirige al login.
+**Síntoma:** Al presionar F5 la pantalla queda completamente blanca durante segundos.
 
-**Causa raíz:** Race condition entre el navigation guard del router y `sesion.init()`.
+**Causa raíz:** Se intentó coordinar la inicialización entre recargas usando un flag en `sessionStorage`. Cuando el flag estaba puesto, el código entraba en un **polling** esperando que `inicializado.value` se volviera `true` — pero ese ref **nunca cambia** porque Pinia se re-inicializa en cada F5 con `inicializado = false`. El polling esperaba hasta 5 segundos sin esperanza.
 
-```
-1. Página carga → Pinia se reinicia (usuario=null, inicializado=false)
-2. app.use(router) → el guardia beforeEach se ejecuta INMEDIATAMENTE
-3. Guardia: usuario=null → ¡redirige a /acceso/entrar ANTES de que perfilApi() responda!
-4. Meanwhile: sesion.init() corre en background
-5. init() termina, setea usuario.value (si la cookie era válida)
-6. Pero ya estamos en /acceso/entrar...
-```
+Mientras tanto, `main.ts` estaba bloqueado en `sesion.init()` y no llamaba a `app.mount('#app')`. Resultado: pantalla en blanco durante hasta 5 segundos.
 
-**Solución (`router/index.ts`):**
+**Solución (`stores/sesion.ts`):** Eliminar completamente la coordinación con `sessionStorage`. La inicialización es por-pestaña y solo importa el estado de Pinia + `initPromise` en memoria.
 
 ```typescript
-// ANTES (problemático)
-enrutador.beforeEach((destino) => {
-  const sesion = useSesionStore()
-  if (destino.meta.requiereSesion && !sesion.iniciada) {
-    return { name: 'acceso.entrar' }  // ← ejecuta con usuario=null
-  }
-})
-
-// DESPUÉS (correcto)
-enrutador.beforeEach(async (destino) => {
-  const sesion = useSesionStore()
-  if (!sesion.inicializado) {
-    await sesion.init()  // ← espera a que la sesión se restaure
-  }
-  if (destino.meta.requiereSesion && !sesion.iniciada) {
-    return { name: 'acceso.entrar' }
-  }
-})
-```
-
----
-
-### Problema 2 — F5 múltiples cierra la sesión
-
-**Síntoma:** Al presionar F5 dos veces o más rápidamente, la sesión se pierde.
-
-**Causa raíz:** Pinia se re-inicializa en cada F5 (el módulo se re-evalúa), pero las promesas de `perfilApi()` de las recargas anteriores siguen en vuelo. Cuando la última en completarse es un 401 (sesión expirada o invalidada), `cerrarSesion()` limpia el estado y la sesión se pierde aunque la primera respuesta hubiera sido válida.
-
-**Solución (`stores/sesion.ts`):**
-
-```typescript
-const INIT_KEY = 'sesion:initInProgress'
-
 async function init(): Promise<void> {
   if (inicializado.value) return
-
-  // Si otra recarga de página ya está inicializando, esperar a que termine.
-  // sessionStorage persiste en la misma pestaña (a diferencia de Pinia que se reinicia).
-  if (sessionStorage.getItem(INIT_KEY)) {
-    const inicio = Date.now()
-    while (!inicializado.value && Date.now() - inicio < 5000) {
-      await new Promise((r) => setTimeout(r, 50))
-    }
-    if (!inicializado.value) return init()
-  }
-
-  // Marcar inicio INMEDIATAMENTE para coordinar con otras recargas.
-  sessionStorage.setItem(INIT_KEY, '1')
-
   if (initPromise) return initPromise
 
   initPromise = (async () => {
@@ -85,8 +31,6 @@ async function init(): Promise<void> {
       usuario.value = null
     } finally {
       inicializado.value = true
-      // NO nullificar initPromise: llamadasConcurrentes devuelven la misma promesa
-      sessionStorage.removeItem(INIT_KEY)
     }
   })()
 
@@ -96,11 +40,32 @@ async function init(): Promise<void> {
 
 ---
 
-### Problema 3 — Logout no redirige al login
+### Problema 2 — Race condition en navigation guard
 
-**Síntoma:** Al cerrar sesión desde el botón, la sesión se destruye pero no redirige al login (o entra en loop).
+**Síntoma:** El `beforeEach` del router se ejecutaba antes de que `sesion.init()` completara.
 
-**Causa raíz:** `router.push()` es navegación interna del router Vue. Cuando `cerrarSesion()` invalida la sesión y luego llama a `router.push({ name: 'acceso.entrar' })`, el `beforeEach` del router se dispara mientras la navegación está en curso. El guardia ve `inicializado=false` y llama a `init()`, que llama a `perfilApi()` con la sesión ya invalidada → 401 → `cerrarSesion()` otra vez → loop.
+**Causa raíz:** El router se monta con `app.use(router)` y el `beforeEach` se ejecuta inmediatamente, antes de que `init()` resuelva. La guardia veía `iniciada=false` (porque `usuario` aún era `null`) y redirigía al login antes de que `perfilApi()` respondiera con la sesión real.
+
+**Solución (`router/index.ts`):**
+
+```typescript
+enrutador.beforeEach(async (destino) => {
+  const sesion = useSesionStore()
+  // Esperar a que init() termine antes de decidir.
+  if (!sesion.inicializado) {
+    await sesion.init()
+  }
+  // ... resto de las reglas del guardia
+})
+```
+
+---
+
+### Problema 3 — Logout no redirige
+
+**Síntoma:** Al cerrar sesión desde el menú, la sesión se destruye pero el navegador queda en el panel sin redirigir.
+
+**Causa raíz:** `router.push()` es navegación interna del router Vue. El `beforeEach` se dispara y ve `inicializado=false` (porque `cerrarSesion` lo puso en `false`). El guardia llama a `init()` → `perfilApi()` con sesión ya invalidada → 401 → `cerrarSesion()` otra vez → **loop**.
 
 **Solución (`layouts/AdminLayout.vue`):**
 
@@ -114,7 +79,34 @@ async function cerrarSesion(): Promise<void> {
 }
 ```
 
-**Complemento (`stores/sesion.ts`):** `cerrarSesion()` ya no nullifica `initPromise`. Si hay un `perfilApi()` en vuelo cuando se hace logout, la promesa sigue viva y las siguientes llamadas esperan en su lugar. Cuando esa petición pendiente responde (con 401 porque la sesión fue invalidada), el resultado se ignora porque `inicializado=false` ya fue establecido por `cerrarSesion()`.
+---
+
+### Problema 4 — cerrarSesion no idempotente
+
+**Síntoma:** Si `cerrarSesion()` se llamaba dos veces (ej: desde el botón y desde el interceptor 401), la segunda llamada interfería.
+
+**Causa raíz:** No había protección contra llamadas concurrentes.
+
+**Solución (`stores/sesion.ts`):**
+
+```typescript
+let isLoggingOut = false
+
+async function cerrarSesion(): Promise<void> {
+  if (isLoggingOut) return initPromise ?? Promise.resolve()
+
+  isLoggingOut = true
+  try {
+    await logoutApi()
+  } catch {
+    // Si falla, limpiar igual — el estado local es lo importante.
+  } finally {
+    usuario.value = null
+    inicializado.value = false
+    isLoggingOut = false
+  }
+}
+```
 
 ---
 
@@ -176,72 +168,60 @@ proxy: {
 
 ---
 
-## 3. Flujo corregido de logout
+## 3. Flujos corregidos
+
+### F5 una vez
 
 ```
-Usuario hace click en "Cerrar sesión"
+Usuario presiona F5
+  └─ Pinia re-inicializa (usuario=null, inicializado=false)
+  └─ main.ts: sesion.init() se llama
+       └─ initPromise = (async () => {...})()
+       └─ perfilApi() → 200 → usuario populated, inicializado=true
+  └─ app.mount('#app')
+       └─ Router initial navigation
+       └─ beforeEach: inicializado=true → return true
+       └─ Usuario ve el panel
+```
+
+### Logout
+
+```
+Click "Cerrar sesión"
   └─ AdminLayout.cerrarSesion()
-       ├─ menuUsuarioAbierto = false
        ├─ await sesion.cerrarSesion()
-       │    ├─ POST /panel/logout → backend invalida sesión en BD
-       │    ├─ usuario = null
-       │    ├─ inicializado = false
-       │    └─ isLoggingOut = true → false
+       │    ├─ POST /panel/logout → 200
+       │    ├─ usuario = null, inicializado = false
+       │    └─ isLoggingOut = false
        └─ window.location.replace('/admin/acceso')
-            ├─ Navegación HARD del navegador (NO dispara beforeEach)
+            ├─ HARD navigation (no beforeEach)
             └─ Página se recarga completamente
-                 ├─ Pinia se re-inicializa
-                 ├─ sessionStorage.initInProgress = null (limpio)
+                 ├─ Pinia re-inicializa
                  ├─ sesion.init() → perfilApi() → 401
-                 └─ Guardia: !inicializado → await init() → 401
-                      ├─ inicializado = true, iniciada = false
-                      └─ Ruta 'acceso.entrar' (soloInvitados=true)
-                           └─ Permitida → usuario ve login
+                 ├─ inicializado=true, iniciada=false
+                 └─ Ruta 'acceso.entrar' (soloInvitados) → permite
 ```
 
 ---
 
-## 4. Flujo corregido de F5 múltiple
-
-```
-Usuario presiona F5 (primera vez)
-  ├─ Pinia se re-inicializa
-  ├─ beforeEach dispara: !inicializado → await sesion.init()
-  │    ├─ sessionStorage.setItem('sesion:initInProgress', '1')
-  │    ├─ perfilApi() → 200 → usuario.value populated
-  │    └─ finally: inicializado=true, sessionStorage.removeItem()
-  └─ Guardia: iniciada=true → permite acceso al panel
-
-Usuario presiona F5 (segunda vez, mientras la primera aún está en vuelo)
-  ├─ Pinia se re-inicializa
-  ├─ beforeEach dispara: sessionStorage.initInProgress='1' YA EXISTE
-  │    └─ Polling: await mientras !inicializado (esperando la 1ra)
-  ├─ Primera perfilApi() responde 200 → usuario populated
-  ├─ Primera finally: inicializado=true, polling termina
-  ├─ Segunda: init() retorna inmediatamente (inicializado=true)
-  └─ Guardia: iniciada=true → permite acceso al panel
-```
-
----
-
-## 5. Qué NO hacer para no repetir los problemas
+## 4. Qué NO hacer para no repetir los problemas
 
 | Regla | Por qué |
 |---|---|
-| **No llamar `window.location.href` dentro del interceptor 401** | Interfiere con la navegación del router y causa loops cuando `cerrarSesion()` se llama desde dos lugares a la vez |
-| **No usar `router.push()` para logout** | El `beforeEach` se dispara durante la navegación y puede ver `inicializado=false`, llamando a `init()` con sesión ya invalidada → loop de logout |
-| **No hacer navegación desde un interceptor de Axios** | Los interceptores no tienen contexto de navegación; solo deben modificar el estado de la sesión, nunca decidir a dónde ir |
-| **No nullificar `initPromise` en el `finally` de `init()`** | Si se nullifica, otra recarga de página puede crear una nueva promesa mientras la anterior aún está en vuelo, creando race conditions |
-| **No nullificar `initPromise` en `cerrarSesion()`** | Si hay un `perfilApi()` en vuelo cuando se hace logout, nullificar la promesa hace que la siguiente llamada a `init()` cree una nueva promesa en lugar de esperar la existente |
-| **No usar `localStorage` para coordinar init entre F5** | `localStorage` persiste entre pestañas; `sessionStorage` es por pestaña y es el correcto aquí |
+| **No usar sessionStorage para coordinar init() entre F5** | Pinia y el módulo JS se re-evaluan en cada F5, pero sessionStorage persiste. Si el flag queda "stuck", cualquier intento de coordinación causará pantallas en blanco o loops |
+| **No hacer polling dentro de init()** | Bloquea `main.ts` y por tanto `app.mount()`. Resultado: pantalla en blanco durante segundos |
+| **No llamar `window.location.href` en el interceptor 401** | Interfiere con la navegación del router. La navegación debe estar en el componente |
+| **No usar `router.push()` para logout** | El `beforeEach` se dispara durante la navegación y puede ver `inicializado=false`, llamando a `init()` con sesión ya invalidada → loop |
+| **No hacer navegación desde un interceptor de Axios** | Los interceptores no tienen contexto de navegación; solo deben modificar estado, no decidir a dónde ir |
+| **No nullificar `initPromise` en el `finally` de `init()`** | Las llamadas concurrentes deben devolver la misma promesa y esperar el mismo resultado |
 | **No hacer login flow sin esperar CSRF cookie** | Sanctum requiere `GET /sanctum/csrf-cookie` antes de `POST /login`; sin eso el login falla con 419 |
 
 ---
 
-## 6. Archivos modificados en esta sesión
+## 5. Archivos modificados en esta sesión
 
 ```
-panel/src/stores/sesion.ts     — sessionStorage coordination, init() idempotente, cerrarSesion() sin nullificar initPromise
+panel/src/stores/sesion.ts     — init() idempotente sin sessionStorage, cerrarSesion() con isLoggingOut
 panel/src/router/index.ts      — beforeEach async con await sesion.init()
 panel/src/services/http.ts     — Interceptor 401 sin window.location
 panel/src/layouts/AdminLayout.vue — window.location.replace() para logout
@@ -249,7 +229,7 @@ panel/src/layouts/AdminLayout.vue — window.location.replace() para logout
 
 ---
 
-## 7. Rutas involucradas
+## 6. Rutas involucradas
 
 | Ruta | Método | Middleware | Propósito |
 |---|---|---|---|

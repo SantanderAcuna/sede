@@ -1,18 +1,21 @@
 /**
  * Sesión del panel.
  *
- * La sesión se persiste en localStorage para sobrevivir a F5. El token de
- * Sanctum viaja como Bearer en el header Authorization (no en cookie), y
- * localStorage permite recuperarlo tras una recarga sin pedir credenciales.
+ * La sesión se gestiona con cookie HttpOnly via Sanctum (cookie-based SPA).
+ * No se usan tokens Bearer ni localStorage. La cookie de sesión se envía
+ * automáticamente en cada petición (withCredentials: true).
  *
- * El riesgo de que un token caducado persista se mitiga verificando con
- * `/perfil` al arrancar: si el servidor rechaza el token, se descarta y
- * se redirige al login.
+ * La verificación de sesión al arrancar se hace llamando a /perfil:
+ * si devuelve 401, la cookie no es válida y se redirige al login.
+ *
+ * El store expone tres signals síncronos para el guardia del router:
+ *   - `inicializado`: true cuando init() ha terminado (éxito o fallo).
+ *   - `iniciada`: true cuando hay un usuario cargado.
+ *   - `usuario`: el usuario actual, o null.
  */
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { login as loginApi, logout as logoutApi, perfil as perfilApi, type Credenciales, type UsuarioItem } from '@/services/auth'
-import type { RespuestaLogin } from '@/services/auth'
 
 export interface UsuarioSesion {
   id: number
@@ -21,51 +24,15 @@ export interface UsuarioSesion {
   permisos: string[]
 }
 
-const LLAVE_SESION = 'sede.panel.sesion'
-
-/**
- * Lee la sesión persistida de localStorage.
- * Devuelve null si no hay nada válido.
- */
-function leerSesionPersistida(): { token: string; usuario: UsuarioSesion } | null {
-  try {
-    const raw = localStorage.getItem(LLAVE_SESION)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as { token: string; usuario: UsuarioSesion }
-    if (!parsed.token || !parsed.usuario) return null
-    return parsed
-  } catch {
-    return null
-  }
-}
-
-/**
- * Persiste la sesión en localStorage.
- */
-function persistirSesion(token: string, usuario: UsuarioSesion): void {
-  try {
-    localStorage.setItem(LLAVE_SESION, JSON.stringify({ token, usuario }))
-  } catch {
-    // Si localStorage falla (cuota, privado), no es crítico.
-  }
-}
-
-/**
- * Borra la sesión persistida de localStorage.
- */
-function borrarSesionPersistida(): void {
-  try {
-    localStorage.removeItem(LLAVE_SESION)
-  } catch {
-    // Ignorar errores de localStorage.
-  }
-}
-
 export const useSesionStore = defineStore('sesion', () => {
-  // Estado en memoria.
+  // Estado en memoria — la sesión real vive en la cookie HttpOnly del navegador.
   const usuario = ref<UsuarioSesion | null>(null)
-  const token = ref<string | null>(null)
   const inicializado = ref(false)
+
+  // Promesas en vuelo compartidas. Garantizar que init() y cerrarSesion()
+  // son idempotentes: llamadas concurrentes esperan la misma operación.
+  let initEnVuelo: Promise<void> | null = null
+  let logoutEnVuelo: Promise<void> | null = null
 
   /** ¿Hay una sesión iniciada? */
   const iniciada = computed(() => usuario.value !== null)
@@ -108,101 +75,120 @@ export const useSesionStore = defineStore('sesion', () => {
 
   /**
    * Inicia sesión con credenciales.
+   *
+   * El flujo internamente ya hace el handshake CSRF y establece la cookie
+   * de sesión HttpOnly. Solo se guarda el usuario en memoria.
+   *
+   * Tras iniciar sesión correctamente, marca `inicializado=true` para que
+   * el siguiente init() (ej. tras F5) reutilice el resultado si la cookie
+   * sigue siendo válida.
    */
   async function iniciarSesion(credenciales: Credenciales): Promise<void> {
-    const respuesta: RespuestaLogin = await loginApi(credenciales)
-    token.value = respuesta.csrf_token
+    const respuesta = await loginApi(credenciales)
 
     if (respuesta.user) {
-      const usuarioSesion: UsuarioSesion = {
+      usuario.value = {
         id: respuesta.user.id,
         email: respuesta.user.email,
         nombre: respuesta.user.email.split('@')[0] ?? 'usuario',
         permisos: extraerPermisos(respuesta.user.roles),
       }
-      usuario.value = usuarioSesion
-      persistirSesion(respuesta.csrf_token, usuarioSesion)
+      // Marcar como inicializado: la sesión está activa.
+      inicializado.value = true
+      // Cancelar cualquier init() en vuelo: ya no es necesario.
+      initEnVuelo = null
     }
   }
 
   /**
    * Cierra la sesión actual.
+   *
+   * Es idempotente: llamadas concurrentes esperan la misma promesa de logout.
+   * Limpia el estado local incluso si el backend falla (la cookie HttpOnly
+   * se descarta en el navegador cuando se recarga la página).
    */
   async function cerrarSesion(): Promise<void> {
-    try {
-      await logoutApi()
-    } finally {
-      usuario.value = null
-      token.value = null
-      inicializado.value = false
-      borrarSesionPersistida()
-    }
+    // Si ya hay un logout en curso, devolver la misma promesa.
+    if (logoutEnVuelo) return logoutEnVuelo
+
+    logoutEnVuelo = (async () => {
+      try {
+        await logoutApi()
+      } catch {
+        // Si el servidor rechaza o hay red, la sesión queda invalidada
+        // localmente. No interesa propagar el error.
+      } finally {
+        usuario.value = null
+        inicializado.value = true // Login correcto: ya no hay sesión que verificar.
+        initEnVuelo = null
+        logoutEnVuelo = null
+      }
+    })()
+
+    return logoutEnVuelo
   }
 
   /**
-   * Carga el perfil del usuario autenticado desde el servidor.
-   */
-  async function cargarPerfil(): Promise<void> {
-    const perfil = await perfilApi()
-    usuario.value = {
-      id: perfil.id,
-      email: perfil.email,
-      nombre: perfil.email.split('@')[0] ?? 'usuario',
-      permisos: extraerPermisos(perfil.roles),
-    }
-  }
-
-  /**
-   * Restaura la sesión desde localStorage y verifica con el servidor.
+   * Verifica la sesión existente llamando a /perfil.
    *
    * Se llama al arrancar la aplicación (en main.ts) antes de pintar nada.
-   * Primero intenta restaurar desde localStorage de forma síncrona para que
-   * la UI no parpadee. Después verifica con el servidor en segundo plano.
+   * La cookie de sesión se envía automáticamente con withCredentials.
+   * Si /perfil devuelve 401, la sesión no es válida.
    *
-   * Es idempotente: si ya se intentó antes, no vuelve a intentar.
+   * Es idempotente: múltiples llamadas concurrentes devuelven la misma
+   * promesa, garantizando que solo se hace una petición HTTP al backend.
+   *
+   * Si se llama después de iniciarSesion() o cerrarSesion(), no hace nada
+   * (porque `inicializado=true` indica que la sesión ya está determinada).
    */
   async function init(): Promise<void> {
+    // Si ya se determinó el estado de la sesión, no llamar al backend.
     if (inicializado.value) return
 
-    // 1. Restaurar desde localStorage de forma síncrona (evita parpadeo).
-    const persistida = leerSesionPersistida()
-    if (persistida) {
-      token.value = persistida.token
-      usuario.value = persistida.usuario
-      inicializado.value = true // Marcar antes de la llamada async.
-    }
+    // Si hay una inicialización en curso, esperar la misma promesa.
+    if (initEnVuelo) return initEnVuelo
 
-    // 2. Verificar con el servidor en segundo plano.
-    try {
-      await cargarPerfil()
-      // El servidor valida el token. Si llega aquí, la sesión es válida.
-      // Actualizar con datos del servidor por si cambiaron.
-      if (usuario.value) {
-        persistirSesion(token.value!, usuario.value)
+    initEnVuelo = (async () => {
+      try {
+        const perfil = await perfilApi()
+        usuario.value = {
+          id: perfil.id,
+          email: perfil.email,
+          nombre: perfil.email.split('@')[0] ?? 'usuario',
+          permisos: extraerPermisos(perfil.roles),
+        }
+      } catch {
+        // 401 u otro error: usuario = null. El guardia redirigirá.
+        usuario.value = null
+      } finally {
+        inicializado.value = true
+        initEnVuelo = null
       }
-    } catch {
-      // Token inválido o expirado. Limpiar todo y dejar que el guardia
-      // del router redirija al login.
-      usuario.value = null
-      token.value = null
-      inicializado.value = true
-      borrarSesionPersistida()
-      return
-    }
+    })()
 
-    inicializado.value = true
+    return initEnVuelo
+  }
+
+  /**
+   * Resetea el estado a los valores iniciales. Usado por tests.
+   * NO debe usarse en producción.
+   */
+  function $reset(): void {
+    usuario.value = null
+    inicializado.value = false
+    initEnVuelo = null
+    logoutEnVuelo = null
   }
 
   return {
     usuario,
-    token,
     inicializado,
     iniciada,
     permisos,
     tienePermiso,
     iniciarSesion,
     cerrarSesion,
-    cargarPerfil,
     init,
+    $reset,
   }
 })

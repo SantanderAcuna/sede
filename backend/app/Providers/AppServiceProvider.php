@@ -16,7 +16,11 @@ use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Contracts\Services\IdentidadServiceInterface;
 use App\Contracts\Services\IngestaTramitesInterface;
 use App\Contracts\Services\TramiteServiceInterface;
+use App\Models\Entidad;
+use App\Models\FileMedia;
 use App\Models\User;
+use App\Policies\ArchivoPolicy;
+use App\Policies\EntidadPolicy;
 use App\Repositories\Eloquent\AuthRepository;
 use App\Repositories\Eloquent\EntidadRepository;
 use App\Repositories\Eloquent\IngestaTramiteRepository;
@@ -30,7 +34,6 @@ use App\Services\IdentidadService;
 use App\Services\IngestaTramites;
 use App\Services\TramiteService;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
@@ -89,15 +92,6 @@ class AppServiceProvider extends ServiceProvider
         // el contrato declara.
         JsonResource::withoutWrapping();
 
-        // Las rutas del panel (/panel/*) usan autenticación Bearer con Sanctum
-        // (tokens en headers Authorization), no cookies de sesión. Por eso se
-        // excluyen de la verificación CSRF: el token de Sanctum ya autentica.
-        PreventRequestForgery::except([
-            'api/v1/panel/login',
-            'api/v1/panel/logout',
-            'api/v1/panel/perfil',
-        ]);
-
         // El super-admin no pasa por las comprobaciones de permisos. El `null` del
         // caso contrario no es un descuido: devolver `false` aquí negaría el
         // permiso antes de que la Policy o el `Gate` pudieran concederlo, y un
@@ -106,13 +100,23 @@ class AppServiceProvider extends ServiceProvider
             return $usuario->hasRole('super-admin') ? true : null;
         });
 
+        // Registro explícito de policies. Laravel 13 puede auto-descubrir policies que
+        // sigan la convención de nombres (App\Models\X → App\Policies\XPolicy), pero
+        // el registro explícito es más legible y no depende de la convención.
+        Gate::policy(Entidad::class, EntidadPolicy::class);
+        Gate::policy(FileMedia::class, ArchivoPolicy::class);
+
         // El acceso se limita por correo y por IP a la vez: el primer límite frena
         // el ataque contra una cuenta concreta —cinco intentos— y el segundo frena
         // el barrido de muchas cuentas desde una misma máquina, que el primero no
         // vería porque cada correo es distinto.
         RateLimiter::for('login', function (Request $peticion) {
             return [
-                Limit::perMinute(5)->by($peticion->input('email').'|'.$peticion->ip()),
+                // Tres intentos por minuto por cuenta: suficientemente generoso para
+                // el usuario que yerra una letra, suficientemente estricto para
+                // desalentar ataques de fuerza bruta distribuidos.
+                Limit::perMinute(3)->by($peticion->input('email')),
+                // Veinte por minuto por IP: frena el barrido masivo de cuentas.
                 Limit::perMinute(20)->by($peticion->ip()),
             ];
         });

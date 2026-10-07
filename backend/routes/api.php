@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\ArchivoController;
+use App\Http\Controllers\Api\V1\AuditoriaController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\EntidadController;
 use App\Http\Controllers\Api\V1\IdentidadController;
@@ -47,17 +48,31 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth:sanctum');
         Route::get('/perfil', [AuthController::class, 'perfil'])->name('perfil')->middleware('auth:sanctum');
 
-        // Entidad — gestión de datos institucionales (requiere autenticación)
-        Route::patch('/entidad', [EntidadController::class, 'actualizar'])
-            ->name('entidad.actualizar')
+        // Auditoría — log de auditoría (requiere autenticación)
+        Route::get('/auditoria', [AuditoriaController::class, 'index'])
+            ->name('auditoria.index')
             ->middleware('auth:sanctum');
 
-        // Archivos — gestión de archivos subidos (requiere autenticación)
+        // Entidad — gestión de datos institucionales (requiere autenticación + permiso)
+        Route::patch('/entidad', [EntidadController::class, 'actualizar'])
+            ->name('entidad.actualizar')
+            ->middleware('auth:sanctum')
+            ->middleware('can:entidad.gestionar');
+
+        // Archivos — gestión de archivos subidos (requiere autenticación + permiso)
         Route::middleware('auth:sanctum')->group(function (): void {
-            Route::get('/entidad/{modelUuid}/archivos', [ArchivoController::class, 'index'])->name('archivos.index');
-            Route::post('/entidad/{modelUuid}/archivos', [ArchivoController::class, 'store'])->name('archivos.store');
-            Route::get('/archivos/{uuid}', [ArchivoController::class, 'show'])->name('archivos.show');
-            Route::delete('/archivos/{uuid}', [ArchivoController::class, 'destroy'])->name('archivos.destroy');
+            Route::get('/entidad/{modelUuid}/archivos', [ArchivoController::class, 'index'])
+                ->name('archivos.index')
+                ->middleware('can:archivos.ver');
+            Route::post('/entidad/{modelUuid}/archivos', [ArchivoController::class, 'store'])
+                ->name('archivos.store')
+                ->middleware('can:archivos.crear');
+            Route::get('/archivos/{uuid}', [ArchivoController::class, 'show'])
+                ->name('archivos.show')
+                ->middleware('can:archivos.ver');
+            Route::delete('/archivos/{uuid}', [ArchivoController::class, 'destroy'])
+                ->name('archivos.destroy')
+                ->middleware('can:archivos.eliminar');
         });
     });
 });

@@ -14,6 +14,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
@@ -41,15 +44,30 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi();
 
         // Habilita Sanctum para autenticación con cookie en SPAs (panel Vue).
-        // Registra EnsureFrontendRequestsAreStateful en el grupo api: las peticiones
-        // desde orígenes en SANCTUM_STATEFUL_DOMAINS reciben una cookie CSRF y pueden
-        // usar autenticación por sesión. Sin esto, todo request desde el panel
-        // devuelve 401 aunque el token sea válido.
         //
-        // NOTA: Las rutas del panel (/panel/*) usan autenticación Bearer (tokens de
-        // Sanctum) y NO requieren verificación CSRF. Se excluyen aquí para que el
-        // flujo de login funcione sin token CSRF.
+        // IMPORTANTE: Esta llamada registra EnsureFrontendRequestsAreStateful, que
+        // añade los middlewares de sesión (EncryptCookies, AddQueuedCookiesToResponse,
+        // StartSession) SOLO cuando la petición viene de un origen en SANCTUM_STATEFUL_DOMAINS.
+        // Para peticioneses que NO son stateful, esos middlewares NO se aplican.
+        //
+        // NO se añade `prepend` al grupo `api` con esos middlewares porque causaría
+        // que StartSession se ejecutara DOS VECES para peticiones stateful (una
+        // por el prepend y otra por el EnsureFrontendRequestsAreStateful), lo cual
+        // provoca que se creen dos sesiones en la BD por request, una con auth y
+        // otra sin, y el navegador recibe la cookie de la sesión incorrecta.
+        //
+        // Para los tests, el helper `actingAs` configura la sesión manualmente
+        // y los endpoints protegidos con auth:sanctum siguen funcionando.
         $middleware->statefulApi();
+
+        // Middleware aliases para Spatie Permission. Permite usar 'role:admin',
+        // 'permission:users.create' y 'role_or_permission:admin|users.create' en
+        // las definiciones de rutas.
+        $middleware->alias([
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

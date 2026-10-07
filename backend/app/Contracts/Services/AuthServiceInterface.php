@@ -6,6 +6,7 @@ namespace App\Contracts\Services;
 
 use App\DTOs\Auth\LoginCredentials;
 use App\Http\Resources\UsuarioResource;
+use Illuminate\Http\Request;
 
 /**
  * Contrato para el servicio de autenticación.
@@ -22,7 +23,7 @@ interface AuthServiceInterface
     /**
      * Cierra la sesión del usuario actual.
      */
-    public function logout(): void;
+    public function logout(Request $request): void;
 
     /**
      * Obtiene el perfil del usuario autenticado.

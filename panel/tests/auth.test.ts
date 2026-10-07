@@ -5,6 +5,17 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+// Mock del fetch global para que csrf() (que usa fetch) no falle en jsdom.
+// En jsdom no hay `location.origin` y `fetch('/ruta')` requiere URL absoluta.
+const mockFetch = vi.fn().mockResolvedValue({
+  ok: true,
+  status: 204,
+  text: async () => '',
+  json: async () => ({}),
+  headers: new Headers(),
+} as never)
+vi.stubGlobal('fetch', mockFetch)
+
 // ---------------------------------------------------------------------------
 // Mock del módulo http — definido DENTRO del factory para evitar elevación.
 // ---------------------------------------------------------------------------
@@ -56,7 +67,17 @@ vi.mock('../src/services/http', () => {
 import { login, logout, perfil } from '../src/services/auth'
 import { http } from '../src/services/http'
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  mockFetch.mockClear()
+  mockFetch.mockResolvedValue({
+    ok: true,
+    status: 204,
+    text: async () => '',
+    json: async () => ({}),
+    headers: new Headers(),
+  } as never)
+})
 
 // ---------------------------------------------------------------------------
 // login

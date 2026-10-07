@@ -1,10 +1,12 @@
 /**
- * Servicio de autenticación del panel.
+ * Servicio de autenticación del panel (cookie-based SPA con Sanctum).
  *
- * Se comunica con el backend a través del contrato OpenAPI:
- * POST /api/v1/panel/login
- * POST /api/v1/panel/logout
- * GET  /api/v1/panel/perfil
+ * Flujo según documentación Laravel 13.x Sanctum SPA:
+ *   1. GET /sanctum/csrf-cookie  → establece cookie XSRF-TOKEN (HttpOnly=false)
+ *   2. POST /panel/login (con header X-XSRF-TOKEN) → establece cookie de sesión
+ *   3. GET /panel/perfil → verifica sesión (cookie de sesión se envía automáticamente)
+ *
+ * No se usan tokens Bearer ni localStorage.
  */
 import { http, desenvolver } from './http'
 import type { ApiEnvelope } from '@/types/api'
@@ -50,9 +52,23 @@ export interface RespuestaPerfil {
 }
 
 /**
+ * Obtiene la cookie CSRF de Sanctum.
+ *
+ * Se usa fetch en lugar de Axios porque esta ruta vive fuera de /api/v1/ y
+ * el path se reescribe en el proxy de Vite. Axios con withXSRFToken:true
+ * leerá automáticamente el token de la cookie XSRF-TOKEN establecida aquí.
+ */
+async function csrf(): Promise<void> {
+  await fetch('/sanctum/csrf-cookie', { credentials: 'include' })
+}
+
+/**
  * Inicia sesión con credenciales.
+ *
+ * El flujo CSRF es obligatorio antes del login en SPAs con Sanctum cookie-auth.
  */
 export async function login(credenciales: Credenciales): Promise<RespuestaLogin> {
+  await csrf()
   const respuesta = await http.post<ApiEnvelope<RespuestaLogin>>(
     '/panel/login',
     credenciales

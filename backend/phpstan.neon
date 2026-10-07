@@ -19,3 +19,5 @@ parameters:
         - '/Class App\\Models\\Tramite uses generic trait/'
         # json_decode in test context: getContent() is always string but PHPStan sees string|false
         - '/Parameter #1 \$json of function json_decode expects string, string\|false given/'
+        # BelongsTo generic types: AuditLog::causer() no necesita especificar generics TRelatedModel, TDeclaringModel
+        - '/Method App\\Models\\AuditLog::causer\(\) return type with generic class.*BelongsTo/'

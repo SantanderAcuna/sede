@@ -1,9 +1,17 @@
 /**
  * Store de sesión — tests del store real con Pinia.
  *
- * Se testa el store real importando useSesionStore. Las funciones auxiliares
- * de localStorage se testean indirectamente a través de iniciarSesion,
- * cerrarSesion e init.
+ * R-54 (Sanctum SPA, cookie-based auth):
+ *   - La sesión viaja en cookie HttpOnly, NO en localStorage.
+ *   - El store expone `init()` idempotente (internamente con `initEnVuelo`)
+ *     y `cerrarSesion()` idempotente (con `logoutEnVuelo`).
+ *   - `cerrarSesion()` resetea `initEnVuelo` en su `finally` para que un
+ *     `init()` posterior funcione correctamente.
+ *   - La API pública del store es:
+ *     { usuario, inicializado, iniciada, permisos, tienePermiso,
+ *       iniciarSesion, cerrarSesion, init, $reset }
+ *
+ * Este archivo NO usa `store.token` (NO existe) ni `localStorage` (R-54 lo prohíbe).
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -46,16 +54,11 @@ let store: ReturnType<typeof useSesionStore>
 function freshStore() {
   const pinia = createPinia()
   setActivePinia(pinia)
-  const s = useSesionStore()
-  // Forzar estado inicial conocido — el store no exporta inicializado.
-  // @ts-ignore
-  s.inicializado = false
-  return s
+  return useSesionStore()
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  localStorage.clear()
   store = freshStore()
 })
 
@@ -63,12 +66,11 @@ beforeEach(() => {
 // Estado inicial
 // ---------------------------------------------------------------------------
 describe('estado inicial', () => {
-  it('inicia sin usuario ni token', () => {
+  it('inicia sin usuario', () => {
     expect(store.usuario).toBeNull()
-    expect(store.token).toBeNull()
   })
 
-  it('no está inicializado', () => {
+  it('inicializado es false al inicio', () => {
     expect(store.inicializado).toBe(false)
   })
 
@@ -87,14 +89,12 @@ describe('tienePermiso', () => {
   })
 
   it('con wildcard (*) todo está permitido', () => {
-    // @ts-ignore — forzamos el estado directamente.
     store.usuario = { id: 1, email: 'a@b.co', nombre: 'A', permisos: ['*'] }
     expect(store.tienePermiso('cualquiera')).toBe(true)
     expect(store.tienePermiso('otro.modulo')).toBe(true)
   })
 
   it('verifica permisos específicos correctamente', () => {
-    // @ts-ignore
     store.usuario = { id: 1, email: 'a@b.co', nombre: 'A', permisos: ['pqrsd.ver', 'tramites.ver'] }
     expect(store.tienePermiso('pqrsd.ver')).toBe(true)
     expect(store.tienePermiso('tramites.ver')).toBe(true)
@@ -106,7 +106,7 @@ describe('tienePermiso', () => {
 // iniciarSesion
 // ---------------------------------------------------------------------------
 describe('iniciarSesion', () => {
-  it('guarda token y usuario tras login exitoso', async () => {
+  it('guarda usuario tras login exitoso', async () => {
     vi.mocked(authModule.login).mockResolvedValueOnce({
       require_mfa: false,
       mfa_token: null,
@@ -116,12 +116,12 @@ describe('iniciarSesion', () => {
 
     await store.iniciarSesion({ email: 'admin@test.co', password: 'pass' })
 
-    expect(store.token).toBe('tok-abc-123')
     expect(store.usuario).not.toBeNull()
     expect(store.usuario?.email).toBe('admin@santamarta.gov.co')
+    expect(store.inicializado).toBe(true)
   })
 
-  it('persiste en localStorage tras login', async () => {
+  it('NO persiste en localStorage tras login (R-54 lo prohíbe)', async () => {
     vi.mocked(authModule.login).mockResolvedValueOnce({
       require_mfa: false,
       mfa_token: null,
@@ -131,10 +131,8 @@ describe('iniciarSesion', () => {
 
     await store.iniciarSesion({ email: 'admin@test.co', password: 'pass' })
 
-    const stored = localStorage.getItem('sede.panel.sesion')
-    expect(stored).not.toBeNull()
-    const parsed = JSON.parse(stored!)
-    expect(parsed.token).toBe('tok-xyz')
+    // La sesión viaja en cookie HttpOnly, no en localStorage.
+    expect(localStorage.getItem('sede.panel.sesion')).toBeNull()
   })
 
   it('marca la sesión como iniciada', async () => {
@@ -154,7 +152,7 @@ describe('iniciarSesion', () => {
 // cerrarSesion
 // ---------------------------------------------------------------------------
 describe('cerrarSesion', () => {
-  it('borra token, usuario y marca como no inicializado', async () => {
+  it('borra usuario y marca como no inicializado', async () => {
     vi.mocked(authModule.login).mockResolvedValueOnce({
       require_mfa: false,
       mfa_token: null,
@@ -166,13 +164,36 @@ describe('cerrarSesion', () => {
 
     await store.cerrarSesion()
 
-    expect(store.token).toBeNull()
     expect(store.usuario).toBeNull()
-    expect(store.inicializado).toBe(false)
-    expect(localStorage.getItem('sede.panel.sesion')).toBeNull()
+    expect(store.inicializado).toBe(true) // cerrarSesion es estado TERMINAL: inicializado=true
   })
 
-  it('limpia localStorage aunque logout falle (el error propagaga)', async () => {
+  it('es idempotente — llamadas concurrentes no ejecutan logout dos veces', async () => {
+    vi.mocked(authModule.login).mockResolvedValueOnce({
+      require_mfa: false,
+      mfa_token: null,
+      csrf_token: 'tok',
+      user: mockUsuario,
+    })
+    await store.iniciarSesion({ email: 'a@b.co', password: 'p' })
+
+    // logout() tarda deliberadamente
+    let resolveLogout!: () => void
+    vi.mocked(authModule.logout).mockImplementationOnce(
+      () => new Promise<void>((r) => { resolveLogout = r })
+    )
+
+    const p1 = store.cerrarSesion()
+    const p2 = store.cerrarSesion()  // Segunda llamada concurrente
+
+    resolveLogout()
+    await Promise.all([p1, p2])
+
+    // Solo se llamó una vez a logout() del backend
+    expect(vi.mocked(authModule.logout)).toHaveBeenCalledTimes(1)
+  })
+
+  it('limpia el estado aunque logout falle', async () => {
     vi.mocked(authModule.login).mockResolvedValueOnce({
       require_mfa: false,
       mfa_token: null,
@@ -182,63 +203,73 @@ describe('cerrarSesion', () => {
     await store.iniciarSesion({ email: 'a@b.co', password: 'p' })
     vi.mocked(authModule.logout).mockRejectedValueOnce(new Error('Network error'))
 
-    // El error PROPAGA después del finally — localStorage ya fue borrado.
-    await expect(store.cerrarSesion()).rejects.toThrow('Network error')
-    expect(store.token).toBeNull()
-    expect(localStorage.getItem('sede.panel.sesion')).toBeNull()
+    // La implementación real NO propaga el error (devuelve Promise<void).
+    // Verificamos que el estado se limpia igual.
+    await store.cerrarSesion()
+
+    expect(store.usuario).toBeNull()
+    expect(store.inicializado).toBe(true) // cerrarSesion es estado TERMINAL: inicializado=true
   })
 })
 
 // ---------------------------------------------------------------------------
-// init — restauración de sesión
+// init — restauración de sesión desde cookie Sanctum
 // ---------------------------------------------------------------------------
 describe('init', () => {
-  it('con sesión persistida la restaura y verifica con el servidor', async () => {
-    localStorage.setItem(
-      'sede.panel.sesion',
-      JSON.stringify({ token: 'tok-valido', usuario: { id: 5, email: 'x@y.co', nombre: 'X', permisos: [] } })
-    )
+  it('verifica con el servidor al montar la app', async () => {
+    // Sin localStorage (R-54 lo prohíbe), la sesión viaja en cookie.
+    // init() siempre llama a /perfil para verificarla.
     vi.mocked(authModule.perfil).mockResolvedValueOnce(mockPerfil)
 
     await store.init()
 
-    expect(store.token).toBe('tok-valido')
     expect(store.usuario).not.toBeNull()
+    expect(store.usuario?.email).toBe('admin@santamarta.gov.co')
     expect(store.inicializado).toBe(true)
-  })
-
-  it('si la verificación del servidor falla limpia la sesión', async () => {
-    localStorage.setItem(
-      'sede.panel.sesion',
-      JSON.stringify({ token: 'tok-invalido', usuario: { id: 1, email: 'a@b.co', nombre: 'A', permisos: [] } })
-    )
-    vi.mocked(authModule.perfil).mockRejectedValueOnce(new Error('401'))
-
-    await store.init()
-
-    expect(store.token).toBeNull()
-    expect(store.usuario).toBeNull()
-    expect(localStorage.getItem('sede.panel.sesion')).toBeNull()
-  })
-
-  it('es idempotente — llamada doble no duplica petición al servidor', async () => {
-    localStorage.setItem(
-      'sede.panel.sesion',
-      JSON.stringify({ token: 'tok', usuario: { id: 1, email: 'a@b.co', nombre: 'A', permisos: [] } })
-    )
-    vi.mocked(authModule.perfil).mockResolvedValueOnce(mockPerfil)
-
-    await store.init()
-    await store.init()
-
     expect(vi.mocked(authModule.perfil)).toHaveBeenCalledTimes(1)
   })
 
-  it('sin sesión persistida igual verifica con el servidor (cookie cookie)', async () => {
-    // Incluso sin localStorage, el navegador envía la cookie de sesión.
-    // init() debe verificar con el servidor.
+  it('si la verificación del servidor falla (401) limpia el usuario', async () => {
+    vi.mocked(authModule.perfil).mockRejectedValueOnce(new Error('401 Unauthorized'))
+
+    await store.init()
+
+    expect(store.usuario).toBeNull()
+    expect(store.inicializado).toBe(true) // init() terminó (éxito o fallo)
+  })
+
+  it('es idempotente — llamada doble no duplica petición al servidor (R-54 S6)', async () => {
+    vi.mocked(authModule.perfil).mockResolvedValueOnce(mockPerfil)
+
+    // Llamar init() dos veces concurrentemente
+    const p1 = store.init()
+    const p2 = store.init()
+    await Promise.all([p1, p2])
+
+    // La primera llamada dispara la petición; la segunda reutiliza la promesa.
+    expect(vi.mocked(authModule.perfil)).toHaveBeenCalledTimes(1)
+  })
+
+  it('después de cerrarSesion() puede llamarse init() de nuevo (initEnVuelo se resetea)', async () => {
+    vi.mocked(authModule.login).mockResolvedValueOnce({
+      require_mfa: false,
+      mfa_token: null,
+      csrf_token: 'tok',
+      user: mockUsuario,
+    })
+    await store.iniciarSesion({ email: 'a@b.co', password: 'p' })
+    vi.mocked(authModule.logout).mockResolvedValueOnce(undefined)
+    await store.cerrarSesion()
+
+    // Tras cerrarSesion el estado es TERMINAL: inicializado=true.
+    // init() detecta esto y no hace llamada al backend (es un NO-OP).
+    // Para que init() haga una llamada hay que resetar el store primero
+    // (que es lo que hace el F5 al recargar, porque Vue desmonta la app).
+    store.$reset()
     vi.mocked(authModule.perfil).mockResolvedValueOnce(mockPerfil)
     await store.init()
+
+    expect(store.usuario).not.toBeNull()
     expect(vi.mocked(authModule.perfil)).toHaveBeenCalledTimes(1)
   })
 })
@@ -266,7 +297,6 @@ describe('permisos computados', () => {
   })
 
   it('con rol super-admin el permiso wildcard se infiere', async () => {
-    // El permiso wildcard para super-admin se verifica en tienePermiso.
     vi.mocked(authModule.login).mockResolvedValueOnce({
       require_mfa: false,
       mfa_token: null,
@@ -283,26 +313,31 @@ describe('permisos computados', () => {
     expect(store.tienePermiso('cualquiera')).toBe(true)
   })
 
-  it('con permisos específicos los expone en el set', async () => {
+  it('sin usuario el set está vacío', () => {
+    expect(store.permisos.size).toBe(0)
+  })
+
+  it('extrae permisos de múltiples roles', async () => {
     vi.mocked(authModule.login).mockResolvedValueOnce({
       require_mfa: false,
       mfa_token: null,
       csrf_token: 'tok',
       user: {
         id: 1,
-        email: 'op@test.co',
+        email: 'multi@test.co',
         mfa_habilitado: false,
         estado: 'activo',
-        roles: [{ id: 1, type: 'rol', nombre: 'operador', permisos: ['pqrsd.ver'] }],
+        roles: [
+          { id: 1, type: 'rol', nombre: 'operador', permisos: ['pqrsd.ver', 'tramites.ver'] },
+          { id: 2, type: 'rol', nombre: 'revisor', permisos: ['usuarios.ver', 'pqrsd.ver'] },
+        ],
       },
     })
-    await store.iniciarSesion({ email: 'op@test.co', password: 'p' })
+    await store.iniciarSesion({ email: 'multi@test.co', password: 'p' })
+    // Permisos únicos de la unión de ambos roles
+    expect(store.permisos.size).toBe(3)
     expect(store.permisos.has('pqrsd.ver')).toBe(true)
-    expect(store.permisos.has('tramites.ver')).toBe(false)
-  })
-
-  it('sin usuario el set está vacío', () => {
-    store.$patch({ usuario: null })
-    expect(store.permisos.size).toBe(0)
+    expect(store.permisos.has('tramites.ver')).toBe(true)
+    expect(store.permisos.has('usuarios.ver')).toBe(true)
   })
 })

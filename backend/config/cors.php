@@ -30,6 +30,8 @@ return [
         // El valor de FRONTEND_URL cubre cualquier despliegue — staging, producción
         // o desarrollo. Si no está definido, cae al default de desarrollo.
         env('FRONTEND_URL', 'http://localhost:5190'),
+        // 127.0.0.1 es necesario porque el panel puede correr en ese host.
+        'http://127.0.0.1:5190',
         // Desarrollo local del sitio (Nuxt) — hydration desde el navegador.
         'http://localhost:3001',
         'http://127.0.0.1:3001',

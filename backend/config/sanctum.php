@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-use Laravel\Sanctum\Http\Middleware\AuthenticateSession;
 use Laravel\Sanctum\Sanctum;
 
 return [
@@ -84,7 +83,27 @@ return [
     */
 
     'middleware' => [
-        'authenticate_session' => AuthenticateSession::class,
+        // 'authenticate_session' desactivado intencionalmente.
+        //
+        // El middleware original (\Laravel\Sanctum\Http\Middleware\AuthenticateSession)
+        // almacena un hash de la contraseña del usuario en la sesión y lo valida
+        // en cada petición: si la contraseña cambió (o si Sanctum cree que cambió),
+        // invalida la sesión lanzando AuthenticationException y llamando
+        // logoutCurrentDevice() en el guard configurado.
+        //
+        // En Laravel 13 + Sanctum 4 con `auth.defaults.guard = web`, este middleware
+        // falla porque internamente hace Auth::logoutCurrentDevice() que delega
+        // al `RequestGuard` de tokens (que no tiene `logout()`), generando
+        // BadMethodCallException en cada F5. Peor aún: si Sanctum rota el session_id
+        // entre peticiones (comportamiento observado en pruebas), el navegador queda
+        // con un session_id que ya no existe en la BD, devolviendo 401.
+        //
+        // Para una SPA con cookie de sesión, este comportamiento de revocación por
+        // cambio de contraseña no compensa la inestabilidad introducida. Si en el
+        // futuro se necesita detectar contraseñas cambiadas, se prefiere comparar
+        // el hash en un middleware de aplicación explícito que no toque el session_id.
+        'authenticate_session' => null,
+
         'encrypt_cookies' => EncryptCookies::class,
         'validate_csrf_token' => ValidateCsrfToken::class,
     ],

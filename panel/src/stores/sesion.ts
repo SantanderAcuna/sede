@@ -25,6 +25,8 @@ export const useSesionStore = defineStore('sesion', () => {
   const inicializado = ref(false)
   /** Promise de la inicialización en curso. Permite que el guardia espere. */
   let initPromise: Promise<void> | null = null
+  /** Bandera que impide llamadas Concurrentes a cerrarSesion. */
+  let isLoggingOut = false
 
   /** ¿Hay una sesión iniciada? */
   const iniciada = computed(() => usuario.value !== null)
@@ -86,13 +88,25 @@ export const useSesionStore = defineStore('sesion', () => {
 
   /**
    * Cierra la sesión actual.
+   *
+   * Es idempotente: llamadas Concurrentesdevuelven la misma promesa.
+   * NO redirige — el chiamante decide qué hacer tras el cierre.
+   * Resetea initPromise para que el guardia no restaure la sesión tras el logout.
    */
   async function cerrarSesion(): Promise<void> {
+    if (isLoggingOut) return initPromise ?? Promise.resolve()
+
+    isLoggingOut = true
     try {
       await logoutApi()
+    } catch {
+      // Si el servidor rechaza o hay red, la sesión queda invalidate de todas
+      // formas. No interesa propagar el error — el estado local se limpia.
     } finally {
       usuario.value = null
       inicializado.value = false
+      initPromise = null
+      isLoggingOut = false
     }
   }
 

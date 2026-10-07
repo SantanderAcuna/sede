@@ -7,6 +7,7 @@
  */
 import axios, { type AxiosInstance, type AxiosError } from 'axios'
 import type { ApiEnvelope, PaginatedEnvelope, PageMeta, CollectionLinks } from '@/types/api'
+import { useSesionStore } from '@/stores/sesion'
 
 /**
  * Error con la forma del contrato, para que la interfaz pueda explicarlo.
@@ -46,30 +47,31 @@ export const http: AxiosInstance = axios.create({
 })
 
 /**
- * Interceptor que maneja errores 401 redirigiendo al login.
+ * Interceptor que maneja errores 401 y 429.
  *
- * DURANTE la inicialización de sesión (`sesion.init()`) no se redirige:
- * si el usuario no tiene sesión, `init()` simplemente deja `usuario` como null
- * y el guardia del router se encarga de redirigir al login. Redirigir desde
- * el interceptor durante `init()` causaría un loop infinito porque cada
- * navegación volvería a llamar a `init()`.
+ * 401 — Si la sesión estaba activa (el usuario ya pasó el login), cierra la
+ * sesión en el store y deja que el guardia del routerRedirija al login en la
+ * siguiente navegación. NO llama a window.location aquí porque interferiría
+ * con la navegación del router y causaría loops cuando cerrarSesion se llama
+ * dos veces (interceptor + botón).
+ *
+ * 429 — Redirige directamente porque es un estado irrecuperable sin acción
+ * del usuario (rate limit). El parámetro ?rate_limited=1 informa al login.
  */
 http.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiEnvelope<never>>) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       const sesion = useSesionStore()
-      // Solo redirigir si la sesión YA estaba iniciada (es una sesión expirada
-      // mid-flight, no una sesión que nunca existió). Si `init()` está en
-      // curso, `inicializado` todavía será false.
+      // Solo actúa si la sesión ya estaba iniciada. Durante init() la sesión
+      // aún no se había restaurado (inicializado=false) y el guardia se
+      // encarga de redirigir.
       if (sesion.inicializado && sesion.iniciada) {
         sesion.cerrarSesion()
-        window.location.href = '/admin/acceso'
+        // No se redirige aquí: el guardia del router detectará sesion.iniciada=false
+        // en la siguiente navegación y redirigirá correctamente.
       }
     }
-    // Rate limiter: tras 5 intentos fallidos el servidor devuelve 429. Se
-    // redirige al login con un parámetro para que el usuario sepa que fue
-    // bloqueado por exceso de intentos.
     if (axios.isAxiosError(error) && error.response?.status === 429) {
       window.location.href = '/admin/acceso?rate_limited=1'
     }

@@ -39,49 +39,34 @@ export const http: AxiosInstance = axios.create({
   // La sesión viaja en una cookie `HttpOnly`, nunca en el almacenamiento del
   // navegador: es lo que la protege de un script inyectado.
   withCredentials: true,
+  // Sanctum SPA: Axios lee el token CSRF de la cookie `XSRF-TOKEN` y lo envía
+  // automáticamente en el header `X-XSRF-TOKEN` en cada petición.
+  // Disponible desde axios v1.6.2.
+  withXSRFToken: true,
   timeout: 15_000,
 })
 
 /**
- * Interceptor que añade el token de Sanctum a cada petición.
+ * Interceptor que maneja errores 401 y 429.
  *
- * El token se obtiene tras el login y se guarda en el store de sesión.
- * Sanctum acepta el token en el header `Authorization: Bearer <token>`.
- */
-http.interceptors.request.use((config) => {
-  // Se importa aquí para evitar circularidad con el store.
-  const sesion = useSesionStore()
-  if (sesion.token) {
-    config.headers.Authorization = `Bearer ${sesion.token}`
-  }
-  return config
-})
-
-/**
- * Interceptor que maneja errores 401 redirigiendo al login.
+ * 401 — Sesión expirada o inválida. Se limpia el estado local del store.
+ * El guardia del router se encargará de redirigir en la siguiente navegación
+ * (porque sesion.iniciada será false).
  *
- * DURANTE la inicialización de sesión (`sesion.init()`) no se redirige:
- * si el usuario no tiene sesión, `init()` simplemente deja `usuario` como null
- * y el guardia del router se encarga de redirigir al login. Redirigir desde
- * el interceptor durante `init()` causaría un loop infinito porque cada
- * navegación volvería a llamar a `init()`.
+ * 429 — Rate limit. Se redirige al login con un parámetro que indica el motivo.
  */
 http.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiEnvelope<never>>) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       const sesion = useSesionStore()
-      // Solo redirigir si la sesión YA estaba iniciada (es una sesión expirada
-      // mid-flight, no una sesión que nunca existió). Si `init()` está en
-      // curso, `inicializado` todavía será false.
-      if (sesion.inicializado && sesion.iniciada) {
+      // Solo actúa si la sesión estaba activa. Si la sesión ya estaba cerrada,
+      // cerrarSesion() es no-op gracias a logoutEnVuelo.
+      if (sesion.iniciada) {
+        // No await: el interceptor no debe bloquear.
         sesion.cerrarSesion()
-        window.location.href = '/admin/acceso'
       }
     }
-    // Rate limiter: tras 5 intentos fallidos el servidor devuelve 429. Se
-    // redirige al login con un parámetro para que el usuario sepa que fue
-    // bloqueado por exceso de intentos.
     if (axios.isAxiosError(error) && error.response?.status === 429) {
       window.location.href = '/admin/acceso?rate_limited=1'
     }

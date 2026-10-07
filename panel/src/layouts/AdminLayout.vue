@@ -143,7 +143,10 @@ const router = useRouter()
 async function cerrarSesion(): Promise<void> {
   menuUsuarioAbierto.value = false
   await sesion.cerrarSesion()
-  router.push({ name: 'acceso.entrar' })
+  // Usar window.location.replace en lugar de router.push() para evitar
+  // que el guardia del router se dispare mientras la navegación está
+  // en curso y llame a init() con una sesión ya invalidada, creando loops.
+  window.location.replace('/admin/acceso')
 }
 
 /**

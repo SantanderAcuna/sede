@@ -20,14 +20,14 @@
     "test:node-forge": "node ../scripts/validate-node-forge.mjs"
   },
   "dependencies": {
-    "nuxt": "^4.5.2",
+    "nuxt": "^4.6.1",
     "vue": "^3.5.43",
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.63.0",
-    "@types/node": "^26.6.4",
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^26.6.5",
     "@vitest/coverage-v8": "^5.0.3",
     "@vue/test-utils": "^2.5.1",
     "axe-core": "^4.13.0",

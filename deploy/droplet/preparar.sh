@@ -76,8 +76,11 @@ id "$USUARIO_ADMIN" >/dev/null 2>&1 || \
   useradd -m -s /bin/bash -g "$USUARIO_ADMIN" -G sudo,sede-ssh,adm,systemd-journal "$USUARIO_ADMIN"
 
 id "$USUARIO_DESPLIEGUE" >/dev/null 2>&1 || \
-  useradd -m -s /bin/bash -g "$USUARIO_DESPLIEGUE" -G sede-ssh,docker "$USUARIO_DESPLIEGUE"
-usermod -aG docker "$USUARIO_DESPLIEGUE" 2>/dev/null || true
+  useradd -m -s /bin/bash -g "$USUARIO_DESPLIEGUE" -G sede-ssh "$USUARIO_DESPLIEGUE"
+# La cuenta de despliegue NO va en el grupo `docker`: pertenecer a él equivale a
+# ser root (se monta `/` en un contenedor). El despliegue corre con `sudo` y
+# sólo puede ejecutar `desplegar.sh`; el grupo se retira más abajo, DESPUÉS de
+# dejar instalado ese camino, para no dejar la cuenta sin poder desplegar.
 
 # La contraseña de administración se ASIGNA, no sólo se guarda. Guardarla sin
 # asignarla deja la cuenta bloqueada y sin forma de elevar privilegios.
@@ -116,12 +119,52 @@ paso "5. Reglas de sudo"
 cat > /etc/sudoers.d/10-ops <<SUDO
 $USUARIO_ADMIN ALL=(ALL:ALL) ALL
 SUDO
+# Una sola ruta, la que instala este mismo guion. `SSH_ORIGINAL_COMMAND` se
+# conserva a través de sudo porque es por donde llegan el entorno y la versión
+# (ver `despliegue-remoto.sh`); sin eso el guion arrancaría sin argumentos.
 cat > /etc/sudoers.d/20-deploy <<SUDO
-$USUARIO_DESPLIEGUE ALL=(root) NOPASSWD: /usr/local/bin/desplegar.sh, $BASE/desplegar.sh
+$USUARIO_DESPLIEGUE ALL=(root) NOPASSWD: /usr/local/bin/desplegar.sh
+Defaults:$USUARIO_DESPLIEGUE env_keep += "SSH_ORIGINAL_COMMAND"
 SUDO
 chmod 440 /etc/sudoers.d/10-ops /etc/sudoers.d/20-deploy
 visudo -c >/dev/null
 verde "  reglas válidas"
+
+# El guion de despliegue se instala DESDE EL REPOSITORIO, no a mano: una copia
+# manual envejece sin que nada lo avise (el instalado llegó a no tener la siembra
+# de datos y el despliegue terminaba en verde con la sede vacía).
+AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$AQUI/despliegue-remoto.sh" ]; then
+  install -m 755 -o root -g root "$AQUI/despliegue-remoto.sh" /usr/local/bin/desplegar.sh
+  verde "  desplegar.sh instalado desde el repositorio"
+else
+  aviso "  no encuentro despliegue-remoto.sh junto a este guion; no se instala desplegar.sh"
+fi
+
+# Llave de despliegue: comando forzado con sudo (la cuenta ya no tiene `docker`).
+# Si se pasa LLAVE_DESPLIEGUE (ruta a la llave PÚBLICA de la canalización) se
+# instala; si ya hay una con el comando anterior, se migra.
+OPCIONES_LLAVE='no-port-forwarding,no-x11-forwarding,no-agent-forwarding,no-pty,no-user-rc'
+FORZADO='command="sudo -n /usr/local/bin/desplegar.sh"'
+AK_DESPLIEGUE="/home/$USUARIO_DESPLIEGUE/.ssh/authorized_keys"
+install -d -m 700 -o "$USUARIO_DESPLIEGUE" -g "$USUARIO_DESPLIEGUE" "/home/$USUARIO_DESPLIEGUE/.ssh"
+if [ -n "${LLAVE_DESPLIEGUE:-}" ] && [ -f "$LLAVE_DESPLIEGUE" ]; then
+  printf '%s,%s %s\n' "$FORZADO" "$OPCIONES_LLAVE" "$(cat "$LLAVE_DESPLIEGUE")" > "$AK_DESPLIEGUE"
+  verde "  llave de despliegue instalada con comando forzado"
+elif [ -f "$AK_DESPLIEGUE" ]; then
+  sed -i 's|^command="/usr/local/bin/desplegar.sh"|'"$FORZADO"'|' "$AK_DESPLIEGUE"
+fi
+chown "$USUARIO_DESPLIEGUE:$USUARIO_DESPLIEGUE" "$AK_DESPLIEGUE" 2>/dev/null || true
+chmod 600 "$AK_DESPLIEGUE" 2>/dev/null || true
+if [ -f "$AK_DESPLIEGUE" ] && grep -qF "$FORZADO" "$AK_DESPLIEGUE"; then
+  # Camino por sudo instalado: ya se puede retirar el grupo `docker`.
+  if id -nG "$USUARIO_DESPLIEGUE" | tr ' ' '\n' | grep -qx docker; then
+    gpasswd -d "$USUARIO_DESPLIEGUE" docker >/dev/null
+    verde "  $USUARIO_DESPLIEGUE fuera del grupo docker"
+  fi
+else
+  aviso "  la llave de despliegue aún no usa 'sudo -n'; $USUARIO_DESPLIEGUE conserva el grupo docker (inseguro)"
+fi
 
 paso "6. Cortafuegos del host"
 ufw --force reset >/dev/null 2>&1 || true

@@ -201,12 +201,13 @@ printf '%s\n' "$PWSEC" | sudo -S -k -p '' bash -c '
   install -d -m 750 "$DESTINO/certs"
   mv "$DESTINO/sede.env" "$DESTINO/.env"
 
-  # PERTENENCIA Y PERMISOS: `desplegar.sh` se ejecuta como la cuenta de
-  # despliegue, NO como la de administración. Si el entorno queda de `root` con
-  # 600, el despliegue falla al leerlo con un error de permisos que parece del
-  # guion y no del reparto. El grupo es el de despliegue, de modo que puede LEER
-  # pero no MODIFICAR: si la llave de despliegue se comprometiera, no podría
-  # reescribir el entorno que ejecuta.
+  # PERTENENCIA Y PERMISOS: la llave de despliegue entra como la cuenta de
+  # despliegue y `desplegar.sh` corre con `sudo` (esa cuenta ya no pertenece al
+  # grupo `docker`). El entorno es de `root` con grupo de despliegue y 640: la
+  # cuenta de despliegue puede LEER pero no MODIFICAR, de modo que si la llave se
+  # comprometiera no podría reescribir el entorno que ejecuta. Antes de la
+  # migración a `sudo` el guion corría como esa cuenta y este reparto era además
+  # lo que le permitía leer el `.env`; hoy sigue siendo lo correcto.
   chown root:deploy "$DESTINO" && chmod 750 "$DESTINO"
   chown root:deploy "$DESTINO/.env" && chmod 640 "$DESTINO/.env"
   chown root:deploy "$DESTINO/compose.yaml" && chmod 644 "$DESTINO/compose.yaml"

@@ -48,7 +48,7 @@ final class FilesMediaService implements FilesMediaServiceInterface
             'filename' => $filename,
             'original_filename' => $file->getClientOriginalName(),
             'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
-            'size' => $file->getSize() ?? 0,
+            'size' => (int) $file->getSize(),
             'disk' => 'public',
             'path' => $path,
             'metadata' => $metadata,

@@ -1,20 +1,18 @@
-<script setup lang="ts" generic="TData extends object">
-import { computed, ref } from 'vue';
+<script setup lang="ts" generic="TData extends RowData">
+import { computed, ref, toRef } from 'vue';
 import {
   FlexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  useVueTable,
+  useTable,
   type ColumnDef,
+  type RowData,
   type SortingState,
 } from '@tanstack/vue-table';
+import { dataTableFeatures, type DataTableFeatures } from './dataTableFeatures';
 
 const props = withDefaults(
   defineProps<{
     data: TData[];
-    columns: ColumnDef<TData, unknown>[];
+    columns: ColumnDef<DataTableFeatures, TData, unknown>[];
     pageSize?: number;
     globalFilter?: string;
     loading?: boolean;
@@ -26,33 +24,37 @@ const props = withDefaults(
 const emit = defineEmits<{ rowClick: [row: TData] }>();
 const sorting = ref<SortingState>([]);
 
-const table = useVueTable({
-  get data() {
-    return props.data;
-  },
-  get columns() {
-    return props.columns;
-  },
-  state: {
-    get sorting() {
-      return sorting.value;
-    },
-    get globalFilter() {
-      return props.globalFilter;
-    },
-  },
+// En la v9 las entradas reactivas se pasan como `ref` (aquí `toRef` sobre un
+// getter, que sigue a las props): el adaptador las desenvuelve y las sincroniza.
+// Pasar `props.data` a secas capturaría sólo el primer valor. Sin
+// `columnVisibilityFeature` no hay columnas ocultas, así que `getAllCells()`
+// equivale al `getVisibleCells()` de la v8.
+const datos = toRef(() => props.data);
+const columnas = toRef(() => props.columns);
+
+// La ordenación y el filtro global son estado «controlado» por este componente:
+// cada porción lleva su propio `on…Change`, que puede recibir el valor o una
+// función que lo calcula a partir del anterior. La v9 ya no tiene `onStateChange`.
+const estado = toRef(() => ({
+  sorting: sorting.value,
+  globalFilter: props.globalFilter,
+}));
+
+const table = useTable<DataTableFeatures, TData>({
+  features: dataTableFeatures,
+  data: datos,
+  columns: columnas,
+  state: estado,
   onSortingChange: (updater) => {
     sorting.value = typeof updater === 'function' ? updater(sorting.value) : updater;
   },
-  getCoreRowModel: getCoreRowModel(),
-  getSortedRowModel: getSortedRowModel(),
-  getPaginationRowModel: getPaginationRowModel(),
-  getFilteredRowModel: getFilteredRowModel(),
-  initialState: { pagination: { pageSize: props.pageSize } },
+  initialState: { pagination: { pageIndex: 0, pageSize: props.pageSize } },
 });
 
+// `getState()` desapareció: la paginación se lee de su átomo, y Vue rastrea la lectura.
+const paginacion = computed(() => table.atoms.pagination.get());
 const numeroPaginas = computed(() => table.getPageCount());
-const paginaActual = computed(() => table.getState().pagination.pageIndex);
+const paginaActual = computed(() => paginacion.value.pageIndex);
 
 /**
  * Traduce el estado de ordenación de TanStack a los valores de `aria-sort`.
@@ -95,18 +97,14 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
                 class="inline-flex items-center gap-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue"
                 @click="header.column.getToggleSortingHandler()?.($event)"
               >
-                <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
+                <FlexRender :header="header" />
                 <FaIcon
                   :icon="header.column.getIsSorted() === 'desc' ? 'arrow-down' : 'arrow-up'"
                   :class="['h-3 w-3', header.column.getIsSorted() ? 'text-gov-blue' : 'text-slate-300']"
                   aria-hidden="true"
                 />
               </button>
-              <FlexRender
-                v-else
-                :render="header.column.columnDef.header"
-                :props="header.getContext()"
-              />
+              <FlexRender v-else :header="header" />
             </th>
           </tr>
         </thead>
@@ -124,8 +122,8 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
             class="hover:bg-gov-blue-light/40 cursor-pointer transition-colors"
             @click="emit('rowClick', row.original)"
           >
-            <td v-for="cell in row.getVisibleCells()" :key="cell.id" class="px-4 py-3 text-sm text-slate-700">
-              <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+            <td v-for="cell in row.getAllCells()" :key="cell.id" class="px-4 py-3 text-sm text-slate-700">
+              <FlexRender :cell="cell" />
             </td>
           </tr>
         </tbody>
@@ -134,9 +132,9 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
 
     <div class="flex items-center justify-between px-4 py-3 border-t border-slate-200 text-sm text-slate-600">
       <span>
-        {{ table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1 }}–{{
+        {{ paginacion.pageIndex * paginacion.pageSize + 1 }}–{{
           Math.min(
-            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            (paginacion.pageIndex + 1) * paginacion.pageSize,
             table.getFilteredRowModel().rows.length
           )
         }}

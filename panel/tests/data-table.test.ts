@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { h, type ColumnDef } from '@tanstack/vue-table'
+import type { DataTableFeatures } from '../src/components/base/dataTableFeatures'
 import { defineComponent, ref } from 'vue'
 
 // ---------------------------------------------------------------------------
@@ -24,7 +25,7 @@ vi.mock('@/components/base/FaIcon.vue', () => ({
 // ---------------------------------------------------------------------------
 // Componente DataTable con setup de columnas simple
 // ---------------------------------------------------------------------------
-const createColumns = (): ColumnDef<{ id: number; nombre: string; estado: string }, unknown>[] => [
+const createColumns = (): ColumnDef<DataTableFeatures, { id: number; nombre: string; estado: string }, unknown>[] => [
   {
     id: 'nombre',
     accessorKey: 'nombre',
@@ -161,6 +162,73 @@ describe('DataTable — rowClick', () => {
       const emitted = wrapper.emitted('rowClick') as unknown[][]
       expect(emitted?.[0]?.[0]).toMatchObject({ id: 1, nombre: 'Trámite A' })
     }
+    wrapper.unmount()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Comportamiento real tras la migración a TanStack Table v9
+//
+// Los casos de arriba comprueban sobre todo que existan los elementos. Estos
+// comprueban lo que la v9 cambió por dentro: ordenar, filtrar, reaccionar a
+// datos nuevos y paginar.
+// ---------------------------------------------------------------------------
+const nombresEnPantalla = (wrapper: ReturnType<typeof mount>) =>
+  wrapper.findAll('tbody tr').map((fila) => fila.findAll('td')[0]?.text())
+
+describe('DataTable — comportamiento (v9)', () => {
+  it('ordenar por una columna reordena las filas y marca aria-sort', async () => {
+    const wrapper = await mountDataTable({
+      data: [
+        { id: 1, nombre: 'Beta', estado: 'Activo' },
+        { id: 2, nombre: 'Alfa', estado: 'Activo' },
+        { id: 3, nombre: 'Gamma', estado: 'Activo' },
+      ],
+    })
+    expect(nombresEnPantalla(wrapper)).toEqual(['Beta', 'Alfa', 'Gamma'])
+
+    await wrapper.find('th button').trigger('click')
+    expect(nombresEnPantalla(wrapper)).toEqual(['Alfa', 'Beta', 'Gamma'])
+    expect(wrapper.find('th').attributes('aria-sort')).toBe('ascending')
+
+    await wrapper.find('th button').trigger('click')
+    expect(nombresEnPantalla(wrapper)).toEqual(['Gamma', 'Beta', 'Alfa'])
+    expect(wrapper.find('th').attributes('aria-sort')).toBe('descending')
+    wrapper.unmount()
+  })
+
+  it('el filtro global deja solo las filas que coinciden y reacciona al cambiar', async () => {
+    const wrapper = await mountDataTable()
+    await wrapper.setProps({ globalFilter: 'Trámite B' })
+    expect(nombresEnPantalla(wrapper)).toEqual(['Trámite B'])
+    expect(wrapper.text()).toContain('de 1')
+
+    await wrapper.setProps({ globalFilter: '' })
+    expect(nombresEnPantalla(wrapper)).toHaveLength(3)
+    wrapper.unmount()
+  })
+
+  it('reemplazar `data` actualiza las filas mostradas', async () => {
+    const wrapper = await mountDataTable()
+    expect(nombresEnPantalla(wrapper)).toHaveLength(3)
+
+    await wrapper.setProps({ data: [{ id: 9, nombre: 'Nuevo', estado: 'Activo' }] })
+    expect(nombresEnPantalla(wrapper)).toEqual(['Nuevo'])
+    wrapper.unmount()
+  })
+
+  it('pagina según `pageSize` y navega entre páginas', async () => {
+    const wrapper = await mountDataTable({ pageSize: 2 })
+    expect(nombresEnPantalla(wrapper)).toEqual(['Trámite A', 'Trámite B'])
+    expect(wrapper.find('nav[aria-label="Paginación de la tabla"]').findAll('button[aria-label^="Página "]')).toHaveLength(4)
+
+    await wrapper.find('button[aria-label="Página siguiente"]').trigger('click')
+    expect(nombresEnPantalla(wrapper)).toEqual(['Trámite C'])
+    expect(wrapper.find('button[aria-current="page"]').text()).toBe('2')
+    expect(wrapper.find('button[aria-label="Página siguiente"]').attributes('disabled')).toBeDefined()
+
+    await wrapper.find('button[aria-label="Página anterior"]').trigger('click')
+    expect(nombresEnPantalla(wrapper)).toEqual(['Trámite A', 'Trámite B'])
     wrapper.unmount()
   })
 })

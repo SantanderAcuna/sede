@@ -14,16 +14,21 @@ Cómo se publica la Sede en el servidor y qué hay que hacer a mano.
 
 La canalización (`.github/workflows/despliegue.yml`) sólo puede ejecutar **un**
 comando en el servidor: `desplegar.sh <entorno> <versión>`. La llave de
-despliegue está restringida a eso, así que no puede copiar archivos ni ejecutar
-nada más.
+despliegue está restringida a eso (`command="sudo -n /usr/local/bin/desplegar.sh"`
+en `authorized_keys`), así que no puede copiar archivos ni ejecutar nada más. La
+cuenta de despliegue **no** pertenece al grupo `docker`: el guion corre con `sudo`
+(regla en `/etc/sudoers.d/20-deploy`, que conserva `SSH_ORIGINAL_COMMAND`).
 
 ## El orden, la primera vez
 
 ```bash
-# 1. Preparar el servidor (una vez).
-scp deploy/droplet/preparar.sh ops@<servidor>:/tmp/ && ssh ops@<servidor> 'sudo bash /tmp/preparar.sh'
+# 1. Preparar el servidor (una vez). `preparar.sh` instala también el guion de
+#    despliegue desde el repositorio, así que se copian los dos juntos. Para
+#    instalar la llave de la canalización, pasa LLAVE_DESPLIEGUE=<ruta pública>.
+scp deploy/droplet/preparar.sh deploy/droplet/despliegue-remoto.sh ops@<servidor>:/tmp/
+ssh -t ops@<servidor> 'sudo bash /tmp/preparar.sh'
 
-# 2. Instalar el guion de despliegue (ver la trampa, más abajo).
+# 2. Actualizar SOLO el guion de despliegue más adelante (ver la trampa, más abajo).
 scp deploy/droplet/despliegue-remoto.sh ops@<servidor>:/tmp/
 ssh ops@<servidor> 'sudo install -m 755 -o root -g root /tmp/despliegue-remoto.sh /usr/local/bin/desplegar.sh'
 

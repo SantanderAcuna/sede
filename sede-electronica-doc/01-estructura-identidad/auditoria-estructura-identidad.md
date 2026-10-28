@@ -62,7 +62,7 @@
 
 *Las 59 filas no son los 137 criterios de la matriz del proyecto ni todos los requisitos del módulo: son los que pude agrupar y contrastar con evidencia. «% evaluables» excluye ❔ y ⏸. Los porcentajes son un resumen, no una métrica de calidad: no todas las filas pesan igual.*
 
-**Hallazgos (§6): 43** — 11 de severidad Alta, 19 Media y 13 Baja (criterio de severidad declarado en §6). **Plan (§8): 32 tareas, 160 criterios de aceptación** y 6 decisiones tuyas (§8.6). Esfuerzo orientativo ≈ 46 días-persona **±50 %** (**estimación mía**, sin velocidad histórica del equipo).
+**Hallazgos (§6): 44** — 11 de severidad Alta, 20 Media y 13 Baja (criterio de severidad declarado en §6). **Plan (§8): 32 tareas, 161 criterios de aceptación** y 6 decisiones tuyas (§8.6). Esfuerzo orientativo ≈ 46 días-persona **±50 %** (**estimación mía**, sin velocidad histórica del equipo).
 
 **Los problemas que más pesan** (el resto está en §6):
 
@@ -491,6 +491,7 @@ No uso «Crítico»: nada de lo que vi se está explotando, y lo que no pude ver
 | H-41 | Medio | El origen acepta HTTP/HTTPS **desde cualquier IP**, no solo desde Cloudflare; el puerto 22 también está abierto al mundo. | **HECHO:** `ufw status` (§3.2): `80/tcp` y `443/tcp` «ALLOW IN Anywhere»; `22/tcp` «LIMIT IN Anywhere». **INFERENCIA:** quien conozca la IP del servidor (el repo público la publicaba en `accesos.md`, H-01) puede saltarse el WAF y los límites de Cloudflare. Mitigantes observados: SSH solo con llave, `root` cerrado, Fail2Ban con 51 bloqueos. **Remediado el 2026-10-28 (autorizado por José):** `ufw` ahora permite 80/443 solo desde los 15 rangos IPv4 y 7 IPv6 de Cloudflare (las dos reglas «Anywhere» se eliminaron) y `DOCKER-USER` replica la lista (`RETURN` por rango + `DROP` final en `eth0`); respaldo previo en el servidor y reversión disponible. **HECHO:** tras aplicar, el sitio vía Cloudflare responde HTTP 200 (verificado desde fuera). **HECHO:** conexión directa a la IP del origen saltando Cloudflare → sin respuesta (código 000). **Pendiente:** puerto 22 abierto al mundo (solo llave + Fail2Ban), lista de rangos sin actualización automática y *Authenticated Origin Pulls* (opcional). | OWASP ASVS V14; Cloudflare *Authenticated Origin Pulls* | T-03 |
 | H-42 | Medio | El `desplegar.sh` **instalado** en el servidor es una versión anterior a la del repo: le falta la siembra de datos institucionales; nada lo actualiza al desplegar (se instala a mano). | **HECHO:** `diff` (§3.2): única diferencia = bloque «Siembra»; `preparar.sh` instala el script en la preparación inicial, no en cada despliegue. **INFERENCIA:** el siguiente despliegue pasaría en verde sin sembrar. | Calidad de entrega | T-02 |
 | H-43 | Bajo | Un servicio escucha en el puerto **25** en todas las interfaces (IPv4 e IPv6). Solo lo contiene `ufw`. | **HECHO:** `ss -tln` (§3.2). **HECHO** (simulación de Cloudflare): el proceso es `master`, el demonio de **Postfix**, escuchando en `0.0.0.0:25` y `[::]:25`. **HECHO** (simulación de Postfix, 2026-10-28): `inet_interfaces = all`; `mynetworks` solo loopback y `smtpd_relay_restrictions` incluye `defer_unauth_destination`, por lo que **no es un relé abierto** (exposición, no abuso). Cola vacía, sin clientes conectados, sin `MAILTO`/`sendmail` en cron, sin correo configurado en `unattended-upgrades` ni Fail2Ban, y los contenedores en ejecución tienen `MAIL_HOST` y `MAIL_PORT` vacíos (el backend usa `MAIL_MAILER=log`). **INFERENCIA:** nada depende de recibir correo por red; el cambio a `loopback-only` es de bajo riesgo. **Remediado el 2026-10-28 (autorizado por José):** `inet_interfaces = loopback-only`, servicio activo tras el reinicio, y el socket IPv6 pasó de `[::]:25` a `[::1]:25`; respaldo de `main.cf` en el servidor. **HECHO:** `ss -tln` sin enmascarar confirma `127.0.0.1:25` y `[::1]:25`. Al reiniciar, Postfix avisó de que cuatro bibliotecas `libnss*` de su jaula `chroot` difieren de las del sistema (**INFERENCIA:** efecto de paquetes actualizados sin reinicio; debería desaparecer tras el reinicio del servidor de H-40). | CIS Ubuntu 3.x (servicios innecesarios) | T-03 |
+| H-44 | Medio | El remoto `origin` del clon local guarda un **token OAuth de GitHub en texto plano** dentro de la URL (en `.git/config`), con alcances `repo`, `admin:public_key`, `gist` y `read:org`. Quedó impreso completo en la conversación de esta auditoría. | **HECHO:** al listar los remotos del repo apareció la URL con la credencial incrustada; la cabecera `x-oauth-client-id` del token coincide con la de la app OAuth «GitHub CLI» (**INFERENCIA** por ser el identificador público de `gh`). Alcances leídos de la cabecera `x-oauth-scopes`. **INFERENCIA:** con `repo` permite leer y escribir en todos tus repositorios y con `admin:public_key` añadir una llave SSH a tu cuenta (acceso persistente). **HIPÓTESIS:** no sé si el token salió de este equipo; solo consta que está en un archivo local y en el historial de la conversación. | OWASP ASVS V2.10 (credenciales de servicio); ISO 27001 A.5.17 | T-01 |
 
 ---
 
@@ -556,18 +557,20 @@ No uso «Crítico»: nada de lo que vi se está explotando, y lo que no pude ver
   - [ ] **AC-00.2** — Verificación: `git status --short sede-electronica-doc` → Esperado: no lista este archivo.
 
 #### T-01 · Sacar lo operativo del repositorio público
-- **Resuelve:** H-01, H-18, y parte de H-05. **Esfuerzo:** 0,5 d + rotaciones. **Riesgo:** reescribir historial rompe clones y PRs abiertos; **no lo recomiendo** si todo lo expuesto ya está rotado. **Depende de:** decisión D-1.
+- **Resuelve:** H-01, H-18, H-44 y parte de H-05. **Esfuerzo:** 0,5 d + rotaciones. **Riesgo:** reescribir historial rompe clones y PRs abiertos; **no lo recomiendo** si todo lo expuesto ya está rotado. **Depende de:** decisión D-1.
 - **Qué:**
   1. Decidir (D-1) **repo privado** (recomendado, 1 clic) o público sin `accesos.md`.
   2. Mover el inventario operativo a un lugar no público (gestor de secretos/documento interno) y quitar `accesos.md` de `main`, `staging` y `develop`.
   3. Pasar un escáner de secretos por **todo el historial** y clasificar cada hallazgo (ejemplo / rotado / vigente). Rotar lo vigente.
   4. Retirar de la raíz los informes de agentes y los scripts de depuración (a `docs/archivo/` o fuera del repo, según decidas).
+  5. Revocar el token OAuth de `gh` que estaba en la URL del remoto: *GitHub → Settings → Applications → Authorized OAuth Apps → GitHub CLI → Revoke*; revisar *Settings → SSH and GPG keys* por llaves que no reconozcas; cambiar el remoto a SSH; volver a iniciar sesión con `gh auth login` si lo necesitas.
 - **Criterios de aceptación**
   - [ ] **AC-01.1** — Verificación: `curl -s -o /dev/null -w '%{http_code}\n' https://api.github.com/repos/SantanderAcuna/sede` · Esperado: `404` (repo privado). *Alternativa si D-1 = público:* `git ls-files | grep -ci '^accesos'` → `0` en cada una de `main`, `staging`, `develop`.
   - [ ] **AC-01.2** — Verificación: `gitleaks detect --source . --log-opts="--all" --redact` (en versiones nuevas: `gitleaks git`) · Esperado: tabla de hallazgos con **0 clasificados como «vigente»**; cada uno con fecha y decisión.
   - [ ] **AC-01.3** — Verificación: lista de secretos (solo nombres) con propietario y fecha de última rotación, guardada fuera del repo · Esperado: todos los secretos que el inventario público mencionaba figuran con fecha posterior a la decisión D-1.
   - [ ] **AC-01.4** — Verificación: `git ls-files 'panel/test_*.mjs' | wc -l` · Esperado: `0`.
   - [ ] **AC-01.5** — Verificación: `git ls-files '*.md' | grep -v / ` · Esperado: solo los `.md` de raíz de una lista que apruebas (propuesta: `README.md`, `PRODUCT.md`, `DESIGN.md`).
+  - [ ] **AC-01.6** — Verificación: `git remote -v | grep -c -E '://[^/ ]*:[^@ ]*@'` y *Settings → Applications → Authorized OAuth Apps* · Esperado: `0` URL con credencial incrustada; el token anterior revocado (una llamada a la API con él devuelve `401`) y ninguna llave SSH desconocida en la cuenta.
 - **Prueba que lo guarda:** job `Credenciales` corregido (T-06). **Reversión:** el historial no se reescribe; si algo faltó, se restaura desde el commit anterior.
 
 #### T-02 · Atar la llave de despliegue a un único comando y quitarla del grupo `docker`
@@ -986,6 +989,7 @@ No uso «Crítico»: nada de lo que vi se está explotando, y lo que no pude ver
 | H-41 | T-03 | AC-03.7 | `ufw`, panel de DigitalOcean |
 | H-42 | T-02 | AC-02.7 | `sha256sum` repo vs. servidor |
 | H-43 | T-03 | AC-03.6 | `ss -tlnp` |
+| H-44 | T-01 | AC-01.6 | `git remote get-url origin`; panel de GitHub |
 | H-17 | T-15 | AC-15.1, 15.2 | Ráfaga de `POST` en staging; `grep` |
 | H-18 | T-01 | AC-01.4, 01.5 | `git ls-files` |
 | H-19 | T-27 (D-6) | AC-27.4 | ADR de la decisión |
@@ -1008,7 +1012,7 @@ No uso «Crítico»: nada de lo que vi se está explotando, y lo que no pude ver
 | H-36 | T-27 | AC-27.3 | `curl … \| grep -o '<h1' \| wc -l` = 1 |
 | H-37 | T-34 | AC-34.5 | Script de coherencia tabla ↔ detalle |
 
-**Cobertura del plan:** 43 hallazgos (H-15 y H-16 comparten fila), 32 tareas (T-00…T-06, T-07…T-15, T-20…T-30, T-31…T-35; no hay T-16…T-19), 160 criterios de aceptación más AC-10.5 (alternativo a AC-10.1…10.4). Todo hallazgo tiene al menos una tarea y un criterio verificable; la única tarea sin hallazgo es T-00 (preventiva). Ver §12.3.
+**Cobertura del plan:** 44 hallazgos (H-15 y H-16 comparten fila), 32 tareas (T-00…T-06, T-07…T-15, T-20…T-30, T-31…T-35; no hay T-16…T-19), 161 criterios de aceptación más AC-10.5 (alternativo a AC-10.1…10.4). Todo hallazgo tiene al menos una tarea y un criterio verificable; la única tarea sin hallazgo es T-00 (preventiva). Ver §12.3.
 
 ---
 
@@ -1051,8 +1055,8 @@ Ejecuté estas comprobaciones sobre este mismo archivo el 2026-10-28 (script en 
 
 | Comprobación | Resultado |
 |---|---|
-| Hallazgos definidos en §6 | 43 |
-| Hallazgos presentes en la tabla de trazabilidad §10 | 43 (H-15 y H-16 en una sola fila) |
+| Hallazgos definidos en §6 | 44 |
+| Hallazgos presentes en la tabla de trazabilidad §10 | 44 (H-15 y H-16 en una sola fila) |
 | Hallazgos que no resuelve ninguna tarea | 0 |
 | Referencias a tareas (`T-xx`) sin definición | 0 |
 | Tareas sin criterios de aceptación | 0 |

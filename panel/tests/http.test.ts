@@ -10,8 +10,8 @@ import { AxiosError } from 'axios'
 import { describe, expect, it } from 'vitest'
 
 import type { ApiEnvelope, PaginatedEnvelope } from '../src/types/api'
-import { ErrorApi } from '../src/services/http'
-import { desenvolver, desenvolverPagina, esErrorApi } from '../src/services/http'
+import { ErrorApi, http } from '../src/services/http'
+import { desenvolver, desenvolverPagina, esErrorApi, mensajeDeError } from '../src/services/http'
 
 // ---------------------------------------------------------------------------
 // ErrorApi
@@ -186,5 +186,66 @@ describe('esErrorApi', () => {
     // Crear un AxiosError mockeado que pase la verificación de axios.isAxiosError.
     const mockError = new AxiosError('Request failed', 'ERR_BAD_REQUEST', {}, null)
     expect(esErrorApi(mockError)).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// mensajeDeError (H-14, AC-13.3)
+// ---------------------------------------------------------------------------
+describe('mensajeDeError()', () => {
+  function errorConRespuesta(status: number, data: unknown, headers: Record<string, string> = {}): AxiosError {
+    return new AxiosError('x', 'ERR_BAD_REQUEST', undefined, undefined, {
+      status,
+      statusText: '',
+      data,
+      headers,
+      config: {} as never,
+    })
+  }
+
+  it('usa el mensaje del servidor cuando lo hay', () => {
+    const e = errorConRespuesta(401, { success: false, message: 'Las credenciales no son válidas.' })
+    expect(mensajeDeError(e)).toBe('Las credenciales no son válidas.')
+  })
+
+  it('ante un 429 dice cuándo volver a intentarlo, en segundos', () => {
+    const e = errorConRespuesta(429, { success: false, message: 'Demasiadas solicitudes.' }, { 'retry-after': '42' })
+    expect(mensajeDeError(e)).toBe('Demasiados intentos. Vuelve a intentarlo en 42 s.')
+  })
+
+  it('ante un 429 con espera larga la da en minutos', () => {
+    const e = errorConRespuesta(429, null, { 'retry-after': '90' })
+    expect(mensajeDeError(e)).toBe('Demasiados intentos. Vuelve a intentarlo en 2 min.')
+  })
+
+  it('ante un 429 sin Retry-After no inventa un plazo', () => {
+    const e = errorConRespuesta(429, null)
+    expect(mensajeDeError(e)).toBe('Demasiados intentos. Espera un momento antes de volver a intentarlo.')
+  })
+
+  it('sin respuesta (red caída) devuelve el texto por defecto', () => {
+    expect(mensajeDeError(new AxiosError('Network Error'))).toBe('No se pudo conectar con el servidor.')
+    expect(mensajeDeError(new Error('otra cosa'), 'Falló.')).toBe('Falló.')
+  })
+
+  it('un 429 llega a quien llamó y no cambia la ubicación (el interceptor ya no redirige)', async () => {
+    const adaptadorOriginal = http.defaults.adapter
+    http.defaults.adapter = async (config) => {
+      throw new AxiosError('x', 'ERR_BAD_REQUEST', config, undefined, {
+        status: 429,
+        statusText: '',
+        data: { success: false, message: 'Demasiadas solicitudes.' },
+        headers: { 'retry-after': '30' },
+        config,
+      })
+    }
+    const antes = window.location.href
+
+    try {
+      await expect(http.get('/cualquiera')).rejects.toSatisfy((e: unknown) => mensajeDeError(e).includes('30 s'))
+      expect(window.location.href).toBe(antes)
+    } finally {
+      http.defaults.adapter = adaptadorOriginal
+    }
   })
 })

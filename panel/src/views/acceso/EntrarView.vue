@@ -11,7 +11,7 @@ import { useRouter } from 'vue-router'
 import FormField from '@/components/base/FormField.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import { useSesionStore } from '@/stores/sesion'
-import { esErrorApi } from '@/services/http'
+import { mensajeDeError } from '@/services/http'
 
 const router = useRouter()
 const sesion = useSesionStore()
@@ -32,11 +32,7 @@ async function handleSubmit() {
     await sesion.iniciarSesion({ email: email.value, password: password.value })
     router.push({ name: 'panel.inicio' })
   } catch (e) {
-    if (esErrorApi(e)) {
-      error.value = e.message
-    } else {
-      error.value = 'No se pudo conectar con el servidor.'
-    }
+    error.value = mensajeDeError(e)
   } finally {
     cargando.value = false
   }

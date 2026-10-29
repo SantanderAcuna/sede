@@ -372,15 +372,6 @@ onBeforeUnmount(() => {
   border-radius: 0;
 }
 
-/* Desde 992 px el círculo de accesibilidad flota en la columna del borde derecho y, a
-   media altura de la ventana, pasaba sobre la flecha «siguiente» (medido en todos los
-   anchos). La barra deja libre esa columna a los dos lados, para que quede simétrica. */
-@media (min-width: 992px) {
-  .carrusel-govco .barra-controles-carrusel {
-    padding-inline: calc(var(--acc-flotante-columna) + 0.5rem);
-  }
-}
-
 .barra-controles-carrusel {
   display: flex;
   flex-wrap: wrap;

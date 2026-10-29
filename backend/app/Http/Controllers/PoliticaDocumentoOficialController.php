@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Politica;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\HeaderUtils;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Descarga del documento oficial adjunto a una política (T-20).
@@ -20,12 +21,22 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 final class PoliticaDocumentoOficialController extends Controller
 {
-    public function __invoke(string $slug): StreamedResponse
+    public function __invoke(Request $peticion, string $slug): Response
     {
         $politica = Politica::query()->where('slug', $slug)->firstOrFail();
         $archivo = $politica->documentoOficial();
 
         abort_if($archivo === null, 404);
+
+        // Al subir otro documento cambia el archivo y, con él, el ETag. `private,
+        // no-cache` por lo mismo que en la descarga de la política: Cloudflare
+        // guarda por extensión y el documento no puede quedarse viejo.
+        $etag = sha1($archivo->uuid);
+        $condicional = new Response('', 200, ['Cache-Control' => 'private, no-cache']);
+        $condicional->setEtag($etag);
+        if ($condicional->isNotModified($peticion)) {
+            return $condicional;
+        }
 
         $disco = Storage::disk($archivo->disk);
 
@@ -43,7 +54,7 @@ final class PoliticaDocumentoOficialController extends Controller
         // exige la cabecera no puede llevar `%`, `/` ni `\`.
         $respaldo = str_replace(['%', '/', '\\', '"'], '_', Str::ascii($archivo->original_filename));
 
-        return response()->stream(
+        $respuesta = response()->stream(
             static function () use ($flujo): void {
                 fpassthru($flujo);
                 fclose($flujo);
@@ -53,9 +64,12 @@ final class PoliticaDocumentoOficialController extends Controller
                 'Content-Type' => $archivo->mime_type,
                 'Content-Length' => (string) $archivo->size,
                 'Content-Disposition' => HeaderUtils::makeDisposition($disposicion, $archivo->original_filename, $respaldo),
-                'Cache-Control' => 'public, max-age=300',
+                'Cache-Control' => 'private, no-cache',
                 'X-Content-Type-Options' => 'nosniff',
             ],
         );
+        $respuesta->setEtag($etag);
+
+        return $respuesta;
     }
 }

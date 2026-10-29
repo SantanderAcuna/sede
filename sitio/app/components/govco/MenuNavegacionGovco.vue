@@ -756,9 +756,10 @@ onBeforeUnmount(() => {
         </ul>
 
         <!--
-          Buscador del móvil. En el ejemplo va dentro del menú desplegado y en
-          escritorio en la cabecera; el componente de búsqueda rellena ambos
-          huecos. Si no hay contenido no se dibuja el contenedor, que quedaría
+          Hueco opcional para un buscador dentro del menú desplegado, como en el
+          ejemplo del Kit. La Sede NO lo rellena: el buscador es el de la
+          cabecera (RF-B1-005) y un segundo ejemplar duplicaba la región
+          «search». Si no hay contenido no se dibuja el contenedor, que quedaría
           como una franja blanca vacía con relleno.
         -->
         <div v-if="$slots.buscador" class="container-search-menu">

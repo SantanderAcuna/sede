@@ -1870,13 +1870,21 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
     margin: -0.75rem -0.25rem;
   }
 
-  /* El rótulo del campo («Buscar trámite») no cabía en el hueco que deja el
-     logotipo, y se cortaba a media letra («trámit»). Con menos relleno gana
-     14 px y, si aun así no cabe, termina en puntos suspensivos. */
-  form.govco-search-basic .input-search-basic-govco {
+  /* El rótulo del campo no cabía y se cortaba a media letra. Con menos relleno
+     gana espacio y, si aun así no cabe, termina en puntos suspensivos.
+
+     El selector repite el del Kit (`input[type=text]`, especificidad 0,3,1): con
+     el anterior, más corto, el relleno del Kit (1,25 rem) ganaba siempre y este
+     recorte nunca llegó a aplicarse — se midieron 20 px de relleno izquierdo
+     pese a declarar 14. */
+  .govco-search-basic input[type="text"].input-search-basic-govco {
     padding-right: 0.25rem;
-    padding-left: 0.875rem;
+    padding-left: 0.75rem;
     text-overflow: ellipsis;
+    /* El Kit fija 0,938 rem (15 px). En iOS Safari, un campo con letra menor de
+       16 px hace que la página se amplíe sola al enfocarlo (HECHO conocido del
+       navegador, no medido aquí), y obliga a deshacer el zoom a mano. */
+    font-size: 1rem;
   }
 }
 
@@ -1921,4 +1929,92 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
  */
 main {
   overflow-wrap: break-word;
+}
+
+/*
+ * Buscador de la cabecera en móvil (RF-B1-005: visible en el encabezado de todas
+ * las páginas y con espacio para, al menos, 27 caracteres).
+ *
+ * Medido a 390 px, el campo entre el logotipo y el botón de aplicaciones tenía
+ * ~137 px (≈ 16 caracteres) y a 320 px sólo ~67 px. El propio Kit resuelve este
+ * caso con una segunda fila para el buscador en pantallas estrechas
+ * (`.search-mobile`); aquí se hace lo mismo sin duplicar el componente: la
+ * cabecera pasa a dos filas —logotipo y aplicaciones arriba, buscador abajo a
+ * todo el ancho— con `flex-wrap` y `order`. El Kit fija `height: 60px` y
+ * `padding: 0 20px` en la barra, de ahí que se libere el alto.
+ */
+@media (max-width: 767px) {
+  .cabecera-govco .barra-inferior-govco {
+    height: auto;
+    padding: 0.5rem 1rem;
+  }
+
+  .cabecera-govco .barra-logos-govco {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+
+  .cabecera-govco .barra-logos-govco .hueco-buscador {
+    order: 3;
+    /* La fila se acerca 8 px a cada borde (ancho + 1 rem y margen negativo de
+       0,5 rem): a 320 px el campo vacío pasa de 164 a ~228 px útiles con el
+       relleno recortado, lo que da espacio para 27 caracteres a 16 px sin
+       reducir los 44 px de los botones. */
+    flex: 0 0 calc(100% + 1rem);
+    max-width: none;
+    margin-inline: -0.5rem;
+  }
+
+  /* El botón de borrar sólo es visible con texto, pero ocupaba sus 44 px siempre
+     (`visibility: hidden` reserva el hueco): con el campo vacío, esos 44 px eran
+     el 15 % de una pantalla de 320. Sin texto no se dibuja; `limpiar()` ya
+     devuelve el foco al campo, así que al desaparecer no se pierde el foco. */
+  .govco-search-basic .btn-clean-basic-govco:not(.active) {
+    display: none;
+  }
+}
+
+/*
+ * Imagen del carrusel en un teléfono. Con el alto del Kit (13,5 rem = 216 px) el
+ * texto de la diapositiva quedaba bajo la primera pantalla, y mientras la portada
+ * use el gris de marcador del Kit son 216 px sin información (lo señaló José el
+ * 2026-10-29 sobre una captura). A 8 rem la imagen sigue siendo una franja
+ * reconocible; `object-fit: cover` (del componente) recorta las fotografías
+ * reales, no las deforma. Es un valor de diseño: se sube aquí si la Entidad
+ * prefiere más foto.
+ *
+ * El selector es el mismo del Kit (`min-height: 13.5rem`) y gana por ir después.
+ * Hay que soltar `min-height` además de bajar `height`, o el mínimo del Kit manda.
+ */
+@media (max-width: 575px) {
+  .responsive-carrusel-govco .carousel-inner .carousel-item img {
+    height: 8rem;
+    min-height: 0;
+  }
+}
+
+/*
+ * Carril del botón de accesibilidad en teléfono y tableta pequeña.
+ *
+ * El botón es un círculo **fijo, centrado verticalmente en el borde derecho e
+ * igual en todas las pantallas** (plan del botón, D1, indicación del cliente del
+ * 2026-10-01) y la HU-07-D02 pide que no se solape con el contenido. En un
+ * teléfono el contenido llega hasta 12 px del borde y el círculo ocupa los
+ * últimos 56 px (3 rem + 0,5 rem de margen): al desplazarse, tapaba el final de
+ * las líneas de los párrafos de introducción en la mayoría de las rutas (se
+ * contó con `tests/movil.mjs`). Moverlo contradice el requisito, así que se
+ * reserva su carril: 44 px más de relleno a la derecha (56 − los 12 que ya hay)
+ * en los contenedores del contenido. El fondo no cambia: sólo el texto se aparta.
+ *
+ * El carril se reserva hasta 851 px, no sólo en teléfono: a 768–851 px el
+ * contenedor de Bootstrap (720 px, centrado) deja menos de 62 px de margen y el
+ * círculo —3,25 rem + 0,625 rem de margen— tapaba una línea en 5 rutas (se midió
+ * a 768 y 800 px, el caso de la tableta de la HU-07-D02). Desde 852 px los
+ * márgenes ya lo dejan libre (medido a 900, 991, 1024 y 1280: 0 líneas).
+ */
+@media (max-width: 851px) {
+  main .container,
+  main .container-fluid {
+    padding-right: calc(var(--bs-gutter-x, 1.5rem) * 0.5 + 2.75rem);
+  }
 }

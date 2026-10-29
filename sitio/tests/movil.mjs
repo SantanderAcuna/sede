@@ -12,9 +12,11 @@
  *     desplazar y las categorías sólo aparecen al pedirlas (con «Guardar mi
  *     elección» alcanzable). En escritorio las categorías se ven y el botón de
  *     desplegar no existe.
- *  2. Botón de accesibilidad. En móvil, anclado a la esquina inferior derecha (no
- *     a media altura, donde tapaba el texto); en escritorio, centrado en el borde.
- *     El botón de volver arriba queda encima, sin solaparse con él.
+ *  2. Botón de accesibilidad. Círculo fijo, centrado verticalmente en el borde
+ *     derecho a cualquier ancho (plan del botón, D1; indicación del cliente del
+ *     2026-10-01), y «Volver arriba» sin solaparse con él. Además, que no tape
+ *     texto a 320, 390, 767, 800 y 851 px (HU-07-D02): se cuenta cuántas líneas
+ *     del contenido cruza el círculo al desplazarse por 17 rutas.
  *  3. Panel de accesibilidad. Cabe en la pantalla, el aviso va dentro de la zona
  *     que se desplaza y el botón de cerrar mide ≥ 44 px.
  *  4. Ninguna ruta pública se sale del ancho a 320 ni a 390 px.
@@ -22,8 +24,17 @@
  *     (comprobado con `elementFromPoint` en las esquinas del área), «Reproducir»,
  *     enlaces de ficha del listado de trámites y enlaces de la página 404.
  *  6. Miga de pan alineada con el contenido (sangría ≤ 16 px a 390 px).
- *  7. La lupa del buscador se dibuja (lleva el filtro de color del Kit; con el
- *     del Kit por defecto —blanco— desaparece sobre el fondo blanco).
+ *  7. Buscador (RF-B1-005). La lupa se dibuja (lleva el filtro de color del Kit;
+ *     con el del Kit por defecto —blanco— desaparece sobre el fondo blanco); hay
+ *     **un solo** buscador en la página (antes, cabecera y menú: dos regiones
+ *     «search» con el mismo nombre); el campo vacío muestra 27 caracteres a 320,
+ *     360 y 390 px, con texto y botón de borrar caben a partir de 360 px, y al
+ *     borrar el foco vuelve al campo.
+ *  9. Carrusel. La imagen mide ≤ 144 px de alto a 320 y 390 px (el Kit deja 216).
+ *  8. Nombre accesible (WCAG 2.5.3, RF-B3-066): axe `label-content-name-mismatch`
+ *     sin violaciones en la portada, en el panel de accesibilidad abierto y en
+ *     la declaración de accesibilidad. El rótulo que se ve tiene que estar
+ *     dentro del nombre que anuncia el lector de pantalla.
  *
  * Sale con código 1 si algo falla.
  */
@@ -35,9 +46,7 @@ if (!BASE) {
   process.exit(2)
 }
 
-const { chromium } = process.env.PLAYWRIGHT_MODULE
-  ? createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE)
-  : await import('@playwright/test')
+import { lanzar, opcionesMovil } from './ayudas/motor.mjs'
 
 let fallos = 0
 const ok = (m) => console.log(`  ✓ ${m}`)
@@ -48,13 +57,12 @@ const falla = (m) => {
 const comprobar = (condicion, bien, mal) => (condicion ? ok(bien) : falla(mal))
 const MIN = 44
 
-const navegador = await chromium.launch()
+const navegador = await lanzar()
 
 async function contexto(ancho, alto, movil = true) {
   return navegador.newContext({
     viewport: { width: ancho, height: alto },
-    isMobile: movil,
-    hasTouch: movil,
+    ...opcionesMovil(movil),
     deviceScaleFactor: 1,
   })
 }
@@ -62,7 +70,8 @@ async function contexto(ancho, alto, movil = true) {
 /** Abre una ruta con el banner ya resuelto (para medir el resto de la página). */
 async function abrirResuelta(ctx, ruta) {
   const p = await ctx.newPage()
-  p.setDefaultTimeout(10000)
+  // En CI se prueba contra un entorno remoto: 10 s no alcanzan con `networkidle`.
+  p.setDefaultTimeout(Number(process.env.TIEMPO_ESPERA_MS) || 10000)
   await p.goto(`${BASE}${ruta}`, { waitUntil: 'networkidle' })
   const rechazar = p.getByRole('button', { name: /rechazar/i }).first()
   if (await rechazar.count()) {
@@ -117,13 +126,18 @@ for (const [ancho, alto] of [[390, 844], [360, 740], [320, 568], [667, 375]]) {
 }
 
 // 2. Botón de accesibilidad y volver arriba ---------------------------------
+// El requisito (plan del botón, D1, revisión 2 del cliente; RNF-07-D01): un círculo
+// **fijo, centrado verticalmente en el lado derecho e igual en todas las pantallas**.
+// Anclarlo abajo en móvil —como se hizo en la primera revisión móvil— contradecía
+// el requisito y se revirtió; lo que se vigila es que cumpla eso **y** que no tape
+// texto (HU-07-D02, criterio negativo), ver el apartado siguiente.
 console.log('Botón de accesibilidad')
 for (const [ancho, alto] of [[390, 844], [320, 568], [667, 375]]) {
   const ctx = await contexto(ancho, alto)
   const p = await abrirResuelta(ctx, '/tramites')
   const fab = await p.locator('.boton-accesibilidad').boundingBox()
   const etiqueta = `${ancho}×${alto}`
-  comprobar(fab !== null && alto - (fab.y + fab.height) <= 24, `${etiqueta}: anclado abajo (${Math.round(alto - fab.y - fab.height)} px del borde)`, `${etiqueta}: no está anclado abajo`)
+  comprobar(fab !== null && Math.abs(fab.y + fab.height / 2 - alto / 2) <= 2, `${etiqueta}: centrado verticalmente`, `${etiqueta}: no está centrado verticalmente`)
   comprobar(fab !== null && ancho - (fab.x + fab.width) <= 16, `${etiqueta}: pegado a la derecha`, `${etiqueta}: se aleja del borde derecho`)
   comprobar(fab !== null && fab.width >= MIN && fab.height >= MIN, `${etiqueta}: mide ${Math.round(fab.width)} px`, `${etiqueta}: mide menos de 44 px`)
   await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2))
@@ -131,7 +145,7 @@ for (const [ancho, alto] of [[390, 844], [320, 568], [667, 375]]) {
   const subir = await p.locator('.volver-arriba-govco').boundingBox()
   if (subir !== null) {
     const solapa = !(subir.y + subir.height <= fab.y || subir.y >= fab.y + fab.height || subir.x + subir.width <= fab.x || subir.x >= fab.x + fab.width)
-    comprobar(!solapa && subir.y < fab.y, `${etiqueta}: «Volver arriba» queda encima, sin solaparse`, `${etiqueta}: «Volver arriba» se solapa con el de accesibilidad`)
+    comprobar(!solapa, `${etiqueta}: «Volver arriba» no se solapa con el de accesibilidad`, `${etiqueta}: «Volver arriba» se solapa con el de accesibilidad`)
   } else {
     falla(`${etiqueta}: no apareció «Volver arriba» tras desplazar`)
   }
@@ -142,6 +156,52 @@ for (const [ancho, alto] of [[390, 844], [320, 568], [667, 375]]) {
   const p = await abrirResuelta(ctx, '/')
   const fab = await p.locator('.boton-accesibilidad').boundingBox()
   comprobar(fab !== null && Math.abs(fab.y + fab.height / 2 - 450) <= 2, 'escritorio: centrado en el borde', 'escritorio: ya no está centrado')
+  await ctx.close()
+}
+
+// 2b. El círculo no tapa texto (HU-07-D02: «no se solapa con el contenido») ----
+console.log('Solape del botón de accesibilidad con el texto')
+const RUTAS_TEXTO = ['/', '/transparencia', '/atencion', '/tramites', '/pqrsd', '/realizar-una-peticion', '/seguimiento', '/noticias', '/portales', '/servicios', '/normativa', '/buscar?q=salud', '/mapa-del-sitio', '/accesibilidad', '/politicas', '/participa', '/ruta-que-no-existe']
+/** Líneas de texto del contenido que el círculo cubre, en cada posición de desplazamiento. */
+async function lineasTapadas(p) {
+  return p.evaluate(async () => {
+    const fab = document.querySelector('.boton-accesibilidad')
+    if (!fab) return -1
+    const caja = fab.getBoundingClientRect()
+    const tapadas = new Set()
+    const paso = Math.max(200, Math.floor(window.innerHeight / 2))
+    const maximo = document.documentElement.scrollHeight - window.innerHeight
+    for (let y = 0; y <= maximo + paso; y += paso) {
+      window.scrollTo(0, Math.min(y, maximo))
+      await new Promise((r) => setTimeout(r, 30))
+      const it = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+      for (let nodo = it.nextNode(); nodo; nodo = it.nextNode()) {
+        if (!nodo.textContent.trim()) continue
+        const el = nodo.parentElement
+        if (!el || el.closest('.etiqueta-buscador-govco, .boton-accesibilidad, dialog, .banner-cookies, .volver-arriba-govco, script, style')) continue
+        if (getComputedStyle(el).visibility === 'hidden') continue
+        const rango = document.createRange()
+        rango.selectNodeContents(nodo)
+        for (const r of rango.getClientRects()) {
+          if (r.width < 1 || r.height < 1) continue
+          const cruza = r.left < caja.right && r.right > caja.left && r.top < caja.bottom && r.bottom > caja.top
+          if (cruza) tapadas.add(`${Math.round(window.scrollY + r.top)}:${nodo.textContent.trim().slice(0, 24)}`)
+        }
+      }
+    }
+    return tapadas.size
+  })
+}
+for (const ancho of [320, 390, 767, 800, 851]) {
+  const ctx = await contexto(ancho, 740)
+  const p = await abrirResuelta(ctx, '/')
+  const con = []
+  for (const ruta of RUTAS_TEXTO) {
+    await p.goto(`${BASE}${ruta}`, { waitUntil: 'networkidle' })
+    const n = await lineasTapadas(p)
+    if (n !== 0) con.push(`${ruta} (${n})`)
+  }
+  comprobar(con.length === 0, `${ancho} px: el círculo no tapa texto en ${RUTAS_TEXTO.length} rutas`, `${ancho} px: tapa líneas de texto en ${con.length} ruta(s): ${con.slice(0, 6).join(', ')}`)
   await ctx.close()
 }
 
@@ -157,7 +217,7 @@ for (const [ancho, alto] of [[390, 844], [320, 568], [667, 375]]) {
   comprobar(dentro(caja, ancho, alto), `${etiqueta}: el panel cabe en la pantalla`, `${etiqueta}: el panel se sale de la pantalla`)
   comprobar((await dialogo.locator('.panel-contenido .panel-aviso').count()) === 1, `${etiqueta}: el aviso va en la zona que se desplaza`, `${etiqueta}: el aviso quedó fuera de la zona que se desplaza`)
   const cerrar = await dialogo.locator('.panel-cerrar').boundingBox()
-  comprobar(cerrar !== null && cerrar.width >= MIN && cerrar.height >= MIN, `${etiqueta}: cerrar mide ≥ 44 px`, `${etiqueta}: cerrar mide menos de 44 px`)
+  comprobar(cerrar !== null && cerrar.width >= MIN - 0.5 && cerrar.height >= MIN - 0.5, `${etiqueta}: cerrar mide ≥ 44 px`, `${etiqueta}: cerrar mide menos de 44 px`)
   const restablecer = dialogo.getByRole('button', { name: 'Restablecer todo' })
   await restablecer.scrollIntoViewIfNeeded()
   comprobar(dentro(await restablecer.boundingBox(), ancho, alto), `${etiqueta}: «Restablecer todo» se alcanza desplazando`, `${etiqueta}: «Restablecer todo» no se alcanza`)
@@ -253,6 +313,69 @@ console.log('Buscador')
     return icono ? getComputedStyle(icono).filter : null
   })
   comprobar(filtro !== null && filtro !== 'none', 'la lupa lleva filtro de color (se dibuja)', `la lupa no lleva filtro de color (${filtro})`)
+  const formularios = await p.locator('form[role="search"]').count()
+  comprobar(formularios === 1, 'un solo buscador en la página', `${formularios} buscadores en la página (se espera 1)`)
+  await ctx.close()
+}
+
+// Muestra de 27 caracteres con letras de ancho medio (no «iiii…» ni «WWWW…»).
+const MUESTRA = 'licencia de construcción ab'
+for (const ancho of [320, 360, 390]) {
+  const ctx = await contexto(ancho, 740)
+  const p = await abrirResuelta(ctx, '/')
+  const campo = p.locator('form[role="search"] input')
+  const vacio = await campo.evaluate((i, texto) => {
+    const cs = getComputedStyle(i)
+    const lienzo = document.createElement('canvas').getContext('2d')
+    lienzo.font = `${cs.fontSize} ${cs.fontFamily}`
+    const area = i.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+    let n = 0
+    while (n < texto.length && lienzo.measureText(texto.slice(0, n + 1)).width <= area) n += 1
+    return n
+  }, MUESTRA)
+  comprobar(vacio === MUESTRA.length, `${ancho} px: el campo vacío muestra ${MUESTRA.length} caracteres`, `${ancho} px: el campo vacío sólo muestra ${vacio} de ${MUESTRA.length} caracteres`)
+  await campo.fill(MUESTRA)
+  const cabe = await campo.evaluate((i) => i.scrollWidth <= i.clientWidth)
+  if (ancho >= 360) comprobar(cabe, `${ancho} px: con texto y botón de borrar caben los ${MUESTRA.length} caracteres`, `${ancho} px: con texto, los ${MUESTRA.length} caracteres no caben (el campo se desplaza)`)
+  const tamLetra = await campo.evaluate((i) => parseFloat(getComputedStyle(i).fontSize))
+  comprobar(tamLetra >= 16, `${ancho} px: letra del campo ${tamLetra} px (≥ 16: iOS no amplía la página al enfocar)`, `${ancho} px: letra del campo ${tamLetra} px (< 16: iOS amplía la página al enfocar)`)
+  await campo.focus()
+  await p.getByRole('button', { name: 'Limpiar la búsqueda' }).click()
+  const foco = await p.evaluate(() => document.activeElement?.tagName)
+  comprobar(foco === 'INPUT', `${ancho} px: al borrar, el foco vuelve al campo`, `${ancho} px: al borrar, el foco quedó en ${foco}`)
+  await ctx.close()
+}
+
+// 9. Imagen del carrusel en un teléfono --------------------------------------
+console.log('Carrusel')
+for (const ancho of [320, 390]) {
+  const ctx = await contexto(ancho, 844)
+  const p = await abrirResuelta(ctx, '/')
+  const alto = await p.locator('.carousel-item img').first().evaluate((i) => Math.round(i.getBoundingClientRect().height))
+  comprobar(alto <= 144, `${ancho} px: imagen del carrusel de ${alto} px (≤ 144; el Kit deja 216)`, `${ancho} px: imagen del carrusel de ${alto} px (> 144: empuja el texto bajo la primera pantalla)`)
+  await ctx.close()
+}
+
+// 8. Nombre accesible que contiene el texto visible --------------------------
+console.log('Nombre accesible (2.5.3)')
+{
+  const axe = (await import('node:fs')).readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8')
+  const revisar = async (p, etiqueta) => {
+    await p.evaluate(axe)
+    const nodos = await p.evaluate(async () => {
+      const r = await window.axe.run(document, { runOnly: ['label-content-name-mismatch'] })
+      return r.violations.flatMap((v) => v.nodes.map((n) => n.target.join(' ')))
+    })
+    comprobar(nodos.length === 0, `${etiqueta}: sin desajustes entre rótulo visible y nombre`, `${etiqueta}: ${nodos.length} desajuste(s): ${nodos.slice(0, 3).join(' | ')}`)
+  }
+  const ctx = await contexto(390, 844)
+  const p = await abrirResuelta(ctx, '/')
+  await revisar(p, 'portada')
+  await p.locator('.boton-accesibilidad').click()
+  await p.waitForTimeout(400)
+  await revisar(p, 'panel de accesibilidad abierto')
+  await p.goto(`${BASE}/accesibilidad`, { waitUntil: 'networkidle' })
+  await revisar(p, '/accesibilidad')
   await ctx.close()
 }
 

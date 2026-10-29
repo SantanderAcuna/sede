@@ -33,8 +33,8 @@ return [
     // (`localhost`, `0.0.0.0`) solo en `local` y `testing`.
     'allowed_origins' => OrigenesPermitidos::para(
         (string) env('APP_ENV', 'production'),
-        env('SEDE_ORIGENES_PERMITIDOS'),
-        env('FRONTEND_URL'),
+        (string) env('SEDE_ORIGENES_PERMITIDOS', ''),
+        (string) env('FRONTEND_URL', ''),
     ),
 
     'allowed_headers' => ['*'],

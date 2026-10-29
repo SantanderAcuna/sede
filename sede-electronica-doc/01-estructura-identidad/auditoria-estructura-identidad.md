@@ -937,6 +937,8 @@ No uso «Crítico»: nada de lo que vi se está explotando, y lo que no pude ver
 
 **Resultado de T-02 (2026-10-28, tras aplicar `t02-servidor.sh`):** fila 1 ✅ salvo que la línea usa opciones `no-*` explícitas y **no** `restrict` (AC-02.1 literal pendiente: valorar añadirlo) · fila 2 ✅ (`id -nG deploy` = `deploy sede-ssh`) · fila 3 ✅ (una sola ruta en `sudoers`) · AC-02.7 ✅ (hash instalado = repo) · AC-02.4 ✅ en el primer despliegue; **pendiente un segundo despliegue sin el grupo `docker`** · AC-03.4 ✅ (`authorized_keys` de `root` vaciado, con respaldo) · AC-02.3 ❔ (no ejecutado) · AC-02.6 🟡 (`/opt/sede/desplegar.sh` no existe y ya no está en `sudoers`; falta el `ls -ld` explícito). Reversión disponible: `t02-servidor.sh revertir` (respaldo en `/root/respaldo-t02-*`) y `usermod -aG docker deploy`.
 
+**Cierre de AC-02.1 y AC-02.3 (2026-10-28, modo `restringir`):** AC-02.1 ✅ — la línea de `deploy` es `command="sudo -n /usr/local/bin/desplegar.sh",restrict ssh-ed25519 [clave] despliegue-sede@github-actions` (antes enumeraba `no-*`; respaldo en el servidor). AC-02.3 ✅ — **prueba real por SSH** (`ssh deploy@127.0.0.1 id` con una llave temporal de las mismas opciones, retirada después; `authorized_keys` quedó idéntico): respuesta `Entorno no válido: 'id'`, sin `uid=`. Es una prueba por bucle local con una llave de prueba, no con la llave de CI (que solo existe como secreto de GitHub); las opciones y el comando forzado son los mismos. AC-02.4 se confirma con el despliegue de staging posterior a este cambio (ver abajo).
+
 ### 9.2 GitHub (permisos de administrador)
 
 | # | Qué | Comando o ruta | Esperado | Tarea |

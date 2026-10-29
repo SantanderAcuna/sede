@@ -30,9 +30,20 @@ final class AuthService implements AuthServiceInterface
 {
     /**
      * Hash de relleno para igualar el tiempo de respuesta cuando el correo no existe.
-     * Se calcula una vez por proceso con el mismo coste que el resto de contraseñas.
+     *
+     * Es una constante y NO se calcula al vuelo: la primera versión lo generaba con
+     * `Hash::make()` una vez por proceso, y en staging el correo inexistente salió
+     * unos 200 ms más lento que el existente (AC-13.2). Hipótesis: los procesos de
+     * PHP-FPM se reciclan entre peticiones, el caché estático arranca vacío y cada
+     * petición de correo inexistente pagaba DOS hashes en vez de uno.
+     *
+     * Es un bcrypt de coste 12 de una cadena aleatoria que no se guardó: no protege
+     * nada, solo hace gastar lo mismo que una comprobación real. El coste debe
+     * coincidir con `BCRYPT_ROUNDS` de producción (el valor por defecto de Laravel,
+     * 12; el despliegue no lo cambia). `AuthServiceTest` falla si deja de ser bcrypt
+     * de coste 12.
      */
-    private static ?string $hashDeRelleno = null;
+    public const HASH_DE_RELLENO = '$2y$12$SIp782e1LJ4YF69U5wjMu.1fjFd.ZWxzT9kZoaP7FFZzVIcJt4YkK';
 
     public function __construct(
         private readonly AuthRepositoryInterface $authRepository,
@@ -50,7 +61,7 @@ final class AuthService implements AuthServiceInterface
             // tiempo de respuesta no delate si el correo existe (H-14). Sin esto, un
             // correo inexistente respondía en milisegundos y uno real tardaba lo que
             // cuesta `bcrypt`, y esa diferencia es medible desde fuera.
-            Hash::check($credentials->password, self::hashDeRelleno());
+            Hash::check($credentials->password, self::HASH_DE_RELLENO);
             $this->registrarFallo($credentials->email, null, 'usuario_inexistente');
 
             return [
@@ -137,10 +148,5 @@ final class AuthService implements AuthServiceInterface
     private function registrarFallo(string $email, ?User $user, string $motivo): void
     {
         event(new Failed('web', $user, ['email' => $email, 'motivo' => $motivo]));
-    }
-
-    private static function hashDeRelleno(): string
-    {
-        return self::$hashDeRelleno ??= Hash::make(bin2hex(random_bytes(16)));
     }
 }

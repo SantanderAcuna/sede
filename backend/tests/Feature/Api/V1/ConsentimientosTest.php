@@ -7,6 +7,7 @@ namespace Tests\Feature\Api\V1;
 use App\Models\Consentimiento;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -104,7 +105,7 @@ final class ConsentimientosTest extends TestCase
     /**
      * @param  array<string, mixed>  $cuerpo
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('cuerposInvalidos')]
+    #[DataProvider('cuerposInvalidos')]
     public function test_rechaza_los_cuerpos_invalidos_sin_guardar_nada(array $cuerpo, string $campo): void
     {
         $this->postJson(self::RUTA, $cuerpo)

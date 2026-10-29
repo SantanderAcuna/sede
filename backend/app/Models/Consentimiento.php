@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * Un evento de consentimiento de cookies (T-26, AC-26.4).
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $evento
  * @property list<string> $categorias
  * @property int $version_politica
- * @property \Illuminate\Support\Carbon $registrado_en
+ * @property Carbon $registrado_en
  */
 final class Consentimiento extends Model
 {

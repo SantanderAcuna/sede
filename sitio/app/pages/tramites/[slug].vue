@@ -1621,6 +1621,15 @@ function formatoTipoValor(tipo: string | null | undefined): string {
   border-bottom: 1px dashed #e5e5e5;
 }
 
+/* En pantallas estrechas la etiqueta del tipo ocupaba casi la mitad del ancho y
+   dejaba al texto del requisito en una columna de pocas palabras por línea: se
+   apila encima, con el texto a todo el ancho. */
+@media (max-width: 47.9375rem) {
+  .paso-requisito {
+    grid-template-columns: 1fr;
+  }
+}
+
 .paso-requisito:last-child {
   border-bottom: none;
 }

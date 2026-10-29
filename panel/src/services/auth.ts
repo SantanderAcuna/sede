@@ -59,7 +59,16 @@ export interface RespuestaPerfil {
  * leerá automáticamente el token de la cookie XSRF-TOKEN establecida aquí.
  */
 async function csrf(): Promise<void> {
-  await fetch('/sanctum/csrf-cookie', { credentials: 'include' })
+  const respuesta = await fetch('/sanctum/csrf-cookie', { credentials: 'include' })
+
+  // Sin cookie CSRF el login que sigue falla con un 419 que no dice por qué. Si el
+  // servidor no la entrega (ruta ausente en el proxy, API caída), se corta aquí con
+  // un error que nombra la causa, y no se envía la contraseña a ningún sitio.
+  if (!respuesta.ok) {
+    throw new Error(
+      `No se pudo iniciar la sesión: el servidor no entregó la cookie CSRF (HTTP ${respuesta.status}).`
+    )
+  }
 }
 
 /**

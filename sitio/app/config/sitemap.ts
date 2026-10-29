@@ -183,7 +183,6 @@ const RUTAS_SUELTAS: RutaPublica[] = [
   {
     ruta: '/transparencia',
     etiqueta: 'Transparencia y acceso a la información pública',
-    etiquetaMenu: 'Transparencia',
     publicada: PUBLICADAS.transparencia,
     orden: 1,
     prioridadSitemap: 0.9,
@@ -322,6 +321,17 @@ for (const ruta of [...RUTAS_SUELTAS, ...SECCIONES.flatMap((seccion) => seccion.
   POR_RUTA.set(ruta.ruta, ruta)
 }
 
+/** Rótulos de rutas que no están en el menú pero sí en la miga (el índice de políticas). */
+const RUTAS_FUERA_DEL_MENU: Record<string, string> = { '/politicas': 'Políticas' }
+
+/**
+ * El rótulo de una ruta que el menú no conoce, o `undefined`. Lo usa la miga de
+ * pan para no derivar «Politicas», sin tilde, del segmento de la dirección.
+ */
+export function etiquetaFueraDelMenu(ruta: string): string | undefined {
+  return RUTAS_FUERA_DEL_MENU[ruta]
+}
+
 /** El rótulo corto de una ruta registrada; si no está, la ruta tal cual. */
 export function etiquetaMenuDe(ruta: string): string {
   const registrada = POR_RUTA.get(ruta)
@@ -412,6 +422,17 @@ export function todasLasRutas(): RutaPublica[] {
     }
     rutas.push(...seccion.enlaces)
   }
+
+  // El índice de las políticas: la miga de cada una enlaza a él. No publica
+  // contenido propio mientras las cinco políticas sigan en preparación.
+  rutas.push({
+    ruta: '/politicas',
+    etiqueta: 'Políticas',
+    publicada: false,
+    orden: rutas.length,
+    prioridadSitemap: 0.4,
+    frecuenciaSitemap: 'yearly',
+  })
 
   for (const politica of POLITICAS) {
     rutas.push({

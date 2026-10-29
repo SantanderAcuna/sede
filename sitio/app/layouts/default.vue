@@ -15,7 +15,7 @@
  */
 import type { MenuPrincipal } from '~/types/menu'
 import type { NivelMigaDePan } from '~/components/govco/MigaDePanGovco.vue'
-import { menuPrincipal } from '~/config/sitemap'
+import { etiquetaFueraDelMenu, menuPrincipal } from '~/config/sitemap'
 
 // Componentes globales de la auditoría (D-01, D-02)
 import BannerCookies from '~/components/BannerCookies.vue'
@@ -123,7 +123,9 @@ const migaDePan = computed<NivelMigaDePan[]>(() => {
     // Si el menú no lo conoce —una subcategoría, un detalle— se deriva del
     // segmento, que es lo único que queda sin inventarse un nombre.
     const etiqueta =
-      delMenu || (segmento.charAt(0).toUpperCase() + segmento.slice(1)).replace(/-/g, ' ')
+      delMenu ||
+      etiquetaFueraDelMenu(destino) ||
+      (segmento.charAt(0).toUpperCase() + segmento.slice(1)).replace(/-/g, ' ')
     niveles.push({ etiqueta, ruta: destino })
   })
 

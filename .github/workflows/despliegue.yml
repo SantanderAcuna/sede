@@ -331,6 +331,7 @@ jobs:
       BASE_URL: https://${{ needs.staging.outputs.dominio }}
       NAVEGADOR: ${{ matrix.motor }}
       NUXT_PUBLIC_API_URL: https://${{ needs.staging.outputs.dominio }}/api/v1
+      TIEMPO_ESPERA_MS: '30000'
     steps:
       # El dominio del entorno de pruebas no debe quedar escrito en los registros.
       - name: Enmascarar el dominio
@@ -348,6 +349,15 @@ jobs:
       - name: Instalar
         working-directory: sitio
         run: npm ci --ignore-scripts
+      # Sondeo: distingue «el entorno falla» de «el proxy frena al ejecutor». Solo
+      # imprime estado y cabeceras de diagnóstico; el dominio va enmascarado.
+      - name: Sondear el entorno desde el ejecutor
+        run: |
+          for ruta in / /politicas/uso-de-cookies /api/v1/politicas/uso-de-cookies; do
+            cabeceras=$(curl -s -o /dev/null -D - -w 'tiempo: %{time_total}s\n' --max-time 30 "${BASE_URL}${ruta}" \
+              | tr -d '\r' | grep -iE '^(HTTP/|server:|cf-mitigated:|retry-after:|tiempo:)' | tr '\n' ' ' || true)
+            echo "${ruta} -> ${cabeceras}"
+          done
       - name: Instalar el navegador
         working-directory: sitio
         run: |

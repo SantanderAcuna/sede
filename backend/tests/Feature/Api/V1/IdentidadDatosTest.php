@@ -81,4 +81,26 @@ final class IdentidadDatosTest extends TestCase
         $this->assertStringStartsWith('/', $logo);
         $this->assertFileExists($this->rutaDelSitio('public'.$logo));
     }
+
+    public function test_el_respaldo_de_redes_del_pie_coincide_con_el_seeder(): void
+    {
+        $fuente = file_get_contents($this->rutaDelSitio('app/config/redes-sociales.ts'));
+        $this->assertIsString($fuente);
+
+        // Sólo el bloque del respaldo: el resto del archivo cita URL de ejemplo en pruebas y comentarios.
+        $this->assertSame(1, preg_match('/REDES_RESPALDO[^=]*=\s*redesDesdeApi\(\[(.*?)\]\)/s', $fuente, $bloque));
+        preg_match_all("/red:\s*'([a-z]+)',\s*url:\s*'([^']+)'/", $bloque[1] ?? '', $pares, PREG_SET_ORDER);
+
+        $delSitio = [];
+        foreach ($pares as $par) {
+            $delSitio[$par[1]] = $par[2];
+        }
+
+        $delSeeder = [];
+        foreach ($this->entidad()->redes as $red) {
+            $delSeeder[$red['red']] = $red['url'];
+        }
+
+        $this->assertSame($delSeeder, $delSitio);
+    }
 }

@@ -39,11 +39,14 @@ final class EntidadSeeder extends Seeder
                 // El escudo lo sirve el sitio (`sitio/public/logo-entidad.png`). Antes apuntaba a
                 // `/storage/entidad/escudo.svg`, que daba 404 (H-22, AC-21.3).
                 'logo' => '/logo-entidad.png',
+                // Las cuentas que publica www.santamarta.gov.co en su pie. El pie del sitio
+                // las lee de aquí y `redes-sociales.ts` guarda el mismo juego como respaldo;
+                // `IdentidadDatosTest` falla si divergen.
                 'redes' => [
                     ['red' => 'facebook', 'url' => 'https://www.facebook.com/SantaMartaDTCH'],
-                    ['red' => 'instagram', 'url' => 'https://www.instagram.com/alcaldiadesantamarta'],
-                    ['red' => 'x', 'url' => 'https://twitter.com/alcaldesantamarta'],
-                    ['red' => 'youtube', 'url' => 'https://www.youtube.com/@AlcaldiadeSantaMarta'],
+                    ['red' => 'instagram', 'url' => 'https://www.instagram.com/santamartadtch'],
+                    ['red' => 'x', 'url' => 'https://x.com/SantaMartaDTCH'],
+                    ['red' => 'youtube', 'url' => 'https://www.youtube.com/@Alcald%C3%ADadeSantaMartaDTCH'],
                 ],
                 'politicas' => [
                     // Los slugs y nombres son los de `POLITICAS` en

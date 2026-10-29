@@ -54,6 +54,7 @@
  */
 import { computed } from 'vue'
 
+import { REDES_RESPALDO, type RedSocial } from '~/config/redes-sociales'
 import { POLITICAS } from '~/config/sitemap'
 
 /**
@@ -121,20 +122,6 @@ interface EnlacePie {
   a: string
 }
 
-/**
- * Icono de red social. La lista es cerrada a propósito: son las clases
- * `govco-svg govco-*` que existen de verdad en el bundle. Un nombre fuera de esta
- * unión no compila, en lugar de dibujar un hueco invisible.
- */
-type IconoSocial = 'govco-facebook-f' | 'govco-instagram' | 'govco-twitter'
-
-interface RedSocial {
-  red: string
-  usuario: string
-  url: string
-  icono: IconoSocial
-}
-
 interface Props {
   /** Nombre completo de la entidad titular. */
   nombreEntidad?: string
@@ -144,6 +131,7 @@ interface Props {
   nombreSede?: string
   /** Las sedes. Sólo se publica el contacto de la primera. */
   sedes?: Sede[]
+  /** Las redes; el layout las trae de la API. Si no llegan, se usa el respaldo. */
   redesSociales?: RedSocial[]
   /**
    * «Colombia, potencia de la vida» es la marca país del Gobierno vigente y el
@@ -203,28 +191,7 @@ const props = withDefaults(defineProps<Props>(), {
       ],
     },
   ],
-  redesSociales: () => [
-    {
-      red: 'Facebook',
-      usuario: 'SantaMartaDTCH',
-      url: 'https://www.facebook.com/SantaMartaDTCH',
-      icono: 'govco-facebook-f',
-    },
-    {
-      red: 'Instagram',
-      usuario: 'santamartadtch',
-      url: 'https://www.instagram.com/santamartadtch',
-      icono: 'govco-instagram',
-    },
-    // `govco-twitter` es el icono que trae el ejemplo del Kit; existe también
-    // `govco-twitter-x`, pero se respeta el que el Kit publica.
-    {
-      red: 'X (antes Twitter)',
-      usuario: 'SantaMartaDTCH',
-      url: 'https://x.com/SantaMartaDTCH',
-      icono: 'govco-twitter',
-    },
-  ],
+  redesSociales: () => REDES_RESPALDO,
   mostrarPotenciaDeLaVida: true,
   // Mientras no existan las páginas, todas apuntan al contenido principal: un
   // destino real y anunciado, en lugar de cinco rutas inventadas que devolverían

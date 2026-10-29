@@ -170,3 +170,17 @@
       Con celeste darían 2,58:1 — se midió, y era una regresión real. */
   --pie-enlace-sobre-blanco: var(--color-enlace-sobre-tenido);
 }
+
+:root {
+  /* --- Tarjetas de trámite de la portada ------------------------------------ */
+
+  /** Borde de la tarjeta: el celeste claro del Kit, el mismo de las tarjetas de
+      «Secciones de la Sede», para que las dos filas se lean como una familia. */
+  --tarjeta-tramite-borde: var(--govcolor-tropical-blue, #b5c7e9);
+  /** Filete superior en cobalto, el color de enlace del Kit (8,46:1 sobre blanco). */
+  --tarjeta-tramite-filete: var(--color-enlace);
+  /** Fondo al pasar el cursor: el azul más claro del Kit, sin cambiar el contraste del texto. */
+  --tarjeta-tramite-fondo-hover: var(--govcolor-solitude, #e5ecf8);
+  /** Sombra de la tarjeta al pasar el cursor. */
+  --tarjeta-tramite-sombra: 0 0.25rem 0.75rem rgb(0 0 0 / 12%);
+}

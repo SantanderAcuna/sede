@@ -106,7 +106,7 @@ describe('estado de publicación', () => {
     expect(anunciadasSinPagina).toEqual([])
   })
 
-  it('las cinco políticas no se anuncian como publicadas mientras no tengan documento', () => {
+  it('la lista estática no anuncia las políticas: el sitemap.xml las añade según la API', () => {
     const politicas = todasLasRutas().filter((ruta) => ruta.ruta.startsWith('/politicas/'))
 
     expect(politicas).toHaveLength(5)

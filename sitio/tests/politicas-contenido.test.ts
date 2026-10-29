@@ -1,104 +1,144 @@
 /**
- * Las cinco políticas (T-20, AC-20.2 a AC-20.8).
+ * Las cinco políticas leídas desde la API (T-20, AC-20.2 a AC-20.8).
  *
- * Hoy ninguna tiene documento: Jurídica no lo ha entregado. Esta prueba no
- * inventa texto; fija las reglas que cada documento tendrá que cumplir **cuando
- * llegue**, para que nadie pueda publicar una política a medias, y deja armada la
- * puerta de cierre (G3) que exige las cinco publicadas.
- *
- * La puerta se activa con `EXIGIR_POLITICAS=1` (por ejemplo, en el job de CI del
- * cierre de la fase 2). Sin esa variable, las políticas pendientes no rompen el
- * CI: hacerlo bloquearía todos los PR por algo que TIC no puede entregar sola.
+ * El texto ya no está en el repositorio: vive en base de datos y se edita desde el
+ * panel. Aquí se prueba lo que sí es del sitio: que lee la respuesta con tolerancia
+ * (una API con un campo roto no debe romper una página pública), que sólo enlaza
+ * direcciones propias y que el `sitemap.xml` no anuncia texto de ejemplo (R-03).
+ * Que el texto esté completo lo garantiza el servidor (`PoliticasTest`).
  */
 import { describe, expect, it } from 'vitest'
 
 import {
-  COMPONENTES_MINIMOS,
-  DOCUMENTOS_POLITICAS,
-  type DocumentoPolitica,
-  politicaPublicada,
-  problemasDelDocumento,
+  actoEnUnaLinea,
+  fechaLarga,
+  politicaDesdeApi,
+  slugsAdoptados,
+  tamanoLegible,
 } from '../app/config/politicas-contenido'
-import { POLITICAS, todasLasRutas } from '../app/config/sitemap'
-import { VERSION_POLITICA } from '../app/composables/useConsentimientoCookies'
+import { POLITICAS } from '../app/config/sitemap'
 
-describe('el catálogo de políticas', () => {
-  it('declara contenido y componentes mínimos para las mismas cinco políticas del pie', () => {
-    const slugs = POLITICAS.map((p) => p.slug).sort()
-    expect(Object.keys(DOCUMENTOS_POLITICAS).sort()).toEqual(slugs)
-    expect(Object.keys(COMPONENTES_MINIMOS).sort()).toEqual(slugs)
+const SLUGS = POLITICAS.map((p) => p.slug)
+
+const respuesta = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
+  slug: 'uso-de-cookies',
+  nombre: 'Uso de cookies',
+  version: 2,
+  vigente_desde: '2026-10-01',
+  acto: { tipo: 'Resolución', numero: '123', fecha: '2026-09-20' },
+  es_ejemplo: false,
+  documento_oficial: null,
+  secciones: [{ id: 'finalidad', titulo: 'Finalidad', parrafos: ['Texto.'] }],
+  ...extra,
+})
+
+describe('politicaDesdeApi', () => {
+  it('lee una política completa', () => {
+    const p = politicaDesdeApi(respuesta())
+    expect(p).toMatchObject({ slug: 'uso-de-cookies', version: 2, esEjemplo: false, vigenteDesde: '2026-10-01' })
+    expect(p?.secciones).toEqual([{ id: 'finalidad', titulo: 'Finalidad', parrafos: ['Texto.'] }])
   })
 
-  it('el sitemap anuncia una política sólo si su documento existe (R-03)', () => {
-    for (const politica of POLITICAS) {
-      const ruta = todasLasRutas().find((r) => r.ruta === `/politicas/${politica.slug}`)
-      expect(ruta?.publicada, politica.slug).toBe(politicaPublicada(politica.slug))
+  it('devuelve null si falta lo esencial o la respuesta no es un objeto', () => {
+    expect(politicaDesdeApi(null)).toBeNull()
+    expect(politicaDesdeApi('texto')).toBeNull()
+    expect(politicaDesdeApi(respuesta({ slug: '' }))).toBeNull()
+    expect(politicaDesdeApi(respuesta({ nombre: undefined }))).toBeNull()
+    expect(politicaDesdeApi(respuesta({ version: 0 }))).toBeNull()
+    expect(politicaDesdeApi(respuesta({ version: '2' }))).toBeNull()
+  })
+
+  it('descarta secciones y párrafos rotos sin romperse', () => {
+    const p = politicaDesdeApi(
+      respuesta({
+        secciones: [
+          null,
+          { id: 'a', titulo: '', parrafos: ['x'] },
+          { id: 'b', titulo: 'B', parrafos: ['uno', 7, '  ', 'dos'] },
+          { id: 'c', titulo: 'C' },
+        ],
+      }),
+    )
+    expect(p?.secciones).toEqual([
+      { id: 'b', titulo: 'B', parrafos: ['uno', 'dos'] },
+      { id: 'c', titulo: 'C', parrafos: [] },
+    ])
+  })
+
+  it('ante la duda trata el texto como de ejemplo (avisar de más es el error barato)', () => {
+    expect(politicaDesdeApi(respuesta({ es_ejemplo: undefined }))?.esEjemplo).toBe(true)
+    expect(politicaDesdeApi(respuesta({ es_ejemplo: 'false' }))?.esEjemplo).toBe(true)
+    expect(politicaDesdeApi(respuesta({ es_ejemplo: false }))?.esEjemplo).toBe(false)
+  })
+
+  it('sólo enlaza el documento oficial si apunta a una dirección propia del sitio', () => {
+    const bueno = politicaDesdeApi(
+      respuesta({
+        documento_oficial: { nombre: 'acto.pdf', tipo: 'application/pdf', tamano: 2048, url: '/politicas/uso-de-cookies/documento' },
+      }),
+    )
+    expect(bueno?.documentoOficial).toEqual({
+      nombre: 'acto.pdf',
+      tipo: 'application/pdf',
+      tamano: 2048,
+      url: '/politicas/uso-de-cookies/documento',
+    })
+
+    for (const url of ['https://malo.example/x', '//malo.example/x', 'javascript:alert(1)', '/politicas/../x/documento', '/otra/cosa']) {
+      expect(politicaDesdeApi(respuesta({ documento_oficial: { nombre: 'x', tipo: 'x', tamano: 1, url } }))?.documentoOficial, url).toBeNull()
     }
   })
-})
 
-describe('un documento publicado cumple lo que la norma exige', () => {
-  it('los documentos reales (hoy ninguno) no tienen problemas', () => {
-    for (const [slug, documento] of Object.entries(DOCUMENTOS_POLITICAS)) {
-      if (documento === null) continue
-      expect(problemasDelDocumento(slug, documento), slug).toEqual([])
-    }
-  })
-
-  it('la política de cookies usa la misma versión que el consentimiento (AC-20.8)', () => {
-    const cookies = DOCUMENTOS_POLITICAS['uso-de-cookies']
-    if (cookies === null) return // todavía sin documento
-    expect(cookies?.version).toBe(VERSION_POLITICA)
+  it('un acto con partes nulas no rompe', () => {
+    const p = politicaDesdeApi(respuesta({ acto: { tipo: null, numero: null, fecha: null }, vigente_desde: null }))
+    expect(p?.acto).toEqual({ tipo: null, numero: null, fecha: null })
+    expect(p?.vigenteDesde).toBeNull()
   })
 })
 
-describe('la comprobación detecta lo que dice detectar (con documentos de ejemplo)', () => {
-  const SLUG = 'derechos-de-autor-y-uso-sobre-contenidos'
-  const completo = (): DocumentoPolitica => ({
-    version: 1,
-    vigenteDesde: '2026-01-15',
-    acto: { tipo: 'Resolución', numero: '000', fecha: '2026-01-10' },
-    secciones: (COMPONENTES_MINIMOS[SLUG] ?? []).map((c) => ({ id: c.id, titulo: c.rotulo, parrafos: ['Texto de ejemplo.'] })),
+describe('presentación', () => {
+  it('escribe el acto en una línea', () => {
+    expect(actoEnUnaLinea({ tipo: 'Resolución', numero: '123', fecha: '2026-01-10' })).toBe('Resolución 123 del 10 de enero de 2026')
+    expect(actoEnUnaLinea({ tipo: 'Decreto', numero: null, fecha: null })).toBe('Decreto')
+    expect(actoEnUnaLinea({ tipo: null, numero: null, fecha: '2026-01-10' })).toBeNull()
   })
 
-  it('un documento completo no tiene problemas', () => {
-    expect(problemasDelDocumento(SLUG, completo())).toEqual([])
+  it('la fecha larga no se corre un día por la zona horaria', () => {
+    expect(fechaLarga('2026-01-01')).toBe('1 de enero de 2026')
+    expect(fechaLarga('no-es-fecha')).toBe('no-es-fecha')
   })
 
-  it('detecta un componente que falta', () => {
-    const doc = completo()
-    doc.secciones.pop()
-    expect(problemasDelDocumento(SLUG, doc)).toEqual([expect.stringContaining('falta')])
-  })
-
-  it('detecta un componente vacío', () => {
-    const doc = completo()
-    doc.secciones[0]!.parrafos = ['  ']
-    expect(problemasDelDocumento(SLUG, doc)).toEqual([expect.stringContaining('vacío')])
-  })
-
-  it('detecta un acto administrativo sin número ni fecha', () => {
-    const doc = completo()
-    doc.acto = { tipo: 'Resolución', numero: '', fecha: '' }
-    expect(problemasDelDocumento(SLUG, doc)).toHaveLength(2)
-  })
-
-  it('detecta una vigencia mal escrita y una versión inválida', () => {
-    const doc = completo()
-    doc.vigenteDesde = '15/01/2026'
-    doc.version = 0
-    expect(problemasDelDocumento(SLUG, doc)).toHaveLength(2)
-  })
-
-  it('detecta «en preparación» dentro del texto (AC-20.7)', () => {
-    const doc = completo()
-    doc.secciones[1]!.parrafos = ['Este apartado está En Preparación.']
-    expect(problemasDelDocumento(SLUG, doc)).toEqual(['contiene «en preparación»'])
+  it('el tamaño se lee bien', () => {
+    expect(tamanoLegible(500)).toBe('500 B')
+    expect(tamanoLegible(2048)).toBe('2 KB')
+    expect(tamanoLegible(3 * 1024 * 1024)).toBe('3 MB')
   })
 })
 
-describe.skipIf(!process.env.EXIGIR_POLITICAS)('puerta G3: las cinco políticas están publicadas (AC-20.1)', () => {
-  it.each(Object.keys(DOCUMENTOS_POLITICAS))('%s tiene su documento', (slug) => {
-    expect(DOCUMENTOS_POLITICAS[slug], `«${slug}» sigue sin documento adoptado`).not.toBeNull()
+describe('slugsAdoptados (lo que anuncia el sitemap.xml)', () => {
+  const lista = (...elementos: Record<string, unknown>[]) => ({ data: elementos })
+
+  it('anuncia sólo las que dejaron de ser de ejemplo', () => {
+    expect(
+      slugsAdoptados(
+        lista(
+          { slug: 'uso-de-cookies', es_ejemplo: false },
+          { slug: 'seguridad-y-privacidad', es_ejemplo: true },
+        ),
+        SLUGS,
+      ),
+    ).toEqual(['uso-de-cookies'])
+  })
+
+  it('no anuncia nada ante una respuesta rara, vacía o sin el campo', () => {
+    expect(slugsAdoptados(null, SLUGS)).toEqual([])
+    expect(slugsAdoptados({}, SLUGS)).toEqual([])
+    expect(slugsAdoptados({ data: 'x' }, SLUGS)).toEqual([])
+    expect(slugsAdoptados(lista({ slug: 'uso-de-cookies' }), SLUGS)).toEqual([])
+    expect(slugsAdoptados(lista({ slug: 'uso-de-cookies', es_ejemplo: 'false' }), SLUGS)).toEqual([])
+  })
+
+  it('ignora lo que no está en el catálogo cerrado', () => {
+    expect(slugsAdoptados(lista({ slug: 'inventada', es_ejemplo: false }), SLUGS)).toEqual([])
   })
 })

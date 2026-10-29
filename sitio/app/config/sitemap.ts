@@ -22,7 +22,6 @@
  * en la barra de navegación. Cuando no hay rótulo corto se usa el completo.
  */
 
-import { politicaPublicada } from './politicas-contenido'
 
 /** Una ruta individual pública. */
 export interface RutaPublica {
@@ -300,8 +299,10 @@ const RUTAS_SUELTAS: RutaPublica[] = [
  * *dice* sigue viviendo en su página; lo que no puede vivir en tres sitios es su
  * nombre y su dirección (D-31).
  *
- * Ninguna publica todavía su documento: el pie lo advierte y aquí se declaran
- * como no publicadas, que es lo que impide anunciarlas al buscador.
+ * Su texto vive en la API y hoy es de ejemplo, pendiente de aprobación. Por eso
+ * aquí no se declaran publicadas: `server/routes/sitemap.xml.ts` añade cada una
+ * al mapa del sitio sólo cuando la API dice que ya no es de ejemplo
+ * (`slugsAdoptados`), no antes.
  */
 export const POLITICAS: { slug: string; etiqueta: string }[] = [
   { slug: 'terminos-y-condiciones-de-uso', etiqueta: 'Términos y condiciones de uso' },
@@ -440,9 +441,10 @@ export function todasLasRutas(): RutaPublica[] {
     rutas.push({
       ruta: `/politicas/${politica.slug}`,
       etiqueta: politica.etiqueta,
-      // Se deriva de que exista el documento adoptado (`politicas-contenido.ts`):
-      // mientras sea `null` el buscador no las recibe como publicadas (D-10, R-03).
-      publicada: politicaPublicada(politica.slug),
+      // Estática y `false`: que una política esté adoptada lo sabe la API, no este
+      // archivo. El `sitemap.xml` la añade cuando deja de ser texto de ejemplo
+      // (D-10, R-03).
+      publicada: false,
       orden: rutas.length,
       prioridadSitemap: 0.4,
       frecuenciaSitemap: 'yearly',

@@ -30,7 +30,7 @@ final class SubirArchivoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'archivo' => ['required', 'file', 'max:20480', 'mimes:pdf,png,jpg,jpeg,gif,webp,doc,docx,xls,xlsx,ppt,pptx,zip,rar'],
+            'archivo' => ['required', 'file', 'max:20480', 'mimes:pdf,png,jpg,jpeg,gif,webp,doc,docx,odt,xls,xlsx,ppt,pptx,zip,rar'],
             'collection' => ['required', 'string', 'max:64'],
             'metadata' => ['sometimes', 'array'],
         ];
@@ -44,7 +44,7 @@ final class SubirArchivoRequest extends FormRequest
         return [
             'archivo.max' => 'El archivo supera el tamaño máximo permitido (20 MB).',
             'archivo.uploaded' => 'El archivo no se pudo subir: supera el tamaño máximo permitido (20 MB).',
-            'archivo.mimes' => 'Tipo de archivo no permitido. Se aceptan PDF, imágenes (PNG, JPG, GIF, WebP), documentos de Office, ZIP y RAR.',
+            'archivo.mimes' => 'Tipo de archivo no permitido. Se aceptan PDF, imágenes (PNG, JPG, GIF, WebP), documentos de Office y OpenDocument (ODT), ZIP y RAR.',
         ];
     }
 }

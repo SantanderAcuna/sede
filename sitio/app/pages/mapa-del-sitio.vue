@@ -64,10 +64,10 @@ const grupos = computed<Grupo[]>(() => {
 
   /*
    * Grupo de políticas. Se toman de la misma lista que el resto del sitio —y no
-   * de una copia local con su estado inventado—: las cinco existen pero ninguna
-   * publica todavía su documento, así que se muestran como «en preparación», que
-   * es la verdad. Antes se marcaban aquí como publicadas mientras el pie
-   * advertía lo contrario (R-03).
+   * de una copia local con su estado inventado—. Las cinco páginas publican su
+   * texto (hoy de ejemplo, y ellas mismas lo avisan), así que aquí no son «en
+   * preparación». Eso es distinto de anunciarlas al buscador: el `sitemap.xml`
+   * las añade sólo cuando la API dice que su texto ya está adoptado (R-03).
    */
   resultado.push({
     titulo: 'Políticas del sitio',
@@ -76,7 +76,7 @@ const grupos = computed<Grupo[]>(() => {
       .map((ruta) => ({
         texto: ruta.etiqueta,
         ruta: ruta.ruta,
-        publicada: ruta.publicada,
+        publicada: true,
       })),
   })
 

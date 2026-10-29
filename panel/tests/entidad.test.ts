@@ -5,7 +5,7 @@
  * Sección 2 — Lógica de la vista: tabs, redes sociales, políticas, hayCambios.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { reactive, ref } from 'vue'
+import { ref } from 'vue'
 
 // =============================================================================
 // SECCIÓN 1 — Servicio entidad.ts

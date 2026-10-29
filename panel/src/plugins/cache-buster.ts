@@ -72,7 +72,7 @@ export async function checkVersion(): Promise<void> {
     // `location.reload(true)` es deprecated pero sigue bypasseando cache
     // en todos los navegadores modernos; con headers no-cache en el HTML
     // actual, es suficiente.
-    console.info(
+    console.warn(
       `[cache-buster] Versión cambió: ${clientVersion} → ${serverVersion}`,
     )
     localStorage.setItem(VERSION_KEY, serverVersion)

@@ -6,6 +6,7 @@ namespace App\Listeners;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ use Spatie\Permission\Events\RoleAttachedEvent;
 use Spatie\Permission\Events\RoleDetachedEvent;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Throwable;
 
 /**
  * Listener que registra en audit_log los eventos de Spatie Permission y Auth.
@@ -23,13 +25,22 @@ use Spatie\Permission\Models\Role;
  * Espía:
  * - Spatie: RoleAttachedEvent, RoleDetachedEvent,
  *           PermissionAttachedEvent, PermissionDetachedEvent
- * - Auth:   Login, Logout
+ * - Auth:   Login, Logout, Failed (intento de acceso fallido)
  */
 final class PermissionAuditListener
 {
-    public function __construct(
-        private readonly Request $request,
-    ) {}
+    /**
+     * La petición en curso, resuelta en el momento de registrar.
+     *
+     * No se inyecta por constructor: el suscriptor se crea al arrancar la
+     * aplicación y conservaría la petición de ese instante, no la que dispara el
+     * evento. En FPM coinciden, pero en un worker de larga vida (Octane, colas) o
+     * en las pruebas la IP y el agente registrados serían los de otra petición.
+     */
+    private function peticion(): Request
+    {
+        return request();
+    }
 
     /**
      * Registrar el listener en el event dispatcher.
@@ -44,6 +55,7 @@ final class PermissionAuditListener
             PermissionAttachedEvent::class => 'onPermissionAttached',
             PermissionDetachedEvent::class => 'onPermissionDetached',
             Login::class => 'onLogin',
+            Failed::class => 'onLoginFailed',
             Logout::class => 'onLogout',
         ];
     }
@@ -149,6 +161,36 @@ final class PermissionAuditListener
     }
 
     /**
+     * Intento de acceso fallido (H-14, AC-13.1).
+     *
+     * Registra la IP, el agente y el correo que se intentó, y el motivo en una
+     * clave de máquina. NUNCA se guarda la contraseña: `Failed` trae las
+     * credenciales completas y aquí se descartan todas salvo el correo y el motivo.
+     */
+    public function onLoginFailed(Failed $event): void
+    {
+        $email = $event->credentials['email'] ?? null;
+        $motivo = $event->credentials['motivo'] ?? null;
+
+        // Un fallo al escribir la auditoría no debe cambiar la respuesta del login:
+        // el intento ya fue rechazado, y convertir ese 401 en un 500 solo le diría a
+        // quien ataca que la base de datos tiene un problema. Se reporta al log.
+        try {
+            $this->registrar([
+                'accion' => 'login_failed',
+                'recurso' => 'session',
+                'cambios' => [
+                    'email' => is_string($email) ? mb_substr($email, 0, 254) : null,
+                    'motivo' => is_string($motivo) ? $motivo : null,
+                ],
+                'causer_id' => $event->user?->getAuthIdentifier(),
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
      * Cierre de sesión.
      */
     public function onLogout(Logout $event): void
@@ -172,9 +214,9 @@ final class PermissionAuditListener
             'recurso' => $datos['recurso'],
             'recurso_id' => null,
             'cambios' => $datos['cambios'] ?? null,
-            'ip_origen' => $this->request->ip(),
-            'user_agent' => $this->request->userAgent(),
-            'causer_id' => $datos['causer_id'] ?? $this->request->user()?->getAuthIdentifier(),
+            'ip_origen' => $this->peticion()->ip(),
+            'user_agent' => $this->peticion()->userAgent(),
+            'causer_id' => $datos['causer_id'] ?? $this->peticion()->user()?->getAuthIdentifier(),
             'causer_type' => null,
         ]);
     }

@@ -464,7 +464,7 @@ const migas = computed(() => {
           Menú de usuario. Muestra avatar con iniciales y un desplegable con
           opciones de perfil y cierre de sesión.
         -->
-        <div class="relative" v-if="sesion.iniciada">
+        <div v-if="sesion.iniciada" class="relative">
           <button
             type="button"
             class="flex items-center gap-2 pl-3 border-l border-slate-200 hover:bg-slate-50 rounded-lg py-1.5 px-1 transition-colors"

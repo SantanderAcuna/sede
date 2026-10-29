@@ -17,13 +17,27 @@ use Illuminate\Support\Str;
  *
  * Implementa el patrón polimórfico: un archivo puede asociarse a cualquier modelo
  * sin necesidad de tables intermedias. El archivo físico se almacena en el disco
- * configurado (por defecto `public`) y los metadatos + la referencia viven en
- * `file_media`.
+ * por defecto de la configuración (`FILESYSTEM_DISK`) y los metadatos + la
+ * referencia viven en `file_media`; cada fila recuerda en qué disco quedó, así
+ * que cambiar de disco no deja huérfanos los archivos anteriores.
  *
  * R-52: FilesMedia polymorphic.
  */
 final class FilesMediaService implements FilesMediaServiceInterface
 {
+    /**
+     * Extensiones que se aceptan al guardar. Debe coincidir con `mimes:` de
+     * `SubirArchivoRequest`; lo que no esté aquí se guarda como `.bin`.
+     *
+     * SVG no está: es XML con scripts posibles y, servido desde el mismo origen,
+     * ejecuta código en la sesión de quien lo abre (H-13).
+     */
+    private const EXTENSIONES = [
+        'pdf', 'png', 'jpg', 'gif', 'webp',
+        'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+        'zip', 'rar',
+    ];
+
     /**
      * {@inheritDoc}
      */
@@ -37,8 +51,12 @@ final class FilesMediaService implements FilesMediaServiceInterface
 
         $path = $this->buildPath($model, $collection, $filename);
 
-        // Guardar el archivo físico en el disco configurado
-        Storage::disk('public')->put($path, $file->getContent());
+        // El disco configurado, no uno fijo: antes era siempre `public` aunque
+        // `FILESYSTEM_DISK` dijera otra cosa, y los archivos quedaban donde nadie
+        // los servía (H-13).
+        $disco = (string) config('filesystems.default');
+
+        Storage::disk($disco)->put($path, $file->getContent());
 
         return FileMedia::create([
             'model_type' => $model::class,
@@ -49,7 +67,7 @@ final class FilesMediaService implements FilesMediaServiceInterface
             'original_filename' => $file->getClientOriginalName(),
             'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
             'size' => (int) $file->getSize(),
-            'disk' => 'public',
+            'disk' => $disco,
             'path' => $path,
             'metadata' => $metadata,
         ]);
@@ -113,13 +131,26 @@ final class FilesMediaService implements FilesMediaServiceInterface
     }
 
     /**
-     * Genera un nombre de archivo único preservando la extensión.
+     * Genera un nombre de archivo único.
+     *
+     * La extensión sale del CONTENIDO (`guessExtension()` mira los bytes), no del
+     * nombre que manda el cliente: con `getClientOriginalExtension()` un PNG
+     * válido llamado `x.php` se guardaba como `x.php`. Si el contenido no es de
+     * un tipo permitido, queda `.bin`, que ningún servidor ejecuta ni interpreta.
      */
     private function generateFilename(UploadedFile $file): string
     {
-        $extension = $file->getClientOriginalExtension();
+        $extension = strtolower((string) $file->guessExtension());
 
-        return Str::uuid()->toString().($extension !== '' ? '.'.$extension : '');
+        if ($extension === 'jpeg') {
+            $extension = 'jpg';
+        }
+
+        if (! in_array($extension, self::EXTENSIONES, true)) {
+            $extension = 'bin';
+        }
+
+        return Str::uuid()->toString().'.'.$extension;
     }
 
     /**

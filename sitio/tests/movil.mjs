@@ -22,8 +22,16 @@
  *     (comprobado con `elementFromPoint` en las esquinas del área), «Reproducir»,
  *     enlaces de ficha del listado de trámites y enlaces de la página 404.
  *  6. Miga de pan alineada con el contenido (sangría ≤ 16 px a 390 px).
- *  7. La lupa del buscador se dibuja (lleva el filtro de color del Kit; con el
- *     del Kit por defecto —blanco— desaparece sobre el fondo blanco).
+ *  7. Buscador (RF-B1-005). La lupa se dibuja (lleva el filtro de color del Kit;
+ *     con el del Kit por defecto —blanco— desaparece sobre el fondo blanco); hay
+ *     **un solo** buscador en la página (antes, cabecera y menú: dos regiones
+ *     «search» con el mismo nombre); el campo vacío muestra 27 caracteres a 320,
+ *     360 y 390 px, con texto y botón de borrar caben a partir de 360 px, y al
+ *     borrar el foco vuelve al campo.
+ *  8. Nombre accesible (WCAG 2.5.3, RF-B3-066): axe `label-content-name-mismatch`
+ *     sin violaciones en la portada, en el panel de accesibilidad abierto y en
+ *     la declaración de accesibilidad. El rótulo que se ve tiene que estar
+ *     dentro del nombre que anuncia el lector de pantalla.
  *
  * Sale con código 1 si algo falla.
  */
@@ -253,6 +261,59 @@ console.log('Buscador')
     return icono ? getComputedStyle(icono).filter : null
   })
   comprobar(filtro !== null && filtro !== 'none', 'la lupa lleva filtro de color (se dibuja)', `la lupa no lleva filtro de color (${filtro})`)
+  const formularios = await p.locator('form[role="search"]').count()
+  comprobar(formularios === 1, 'un solo buscador en la página', `${formularios} buscadores en la página (se espera 1)`)
+  await ctx.close()
+}
+
+// Muestra de 27 caracteres con letras de ancho medio (no «iiii…» ni «WWWW…»).
+const MUESTRA = 'licencia de construcción ab'
+for (const ancho of [320, 360, 390]) {
+  const ctx = await contexto(ancho, 740)
+  const p = await abrirResuelta(ctx, '/')
+  const campo = p.locator('form[role="search"] input')
+  const vacio = await campo.evaluate((i, texto) => {
+    const cs = getComputedStyle(i)
+    const lienzo = document.createElement('canvas').getContext('2d')
+    lienzo.font = `${cs.fontSize} ${cs.fontFamily}`
+    const area = i.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+    let n = 0
+    while (n < texto.length && lienzo.measureText(texto.slice(0, n + 1)).width <= area) n += 1
+    return n
+  }, MUESTRA)
+  comprobar(vacio === MUESTRA.length, `${ancho} px: el campo vacío muestra ${MUESTRA.length} caracteres`, `${ancho} px: el campo vacío sólo muestra ${vacio} de ${MUESTRA.length} caracteres`)
+  await campo.fill(MUESTRA)
+  const cabe = await campo.evaluate((i) => i.scrollWidth <= i.clientWidth)
+  if (ancho >= 360) comprobar(cabe, `${ancho} px: con texto y botón de borrar caben los ${MUESTRA.length} caracteres`, `${ancho} px: con texto, los ${MUESTRA.length} caracteres no caben (el campo se desplaza)`)
+  const tamLetra = await campo.evaluate((i) => parseFloat(getComputedStyle(i).fontSize))
+  comprobar(tamLetra >= 16, `${ancho} px: letra del campo ${tamLetra} px (≥ 16: iOS no amplía la página al enfocar)`, `${ancho} px: letra del campo ${tamLetra} px (< 16: iOS amplía la página al enfocar)`)
+  await campo.focus()
+  await p.getByRole('button', { name: 'Limpiar la búsqueda' }).click()
+  const foco = await p.evaluate(() => document.activeElement?.tagName)
+  comprobar(foco === 'INPUT', `${ancho} px: al borrar, el foco vuelve al campo`, `${ancho} px: al borrar, el foco quedó en ${foco}`)
+  await ctx.close()
+}
+
+// 8. Nombre accesible que contiene el texto visible --------------------------
+console.log('Nombre accesible (2.5.3)')
+{
+  const axe = (await import('node:fs')).readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8')
+  const revisar = async (p, etiqueta) => {
+    await p.evaluate(axe)
+    const nodos = await p.evaluate(async () => {
+      const r = await window.axe.run(document, { runOnly: ['label-content-name-mismatch'] })
+      return r.violations.flatMap((v) => v.nodes.map((n) => n.target.join(' ')))
+    })
+    comprobar(nodos.length === 0, `${etiqueta}: sin desajustes entre rótulo visible y nombre`, `${etiqueta}: ${nodos.length} desajuste(s): ${nodos.slice(0, 3).join(' | ')}`)
+  }
+  const ctx = await contexto(390, 844)
+  const p = await abrirResuelta(ctx, '/')
+  await revisar(p, 'portada')
+  await p.locator('.boton-accesibilidad').click()
+  await p.waitForTimeout(400)
+  await revisar(p, 'panel de accesibilidad abierto')
+  await p.goto(`${BASE}/accesibilidad`, { waitUntil: 'networkidle' })
+  await revisar(p, '/accesibilidad')
   await ctx.close()
 }
 

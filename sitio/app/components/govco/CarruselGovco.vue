@@ -300,7 +300,7 @@ onBeforeUnmount(() => {
           type="button"
           class="active"
           :class="reproduciendo ? 'pause' : 'start'"
-          :aria-label="reproduciendo ? 'Pausar la reproducción automática' : 'Reanudar la reproducción automática'"
+          :aria-label="reproduciendo ? 'Pausar las diapositivas automáticas' : 'Reproducir las diapositivas automáticamente'"
           @click="alternarReproduccion"
         >
           <span>{{ reproduciendo ? 'Pausar' : 'Reproducir' }}</span>

@@ -33,14 +33,38 @@ export type CategoriaCookies = 'analitica' | 'preferencias'
 const CLAVE = 'sede-consentimiento'
 
 /**
- * Versión de la política de cookies.
+ * Versión de respaldo de la política de cookies.
  *
- * **Hay que subirla cada vez que cambie el texto de la política o el conjunto de
- * categorías**: al subirla, los consentimientos anteriores se consideran
- * caducados y el banner se vuelve a pedir. Es la mitad del requisito de
- * versionado; la otra mitad es la fecha que se guarda con cada aceptación.
+ * **La versión vigente la fija la política de cookies que se edita en el panel**
+ * (`GET /politicas/uso-de-cookies`, campo `version`; la lee
+ * `plugins/version-cookies.client.ts`). Cuando cambia el texto de esa política su
+ * versión sube sola, los consentimientos anteriores se consideran caducados y el
+ * banner se vuelve a pedir (AC-20.8). Esta constante es lo que rige mientras no se
+ * haya leído la versión —en las pruebas, o si la API no respondió a tiempo en el
+ * primer arranque— y debe coincidir con la versión con que se siembra la política.
  */
 export const VERSION_POLITICA = 1
+
+/**
+ * La versión de la política que rige ahora: un número, o `null` si la API no
+ * respondió. Con `null` no se descarta un consentimiento por su versión —una caída
+ * de la API no debe volver a preguntarle a toda la ciudadanía—, y una decisión nueva
+ * conserva la versión del consentimiento anterior, si lo había.
+ */
+let versionVigente: number | null = VERSION_POLITICA
+
+/**
+ * Fija la versión de la política de cookies que rige (la que dice la API). Un valor
+ * que no sea un entero desde 1 se toma como «no se pudo leer».
+ */
+export function configurarVersionPolitica(version: unknown): void {
+  versionVigente = typeof version === 'number' && Number.isInteger(version) && version >= 1 ? version : null
+}
+
+/** La versión que se anota en una decisión nueva. */
+function versionParaRegistrar(previo: Consentimiento | null): number {
+  return versionVigente ?? previo?.version ?? VERSION_POLITICA
+}
 
 /** Caducidad del consentimiento, en días (doce meses, RN-01-D01). */
 const DIAS_CADUCIDAD = 365
@@ -182,7 +206,7 @@ function guardar(consentimiento: Consentimiento): void {
  */
 export function consentimientoVigente(consentimiento: Consentimiento | null): boolean {
   if (!consentimiento) return false
-  if (consentimiento.version !== VERSION_POLITICA) return false
+  if (versionVigente !== null && consentimiento.version !== versionVigente) return false
 
   const dias = (Date.now() - new Date(consentimiento.fecha).getTime()) / 86_400_000
   return Number.isFinite(dias) && dias <= DIAS_CADUCIDAD
@@ -213,8 +237,9 @@ function decidir(aceptadas: CategoriaCookies[], evento?: EventoConsentimiento): 
   const resuelto: EventoConsentimiento =
     evento ?? (retiraAlgo ? 'revocado' : aceptadas.length > 0 ? 'aceptado' : 'rechazado')
 
-  guardar({ fecha: new Date().toISOString(), version: VERSION_POLITICA, aceptadas })
-  registrar(resuelto, aceptadas, VERSION_POLITICA)
+  const version = versionParaRegistrar(previo)
+  guardar({ fecha: new Date().toISOString(), version, aceptadas })
+  registrar(resuelto, aceptadas, version)
   preferencias.value = {
     analitica: aceptadas.includes('analitica'),
     preferencias: aceptadas.includes('preferencias'),

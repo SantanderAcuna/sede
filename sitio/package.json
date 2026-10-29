@@ -18,6 +18,7 @@
     "test:diseno": "node tests/diseno.mjs",
     "test:vinculos": "node tests/vinculos.mjs",
     "test:cookies": "node tests/cookies.mjs",
+    "test:politicas": "node tests/politicas.mjs",
     "test:braces": "node ../scripts/audit-deps.sh",
     "test:node-forge": "node ../scripts/validate-node-forge.mjs"
   },

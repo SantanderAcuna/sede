@@ -284,6 +284,7 @@ final class PoliticasTest extends TestCase
         $contenido = (string) $respuesta->getContent();
         $this->assertStringStartsWith('%PDF-', $contenido);
         $this->assertStringContainsString('pdfaid:part', $contenido, 'Debe declarar su conformidad PDF/A en los metadatos XMP.');
+        $this->assertStringContainsString('<pdfaid:part>2</pdfaid:part>', $contenido, 'PDF/A-2: el 1b no valida con veraPDF.');
         $this->assertStringContainsString('<pdfaid:conformance>B</pdfaid:conformance>', $contenido);
     }
 
@@ -491,5 +492,57 @@ final class PoliticasTest extends TestCase
                 'collection' => Politica::COLECCION_DOCUMENTO,
             ])
             ->assertOk();
+    }
+
+    // ------------------------------------------------------------------- Caché
+
+    public function test_las_descargas_no_se_guardan_en_cache_compartida_y_llevan_etag(): void
+    {
+        foreach (['odt', 'pdf'] as $formato) {
+            $respuesta = $this->get("/politicas/uso-de-cookies.{$formato}")->assertOk();
+
+            $cabecera = (string) $respuesta->headers->get('Cache-Control');
+            $this->assertStringContainsString('private', $cabecera, $formato);
+            $this->assertStringContainsString('no-cache', $cabecera, $formato);
+            $this->assertStringNotContainsString('public', $cabecera, $formato);
+            $this->assertNotEmpty($respuesta->headers->get('ETag'), $formato);
+        }
+    }
+
+    public function test_una_descarga_sin_cambios_responde_304_y_tras_editar_vuelve_a_generarse(): void
+    {
+        $primera = $this->get('/politicas/uso-de-cookies.pdf')->assertOk();
+        $etag = (string) $primera->headers->get('ETag');
+
+        $this->get('/politicas/uso-de-cookies.pdf', ['If-None-Match' => $etag])->assertStatus(304);
+
+        $secciones = Politica::query()->where('slug', 'uso-de-cookies')->firstOrFail()->secciones;
+        $secciones[0]['parrafos'] = ['Texto cambiado.'];
+        $this->travel(2)->minutes();
+        $this->como($this->editor())
+            ->patchJson('/api/v1/panel/politicas/uso-de-cookies', ['secciones' => $secciones])
+            ->assertOk();
+
+        $despues = $this->get('/politicas/uso-de-cookies.pdf', ['If-None-Match' => $etag])->assertOk();
+        $this->assertNotSame($etag, $despues->headers->get('ETag'));
+    }
+
+    public function test_el_documento_oficial_tampoco_se_guarda_en_cache_compartida_y_cambia_su_etag_al_reemplazarlo(): void
+    {
+        Storage::fake((string) config('filesystems.default'));
+        $editor = $this->editorConArchivos();
+        $this->adjuntar($editor, 'uso-de-cookies', "%PDF-1.4\nprimero\n");
+
+        $primera = $this->get('/politicas/uso-de-cookies/documento')->assertOk();
+        $this->assertStringContainsString('private', (string) $primera->headers->get('Cache-Control'));
+        $etag = (string) $primera->headers->get('ETag');
+        $this->assertNotEmpty($etag);
+
+        $this->get('/politicas/uso-de-cookies/documento', ['If-None-Match' => $etag])->assertStatus(304);
+
+        $this->travel(5)->minutes();
+        $this->adjuntar($editor, 'uso-de-cookies', "%PDF-1.4\nsegundo\n");
+
+        $this->get('/politicas/uso-de-cookies/documento', ['If-None-Match' => $etag])->assertOk();
     }
 }

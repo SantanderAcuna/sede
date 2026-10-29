@@ -173,30 +173,48 @@ const tramitesDestacados = computed(() =>
         un clic desde el inicio (RF-B2-071).
       -->
       <section aria-labelledby="titulo-tramites-portada" class="mt-4">
-        <h2 id="titulo-tramites-portada" class="h4 mb-3">Trámites y servicios</h2>
+        <h2 id="titulo-tramites-portada" class="titulo-seccion-portada">Trámites y servicios</h2>
 
-        <p v-if="tramitesDestacados.length === 0" class="mb-2">
+        <p v-if="tramitesDestacados.length === 0" class="text-center mx-auto mb-0">
           El catálogo de trámites no está disponible en este momento. Puede
           intentarlo de nuevo en unos minutos o buscarlo con el buscador de la
           cabecera.
         </p>
-        <ul v-else class="lista-portada">
-          <li v-for="tramite in tramitesDestacados" :key="tramite.id">
-            <NuxtLink :to="`/tramites/${tramite.slug}`" class="enlace-portada">
-              {{ tramite.nombre }}
-            </NuxtLink>
-            <p v-if="tramite.resumen" class="descripcion-portada">
-              {{ tramite.resumen }}
-            </p>
+        <!--
+          Rejilla de tarjetas, como la de «Secciones de la Sede» que le sigue: en
+          escritorio los tres trámites ocupan el ancho y quedan centrados; si el
+          catálogo devuelve menos de tres, `justify-content-center` los centra.
+          Cada tarjeta es **un solo enlace** (`stretched-link` extiende el área
+          pulsable a toda la tarjeta): una parada de tabulador por trámite y el
+          lector de pantalla oye el nombre, no un párrafo entero (misma razón que
+          CAG-26 para las tarjetas del Kit). No se usa `TarjetaInformacionGovco`
+          porque el Kit limita su título a dos palabras y los nombres de trámite
+          son oficiales y largos: no se recortan.
+        -->
+        <ul v-else class="row g-4 justify-content-center lista-tramites-portada">
+          <li v-for="tramite in tramitesDestacados" :key="tramite.id" class="col-md-6 col-lg-4">
+            <article class="tarjeta-tramite">
+              <h3 class="tarjeta-tramite__titulo">
+                <NuxtLink :to="`/tramites/${tramite.slug}`" class="stretched-link">
+                  {{ tramite.nombre }}
+                </NuxtLink>
+              </h3>
+              <p v-if="tramite.resumen" class="tarjeta-tramite__resumen">
+                {{ tramite.resumen }}
+              </p>
+            </article>
           </li>
         </ul>
 
-        <p class="mt-3 mb-0">
-          <NuxtLink to="/tramites">Ver todos los trámites y servicios</NuxtLink>
-        </p>
+        <!-- `div` y no `p`: el párrafo lleva la medida de prosa (68ch) y no centraría sobre la rejilla. -->
+        <div class="text-center mt-4">
+          <NuxtLink to="/tramites" class="btn-govco fill-btn-govco boton-ver-todos">
+            Ver todos los trámites y servicios
+          </NuxtLink>
+        </div>
       </section>
 
-      <h2 class="mt-5 mb-4">Secciones de la Sede</h2>
+      <h2 class="titulo-seccion-portada mt-5">Secciones de la Sede</h2>
 
       <div class="row g-4">
         <div v-for="seccion in secciones" :key="seccion.enlace" class="col-md-4">
@@ -267,34 +285,77 @@ const tramitesDestacados = computed(() =>
  */
 
 /*
- * Lista de trámites de la portada. Sin viñetas y separada con una línea: son
- * enlaces a fichas, no una enumeración de texto corrido, y la línea ayuda a
- * seguir cada resultado cuando el título ocupa dos renglones en un teléfono.
+ * Títulos de sección de la portada: los dos (Trámites y Secciones) comparten
+ * tamaño y van centrados sobre sus rejillas. Antes eran dos tamaños distintos,
+ * pegados a la izquierda.
  */
-.lista-portada {
+.titulo-seccion-portada {
+  margin: 0 0 var(--espacio-5);
+  text-align: center;
+}
+
+/*
+ * Tarjetas de trámite. Mismo lenguaje que las de «Secciones de la Sede»: borde
+ * celeste claro del Kit, esquinas redondeadas y un filete en cobalto; todas de la
+ * misma altura aunque un trámite tenga el resumen más largo.
+ */
+.lista-tramites-portada {
   list-style: none;
   padding: 0;
+  margin-bottom: 0;
+}
+
+.tarjeta-tramite {
+  position: relative; /* ancla el área pulsable del enlace extendido */
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  height: 100%;
+  padding: var(--espacio-5);
+  background: var(--alcaldia-blanco);
+  border: 0.0625rem solid var(--tarjeta-tramite-borde);
+  border-top: 0.25rem solid var(--tarjeta-tramite-filete);
+  border-radius: var(--radio-md);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tarjeta-tramite:hover {
+  background: var(--tarjeta-tramite-fondo-hover);
+  box-shadow: var(--tarjeta-tramite-sombra);
+}
+
+/* El foco rodea toda la tarjeta, no sólo la línea del título. */
+.tarjeta-tramite:has(a:focus-visible) {
+  outline: 0.1875rem solid var(--color-enlace);
+  outline-offset: 0.125rem;
+}
+
+.tarjeta-tramite__titulo {
   margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
-.lista-portada li {
-  padding: 0.75rem 0;
-  border-bottom: 0.0625rem solid #e5e7eb;
+.tarjeta-tramite__titulo a {
+  color: var(--color-enlace);
+  text-decoration: none;
 }
 
-.lista-portada li:last-child {
-  border-bottom: 0;
-}
-
-.enlace-portada {
-  font-size: 1.0625rem;
-  font-weight: 600;
+.tarjeta-tramite:hover .tarjeta-tramite__titulo a {
   text-decoration: underline;
 }
 
-.descripcion-portada {
-  margin: 0.25rem 0 0;
-  color: #333;
-  max-width: 68ch;
+/* Cuatro renglones como máximo: el resumen completo está en la ficha. */
+.tarjeta-tramite__resumen {
+  margin: 0;
+  color: var(--color-texto);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

@@ -274,10 +274,10 @@ const puedeRestablecer = computed(() => hayAjustes.value)
                 type="button"
                 class="panel-boton-tamano"
                 :disabled="!puedeReducir"
-                aria-label="Reducir el tamaño del texto"
                 @click="alMoverLetra(-1)"
               >
                 <span aria-hidden="true">A−</span>
+                <span class="visually-hidden">Reducir el tamaño del texto</span>
               </button>
 
               <output class="panel-tamano-valor">{{ porcentajeLetra }} %</output>
@@ -286,10 +286,10 @@ const puedeRestablecer = computed(() => hayAjustes.value)
                 type="button"
                 class="panel-boton-tamano"
                 :disabled="!puedeAumentar"
-                aria-label="Aumentar el tamaño del texto"
                 @click="alMoverLetra(1)"
               >
                 <span aria-hidden="true">A+</span>
+                <span class="visually-hidden">Aumentar el tamaño del texto</span>
               </button>
             </div>
           </div>

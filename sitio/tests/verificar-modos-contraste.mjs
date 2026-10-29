@@ -24,13 +24,10 @@
  *
  * Uso: node tests/verificar-modos-contraste.mjs [url]
  */
-import { createRequire } from 'node:module'
 
 // `PLAYWRIGHT_MODULE=…` permite usar otra instalación de Playwright (la del
 // entorno, cuando su navegador no coincide con la versión del proyecto).
-const { chromium } = process.env.PLAYWRIGHT_MODULE
-  ? createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE)
-  : await import('@playwright/test')
+import { lanzar } from './ayudas/motor.mjs'
 
 const base = process.argv[2] ?? 'http://127.0.0.1:3000'
 const modos = ['normal', 'alto', 'inverso', 'grises']
@@ -48,7 +45,7 @@ const preferencias = (extra = {}) => ({
   ...extra,
 })
 
-const navegador = await chromium.launch()
+const navegador = await lanzar()
 let fallos = 0
 
 function informar(etiqueta, ok, detalle) {
@@ -90,13 +87,20 @@ try {
 
     // Se desplaza hasta que el botón de volver arriba aparece, y se mide su
     // posición respecto a la ventana antes y después de seguir bajando.
-    await pagina.evaluate(() => window.scrollTo(0, document.body.scrollHeight * 0.6))
+    // `behavior: 'instant'` y espera a que el botón se dibuje: el sitio declara
+    // `scroll-behavior: smooth`, y con la animación a medias —o con el botón aún
+    // oculto— `getBoundingClientRect()` devuelve ceros, que la prueba leía como una
+    // «deriva» de 756 px (pasó en WebKit, que anima más despacio).
+    const botonVisible = () => pagina.waitForFunction(() => (document.querySelector('.posicion-volver-arriba')?.getBoundingClientRect().height ?? 0) > 0, null, { timeout: 5000 }).catch(() => {})
+    await pagina.evaluate(() => window.scrollTo({ top: document.body.scrollHeight * 0.6, behavior: 'instant' }))
+    await botonVisible()
     await pagina.waitForTimeout(500)
     const antes = await pagina.evaluate(() => {
       const caja = document.querySelector('.posicion-volver-arriba')
       return caja ? caja.getBoundingClientRect().top : null
     })
-    await pagina.evaluate(() => window.scrollTo(0, document.body.scrollHeight * 0.9))
+    await pagina.evaluate(() => window.scrollTo({ top: document.body.scrollHeight * 0.9, behavior: 'instant' }))
+    await botonVisible()
     await pagina.waitForTimeout(500)
     const despues = await pagina.evaluate(() => {
       const caja = document.querySelector('.posicion-volver-arriba')
@@ -152,7 +156,6 @@ try {
         centroY: caja.top + caja.height / 2,
         centroVentana: window.innerHeight / 2,
         separacionDerecha: window.innerWidth - caja.right,
-        separacionInferior: window.innerHeight - caja.bottom,
       }
     })
     if (medida === null) {
@@ -161,20 +164,14 @@ try {
       continue
     }
     const esCirculo = Math.abs(medida.ancho - medida.alto) <= 2 && medida.redondeo >= medida.ancho / 2 - 1
-    // En móvil (hasta 767 px) va anclado a la esquina inferior; en escritorio,
-    // centrado en el borde. A media altura, en un teléfono, tapaba el final de las
-    // líneas de cualquier párrafo.
-    const abajo = ancho <= 767
-    const centrado = abajo
-      ? medida.separacionInferior >= 0 && medida.separacionInferior <= 24
-      : Math.abs(medida.centroY - medida.centroVentana) <= 4
+    const centrado = Math.abs(medida.centroY - medida.centroVentana) <= 4
     const aLaDerecha = medida.separacionDerecha >= 0 && medida.separacionDerecha < 40
     const tactil = medida.ancho >= 44 && medida.alto >= 44
     informar(
       `${ancho}×${alto} px`,
       medida.posicion === 'fixed' && esCirculo && centrado && aLaDerecha && tactil,
       `${medida.ancho.toFixed(0)}×${medida.alto.toFixed(0)} px · ${medida.posicion} · ` +
-        `${abajo ? 'anclado abajo' : 'centrado'}: ${centrado} · a la derecha: ${medida.separacionDerecha.toFixed(0)} px · ` +
+        `centrado: ${centrado} · a la derecha: ${medida.separacionDerecha.toFixed(0)} px · ` +
         `área activa ≥44: ${tactil}`,
     )
     await pagina.close()

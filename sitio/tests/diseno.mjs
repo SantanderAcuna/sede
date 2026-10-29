@@ -46,17 +46,17 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync(RUTA_NAVEGADORES)) {
 
 // La importación va después de fijar la variable: Playwright resuelve la ruta de
 // sus navegadores al cargarse.
-const { chromium } = await import('@playwright/test')
+import { lanzar } from './ayudas/motor.mjs'
 
-/** Lanza Chromium con un mensaje útil si no hay navegadores instalados. */
+/** Lanza el motor elegido (`NAVEGADOR`, por defecto Chromium) con un mensaje útil si no hay navegadores instalados. */
 async function abrirNavegador() {
   try {
-    return await chromium.launch()
+    return await lanzar()
   } catch (error) {
     if (/Executable doesn't exist|playwright install/i.test(error.message)) {
       throw new Error(
         `No hay navegadores de Playwright en ${process.env.PLAYWRIGHT_BROWSERS_PATH}. ` +
-          'Instálelos con: npx playwright install chromium',
+          'Instálelos con: npx playwright install chromium firefox webkit',
       )
     }
     throw error
@@ -171,7 +171,12 @@ try {
     const conError = []
     for (const ruta of rutas) {
       const respuesta = await portada.request.get(`${base}${ruta}`)
-      if (respuesta.status() >= 500) conError.push(`${ruta} → ${respuesta.status()}`)
+      if (respuesta.status() >= 500) {
+        // Cabeceras que distinguen «falló el origen» de «lo frenó el proxy» (sin datos sensibles).
+        const h = respuesta.headers()
+        const pista = ['server', 'cf-mitigated', 'retry-after'].filter((n) => h[n]).map((n) => `${n}: ${h[n]}`).join(', ')
+        conError.push(`${ruta} → ${respuesta.status()}${pista ? ` (${pista})` : ''}`)
+      }
     }
     return {
       ok: conError.length === 0,
@@ -299,7 +304,11 @@ try {
   // cualquier ancho**, que abra un panel con los once controles y que `Escape`
   // cierre devolviendo el foco.
   await comprobar('CAG-07', 'El botón circular de accesibilidad está centrado a la derecha a cualquier ancho y abre el panel', async () => {
-    await portada.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+    // `networkidle`, no `domcontentloaded`: el panel se abre con JavaScript, y con
+    // `domcontentloaded` la prueba pulsaba Intro antes de que la página se
+    // hidratase —el botón existía pero aún no respondía—. Dependía de la velocidad
+    // de la máquina: pasaba en una rápida y fallaba en las demás.
+    await portada.goto(`${base}/`, { waitUntil: 'networkidle' })
 
     const anchos = [320, 800, 1280]
     const medidas = []
@@ -438,7 +447,8 @@ try {
         `tamaños: ${medidas.map((m) => m.ancho).join('/')} px (área activa ≥44: ${tactilEnTodos}) · ` +
         `panel: ${abierto?.modos ?? 0} modos + ${abierto?.interruptores ?? 0} interruptores · ` +
         `Centro de Relevo: ${abierto?.relevo} · barra vieja retirada: ${antes.barraVieja === false} · ` +
-        `foco devuelto: ${cerrado.focoDevuelto}`,
+        `foco devuelto: ${cerrado.focoDevuelto}` +
+        (ok ? '' : ` · MEDIDAS: ${JSON.stringify({ medidas, antes, abierto, cerrado })}`),
     }
   })
 

@@ -261,6 +261,10 @@ jobs:
       (github.ref_name == 'staging' || inputs.entorno == 'staging')
       && vars.SEDE_DESPLIEGUE_STAGING == 'true'
     runs-on: ubuntu-latest
+    # `SEDE_DOMINIO` es una variable del entorno, no del repositorio: el trabajo
+    # `navegadores` la necesita y solo la puede recibir por aquí.
+    outputs:
+      dominio: ${{ vars.SEDE_DOMINIO }}
     environment:
       name: staging
       url: https://${{ vars.SEDE_DOMINIO }}
@@ -288,6 +292,119 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes \
             -o StrictHostKeyChecking=yes -p "$PUERTO" "$USUARIO@$HOST" \
             "desplegar.sh staging ${{ github.sha }}"
+
+  # ---------------------------------------------------------------------------
+  # T-29 · La Sede, en más de un navegador (RNF-B1-033, RNF-B3-005; AC-29.1-29.3)
+  #
+  # Se ejecuta DESPUÉS de desplegar el entorno de pruebas y contra él, porque las
+  # pruebas necesitan los datos reales de la API (rutas, trámites, políticas) que
+  # el CI normal no tiene. No bloquea ni revierte nada: el despliegue ya ocurrió.
+  # Un fallo aquí significa «hay una diferencia entre navegadores que mirar».
+  #
+  # Qué se ejecuta en cada motor:
+  #   - `playwright test`  humo funcional, escritorio y teléfono (tests/e2e)
+  #   - `tests/movil.mjs`  maquetación en teléfono, incluida la tabulación y los 44 px
+  #   - `tests/kit-ui.mjs` componentes del Kit
+  #   - `tests/diseno.mjs` conformidad de diseño (CAG-01 a CAG-34), con su propio servidor
+  #
+  # `webkit` es el motor de Safari, no Safari; `msedge` usa el canal de Edge del
+  # ejecutor. Ninguno sustituye una prueba en un dispositivo real.
+  #
+  # PENDIENTE (AC-29.2, «resultado por navegador publicado como artefacto»): falta
+  # subir los resultados como artefacto con `actions/upload-artifact` fijado por
+  # hash, como el resto de acciones de este repositorio. Quien lo prepara no pudo
+  # consultar el hash desde su entorno y no se inventa uno. Mientras tanto, el
+  # resultado por navegador queda en el resumen de cada ejecución.
+  # ---------------------------------------------------------------------------
+  navegadores:
+    name: Navegadores (${{ matrix.motor }})
+    needs: [staging]
+    if: ${{ !cancelled() && needs.staging.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        motor: [chromium, firefox, webkit, msedge]
+    env:
+      BASE_URL: https://${{ needs.staging.outputs.dominio }}
+      NAVEGADOR: ${{ matrix.motor }}
+      NUXT_PUBLIC_API_URL: https://${{ needs.staging.outputs.dominio }}/api/v1
+      TIEMPO_ESPERA_MS: '30000'
+    steps:
+      # El dominio del entorno de pruebas no debe quedar escrito en los registros.
+      - name: Enmascarar el dominio
+        env:
+          DOMINIO: ${{ needs.staging.outputs.dominio }}
+        run: |
+          if [ -z "$DOMINIO" ]; then echo "::error::El entorno de pruebas no devolvió su dominio."; exit 1; fi
+          echo "::add-mask::$DOMINIO"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: sitio/package-lock.json
+      - name: Instalar
+        working-directory: sitio
+        run: npm ci --ignore-scripts
+      # Sondeo: distingue «el entorno falla» de «el proxy frena al ejecutor». Solo
+      # imprime estado y cabeceras de diagnóstico; el dominio va enmascarado.
+      - name: Sondear el entorno desde el ejecutor
+        run: |
+          for ruta in / /politicas/uso-de-cookies /api/v1/politicas/uso-de-cookies; do
+            cabeceras=$(curl -s -o /dev/null -D - -w 'tiempo: %{time_total}s\n' --max-time 30 "${BASE_URL}${ruta}" \
+              | tr -d '\r' | grep -iE '^(HTTP/|server:|cf-mitigated:|retry-after:|tiempo:)' | tr '\n' ' ' || true)
+            echo "${ruta} -> ${cabeceras}"
+            case "$cabeceras" in *cf-mitigated*) echo "DESAFIADO=true" >> "$GITHUB_ENV" ;; esac
+          done
+      - name: Instalar el navegador
+        working-directory: sitio
+        run: |
+          if [ "$NAVEGADOR" = "msedge" ]; then
+            npx playwright install msedge
+          else
+            npx playwright install --with-deps "$NAVEGADOR"
+          fi
+      - name: Compilar (la prueba de diseño arranca su propio servidor)
+        working-directory: sitio
+        run: |
+          npx openapi-typescript ../contract/openapi.yaml -o types/openapi.d.ts --read-write-markers
+          npm run build
+      - name: Pruebas en ${{ matrix.motor }}
+        working-directory: sitio
+        run: |
+          set +e
+          fallos=0
+          DESAFIADO="${DESAFIADO:-false}"
+          {
+            echo "### ${NAVEGADOR}"
+            echo
+            echo "| Prueba | Resultado |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          correr() {
+            nombre="$1"; shift
+            "$@"
+            codigo=$?
+            if [ "$codigo" -eq 0 ]; then
+              resultado="✅ pasa"
+            elif [ "$DESAFIADO" = "true" ] && [ "$nombre" != "humo funcional (escritorio y teléfono)" ]; then
+              # Esta prueba hace peticiones fuera del navegador (curl, fetch del servidor) y
+              # Cloudflare las desafía desde las IP de GitHub: el fallo no dice nada del sitio.
+              resultado="⚠️ no concluyente: Cloudflare desafía al ejecutor (código $codigo)"
+            else
+              resultado="❌ falla (código $codigo)"; fallos=$((fallos + 1))
+            fi
+            echo "| ${nombre} | ${resultado} |" >> "$GITHUB_STEP_SUMMARY"
+          }
+          proyectos="--project=${NAVEGADOR} --project=${NAVEGADOR}-movil"
+          correr "humo funcional (escritorio y teléfono)" npx playwright test $proyectos
+          correr "maquetación en teléfono" node tests/movil.mjs
+          correr "componentes del Kit" node tests/kit-ui.mjs
+          correr "conformidad de diseño (CAG)" node tests/diseno.mjs
+          exit "$fallos"
 
   produccion:
     name: Desplegar en producción

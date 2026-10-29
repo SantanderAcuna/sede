@@ -22,3 +22,7 @@ logs
 .env
 .env.*
 !.env.example
+
+# Resultados de Playwright (T-29)
+test-results/
+resultados-navegadores.json

@@ -24,13 +24,10 @@
  * El punto 1 falla mientras Cloudflare inyecte la analítica por su cuenta
  * (AC-26.1): es un ajuste del panel de Cloudflare, no del repositorio.
  */
-import { createRequire } from 'node:module'
 
 // `PLAYWRIGHT_MODULE=playwright` usa otra instalación de Playwright (por ejemplo la
 // global, cuyos navegadores sí existen en la máquina); por defecto, la del proyecto.
-const { chromium } = process.env.PLAYWRIGHT_MODULE
-  ? createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE)
-  : await import('@playwright/test')
+import { lanzar } from './ayudas/motor.mjs'
 
 const BASE = (process.env.BASE_URL ?? 'http://localhost:3000').replace(/\/+$/, '')
 const SIMULAR_API = process.env.SIMULAR_API === '1'
@@ -47,7 +44,7 @@ const comprobar = (condicion, mensaje) => {
   if (!condicion) fallos += 1
 }
 
-const navegador = await chromium.launch()
+const navegador = await lanzar()
 
 /** Un contexto limpio que anota peticiones y registros enviados al servidor. */
 async function contextoNuevo({ almacenamiento } = {}) {

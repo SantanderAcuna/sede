@@ -302,7 +302,7 @@ const contacto = computed<DatoContacto[]>(() => {
               v-if="item.correo"
               class="btn-govco link-btn-govco"
               :href="`mailto:${item.correo}`"
-              :aria-label="`Permite enviar correo a ${item.correo}`"
+              :aria-label="`Enviar correo a ${item.valor ?? item.correo}`"
             ><span>{{ antesDeArroba(item.valor ?? item.correo) }}<wbr>{{ despuesDeArroba(item.valor ?? item.correo) }}</span></a>
             <template v-else>{{ item.valor }}</template>
           </p>
@@ -322,7 +322,7 @@ const contacto = computed<DatoContacto[]>(() => {
           :href="red.url"
           target="_blank"
           rel="noopener"
-          :aria-label="`Enlace al ${red.red} de la Entidad (se abre en una pestaña nueva)`"
+          :aria-label="`${red.usuario}, ${red.red} de la Entidad (se abre en una pestaña nueva)`"
         >
           <span class="govco-svg" :class="red.icono" aria-hidden="true" />
           <span>{{ red.usuario }}</span>

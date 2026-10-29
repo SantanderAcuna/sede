@@ -10,8 +10,10 @@ use App\DTOs\Auth\LoginCredentials;
 use App\Http\Resources\UsuarioResource;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 /**
  * Servicio de autenticación con Sanctum (modo cookie-based SPA).
@@ -26,6 +28,12 @@ use Illuminate\Support\Facades\Auth;
  */
 final class AuthService implements AuthServiceInterface
 {
+    /**
+     * Hash de relleno para igualar el tiempo de respuesta cuando el correo no existe.
+     * Se calcula una vez por proceso con el mismo coste que el resto de contraseñas.
+     */
+    private static ?string $hashDeRelleno = null;
+
     public function __construct(
         private readonly AuthRepositoryInterface $authRepository,
     ) {}
@@ -38,6 +46,13 @@ final class AuthService implements AuthServiceInterface
         $user = $this->authRepository->findByEmail($credentials->email);
 
         if ($user === null) {
+            // Se comprueba una contraseña contra un hash de relleno para que el
+            // tiempo de respuesta no delate si el correo existe (H-14). Sin esto, un
+            // correo inexistente respondía en milisegundos y uno real tardaba lo que
+            // cuesta `bcrypt`, y esa diferencia es medible desde fuera.
+            Hash::check($credentials->password, self::hashDeRelleno());
+            $this->registrarFallo($credentials->email, null, 'usuario_inexistente');
+
             return [
                 'success' => false,
                 'message' => 'Las credenciales no son válidas.',
@@ -45,6 +60,8 @@ final class AuthService implements AuthServiceInterface
         }
 
         if (! $this->authRepository->verifyPassword($user, $credentials->password)) {
+            $this->registrarFallo($credentials->email, $user, 'contrasena_incorrecta');
+
             return [
                 'success' => false,
                 'message' => 'Las credenciales no son válidas.',
@@ -52,6 +69,8 @@ final class AuthService implements AuthServiceInterface
         }
 
         if (! $this->authRepository->canLogin($user)) {
+            $this->registrarFallo($credentials->email, $user, 'cuenta_inactiva');
+
             return [
                 'success' => false,
                 'message' => 'La cuenta no está activa.',
@@ -107,5 +126,21 @@ final class AuthService implements AuthServiceInterface
         }
 
         return new UsuarioResource($user);
+    }
+
+    /**
+     * Avisa de un intento fallido para que `PermissionAuditListener` lo registre.
+     *
+     * Solo viaja el correo —nunca la contraseña—: `Failed` se despacha a otros
+     * oyentes y cualquier cosa que lleve se podría acabar escribiendo en un log.
+     */
+    private function registrarFallo(string $email, ?User $user, string $motivo): void
+    {
+        event(new Failed('web', $user, ['email' => $email, 'motivo' => $motivo]));
+    }
+
+    private static function hashDeRelleno(): string
+    {
+        return self::$hashDeRelleno ??= Hash::make(bin2hex(random_bytes(16)));
     }
 }

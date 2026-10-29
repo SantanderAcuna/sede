@@ -53,7 +53,11 @@ export const http: AxiosInstance = axios.create({
  * El guardia del router se encargará de redirigir en la siguiente navegación
  * (porque sesion.iniciada será false).
  *
- * 429 — Rate limit. Se redirige al login con un parámetro que indica el motivo.
+ * 429 — Límite de peticiones. NO se redirige: el error llega a quien hizo la
+ * petición (el formulario de acceso, una tabla) con la respuesta intacta, y
+ * `mensajeDeError()` construye el aviso con el `Retry-After`. Antes cualquier 429,
+ * también de una consulta cualquiera, sacaba a la persona del panel hacia el login
+ * y borraba lo que estaba haciendo (H-14).
  */
 http.interceptors.response.use(
   (response) => response,
@@ -66,9 +70,6 @@ http.interceptors.response.use(
         // No await: el interceptor no debe bloquear.
         sesion.cerrarSesion()
       }
-    }
-    if (axios.isAxiosError(error) && error.response?.status === 429) {
-      window.location.href = '/admin/acceso?rate_limited=1'
     }
     return Promise.reject(error)
   }
@@ -94,6 +95,33 @@ export function desenvolverPagina<T>(sobre: PaginatedEnvelope<T>): Pagina<T> {
     throw new ErrorApi(sobre.message ?? 'La operación no se pudo completar.', 200, sobre.errors)
   }
   return { datos: sobre.data, meta: sobre.meta, enlaces: sobre.links }
+}
+
+/**
+ * El texto que se le muestra a la persona ante un error de la API.
+ *
+ * Prefiere el mensaje del servidor (`success:false, message`), que ya viene en
+ * español y sin detalles internos. Ante un 429 añade cuándo puede volver a
+ * intentarlo, leyéndolo de `Retry-After`. Sin respuesta (red caída), usa `porDefecto`.
+ */
+export function mensajeDeError(error: unknown, porDefecto = 'No se pudo conectar con el servidor.'): string {
+  if (!axios.isAxiosError(error) || !error.response) {
+    return error instanceof ErrorApi ? error.message : porDefecto
+  }
+
+  const { status, data, headers } = error.response
+  const delServidor = (data as Partial<ApiEnvelope<never>> | undefined)?.message
+
+  if (status === 429) {
+    const segundos = Number.parseInt(String(headers?.['retry-after'] ?? ''), 10)
+    const espera = Number.isFinite(segundos) && segundos > 0
+      ? ` Vuelve a intentarlo en ${segundos < 60 ? `${segundos} s` : `${Math.ceil(segundos / 60)} min`}.`
+      : ' Espera un momento antes de volver a intentarlo.'
+
+    return 'Demasiados intentos.' + espera
+  }
+
+  return typeof delServidor === 'string' && delServidor !== '' ? delServidor : porDefecto
 }
 
 export function esErrorApi(error: unknown): error is AxiosError<ApiEnvelope<never>> {

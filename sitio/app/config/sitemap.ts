@@ -22,6 +22,8 @@
  * en la barra de navegación. Cuando no hay rótulo corto se usa el completo.
  */
 
+import { politicaPublicada } from './politicas-contenido'
+
 /** Una ruta individual pública. */
 export interface RutaPublica {
   /** Ruta URL, siempre absoluta y en castellano (p. ej. `/transparencia`). */
@@ -438,9 +440,9 @@ export function todasLasRutas(): RutaPublica[] {
     rutas.push({
       ruta: `/politicas/${politica.slug}`,
       etiqueta: politica.etiqueta,
-      // Ninguna política publica todavía su documento: el pie lo dice, y el
-      // buscador no debe recibirlas como publicadas (D-10, R-03).
-      publicada: false,
+      // Se deriva de que exista el documento adoptado (`politicas-contenido.ts`):
+      // mientras sea `null` el buscador no las recibe como publicadas (D-10, R-03).
+      publicada: politicaPublicada(politica.slug),
       orden: rutas.length,
       prioridadSitemap: 0.4,
       frecuenciaSitemap: 'yearly',

@@ -9,7 +9,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SubirArchivoRequest;
 use App\Http\Resources\FileMediaResource;
 use App\Models\Entidad;
+use App\Models\Politica;
 use App\Support\Api\ApiResponse;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -24,6 +26,27 @@ final class ArchivoController extends Controller
     public function __construct(
         private readonly FilesMediaServiceInterface $filesService,
     ) {}
+
+    /**
+     * El modelo al que se adjuntan los archivos, por su UUID público: la entidad o
+     * una política. La ruta se llama `/entidad/{uuid}/archivos` por historia; el
+     * recurso real es «cualquier modelo con archivos».
+     */
+    private function resolverModelo(string $uuid): ?Model
+    {
+        return Entidad::where('uuid', $uuid)->first() ?? Politica::where('uuid', $uuid)->first();
+    }
+
+    /**
+     * Adjuntar o quitar archivos de una política exige, además del permiso de
+     * archivos, poder gestionar políticas: el documento oficial se publica.
+     */
+    private function puedeTocar(Request $request, Model|string|null $propietario): bool
+    {
+        $esPolitica = $propietario instanceof Politica || $propietario === Politica::class;
+
+        return ! $esPolitica || $request->user()?->can('politicas.gestionar') === true;
+    }
 
     /**
      * @operationId obtenerArchivo
@@ -54,13 +77,17 @@ final class ArchivoController extends Controller
      * @response 200 { "success": true, "message": "Archivo eliminado" }
      * @response 404
      */
-    public function destroy(string $uuid): JsonResponse
+    public function destroy(Request $request, string $uuid): JsonResponse
     {
         try {
             $archivo = $this->filesService->findByUuid($uuid);
 
             if ($archivo === null) {
                 return ApiResponse::notFound('Archivo no encontrado.');
+            }
+
+            if (! $this->puedeTocar($request, $archivo->model_type)) {
+                return ApiResponse::forbidden();
             }
 
             $this->filesService->delete($uuid);
@@ -82,10 +109,14 @@ final class ArchivoController extends Controller
     {
         try {
             $collection = $request->query('collection');
-            $model = Entidad::where('uuid', $modelUuid)->first();
+            $model = $this->resolverModelo($modelUuid);
 
             if ($model === null) {
                 return ApiResponse::notFound('Entidad no encontrada.');
+            }
+
+            if (! $this->puedeTocar($request, $model)) {
+                return ApiResponse::forbidden();
             }
 
             if ($collection === null) {
@@ -111,10 +142,21 @@ final class ArchivoController extends Controller
     public function store(SubirArchivoRequest $request, string $modelUuid): JsonResponse
     {
         try {
-            $model = Entidad::where('uuid', $modelUuid)->first();
+            $model = $this->resolverModelo($modelUuid);
 
             if ($model === null) {
                 return ApiResponse::notFound('Entidad no encontrada.');
+            }
+
+            if (! $this->puedeTocar($request, $model)) {
+                return ApiResponse::forbidden();
+            }
+
+            // A una política sólo se le adjunta el documento oficial.
+            if ($model instanceof Politica && $request->validated('collection') !== Politica::COLECCION_DOCUMENTO) {
+                return ApiResponse::validationError([
+                    'collection' => ['A una política sólo se le adjunta la colección «'.Politica::COLECCION_DOCUMENTO.'».'],
+                ]);
             }
 
             $archivo = $this->filesService->upload(

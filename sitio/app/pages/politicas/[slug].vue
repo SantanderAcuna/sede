@@ -13,13 +13,20 @@
  * ciudadano, no una página que parezca correcta. Lo mismo hace la ruta comodín
  * `[...ruta].vue`, y por el mismo motivo.
  *
- * Ninguna de las cinco tiene documento publicado todavía: el propio pie lo
- * advierte. La Entidad tiene además un incumplimiento abierto en esta materia —la
- * política de derechos de autor no existe—, así que inventar aquí un texto legal
- * sería lo último que conviene hacer.
+ * **El texto viene de la API** (`GET /politicas/{slug}`), donde se edita desde el
+ * panel con su versión, su vigencia y su acto administrativo. Hoy es texto de
+ * ejemplo redactado por TIC y la página lo dice con claridad (`es_ejemplo`) y no
+ * lo deja indexar, hasta que la Entidad lo apruebe. Se ofrece también en ODT y en
+ * PDF/A (AC-20.5), y el documento oficial adjunto si lo hay.
  */
 /** El catálogo canónico: slug, rótulo y estado de publicación (fuente única). */
-import { DOCUMENTOS_POLITICAS } from '~/config/politicas-contenido'
+import {
+  actoEnUnaLinea,
+  fechaLarga,
+  politicaDesdeApi,
+  tamanoLegible,
+  type PoliticaDelSitio,
+} from '~/config/politicas-contenido'
 import { POLITICAS as POLITICAS_DEL_SITIO } from '~/config/sitemap'
 import { useMetadatosComparticion } from '~/composables/useMetadatosComparticion'
 
@@ -83,8 +90,6 @@ function primerValor(valor: string | string[] | undefined): string {
 
 const slug = computed<string>(() => primerValor(ruta.params.slug))
 
-/** El documento adoptado, o `null` mientras la Entidad no lo entregue. */
-const documento = computed(() => DOCUMENTOS_POLITICAS[slug.value] ?? null)
 const politica = computed<Politica | null>(() => POLITICAS[slug.value] ?? null)
 
 if (politica.value === null) {
@@ -97,11 +102,44 @@ if (politica.value === null) {
   })
 }
 
+/*
+ * El texto de la política, de la API. `useRequestFetch` por la misma razón que en
+ * el pie: en el servidor la URL relativa de la API se resuelve contra la petición
+ * en curso. Si la API no responde se avisa con un 503 y no con una página vacía
+ * que parezca correcta.
+ */
+const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
+const traer = useRequestFetch()
+const { data: documento } = await useAsyncData<PoliticaDelSitio | null>(
+  `politica-${slug.value}`,
+  async () => {
+    try {
+      const respuesta = await traer<{ data?: unknown }>(`${urlApi}/politicas/${slug.value}`)
+      return politicaDesdeApi(respuesta.data)
+    } catch {
+      return null
+    }
+  },
+)
+
+if (import.meta.server && !documento.value) {
+  setResponseStatus(useRequestEvent()!, 503)
+}
+
+const vigencia = computed(() => documento.value?.vigenteDesde ?? null)
+const acto = computed(() => (documento.value ? actoEnUnaLinea(documento.value.acto) : null))
+
 useHead({
   title: computed(() =>
     politica.value === null
       ? 'Políticas del sitio · Sede Electrónica'
       : `${politica.value.titulo} · Sede Electrónica`,
+  ),
+  // Un texto de ejemplo no debe indexarse como si fuera la política oficial.
+  meta: computed(() =>
+    !documento.value || documento.value.esEjemplo
+      ? [{ name: 'robots', content: 'noindex' }]
+      : [],
   ),
 })
 
@@ -135,20 +173,46 @@ const otras = computed(() =>
         <p class="lead">{{ politica.proposito }}</p>
 
         <template v-if="documento">
+          <div v-if="documento.esEjemplo" class="aviso-ejemplo" role="note" data-politica-ejemplo>
+            <p class="mb-0">
+              <strong>Texto de ejemplo, pendiente de aprobación por la Entidad.</strong>
+              Lo redactó el equipo de TIC como punto de partida; los datos que aún no están
+              definidos aparecen entre corchetes. No es todavía el texto jurídico adoptado.
+            </p>
+          </div>
+
           <p class="text-muted" data-politica-vigencia>
-            Versión {{ documento.version }} · Vigente desde {{ documento.vigenteDesde }} ·
-            {{ documento.acto.tipo }} {{ documento.acto.numero }} del {{ documento.acto.fecha }}
+            Versión {{ documento.version }}
+            <template v-if="vigencia"> · Vigente desde {{ fechaLarga(vigencia) }}</template>
+            <template v-if="acto"> · {{ acto }}</template>
           </p>
+
           <section v-for="seccion in documento.secciones" :key="seccion.id" :aria-labelledby="`politica-${seccion.id}`">
             <h2 :id="`politica-${seccion.id}`" class="h4 mt-4">{{ seccion.titulo }}</h2>
             <p v-for="(parrafo, i) in seccion.parrafos" :key="i">{{ parrafo }}</p>
           </section>
+
+          <h2 class="h4 mt-5">Descargar esta política</h2>
+          <ul data-politica-descargas>
+            <li v-if="documento.documentoOficial">
+              <a :href="documento.documentoOficial.url" data-descarga="oficial">
+                Documento oficial ({{ documento.documentoOficial.nombre }},
+                {{ tamanoLegible(documento.documentoOficial.tamano) }})
+              </a>
+            </li>
+            <li>
+              <a :href="`/politicas/${slug}.pdf`" data-descarga="pdf">Versión en PDF/A</a>
+            </li>
+            <li>
+              <a :href="`/politicas/${slug}.odt`" data-descarga="odt">Versión en ODT (formato abierto)</a>
+            </li>
+          </ul>
         </template>
-        <div v-else class="aviso-preparacion" role="status">
+        <div v-else class="aviso-error" role="alert">
           <p class="mb-0">
-            Este documento está en preparación. La política se publicará aquí con su
-            texto completo y con el acto administrativo que la adopta, para que pueda
-            citarse y verificarse.
+            No fue posible cargar el texto de esta política en este momento. Intente de nuevo
+            en unos minutos; si el problema continúa, escriba a los canales de atención de la
+            Entidad.
           </p>
         </div>
 
@@ -169,13 +233,13 @@ const otras = computed(() =>
 
 <style scoped>
 /*
-  Aviso de documento en preparación. Mismos tokens y mismo criterio de contraste
-  que el aviso de `SeccionEnPreparacion`: el amarillo institucional
-  (`--govcolor-vis-vis`) con el Matterhorn para el texto da 7,6:1, por encima del
-  4,5:1 que exige WCAG 2.1 AA.
+  Avisos de la política. Mismos tokens y mismo criterio de contraste que el aviso
+  de `SeccionEnPreparacion`: el amarillo institucional (`--govcolor-vis-vis`) con
+  el Matterhorn para el texto da 7,6:1, por encima del 4,5:1 que exige WCAG 2.1 AA.
 */
-.aviso-preparacion {
-  margin-top: 1.5rem;
+.aviso-ejemplo,
+.aviso-error {
+  margin: 1.5rem 0;
   padding: 1rem 1.25rem;
   border-left: 4px solid var(--govcolor-golden-brown, #9d7700);
   background-color: var(--govcolor-vis-vis, #fee697);

@@ -121,6 +121,13 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        // El registro de consentimientos lo llama cada navegador una o dos veces al año
+        // (y de nuevo si cambia de decisión). Treinta por minuto y por IP deja de sobra
+        // a una oficina entera que comparte salida y frena el relleno de la tabla.
+        RateLimiter::for('consentimientos', function (Request $peticion) {
+            return Limit::perMinute(30)->by($peticion->ip());
+        });
+
         // La API entera cabe en sesenta peticiones por minuto. Se cuenta por
         // usuario cuando hay sesión y por IP cuando no, para que un cliente
         // autenticado no consuma el cupo de la oficina entera que comparte salida.

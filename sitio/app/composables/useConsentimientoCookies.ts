@@ -55,6 +55,83 @@ export interface Consentimiento {
   aceptadas: CategoriaCookies[]
 }
 
+/** Qué ocurrió con el consentimiento. Es lo que se registra en el servidor (AC-26.4). */
+export type EventoConsentimiento = 'aceptado' | 'rechazado' | 'revocado' | 'caducado'
+
+/** Lo que se envía al servidor: sin ningún dato que identifique a quien consiente. */
+export interface RegistroConsentimiento {
+  evento: EventoConsentimiento
+  /** Categorías opcionales vigentes tras el evento; vacío = sólo las necesarias. */
+  categorias: CategoriaCookies[]
+  version_politica: number
+}
+
+/**
+ * Quién envía el registro al servidor. Se inyecta desde un plugin de Nuxt
+ * (`plugins/consentimiento.client.ts`) en lugar de llamar a la API desde aquí: así
+ * este módulo sigue siendo lógica pura, probable sin levantar el framework, y un
+ * fallo del servidor no puede tocar la decisión del ciudadano, que ya quedó
+ * guardada en su navegador.
+ */
+type Registrador = (registro: RegistroConsentimiento) => void | Promise<unknown>
+let registrador: Registrador | null = null
+
+/** Los envíos en curso: lo que hay que esperar antes de recargar la página. */
+const enCurso = new Set<Promise<unknown>>()
+
+/**
+ * Espera (como máximo `maxMs`) a que terminen los registros enviados. Lo usa la
+ * compuerta de la analítica antes de recargar al revocar, para que la constancia
+ * de la revocación no se pierda con la recarga.
+ */
+export async function esperarRegistros(maxMs = 1500): Promise<void> {
+  if (enCurso.size === 0) return
+  await Promise.race([
+    Promise.allSettled([...enCurso]),
+    new Promise((resolver) => setTimeout(resolver, maxMs)),
+  ])
+}
+
+export function configurarRegistroConsentimiento(nuevo: Registrador | null): void {
+  registrador = nuevo
+}
+
+function registrar(evento: EventoConsentimiento, categorias: CategoriaCookies[], version: number): void {
+  try {
+    const envio = registrador?.({ evento, categorias, version_politica: version })
+    if (envio instanceof Promise) {
+      enCurso.add(envio)
+      const quitar = (): void => void enCurso.delete(envio)
+      envio.then(quitar, quitar)
+    }
+  } catch {
+    // El registro es una constancia, no parte de la decisión: si falla, la
+    // decisión del ciudadano sigue en pie.
+  }
+}
+
+/** Clave de `sessionStorage` con la última caducidad ya registrada en esta pestaña. */
+const CLAVE_CADUCADO = 'sede-consentimiento-caducado'
+let caducadoRegistrado: string | null = null
+
+/**
+ * Registra, una sola vez por consentimiento caducado y por sesión, que lo que el
+ * ciudadano había aceptado ya no vale y se bloqueó (AC-26.6). Sin esa marca, cada
+ * página visitada volvería a registrarlo.
+ */
+function registrarCaducado(guardado: Consentimiento): void {
+  const marca = `${guardado.fecha}|${guardado.version}`
+  if (caducadoRegistrado === marca) return
+  caducadoRegistrado = marca
+  try {
+    if (sessionStorage.getItem(CLAVE_CADUCADO) === marca) return
+    sessionStorage.setItem(CLAVE_CADUCADO, marca)
+  } catch {
+    // Sin sessionStorage basta la marca en memoria: una vez por carga de página.
+  }
+  registrar('caducado', [], guardado.version)
+}
+
 /**
  * Estado compartido.
  *
@@ -111,9 +188,33 @@ export function consentimientoVigente(consentimiento: Consentimiento | null): bo
   return Number.isFinite(dias) && dias <= DIAS_CADUCIDAD
 }
 
-/** Guarda una decisión, cierra el banner y refleja las categorías aceptadas. */
-function decidir(aceptadas: CategoriaCookies[]): void {
+/**
+ * ¿Puede cargarse la analítica ahora mismo? Es la pregunta que hace el código que
+ * la inyecta (`plugins/analitica.client.ts`). Se evalúa leyendo el consentimiento
+ * guardado en el momento —no un valor en caché—, de modo que un consentimiento que
+ * caduca a mitad de sesión deja de valer en la siguiente comprobación.
+ */
+export function analiticaPermitida(): boolean {
+  const guardado = leerConsentimiento()
+  return consentimientoVigente(guardado) && (guardado?.aceptadas.includes('analitica') ?? false)
+}
+
+/**
+ * Guarda una decisión, cierra el banner, refleja las categorías aceptadas y la
+ * registra en el servidor. Si no se indica el evento se deduce: es `revocado` si
+ * se retira alguna categoría que estaba vigente (aunque se conserve otra);
+ * `aceptado` si queda alguna aceptada; y `rechazado` si no queda ninguna y antes
+ * tampoco había.
+ */
+function decidir(aceptadas: CategoriaCookies[], evento?: EventoConsentimiento): void {
+  const previo = leerConsentimiento()
+  const vigentes = consentimientoVigente(previo) ? (previo?.aceptadas ?? []) : []
+  const retiraAlgo = vigentes.some((categoria) => !aceptadas.includes(categoria))
+  const resuelto: EventoConsentimiento =
+    evento ?? (retiraAlgo ? 'revocado' : aceptadas.length > 0 ? 'aceptado' : 'rechazado')
+
   guardar({ fecha: new Date().toISOString(), version: VERSION_POLITICA, aceptadas })
+  registrar(resuelto, aceptadas, VERSION_POLITICA)
   preferencias.value = {
     analitica: aceptadas.includes('analitica'),
     preferencias: aceptadas.includes('preferencias'),
@@ -160,7 +261,9 @@ export function useConsentimientoCookies() {
       return
     }
     // Sin decisión, o caducada, o con una versión anterior de la política: se
-    // vuelve a preguntar (RN-01-D01).
+    // vuelve a preguntar (RN-01-D01). Si lo caducado incluía categorías opcionales,
+    // queda constancia de que se bloquearon.
+    if (guardado && guardado.aceptadas.length > 0) registrarCaducado(guardado)
     preferencias.value = { analitica: false, preferencias: false }
     visible.value = true
   }
@@ -191,6 +294,6 @@ export function useConsentimientoCookies() {
           .map(([categoria]) => categoria),
       ),
     /** Revoca todo lo aceptado y deja el sitio sólo con las cookies necesarias. */
-    revocar: () => decidir([]),
+    revocar: () => decidir([], 'revocado'),
   }
 }

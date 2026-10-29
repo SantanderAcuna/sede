@@ -34,7 +34,7 @@ final class FilesMediaService implements FilesMediaServiceInterface
      */
     private const EXTENSIONES = [
         'pdf', 'png', 'jpg', 'gif', 'webp',
-        'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+        'doc', 'docx', 'odt', 'xls', 'xlsx', 'ppt', 'pptx',
         'zip', 'rar',
     ];
 

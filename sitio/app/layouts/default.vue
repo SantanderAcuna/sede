@@ -311,6 +311,8 @@ const aplicacionesGaleria = [
 
     <!-- Componentes de la auditoría: banner de cookies y aviso de salida -->
     <BannerCookies />
+    <!-- Dónde se dibujan los avisos emergentes (`useToast().mostrar`). -->
+    <ContenedorToastsGovco />
     <ModalAvisoSalida
       v-if="enlacePendiente"
       :visible="visible"

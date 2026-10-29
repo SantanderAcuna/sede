@@ -1973,3 +1973,22 @@ main {
     display: none;
   }
 }
+
+/*
+ * Imagen del carrusel en un teléfono. Con el alto del Kit (13,5 rem = 216 px) el
+ * texto de la diapositiva quedaba bajo la primera pantalla, y mientras la portada
+ * use el gris de marcador del Kit son 216 px sin información (lo señaló José el
+ * 2026-10-29 sobre una captura). A 8 rem la imagen sigue siendo una franja
+ * reconocible; `object-fit: cover` (del componente) recorta las fotografías
+ * reales, no las deforma. Es un valor de diseño: se sube aquí si la Entidad
+ * prefiere más foto.
+ *
+ * El selector es el mismo del Kit (`min-height: 13.5rem`) y gana por ir después.
+ * Hay que soltar `min-height` además de bajar `height`, o el mínimo del Kit manda.
+ */
+@media (max-width: 575px) {
+  .responsive-carrusel-govco .carousel-inner .carousel-item img {
+    height: 8rem;
+    min-height: 0;
+  }
+}

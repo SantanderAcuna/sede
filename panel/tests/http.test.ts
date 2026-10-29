@@ -6,6 +6,7 @@
  * El cliente axios y sus interceptores se verifican indirectamente a través
  * de los tests de sesion.ts y auth.ts que mockean el módulo.
  */
+import { AxiosError } from 'axios'
 import { describe, expect, it } from 'vitest'
 
 import type { ApiEnvelope, PaginatedEnvelope } from '../src/types/api'
@@ -183,8 +184,7 @@ describe('esErrorApi', () => {
 
   it('devuelve true cuando el error es un AxiosError', () => {
     // Crear un AxiosError mockeado que pase la verificación de axios.isAxiosError.
-    const axios = require('axios')
-    const mockError = new axios.AxiosError('Request failed', 'ERR_BAD_REQUEST', {}, null)
+    const mockError = new AxiosError('Request failed', 'ERR_BAD_REQUEST', {}, null)
     expect(esErrorApi(mockError)).toBe(true)
   })
 })

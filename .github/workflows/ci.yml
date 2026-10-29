@@ -116,6 +116,11 @@ jobs:
       - name: Instalar
         working-directory: panel
         run: npm ci --ignore-scripts
+      # ESLint (T-11, H-12). Falla ante cualquier error y si las advertencias superan
+      # la línea base fijada en `panel/package.json` (`--max-warnings`).
+      - name: Lint
+        working-directory: panel
+        run: npm run lint
       - name: Generar los tipos desde el contrato
         working-directory: panel
         run: npx openapi-typescript ../contract/openapi.yaml -o src/types/openapi.d.ts --read-write-markers

@@ -115,9 +115,9 @@ describe('AdminLayout', () => {
   it('con la sesión iniciada sí aparece el módulo cuyo permiso se tiene', async () => {
     const sesion = useSesionStore()
     // Establecer estado interno del store sin llamar a la API.
-    // @ts-ignore — acceso interno al estado para testing.
+    // @ts-expect-error — acceso interno al estado para testing.
     sesion.usuario = { id: 1, email: 'admin@test.co', nombre: 'Admin', permisos: ['panel-administrative'] }
-    // @ts-ignore
+    // @ts-expect-error — estado interno del store, solo para la prueba.
     sesion.inicializado = true
     const disposicion = montar()
     await disposicion.vm.$nextTick()

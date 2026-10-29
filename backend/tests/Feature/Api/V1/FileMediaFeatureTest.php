@@ -32,6 +32,8 @@ final class FileMediaFeatureTest extends TestCase
     {
         parent::setUp();
         Storage::fake('public');
+        // La subida usa el disco por defecto de la configuración (`local`).
+        Storage::fake('local');
 
         $this->seed([
             EntidadSeeder::class,

@@ -4,11 +4,11 @@
  * Cubre: renderizado con datos, estado vacío, paginación, ordenación,
  *ARIA-sort, y emit rowClick.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { h, type ColumnDef } from '@tanstack/vue-table'
 import type { DataTableFeatures } from '../src/components/base/dataTableFeatures'
-import { defineComponent, ref } from 'vue'
+import { defineComponent } from 'vue'
 
 // ---------------------------------------------------------------------------
 // Mock FaIcon global (usado en toda la tabla)

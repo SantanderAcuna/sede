@@ -184,3 +184,15 @@
   /** Sombra de la tarjeta al pasar el cursor. */
   --tarjeta-tramite-sombra: 0 0.25rem 0.75rem rgb(0 0 0 / 12%);
 }
+
+:root {
+  /* --- Botón de accesibilidad flotante (desde 992 px) ---------------------- */
+
+  /** Diámetro del círculo. 48 px: por encima del mínimo táctil de 44 px (RNF-B3-005). */
+  --acc-flotante-tamano: 3rem;
+  /** Distancia al borde derecho de la ventana. */
+  --acc-flotante-margen: 0.5rem;
+  /** La columna del borde derecho que el círculo puede cubrir al desplazarse:
+      diámetro + margen. Nada del contenido debe entrar en ella (HU-07-D02). */
+  --acc-flotante-columna: calc(var(--acc-flotante-tamano) + var(--acc-flotante-margen));
+}

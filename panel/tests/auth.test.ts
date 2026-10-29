@@ -106,6 +106,22 @@ describe('login()', () => {
     })
   })
 
+  it('no envía las credenciales si el servidor no entrega la cookie CSRF', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 } as never)
+    vi.mocked(http.post).mockClear()
+
+    await expect(login({ email: 'a@b.co', password: 'pass' })).rejects.toThrow(/cookie CSRF.*404/)
+    expect(http.post).not.toHaveBeenCalled()
+  })
+
+  it('también corta si la cookie CSRF responde con error del servidor', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 } as never)
+    vi.mocked(http.post).mockClear()
+
+    await expect(login({ email: 'a@b.co', password: 'pass' })).rejects.toThrow(/HTTP 500/)
+    expect(http.post).not.toHaveBeenCalled()
+  })
+
   it('devuelve require_mfa=false cuando 2FA no está habilitado', async () => {
     vi.mocked(http.post).mockResolvedValueOnce({
       data: {

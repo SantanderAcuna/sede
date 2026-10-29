@@ -89,6 +89,7 @@ const grupos: GrupoNavegacion[] = [
       { label: 'Reportes', ruta: '/reportes', icono: 'chart-line' },
       { label: 'Motor de asignación', ruta: '/asignacion', icono: 'sliders' },
       { label: 'Entidad', ruta: '/configuracion/entidad', icono: 'building' },
+      { label: 'Políticas del sitio', ruta: '/configuracion/politicas', icono: 'file-contract' },
       { label: 'Configuración', ruta: '/configuracion', icono: 'gear' },
     ],
   },

@@ -50,6 +50,7 @@ final class SedeSeeder extends Seeder
     {
         $this->call(EntidadSeeder::class);
         $this->call(MenuSeeder::class);
+        $this->call(PoliticaSeeder::class);
         $this->call(TramiteSeeder::class);
         $this->call(PermissionSeeder::class);
         $this->call(SuperAdminSeeder::class);

@@ -30,6 +30,8 @@ return Application::configure(basePath: dirname(__DIR__))
             // Las sondas viven fuera de la API versionada y sin el grupo de
             // middleware de la API: no son parte del contrato público.
             Route::group([], base_path('routes/salud.php'));
+            // La descarga de las políticas (T-20), también sin sesión ni cookies.
+            Route::group([], base_path('routes/descargas.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

@@ -28,6 +28,7 @@
  *     «search» con el mismo nombre); el campo vacío muestra 27 caracteres a 320,
  *     360 y 390 px, con texto y botón de borrar caben a partir de 360 px, y al
  *     borrar el foco vuelve al campo.
+ *  9. Carrusel. La imagen mide ≤ 144 px de alto a 320 y 390 px (el Kit deja 216).
  *  8. Nombre accesible (WCAG 2.5.3, RF-B3-066): axe `label-content-name-mismatch`
  *     sin violaciones en la portada, en el panel de accesibilidad abierto y en
  *     la declaración de accesibilidad. El rótulo que se ve tiene que estar
@@ -291,6 +292,16 @@ for (const ancho of [320, 360, 390]) {
   await p.getByRole('button', { name: 'Limpiar la búsqueda' }).click()
   const foco = await p.evaluate(() => document.activeElement?.tagName)
   comprobar(foco === 'INPUT', `${ancho} px: al borrar, el foco vuelve al campo`, `${ancho} px: al borrar, el foco quedó en ${foco}`)
+  await ctx.close()
+}
+
+// 9. Imagen del carrusel en un teléfono --------------------------------------
+console.log('Carrusel')
+for (const ancho of [320, 390]) {
+  const ctx = await contexto(ancho, 844)
+  const p = await abrirResuelta(ctx, '/')
+  const alto = await p.locator('.carousel-item img').first().evaluate((i) => Math.round(i.getBoundingClientRect().height))
+  comprobar(alto <= 144, `${ancho} px: imagen del carrusel de ${alto} px (≤ 144; el Kit deja 216)`, `${ancho} px: imagen del carrusel de ${alto} px (> 144: empuja el texto bajo la primera pantalla)`)
   await ctx.close()
 }
 

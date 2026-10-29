@@ -171,7 +171,12 @@ try {
     const conError = []
     for (const ruta of rutas) {
       const respuesta = await portada.request.get(`${base}${ruta}`)
-      if (respuesta.status() >= 500) conError.push(`${ruta} → ${respuesta.status()}`)
+      if (respuesta.status() >= 500) {
+        // Cabeceras que distinguen «falló el origen» de «lo frenó el proxy» (sin datos sensibles).
+        const h = respuesta.headers()
+        const pista = ['server', 'cf-mitigated', 'retry-after'].filter((n) => h[n]).map((n) => `${n}: ${h[n]}`).join(', ')
+        conError.push(`${ruta} → ${respuesta.status()}${pista ? ` (${pista})` : ''}`)
+      }
     }
     return {
       ok: conError.length === 0,

@@ -15,6 +15,7 @@
  */
 import type { MenuPrincipal } from '~/types/menu'
 import type { NivelMigaDePan } from '~/components/govco/MigaDePanGovco.vue'
+import { redesDesdeApi, REDES_RESPALDO, type RedDeApi } from '~/config/redes-sociales'
 import { etiquetaFueraDelMenu, menuPrincipal } from '~/config/sitemap'
 
 // Componentes globales de la auditoría (D-01, D-02)
@@ -30,6 +31,28 @@ import GaleriaAplicacionesGovco from '~/components/govco/GaleriaAplicacionesGovc
  * que es donde los lee un rastreador.
  */
 useMetadatosComparticion()
+
+/*
+ * Las redes del pie salen de la API (`/identidad/footer`), la misma lista que se
+ * edita en el panel. Si la API no responde o no trae ninguna red válida, se usa
+ * el respaldo: el pie de una sede electrónica no puede quedarse sin ellas por una
+ * caída. `useRequestFetch` por la misma razón que en el catálogo de trámites: en
+ * el servidor la URL relativa de la API se resuelve contra la petición en curso.
+ */
+const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
+const traer = useRequestFetch()
+const { data: pieDeApi } = await useAsyncData('pie-redes', async () => {
+  try {
+    const respuesta = await traer<{ data?: { redes?: RedDeApi[] } }>(`${urlApi}/identidad/footer`)
+    return respuesta.data?.redes ?? []
+  } catch {
+    return []
+  }
+})
+const redesDelPie = computed(() => {
+  const redes = redesDesdeApi(pieDeApi.value)
+  return redes.length > 0 ? redes : REDES_RESPALDO
+})
 
 // Estado del modal de aviso de salida a sitio externo
 const { visible, enlacePendiente, origenDelAviso, confirmarNavegacion, cancelarNavegacion } =
@@ -281,7 +304,7 @@ const aplicacionesGaleria = [
         <slot />
       </main>
 
-      <PiePaginaGovco />
+      <PiePaginaGovco :redes-sociales="redesDelPie" />
     </div>
 
     <VolverArriba />

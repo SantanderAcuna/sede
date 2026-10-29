@@ -264,24 +264,18 @@ const aplicacionesGaleria = [
 
         <template #acciones>
           <!--
-            Acciones de la cabecera: el botón de accesibilidad (sólo por debajo de
-            992 px; desde ahí es el círculo flotante de más arriba) y la galería de
-            aplicaciones. En un teléfono la fila del logotipo tenía un hueco entre
-            el escudo y la galería: el botón ocupa ese hueco, de modo que no tapa
-            contenido ni reserva espacio (Kit UI 9.2: la barra no se muestra desde
-            el breakpoint de tablet). Ver `BotonAccesibilidad.vue`.
+            La galería de aplicaciones. **El botón de accesibilidad no va aquí**: es un
+            círculo flotante fijo en el lado derecho, igual en todas las pantallas
+            (D1). Su montaje está arriba, tras el enlace de salto.
 
             **El botón de login está en la BarraSuperior** (la franja azul del
             Estado), en la esquina derecha, con un icono de usuario outline en blanco.
           -->
-          <div class="acciones-cabecera">
-            <BotonAccesibilidad variante="cabecera" />
-            <GaleriaAplicacionesGovco
-              :aplicaciones="aplicacionesGaleria"
-              etiqueta-boton="Abrir aplicaciones y servicios"
-              ayuda-boton="Acceso al Portal GOV.CO, Carpeta Ciudadana y CIIU."
-            />
-          </div>
+          <GaleriaAplicacionesGovco
+            :aplicaciones="aplicacionesGaleria"
+            etiqueta-boton="Abrir aplicaciones y servicios"
+            ayuda-boton="Acceso al Portal GOV.CO, Carpeta Ciudadana y CIIU."
+          />
         </template>
       </CabeceraGovco>
 

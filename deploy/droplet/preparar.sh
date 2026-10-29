@@ -144,7 +144,9 @@ fi
 # Llave de despliegue: comando forzado con sudo (la cuenta ya no tiene `docker`).
 # Si se pasa LLAVE_DESPLIEGUE (ruta a la llave PÚBLICA de la canalización) se
 # instala; si ya hay una con el comando anterior, se migra.
-OPCIONES_LLAVE='no-port-forwarding,no-x11-forwarding,no-agent-forwarding,no-pty,no-user-rc'
+# `restrict` apaga de golpe reenvío de puertos, X11, agente, PTY y user-rc, y cubre
+# también lo que OpenSSH añada después; es más corto y más seguro que enumerarlas.
+OPCIONES_LLAVE='restrict'
 FORZADO='command="sudo -n /usr/local/bin/desplegar.sh"'
 AK_DESPLIEGUE="/home/$USUARIO_DESPLIEGUE/.ssh/authorized_keys"
 install -d -m 700 -o "$USUARIO_DESPLIEGUE" -g "$USUARIO_DESPLIEGUE" "/home/$USUARIO_DESPLIEGUE/.ssh"
@@ -153,6 +155,8 @@ if [ -n "${LLAVE_DESPLIEGUE:-}" ] && [ -f "$LLAVE_DESPLIEGUE" ]; then
   verde "  llave de despliegue instalada con comando forzado"
 elif [ -f "$AK_DESPLIEGUE" ]; then
   sed -i 's|^command="/usr/local/bin/desplegar.sh"|'"$FORZADO"'|' "$AK_DESPLIEGUE"
+  # Y si la llave aún enumera opciones `no-*`, se sustituyen por `restrict`.
+  sed -i -E 's|^(command="sudo -n /usr/local/bin/desplegar\.sh"),[^ ]* |\1,restrict |' "$AK_DESPLIEGUE"
 fi
 chown "$USUARIO_DESPLIEGUE:$USUARIO_DESPLIEGUE" "$AK_DESPLIEGUE" 2>/dev/null || true
 chmod 600 "$AK_DESPLIEGUE" 2>/dev/null || true

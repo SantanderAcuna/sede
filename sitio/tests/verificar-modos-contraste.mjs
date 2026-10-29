@@ -24,7 +24,13 @@
  *
  * Uso: node tests/verificar-modos-contraste.mjs [url]
  */
-const { chromium } = await import('@playwright/test')
+import { createRequire } from 'node:module'
+
+// `PLAYWRIGHT_MODULE=…` permite usar otra instalación de Playwright (la del
+// entorno, cuando su navegador no coincide con la versión del proyecto).
+const { chromium } = process.env.PLAYWRIGHT_MODULE
+  ? createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE)
+  : await import('@playwright/test')
 
 const base = process.argv[2] ?? 'http://127.0.0.1:3000'
 const modos = ['normal', 'alto', 'inverso', 'grises']
@@ -146,6 +152,7 @@ try {
         centroY: caja.top + caja.height / 2,
         centroVentana: window.innerHeight / 2,
         separacionDerecha: window.innerWidth - caja.right,
+        separacionInferior: window.innerHeight - caja.bottom,
       }
     })
     if (medida === null) {
@@ -154,14 +161,20 @@ try {
       continue
     }
     const esCirculo = Math.abs(medida.ancho - medida.alto) <= 2 && medida.redondeo >= medida.ancho / 2 - 1
-    const centrado = Math.abs(medida.centroY - medida.centroVentana) <= 4
+    // En móvil (hasta 767 px) va anclado a la esquina inferior; en escritorio,
+    // centrado en el borde. A media altura, en un teléfono, tapaba el final de las
+    // líneas de cualquier párrafo.
+    const abajo = ancho <= 767
+    const centrado = abajo
+      ? medida.separacionInferior >= 0 && medida.separacionInferior <= 24
+      : Math.abs(medida.centroY - medida.centroVentana) <= 4
     const aLaDerecha = medida.separacionDerecha >= 0 && medida.separacionDerecha < 40
     const tactil = medida.ancho >= 44 && medida.alto >= 44
     informar(
       `${ancho}×${alto} px`,
       medida.posicion === 'fixed' && esCirculo && centrado && aLaDerecha && tactil,
       `${medida.ancho.toFixed(0)}×${medida.alto.toFixed(0)} px · ${medida.posicion} · ` +
-        `centrado: ${centrado} · a la derecha: ${medida.separacionDerecha.toFixed(0)} px · ` +
+        `${abajo ? 'anclado abajo' : 'centrado'}: ${centrado} · a la derecha: ${medida.separacionDerecha.toFixed(0)} px · ` +
         `área activa ≥44: ${tactil}`,
     )
     await pagina.close()

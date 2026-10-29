@@ -237,6 +237,19 @@ const sedePrincipal = computed<Sede | undefined>(() => props.sedes[0])
  * calcula en el script y no con `v-if` dentro del `v-for`, que están prohibidos
  * juntos en el mismo elemento y además desalinearían el índice de la clave.
  */
+/**
+ * Un correo largo se parte sin criterio en pantalla estrecha («…@santamarta.g» /
+ * «ov.co»). Con un punto de corte tras la arroba —`<wbr>`— la línea se parte
+ * donde se lee bien: «usuario@» arriba y el dominio entero abajo.
+ */
+function antesDeArroba(texto: string): string {
+  return texto.slice(0, texto.indexOf('@') + 1)
+}
+
+function despuesDeArroba(texto: string): string {
+  return texto.slice(texto.indexOf('@') + 1)
+}
+
 const contacto = computed<DatoContacto[]>(() => {
   const sede = sedePrincipal.value
   if (sede === undefined) return []
@@ -290,7 +303,7 @@ const contacto = computed<DatoContacto[]>(() => {
               class="btn-govco link-btn-govco"
               :href="`mailto:${item.correo}`"
               :aria-label="`Permite enviar correo a ${item.correo}`"
-            >{{ item.valor }}</a>
+            ><span>{{ antesDeArroba(item.valor ?? item.correo) }}<wbr>{{ despuesDeArroba(item.valor ?? item.correo) }}</span></a>
             <template v-else>{{ item.valor }}</template>
           </p>
         </li>

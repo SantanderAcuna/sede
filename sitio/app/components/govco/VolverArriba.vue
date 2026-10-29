@@ -54,4 +54,15 @@ onBeforeUnmount(() => window.removeEventListener('scroll', alDesplazar))
   right: 10%;
   z-index: 1200;
 }
+
+/* En móvil, justo encima del botón de accesibilidad (esquina inferior derecha,
+   ver `BotonAccesibilidad.vue`): 1 rem de margen + 3 rem del círculo + 1 rem de
+   aire. El `right` compensa que éste es algo más ancho (3,375 rem) para que los
+   dos queden en el mismo eje vertical. */
+@media (max-width: 767px), (max-height: 480px) {
+  .posicion-volver-arriba {
+    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    right: calc(0.3rem + env(safe-area-inset-right, 0px));
+  }
+}
 </style>

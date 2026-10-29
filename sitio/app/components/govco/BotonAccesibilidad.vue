@@ -85,11 +85,15 @@ const ID_PANEL = 'panel-accesibilidad'
 .boton-accesibilidad {
   --fab-tamano: 3.5rem;
   --fab-margen: 0.75rem;
+  /* Cuánto se sube el círculo para centrarlo: en escritorio, la mitad de su alto;
+     en móvil va anclado abajo y no se desplaza. Una variable, y no tres
+     `transform` repetidos, para que el hover y el pulsado no lo pisen. */
+  --fab-desplazamiento: -50%;
 
   position: fixed;
   top: 50%;
   right: var(--fab-margen);
-  transform: translateY(-50%);
+  transform: translateY(var(--fab-desplazamiento));
   z-index: 1210;
 
   display: inline-flex;
@@ -120,7 +124,7 @@ const ID_PANEL = 'panel-accesibilidad'
 
 .boton-accesibilidad:hover {
   background-color: var(--govcolor-havelock-lue, #4672c8);
-  transform: translateY(-50%) scale(1.06);
+  transform: translateY(var(--fab-desplazamiento)) scale(1.06);
 }
 
 /*
@@ -135,7 +139,7 @@ const ID_PANEL = 'panel-accesibilidad'
 }
 
 .boton-accesibilidad:active {
-  transform: translateY(-50%) scale(0.97);
+  transform: translateY(var(--fab-desplazamiento)) scale(0.97);
 }
 
 /* El texto es el nombre accesible; se recorta, no se oculta. */
@@ -170,10 +174,30 @@ const ID_PANEL = 'panel-accesibilidad'
   }
 }
 
-/* Pantallas muy bajas: se mantiene centrado, pero el tamaño no crece. */
+/* Pantallas muy bajas: el tamaño no crece. */
 @media (max-height: 480px) {
   .boton-accesibilidad {
     --fab-tamano: 2.875rem;
+  }
+}
+
+/*
+ * En móvil el círculo va en la esquina inferior derecha y no a media altura.
+ * Centrado en el borde derecho, a 390 px tapaba el final de las líneas de
+ * cualquier párrafo a la altura del pulgar (se midió en las 20 rutas y a los
+ * tres anchos) y, en horizontal, se montaba sobre el botón del menú. En la
+ * esquina sólo cruza el contenido al llegar al final de la página, y el botón de
+ * volver arriba se coloca justo encima (ver `VolverArriba.vue`).
+ *
+ * `env(safe-area-inset-*)` evita la barra de gestos de iOS y las muescas.
+ */
+@media (max-width: 767px), (max-height: 480px) {
+  .boton-accesibilidad {
+    --fab-desplazamiento: 0px;
+
+    top: auto;
+    right: calc(var(--fab-margen) + env(safe-area-inset-right, 0px));
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

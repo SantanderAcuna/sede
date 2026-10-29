@@ -149,7 +149,19 @@ const correos = [
         </p>
 
         <!-- Tabla de los 12 elementos -->
-        <div class="tabla-conformidad table-responsive">
+        <!--
+          En pantalla estrecha la tabla es más ancha que la columna y este
+          contenedor la desplaza. Una región que se desplaza tiene que poder
+          recibir el foco —de lo contrario, quien navega sólo con teclado no puede
+          ver las columnas ocultas (axe: scrollable-region-focusable)— y llevar
+          nombre, porque una región sin nombre no se anuncia.
+        -->
+        <div
+          class="tabla-conformidad table-responsive"
+          role="region"
+          aria-label="Declaración de conformidad (desplazable en horizontal)"
+          tabindex="0"
+        >
           <table class="table table-bordered table-sm">
             <caption class="visually-hidden">
               Elementos mínimos de la declaración de conformidad

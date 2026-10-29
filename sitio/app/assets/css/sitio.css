@@ -2018,3 +2018,19 @@ main {
     padding-right: calc(var(--bs-gutter-x, 1.5rem) * 0.5 + 2.75rem);
   }
 }
+
+/*
+ * «Ver todos los trámites y servicios» en la portada. El Kit estira `.btn-govco` al
+ * ancho de su contenedor (una cápsula de 1100 px pegada a la izquierda); aquí se
+ * ajusta a su texto y el párrafo que lo contiene (`text-center`) lo centra. 0,3,0:
+ * gana al Kit por especificidad sin `!important`.
+ */
+.portada-sede .btn-govco.boton-ver-todos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  max-width: 100%;
+  padding-inline: 2rem;
+  text-align: center;
+}

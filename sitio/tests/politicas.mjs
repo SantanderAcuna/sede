@@ -7,7 +7,8 @@
  *   - la página responde 200, trae el texto de la API y NO dice «en preparación»;
  *   - si el texto es de ejemplo, lo avisa y lleva `noindex`;
  *   - se descarga en ODT (zip válido, tipo de documento OpenDocument) y en PDF/A
- *     (cabecera %PDF y marca `pdfaid`), sin poner cookies;
+ *     (cabecera %PDF y marca `pdfaid`), sin poner cookies; si se define
+ *     `VERAPDF=/ruta/a/verapdf`, además lo valida de verdad con veraPDF;
  *   - si la API dice que tiene documento oficial, su enlace responde 200.
  * Y que una política inexistente responde 404. Sale con código 1 si algo falla.
  * No necesita navegador: son peticiones HTTP.
@@ -32,6 +33,15 @@ const falla = (mensaje) => {
   console.error(`  ✗ ${mensaje}`)
 }
 const ok = (mensaje) => console.log(`  ✓ ${mensaje}`)
+
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+/** Validación formal con veraPDF (opcional: sólo si se indica dónde está). */
+const VERAPDF = process.env.VERAPDF ?? ''
+const carpeta = VERAPDF ? mkdtempSync(join(tmpdir(), 'politicas-pdf-')) : ''
 
 const pedir = async (ruta, opciones = {}) => fetch(`${BASE}${ruta}`, { redirect: 'manual', ...opciones })
 
@@ -68,7 +78,16 @@ for (const slug of SLUGS) {
   if (pdf.status !== 200) falla(`PDF respondió ${pdf.status}`)
   else if (bytesPdf.subarray(0, 4).toString() !== '%PDF') falla('el PDF no empieza por %PDF')
   else if (!bytesPdf.includes('pdfaid:part')) falla('el PDF no declara PDF/A (pdfaid)')
-  else ok(`PDF/A ${bytesPdf.length} bytes`)
+  else {
+    ok(`PDF/A ${bytesPdf.length} bytes`)
+    if (VERAPDF) {
+      const archivo = join(carpeta, `${slug}.pdf`)
+      writeFileSync(archivo, bytesPdf)
+      const r = spawnSync(VERAPDF, ['--format', 'text', archivo], { encoding: 'utf8' })
+      if (r.status === 0 && /^PASS/m.test(r.stdout)) ok('veraPDF: PASS')
+      else falla(`veraPDF no lo valida: ${(r.stdout || r.stderr).trim().split('\n').pop()}`)
+    }
+  }
   if (pdf.headers.get('set-cookie')) falla('la descarga PDF pone cookies')
 
   const oficial = politica?.documento_oficial

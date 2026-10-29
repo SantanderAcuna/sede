@@ -12,7 +12,7 @@ use ZipArchive;
 
 /**
  * Genera las descargas de una política en formato abierto (T-20, AC-20.5):
- * ODT (OpenDocument, Ley 1712 de 2014: formatos abiertos) y PDF/A-1b, el
+ * ODT (OpenDocument, Ley 1712 de 2014: formatos abiertos) y PDF/A-2b, el
  * formato de archivo a largo plazo.
  */
 final class PoliticaDocumentos
@@ -131,8 +131,12 @@ final class PoliticaDocumentos
             mkdir($temporal, 0775, true);
         }
 
-        // PDF/A-1b exige fuentes incrustadas: se usa DejaVu, que mPDF trae, y no las
+        // PDF/A exige fuentes incrustadas: se usa DejaVu, que mPDF trae, y no las
         // fuentes base del PDF, que no se incrustan.
+        //
+        // Es PDF/A-2b y no el 1b que mPDF usa por defecto: veraPDF rechazó el 1b
+        // (ISO 19005-1, 6.3.5) porque mPDF no escribe el CIDSet que exige para las
+        // fuentes TrueType incrustadas; el 2b lo hace opcional y valida.
         $mpdf = new Mpdf([
             'mode' => 'utf-8',
             'format' => 'A4',
@@ -140,6 +144,7 @@ final class PoliticaDocumentos
             'default_font' => 'dejavusans',
             'PDFA' => true,
             'PDFAauto' => true,
+            'PDFAversion' => '2-B',
         ]);
         $mpdf->SetTitle($politica->nombre);
         $mpdf->SetAuthor('Alcaldía Distrital de Santa Marta');

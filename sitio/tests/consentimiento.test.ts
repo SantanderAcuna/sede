@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   analiticaPermitida,
   configurarRegistroConsentimiento,
+  configurarVersionPolitica,
   consentimientoVigente,
   type RegistroConsentimiento,
   leerConsentimiento,
@@ -414,5 +415,68 @@ describe('analiticaPermitida (AC-26.3)', () => {
     guardarCrudo({ fecha: haceDias(395), version: VERSION_POLITICA, aceptadas: ['analitica'] })
     consentimiento.inicializar()
     expect(consentimiento.visible.value).toBe(true)
+  })
+})
+
+describe('la versión viene de la política de cookies (AC-20.8)', () => {
+  afterEach(() => configurarVersionPolitica(VERSION_POLITICA))
+
+  it('al subir la versión de la política, un consentimiento anterior deja de valer y se vuelve a preguntar', () => {
+    consentimiento.aceptarTodo()
+    expect(consentimientoVigente(leerConsentimiento())).toBe(true)
+
+    configurarVersionPolitica(VERSION_POLITICA + 1)
+
+    expect(consentimientoVigente(leerConsentimiento())).toBe(false)
+    expect(analiticaPermitida()).toBe(false)
+    consentimiento.inicializar()
+    expect(consentimiento.visible.value).toBe(true)
+  })
+
+  it('una decisión nueva se anota con la versión vigente, en el navegador y en el servidor', () => {
+    const registros: RegistroConsentimiento[] = []
+    configurarRegistroConsentimiento((r) => void registros.push(r))
+    configurarVersionPolitica(7)
+
+    consentimiento.aceptarTodo()
+
+    expect(leerConsentimiento()?.version).toBe(7)
+    expect(registros.at(-1)?.version_politica).toBe(7)
+    expect(consentimientoVigente(leerConsentimiento())).toBe(true)
+    configurarRegistroConsentimiento(null)
+  })
+
+  it('si la API no respondió, no se descarta un consentimiento por su versión', () => {
+    guardarCrudo({ fecha: haceDias(10), version: 4, aceptadas: ['analitica'] })
+
+    configurarVersionPolitica(null)
+
+    expect(consentimientoVigente(leerConsentimiento())).toBe(true)
+    expect(analiticaPermitida()).toBe(true)
+  })
+
+  it('aun sin la versión, la caducidad por fecha sigue aplicando', () => {
+    guardarCrudo({ fecha: haceDias(400), version: 4, aceptadas: ['analitica'] })
+
+    configurarVersionPolitica(null)
+
+    expect(consentimientoVigente(leerConsentimiento())).toBe(false)
+  })
+
+  it('sin la versión, una decisión nueva conserva la del consentimiento anterior', () => {
+    guardarCrudo({ fecha: haceDias(1), version: 4, aceptadas: ['analitica'] })
+    configurarVersionPolitica(null)
+
+    consentimiento.guardarPreferencias()
+
+    expect(leerConsentimiento()?.version).toBe(4)
+  })
+
+  it('un valor que no es un entero desde 1 se toma como «no se pudo leer»', () => {
+    guardarCrudo({ fecha: haceDias(1), version: 4, aceptadas: [] })
+    for (const raro of [0, -1, 1.5, '2', undefined, Number.NaN]) {
+      configurarVersionPolitica(raro)
+      expect(consentimientoVigente(leerConsentimiento()), String(raro)).toBe(true)
+    }
   })
 })

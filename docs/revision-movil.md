@@ -34,7 +34,7 @@ sitio con datos).
 | Migas de pan con sangría de 58 px y niveles apilados. El Kit fuerza `padding: 0 46px !important`. | Margen negativo **sólo a la izquierda** (a la derecha desbordaba la página). Sin `!important`. |
 | Radios y casillas de `.form-check` pegados a su etiqueta. | Fila con `gap`. |
 | `/accesibilidad`: el correo de notificaciones judiciales sacaba la página **30 px** (390) y **99 px** (320). | `overflow-wrap: break-word` en `main`; el pie parte los correos tras la arroba. |
-| Rótulo del buscador cortado a media letra. | Menos relleno y puntos suspensivos. |
+| Rótulo del buscador cortado a media letra. | Menos relleno y puntos suspensivos. (La primera versión de esta regla **nunca se aplicó**: el Kit usa `input[type=text].…` y gana por especificidad; se midieron 20 px de relleno pese a declarar 14.) |
 | Región desplazable de la tabla de conformidad sin foco de teclado (axe: `scrollable-region-focusable`). | `tabindex="0"`, `role="region"` y nombre. |
 
 ## Efectos colaterales a conocer
@@ -59,14 +59,33 @@ sitio con datos).
 - Los **dos botones flotantes** (accesibilidad y «Volver arriba») siguen
   cruzando contenido al desplazar; ahora sólo en la esquina.
 
-## Abierto (no se tocó)
+## Ajuste a los requisitos del Módulo 01 (segunda pasada)
+
+Lo que la primera pasada dejó abierto, contrastado con `estructura-identidad.md`:
+
+| Requisito | Medido antes | Corrección |
+|---|---|---|
+| **RF-B1-005** buscador visible en el encabezado, ≥ 27 caracteres | En móvil el campo de la cabecera medía ~137 px a 390 (≈ 16 caracteres) y ~67 px a 320; además el menú traía **un segundo buscador** (dos regiones `search` con el mismo nombre). | Un solo buscador, el de la cabecera, en **su propia fila a todo el ancho** por debajo de 768 px (como hace el propio Kit con `.search-mobile`). El menú ya no recibe el buscador. Botón de borrar sin reservar sus 44 px cuando está vacío. Letra de 16 px (el Kit la fija en 15). |
+| **WCAG 2.5.3 / RF-B3-066** el rótulo visible debe estar en el nombre accesible | axe `label-content-name-mismatch`: «Reproducir» (`aria-label` «Reanudar…»), botones A−/A+ del panel y 4 enlaces del pie (redes sociales). | «Reproducir las diapositivas automáticamente»; A−/A+ con texto para lector de pantalla en lugar de `aria-label`; las redes empiezan por el usuario visible («@usuario, Facebook de la Entidad…»); el correo usa el mismo texto que se ve. 0 violaciones en portada, panel y `/accesibilidad`. |
+
+Cómo se midió lo de los 27 caracteres: se mide, con el motor de texto del navegador,
+cuántos caracteres de una muestra de 27 (`licencia de construcción ab`) caben en el
+área útil del campo **vacío**: 27 a 320, 360 y 390 px. Con texto escrito (y el botón de
+borrar a la vista) los 27 caben a partir de 360 px; a 320 el campo se desplaza, que es
+el comportamiento normal de un `<input>`.
+
+**Límite honesto:** «27 caracteres» no define el ancho de carácter. Se usó una muestra
+de letras de ancho medio; con mayúsculas o con «m/w» cabrían menos.
+
+## Abierto
 
 - La diapositiva de la portada usa la imagen gris de marcador del Kit: en móvil
-  ocupa ~270 px de pantalla sin información. Es contenido, lo decide la Entidad.
-- En el menú móvil hay **dos buscadores** (cabecera y menú).
-- axe marca `label-content-name-mismatch` (WCAG 2.5.3, «serio») en «Reproducir»,
-  en los botones de tamaño de texto del panel y en enlaces del pie cuyo
-  `aria-label` no contiene el texto visible. Existía antes de esta revisión.
+  ocupa ~270 px de pantalla sin información. **AC-23.3 exige que ninguna imagen sea
+  `fondo-gris-carrusel.jpg`**: es trabajo de T-23 (carrusel con contenido) y necesita
+  las imágenes de la Entidad; inventarlas contradice la regla de no crear contenido
+  institucional.
+- En 768–991 px la cabecera sigue con el buscador en línea entre el logotipo y las
+  aplicaciones (615 px de ancho a 768): no se tocó porque ahí cabe.
 - La puerta `tests/accesibilidad.mjs` arranca el servidor sin la URL de la API y
   se queda sin memoria en este entorno; no se pudo ejecutar completa. El mismo
   axe se pasó a mano sobre portada, listado, formulario, accesibilidad y panel.

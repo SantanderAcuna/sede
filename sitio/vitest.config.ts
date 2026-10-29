@@ -1,3 +1,4 @@
+import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vitest/config'
 
 /**
@@ -15,6 +16,9 @@ import { defineConfig } from 'vitest/config'
  * (`tests/accesibilidad.mjs`), que arranca el servidor compilado de verdad.
  */
 export default defineConfig({
+  // Compila los `.vue` para poder montar los componentes del Kit en jsdom y
+  // probar sus estados (T-28); sin él, sólo la lógica pura era probable.
+  plugins: [vue()],
   define: { 'import.meta.client': 'true' },
   test: {
     environment: 'jsdom',
@@ -37,7 +41,21 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'json-summary'],
-      include: ['app/**/*.{ts,vue}'],
+      // Los `.vue` que se miden son los componentes del Kit con pruebas propias
+      // (T-28). Las páginas y el resto de componentes siguen fuera de la
+      // cobertura unitaria como antes de que existiera el plugin de Vue —antes ni
+      // se leían, porque no se podían compilar—: se verifican con las puertas de
+      // navegador (`tests/*.mjs`). Incluirlos ahora, sin pruebas unitarias, hundiría
+      // el porcentaje a un tercio sin que el código hubiera empeorado.
+      include: [
+        'app/**/*.ts',
+        'app/components/govco/AcordeonGovco.vue',
+        'app/components/govco/CargandoGovco.vue',
+        'app/components/govco/ContenedorToastsGovco.vue',
+        'app/components/govco/PaginacionGovco.vue',
+        'app/components/govco/TablaOrdenableGovco.vue',
+        'app/components/govco/ToastGovco.vue',
+      ],
       exclude: [
         'app/**/*.d.ts',
         'app/app.vue',

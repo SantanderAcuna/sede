@@ -152,11 +152,6 @@ interface EstadoVacio {
   esPublicacion: boolean
 }
 
-/** Hueco de la paginación: o un número de página o los puntos suspensivos. */
-type HuecoPaginacion =
-  | { tipo: 'pagina'; numero: number; clave: string }
-  | { tipo: 'separador'; clave: string }
-
 /**
  * Los tres grupos del Anexo, en un objeto y no en un arreglo, para que
  * `GRUPOS[unGrupo]` esté tipado como `Grupo` y no como `Grupo | undefined`: con
@@ -196,9 +191,6 @@ const ORDEN_GRUPOS: readonly GrupoCatalogo[] = ['tramites', 'opa', 'consultas']
  * navegador.
  */
 const TAMANO_PAGINA = 6
-
-/** Cuántas páginas se ven alrededor de la actual antes de poner puntos suspensivos. */
-const PAGINAS_ALREDEDOR = 1
 
 // ---------------------------------------------------------------------------
 // Estado de los mecanismos de acceso
@@ -301,32 +293,10 @@ const cargando = computed<boolean>(() => status.value === 'pending' || status.va
 
 const fallo = computed<boolean>(() => status.value === 'error')
 
-/**
- * Aviso de carga prolongada (CAG-29).
- *
- * El criterio pide que, si la operación supera los diez segundos, se informe del
- * progreso. Un catálogo que se queda en «Cargando…» indefinidamente deja a quien
- * lo mira sin saber si el sistema está trabajando o se ha caído, y a los diez
- * segundos ya hay motivo para decirlo.
+/*
+ * El aviso de carga prolongada (CAG-29: a los diez segundos se informa del estado)
+ * vive ahora en `CargandoGovco`, que nace con la carga y muere con ella.
  */
-const SEGUNDOS_ANTES_DE_AVISAR = 10
-const tardaDemasiado = ref(false)
-let temporizadorAviso: ReturnType<typeof setTimeout> | undefined
-
-watch(
-  cargando,
-  (estaCargando) => {
-    clearTimeout(temporizadorAviso)
-    tardaDemasiado.value = false
-    if (!estaCargando) return
-    temporizadorAviso = setTimeout(() => {
-      tardaDemasiado.value = true
-    }, SEGUNDOS_ANTES_DE_AVISAR * 1000)
-  },
-  { immediate: true },
-)
-
-onBeforeUnmount(() => clearTimeout(temporizadorAviso))
 
 /**
  * Sin respuesta buena no hay páginas que ofrecer. La paginación se sigue
@@ -334,13 +304,7 @@ onBeforeUnmount(() => clearTimeout(temporizadorAviso))
  * dos extremos apagados, en vez de invitar a pulsar sobre un catálogo que no se
  * ha podido leer.
  */
-const hayAnterior = computed<boolean>(
-  () => !cargando.value && !fallo.value && paginaActual.value > 1,
-)
-
-const haySiguiente = computed<boolean>(
-  () => !cargando.value && !fallo.value && paginaActual.value < totalPaginas.value,
-)
+const sinPaginasQueOfrecer = computed<boolean>(() => cargando.value || fallo.value)
 
 /**
  * Las categorías que ofrece el desplegable.
@@ -457,34 +421,6 @@ const estadoVacio = computed<EstadoVacio>(() => {
     detalle: 'Pruebe con otras palabras, elija otra categoría o limpie los filtros.',
     esPublicacion: false,
   }
-})
-
-/** Páginas que se dibujan, con puntos suspensivos cuando hay muchas. */
-const paginasVisibles = computed<HuecoPaginacion[]>(() => {
-  const total = totalPaginas.value
-  const actual = paginaActual.value
-  const holgura = PAGINAS_ALREDEDOR * 2 + 1
-
-  if (total <= holgura + 2) {
-    return Array.from({ length: total }, (_sinUso, indice) => ({
-      tipo: 'pagina' as const,
-      numero: indice + 1,
-      clave: `pagina-${indice + 1}`,
-    }))
-  }
-
-  const huecos: HuecoPaginacion[] = [{ tipo: 'pagina', numero: 1, clave: 'pagina-1' }]
-  const desde = Math.max(2, actual - PAGINAS_ALREDEDOR)
-  const hasta = Math.min(total - 1, actual + PAGINAS_ALREDEDOR)
-
-  if (desde > 2) huecos.push({ tipo: 'separador', clave: 'separador-inicial' })
-  for (let numero = desde; numero <= hasta; numero += 1) {
-    huecos.push({ tipo: 'pagina', numero, clave: `pagina-${numero}` })
-  }
-  if (hasta < total - 1) huecos.push({ tipo: 'separador', clave: 'separador-final' })
-  huecos.push({ tipo: 'pagina', numero: total, clave: `pagina-${total}` })
-
-  return huecos
 })
 
 // ---------------------------------------------------------------------------
@@ -672,13 +608,11 @@ function reintentar(): void {
       vez de disfrazarse de vacío, y sólo con una respuesta buena y sin elementos
       se habla de vacío.
     -->
-    <p v-if="cargando" class="estado-vacio mt-2" role="status">
-      Cargando el catálogo…
-      <span v-if="tardaDemasiado" class="aviso-carga-larga">
-        La consulta está tardando más de lo habitual. Seguimos esperando la respuesta del
-        servicio; si no llega, podrá intentarlo de nuevo.
-      </span>
-    </p>
+    <CargandoGovco
+      v-if="cargando"
+      class="estado-vacio mt-2"
+      mensaje="Cargando el catálogo…"
+    />
 
     <!--
       Que la API no conteste no es que no haya trámites. Se dice lo que ha pasado
@@ -776,47 +710,13 @@ function reintentar(): void {
       esconderlos cuando hay pocos resultados daría a entender que la sección no
       los tiene. Con una sola página los dos extremos quedan deshabilitados.
     -->
-    <nav class="mt-4" aria-label="Paginación de los resultados">
-      <ul class="pagination paginacion-catalogo mb-0">
-        <li class="page-item" :class="{ disabled: !hayAnterior }">
-          <button
-            type="button"
-            class="page-link"
-            :disabled="!hayAnterior"
-            @click="irAPagina(paginaActual - 1)"
-          >
-            Anterior
-          </button>
-        </li>
-        <li
-          v-for="hueco in paginasVisibles"
-          :key="hueco.clave"
-          class="page-item"
-          :class="{ active: hueco.tipo === 'pagina' && hueco.numero === paginaActual }"
-        >
-          <button
-            v-if="hueco.tipo === 'pagina'"
-            type="button"
-            class="page-link"
-            :aria-current="hueco.numero === paginaActual ? 'page' : undefined"
-            @click="irAPagina(hueco.numero)"
-          >
-            {{ hueco.numero }}
-          </button>
-          <span v-else class="page-link" aria-hidden="true">…</span>
-        </li>
-        <li class="page-item" :class="{ disabled: !haySiguiente }">
-          <button
-            type="button"
-            class="page-link"
-            :disabled="!haySiguiente"
-            @click="irAPagina(paginaActual + 1)"
-          >
-            Siguiente
-          </button>
-        </li>
-      </ul>
-    </nav>
+    <PaginacionGovco
+      class="mt-4"
+      :pagina-actual="paginaActual"
+      :total-paginas="totalPaginas"
+      :extremos-apagados="sinPaginasQueOfrecer"
+      @cambiar="irAPagina"
+    />
   </div>
 </template>
 
@@ -982,45 +882,11 @@ function reintentar(): void {
   font-weight: 700;
 }
 
-/* --- Paginación --------------------------------------------------------- */
-
-/* Los elementos llevan los bordes pegados —Bootstrap los une con un margen
-   negativo—, así que sólo se separan las filas cuando la paginación parte. */
-.paginacion-catalogo {
-  flex-wrap: wrap;
-  row-gap: 0.5rem;
-}
-
-/* Bootstrap fija el azul #0d6efd en duro; el Kit y la Entidad usan el cobalto. */
-.paginacion-catalogo .page-link {
-  color: var(--govcolor-cobalt, #0943b5);
-}
-
-.paginacion-catalogo .page-item.active .page-link {
-  background-color: var(--govcolor-cobalt, #0943b5);
-  border-color: var(--govcolor-cobalt, #0943b5);
-  color: var(--govcolor-white, #ffffff);
-}
-
-.paginacion-catalogo .page-link:focus-visible {
-  outline: 3px solid var(--govcolor-cobalt, #0943b5);
-  outline-offset: 2px;
-}
-
 /*
-  CAG-23: en móvil todo control tiene que medir al menos 44 × 44 px. El de la
-  paginación es el más expuesto, porque sus dos botones son de texto corto y
-  quedan por debajo de esa medida con el relleno del Kit.
+  CAG-23: en móvil todo control tiene que medir al menos 44 × 44 px. Los de la
+  paginación ya lo cumplen en `PaginacionGovco` (en todos los anchos).
 */
 @media (max-width: 47.9375rem) {
-  .paginacion-catalogo .page-link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-  }
-
   /* El desplegable de categorías mide 38 px de alto con el relleno del Kit. */
   .catalogo-tramites .form-select {
     min-height: 2.75rem;
@@ -1058,12 +924,3 @@ function reintentar(): void {
 }
 </style>
 
-/*
-  El aviso de carga prolongada (CAG-29). Se separa en su propia línea para que se
-  lea como una aclaración y no se confunda con el texto de carga.
-*/
-.aviso-carga-larga {
-  display: block;
-  margin-top: 0.5rem;
-  color: var(--govcolor-matterhorn, #4c4c4c);
-}

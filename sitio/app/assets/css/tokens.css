@@ -129,6 +129,9 @@
       Bootstrap usaría su azul `#0D6EFD`, que da **exactamente 4,50:1** —el
       límite— y cae a 3,63:1 en cuanto el fondo se tiñe. */
   --color-enlace: var(--govcolor-cobalt, #0943b5);
+  /** Texto sobre un relleno del color de enlace (página activa de la paginación):
+      blanco sobre cobalto, 8,46:1. */
+  --color-texto-sobre-enlace: var(--alcaldia-blanco);
   /** Enlace en el borde de una superficie teñida. */
   --color-enlace-sobre-tenido: var(--alcaldia-azul-noche);
 }

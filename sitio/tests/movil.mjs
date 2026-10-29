@@ -15,10 +15,9 @@
  *  2. Botón de accesibilidad (D1, CAG-07, RNF-07-D01, RNF-B3-005). Un único
  *     círculo visible a cualquier ancho (320–1536 px): fijo, centrado
  *     verticalmente, pegado a la derecha, de ≥ 44 px, fuera de la cabecera y sin
- *     solaparse con «Volver arriba». Por debajo de 992 px no reserva espacio (el
- *     contenedor ocupa todo el ancho). Desde 992 px, medido de forma analítica en
- *     17 rutas y 5 anchos: ningún texto, imagen ni control entra en su columna.
- *     Por debajo de 992 px se **informa** (no se afirma) cuánto cubre al pasar.
+ *     solaparse con «Volver arriba». No reserva espacio a ningún ancho: el
+ *     contenedor mide lo que le corresponde a Bootstrap. Además se **informa**
+ *     (no se afirma) cuánto contenido cubre al desplazarse, en 17 rutas y 10 anchos.
  *  3. Panel de accesibilidad. Cabe en la pantalla, el aviso va dentro de la zona
  *     que se desplaza y el botón de cerrar mide ≥ 44 px.
  *  4. Ninguna ruta pública se sale del ancho a 320 ni a 390 px.
@@ -151,20 +150,16 @@ for (const [ancho, alto, movil] of [[390, 844, true], [320, 568, true], [667, 37
   comprobar(Math.abs(m.y + m.h / 2 - alto / 2) <= 2, `${etiqueta}: centrado verticalmente`, `${etiqueta}: no está centrado verticalmente`)
   comprobar(ancho - (m.x + m.w) <= 16 && m.x + m.w <= ancho + 1, `${etiqueta}: pegado a la derecha`, `${etiqueta}: se aleja del borde derecho o se sale`)
   comprobar(m.w >= MIN && m.h >= MIN && Math.abs(m.w - m.h) <= 1, `${etiqueta}: círculo de ${Math.round(m.w)} px`, `${etiqueta}: mide ${Math.round(m.w)}×${Math.round(m.h)} px (menos de 44 o no es circular)`)
-  // TC-ACC-04: no reserva espacio por debajo de 992 px. El contenedor de `main` ocupa
-  // todo el ancho y su relleno derecho es el de Bootstrap (≤ 16 px).
-  if (ancho < 992) {
-    const carril = await p.evaluate(() => {
-      const c = document.querySelector('main .container')
-      if (!c) return null
-      return { ancho: c.getBoundingClientRect().width, derecho: Number.parseFloat(getComputedStyle(c).paddingRight) }
-    })
-    // En teléfono (< 576 px) el contenedor de Bootstrap ocupa toda la ventana; de 576 a
-    // 991 px mide 540 o 720 px centrado por diseño del propio Bootstrap. En los dos
-    // casos el relleno derecho es el suyo (12 px), no el carril de 44–56 px.
-    const llena = ancho >= 576 || (carril !== null && carril.ancho >= ancho - 1)
-    comprobar(carril !== null && llena && carril.derecho <= 16, `${etiqueta}: el contenedor no reserva carril (${Math.round(carril?.ancho ?? 0)} px de ancho, relleno derecho ${carril?.derecho} px)`, `${etiqueta}: el contenedor reserva espacio a la derecha (ancho ${carril?.ancho}, relleno derecho ${carril?.derecho} px)`)
-  }
+  // TC-ACC-02: no reserva espacio a ningún ancho. El contenedor de `main` mide lo que
+  // le corresponde a Bootstrap (540, 720, 960, 1140 o 1320 px; en teléfono, toda la
+  // ventana) y su relleno derecho es el suyo (12 px), no un carril de 44–56 px.
+  const esperado = ancho >= 1400 ? 1320 : ancho >= 1200 ? 1140 : ancho >= 992 ? 960 : ancho >= 768 ? 720 : ancho >= 576 ? 540 : ancho
+  const carril = await p.evaluate(() => {
+    const c = document.querySelector('main .container')
+    if (!c) return null
+    return { ancho: c.getBoundingClientRect().width, derecho: Number.parseFloat(getComputedStyle(c).paddingRight) }
+  })
+  comprobar(carril !== null && Math.abs(carril.ancho - esperado) <= 1 && carril.derecho <= 16, `${etiqueta}: el contenedor mide ${Math.round(carril?.ancho ?? 0)} px, el de Bootstrap, sin carril (relleno derecho ${carril?.derecho} px)`, `${etiqueta}: el contenedor se alteró para dejar sitio al círculo (mide ${carril?.ancho}, esperado ${esperado}; relleno derecho ${carril?.derecho} px)`)
   await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2))
   await p.waitForTimeout(400)
   const fab = await visibles.first().boundingBox()
@@ -179,18 +174,14 @@ for (const [ancho, alto, movil] of [[390, 844, true], [320, 568, true], [667, 37
 }
 
 // 2b. Qué cubre el círculo (HU-07-D02: «no se solapa con el contenido») ---------
-// El círculo es fijo y está a media altura, así que al desplazarse puede pasar por
-// cualquier punto de la columna del borde derecho. Se mide **analíticamente** qué
-// contenido tiene su caja dentro de esa columna. No se cuenta lo que no es
-// contenido: textos sólo para lectores de pantalla y las imágenes o enlaces que
+// El círculo es fijo, está a media altura y **no reserva espacio a ningún ancho**
+// (el cliente descartó el carril y la columna reservada), así que al desplazarse
+// pasa por encima de lo que haya en el borde derecho. Se mide **analíticamente** qué
+// contenido tiene su caja dentro de esa columna y se **informa**; no es una
+// aserción, porque exigir cero obligaría a reservar espacio. No se cuenta lo que no
+// es contenido: textos sólo para lectores de pantalla y las imágenes o enlaces que
 // ocupan el ancho entero (el cartel del carrusel).
-//   · Desde 992 px: el contenido deja libre la columna (límite de ancho simétrico
-//     en `sitio.css`) → **0 elementos**; si no, falla.
-//   · Por debajo de 992 px: no se reserva espacio (el cliente descartó el carril),
-//     así que el círculo **sí** pasa por encima de lo que haya en el borde derecho.
-//     No es una aserción: se informa cuánto cubre en cada ejecución, para que ese
-//     límite declarado se vea y se pueda comparar entre versiones.
-console.log('Columna del círculo flotante')
+console.log('Qué cubre el círculo flotante (informativo)')
 const RUTAS_TEXTO = ['/', '/transparencia', '/atencion', '/tramites', '/pqrsd', '/realizar-una-peticion', '/seguimiento', '/noticias', '/portales', '/servicios', '/normativa', '/buscar?q=salud', '/mapa-del-sitio', '/accesibilidad', '/politicas', '/participa', '/ruta-que-no-existe']
 /** Elementos de contenido cuya caja entra en la columna del círculo flotante. */
 async function invadenLaColumna(p) {
@@ -229,21 +220,8 @@ async function invadenLaColumna(p) {
     return { sin: false, textos: [...new Set(textos)], controles: [...new Set(controles)] }
   })
 }
-for (const ancho of [992, 1100, 1280, 1536, 1920]) {
-  const ctx = await contexto(ancho, 800, false)
-  const p = await abrirResuelta(ctx, '/')
-  const con = []
-  for (const ruta of RUTAS_TEXTO) {
-    await p.goto(`${BASE}${ruta}`, { waitUntil: 'networkidle' })
-    const r = await invadenLaColumna(p)
-    if (r.sin) con.push(`${ruta} (sin círculo)`)
-    else if (r.textos.length + r.controles.length) con.push(`${ruta} → ${[...r.textos, ...r.controles].slice(0, 3).join(', ')}`)
-  }
-  comprobar(con.length === 0, `${ancho} px: el círculo no cubre contenido en ${RUTAS_TEXTO.length} rutas`, `${ancho} px: contenido bajo el círculo en ${con.length} ruta(s): ${con.slice(0, 4).join(' ; ')}`)
-  await ctx.close()
-}
-for (const ancho of [320, 390, 767, 800, 991]) {
-  const ctx = await contexto(ancho, 740)
+for (const [ancho, movil] of [[320, true], [390, true], [767, true], [800, true], [991, true], [992, false], [1100, false], [1280, false], [1536, false], [1920, false]]) {
+  const ctx = await contexto(ancho, ancho >= 992 ? 800 : 740, movil)
   const p = await abrirResuelta(ctx, '/')
   let lineas = 0
   let controles = 0
@@ -256,7 +234,7 @@ for (const ancho of [320, 390, 767, 800, 991]) {
     controles += r.controles.length
     if (r.controles.length) rutasConControles.push(`${ruta} (${r.controles.length})`)
   }
-  console.log(`  ℹ ${ancho} px: sin reservar espacio, el círculo pasa por encima de ${lineas} línea(s) de texto y ${controles} control(es)/imagen(es) en ${RUTAS_TEXTO.length} rutas (límite declarado, no aserción)`)
+  console.log(`  ℹ ${ancho} px: el círculo pasa por encima de ${lineas} línea(s) de texto y ${controles} control(es)/imagen(es) en ${RUTAS_TEXTO.length} rutas (${rutasConControles.length} con controles; límite declarado, no aserción)`)
   await ctx.close()
 }
 

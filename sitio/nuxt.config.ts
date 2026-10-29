@@ -105,6 +105,9 @@ export default defineNuxtConfig({
       // La URL de la API la pone el entorno. En producción el sitio y la API
       // comparten origen, así que la ruta relativa es suficiente.
       apiUrl: process.env.SEDE_API_URL ?? '/api/v1',
+      // Token de Cloudflare Web Analytics. Vacío = no hay analítica. El script sólo
+      // se inyecta tras el consentimiento (`plugins/analitica.client.ts`, T-26).
+      analiticaToken: process.env.SEDE_ANALITICA_TOKEN ?? '',
       // Lo consumen `robots.txt`, `sitemap.xml` y la URL canónica: detrás de un
       // proxy, el `Host` que llega al servidor puede ser el interno del
       // contenedor, y una canónica que anuncie `http://app:3000/` sería peor que

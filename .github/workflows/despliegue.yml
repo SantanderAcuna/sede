@@ -261,6 +261,10 @@ jobs:
       (github.ref_name == 'staging' || inputs.entorno == 'staging')
       && vars.SEDE_DESPLIEGUE_STAGING == 'true'
     runs-on: ubuntu-latest
+    # `SEDE_DOMINIO` es una variable del entorno, no del repositorio: el trabajo
+    # `navegadores` la necesita y solo la puede recibir por aquí.
+    outputs:
+      dominio: ${{ vars.SEDE_DOMINIO }}
     environment:
       name: staging
       url: https://${{ vars.SEDE_DOMINIO }}
@@ -324,10 +328,17 @@ jobs:
       matrix:
         motor: [chromium, firefox, webkit, msedge]
     env:
-      BASE_URL: https://${{ vars.SEDE_DOMINIO }}
+      BASE_URL: https://${{ needs.staging.outputs.dominio }}
       NAVEGADOR: ${{ matrix.motor }}
-      NUXT_PUBLIC_API_URL: https://${{ vars.SEDE_DOMINIO }}/api/v1
+      NUXT_PUBLIC_API_URL: https://${{ needs.staging.outputs.dominio }}/api/v1
     steps:
+      # El dominio del entorno de pruebas no debe quedar escrito en los registros.
+      - name: Enmascarar el dominio
+        env:
+          DOMINIO: ${{ needs.staging.outputs.dominio }}
+        run: |
+          if [ -z "$DOMINIO" ]; then echo "::error::El entorno de pruebas no devolvió su dominio."; exit 1; fi
+          echo "::add-mask::$DOMINIO"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

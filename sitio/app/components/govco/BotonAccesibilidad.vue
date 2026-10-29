@@ -1,24 +1,48 @@
 <script setup lang="ts">
 /**
- * Botón circular de accesibilidad (brief §5.2.1).
+ * Botón de accesibilidad (brief §5.2.1). Abre el panel de ajustes.
  *
- * **Forma y sitio.** Es un círculo, está fijo y vive **centrado verticalmente en
- * el lado derecho** de la ventana, en todas las pantallas: móvil, tableta y
- * escritorio. Se descarta el botón con etiqueta dentro de la cabecera porque el
- * requisito es que el control esté siempre en el mismo sitio, sea cual sea el
- * ancho, y que sea reconocible de un vistazo por su forma.
+ * **Dos sitios según el ancho, una sola función.**
  *
- * **Vive fuera del envoltorio filtrable.** Los modos de contraste «colores
- * invertidos» y «escala de grises» aplican un `filter` a `.contenido-filtrable`,
- * y un `filter` convierte a su elemento en bloque contenedor de los descendientes
- * con `position: fixed`; además invertiría los colores del propio botón. Por eso
- * la disposición lo monta fuera de ese envoltorio y **no** se teletransporta:
- * teletransportarlo lo colocaría en el documento antes del enlace de salto y
- * rompería RF-B3-022.
+ *  - **Desde 992 px (`flotante`)**: un círculo fijo, centrado verticalmente en el
+ *    lado derecho. Es el sitio que pidió el cliente (plan del botón, D1, rev. 2) y
+ *    el que recomienda el Kit UI 9.2 para la barra de accesibilidad: «ubica el
+ *    componente en un lugar visible y de fácil acceso; preferiblemente, en el
+ *    centro y a la derecha».
+ *  - **Por debajo de 992 px (`cabecera`)**: no hay círculo flotante; el mismo
+ *    control vive en la cabecera, junto a la galería de aplicaciones. Lo manda el
+ *    Kit UI 9.2 (Barra de accesibilidad › Buenas prácticas › Tamaños pertinentes):
+ *    «es recomendable que la barra de accesibilidad **no aparezca desde el
+ *    breakpoint de tablets (768 a 992 px)** porque a partir de allí puede llegar a
+ *    **ocultar contenido**. (Los dispositivos móviles cuentan con opciones de
+ *    accesibilidad nativas)». Y lo confirma la medición: a 375 px un círculo de
+ *    48 px es el 13 % del ancho, y la única forma de que no tape texto era
+ *    reservarle un carril de 56 px a la derecha, que estrecha todo el contenido.
+ *    En la cabecera ocupa un hueco que ya existía (la fila del logotipo), no tapa
+ *    nada, no reserva espacio y queda arriba de todo.
+ *
+ * Así se cumple la disponibilidad que pide RNF-07-D01 («opera de 320 px en
+ * adelante») sin el solape que prohíbe la HU-07-D02. **Se aparta de D1 en un
+ * punto**: «igual en todas las pantallas» deja de ser cierto por debajo de 992 px;
+ * está declarado en `docs/revision-movil.md`. El enlace del pie sigue abriendo el
+ * mismo panel.
+ *
+ * Los dos ejemplares están siempre en el documento y CSS muestra uno u otro
+ * (`display: none` los saca del árbol de accesibilidad: el lector de pantalla ve
+ * **uno solo** con ese nombre). Comparten estado —`panelAbierto`— y el panel
+ * devuelve el foco a quien lo abrió, sea cual sea.
+ *
+ * **Vive fuera del envoltorio filtrable (el flotante).** Los modos de contraste
+ * «colores invertidos» y «escala de grises» aplican un `filter` a
+ * `.contenido-filtrable`, y un `filter` convierte a su elemento en bloque
+ * contenedor de los descendientes con `position: fixed`; además invertiría los
+ * colores del propio botón. Por eso la disposición monta el flotante fuera de ese
+ * envoltorio y **no** lo teletransporta: teletransportarlo lo colocaría antes del
+ * enlace de salto y rompería RF-B3-022. El de la cabecera no es `fixed`, así que sí
+ * puede ir dentro.
  *
  * **No choca con «Volver arriba».** Aquél vive en `bottom: 10%` y éste en el
- * centro vertical, así que ocupan franjas distintas del borde derecho. Son dos
- * módulos independientes: ninguno consulta dónde está el otro.
+ * centro vertical, así que ocupan franjas distintas del borde derecho.
  *
  * **El nombre accesible es texto, aunque no se vea.** Un círculo no admite una
  * etiqueta visible al lado sin dejar de ser un círculo, así que el nombre viaja
@@ -32,9 +56,11 @@
  * desaparecería. Con `currentColor` hereda el color que imponga cada modo.
  *
  * **Criterios:** CAG-07 (barra de accesibilidad) · RF-B1-044 (barra persistente) ·
- * RNF-07-D01 (disponible y operable en tableta) · RNF-B3-005 (44 × 44 px) ·
- * CC12 (varias vías de acceso) · CC17 (foco visible).
+ * RNF-07-D01 (disponible y operable en tableta) · HU-07-D02 (sin solape) ·
+ * RNF-B3-005 (44 × 44 px) · CC12 (varias vías de acceso) · CC17 (foco visible).
  */
+withDefaults(defineProps<{ variante?: 'flotante' | 'cabecera' }>(), { variante: 'flotante' })
+
 const { panelAbierto, abrirPanel } = useAccesibilidad()
 
 /** Identificador del panel que este botón abre y anuncia con `aria-controls`. */
@@ -45,6 +71,7 @@ const ID_PANEL = 'panel-accesibilidad'
   <button
     type="button"
     class="boton-accesibilidad"
+    :class="`boton-accesibilidad--${variante}`"
     aria-haspopup="dialog"
     :aria-expanded="panelAbierto"
     :aria-controls="ID_PANEL"
@@ -78,23 +105,17 @@ const ID_PANEL = 'panel-accesibilidad'
 
 <style scoped>
 /*
- * Un círculo, fijo y centrado verticalmente en el borde derecho. El tamaño es
- * una variable para que cada escalón de pantalla lo ajuste sin repetir reglas, y
- * nunca baja de 44 px, que es el mínimo táctil que exige RNF-B3-005.
+ * Base común: círculo cobalto con el icono del Kit. El tamaño es una variable para
+ * que cada variante lo ajuste, y nunca baja de 44 px, el mínimo táctil de
+ * RNF-B3-005.
  */
 .boton-accesibilidad {
   --fab-tamano: 3.5rem;
-  --fab-margen: 0.75rem;
-
-  position: fixed;
-  top: 50%;
-  right: var(--fab-margen);
-  transform: translateY(-50%);
-  z-index: 1210;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
 
   width: var(--fab-tamano);
   height: var(--fab-tamano);
@@ -105,11 +126,6 @@ const ID_PANEL = 'panel-accesibilidad'
   background-color: var(--govcolor-cobalt, #0943b5);
   color: var(--govcolor-white, #ffffff);
   cursor: pointer;
-
-  /* La sombra es lo que lo separa del contenido cuando pasa por encima, en
-     cualquier modo de contraste: sin ella, sobre fondos claros el círculo se
-     confunde con la página. */
-  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.28);
 }
 
 .boton-accesibilidad-icono {
@@ -120,22 +136,17 @@ const ID_PANEL = 'panel-accesibilidad'
 
 .boton-accesibilidad:hover {
   background-color: var(--govcolor-havelock-lue, #4672c8);
-  transform: translateY(-50%) scale(1.06);
 }
 
 /*
  * Foco con doble anillo: el interior oscuro separa del amarillo, y el exterior
  * amarillo del brief se ve sobre fondos claros y oscuros. Un solo anillo no
- * sirve aquí porque el botón flota sobre contenido de color imprevisible.
+ * sirve porque el botón flota sobre contenido de color imprevisible.
  */
 .boton-accesibilidad:focus-visible {
   outline: 0.1875rem solid #1a1a1a;
   outline-offset: 0.1875rem;
   box-shadow: 0 0 0 0.4375rem #ffbf00;
-}
-
-.boton-accesibilidad:active {
-  transform: translateY(-50%) scale(0.97);
 }
 
 /* El texto es el nombre accesible; se recorta, no se oculta. */
@@ -152,28 +163,59 @@ const ID_PANEL = 'panel-accesibilidad'
 }
 
 /*
- * Escalones de pantalla. El círculo encoge un poco en las pantallas estrechas
- * —donde cada píxel de ancho de contenido cuenta— pero nunca por debajo de los
- * 44 px de área activa, y se arrima al borde para no robar ancho de lectura.
+ * Flotante (desde 992 px): fijo, centrado verticalmente en el borde derecho y por
+ * encima del contenido (`z-index` 1210: sobre «Volver arriba», 1200, y sobre los
+ * menús; por debajo del banner de cookies y de los modales, que han de ganarle).
+ * La sombra es lo que lo separa del contenido cuando pasa por encima, en cualquier
+ * modo de contraste.
  */
-@media (max-width: 991px) {
-  .boton-accesibilidad {
-    --fab-tamano: 3.25rem;
-    --fab-margen: 0.625rem;
-  }
+.boton-accesibilidad--flotante {
+  --fab-tamano: var(--acc-flotante-tamano);
+
+  position: fixed;
+  top: 50%;
+  right: var(--acc-flotante-margen);
+  transform: translateY(-50%);
+  z-index: 1210;
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.28);
 }
 
-@media (max-width: 575px) {
-  .boton-accesibilidad {
-    --fab-tamano: 3rem;
-    --fab-margen: 0.5rem;
-  }
+.boton-accesibilidad--flotante:hover {
+  transform: translateY(-50%) scale(1.06);
+}
+
+.boton-accesibilidad--flotante:active {
+  transform: translateY(-50%) scale(0.97);
 }
 
 /* Pantallas muy bajas: se mantiene centrado, pero el tamaño no crece. */
-@media (max-height: 480px) {
-  .boton-accesibilidad {
+@media (min-width: 992px) and (max-height: 480px) {
+  .boton-accesibilidad--flotante {
     --fab-tamano: 2.875rem;
+  }
+}
+
+/* Por debajo de 992 px el flotante no se muestra (Kit UI 9.2): lo sustituye el de la cabecera. */
+@media (max-width: 991px) {
+  .boton-accesibilidad--flotante {
+    display: none;
+  }
+}
+
+/*
+ * En la cabecera (por debajo de 992 px): en el flujo, 44 px —el mínimo táctil—,
+ * sin sombra ni posición. Hace de pareja de la galería de aplicaciones, que es un
+ * círculo cobalto del mismo tamaño.
+ */
+.boton-accesibilidad--cabecera {
+  --fab-tamano: 2.75rem;
+
+  display: none;
+}
+
+@media (max-width: 991px) {
+  .boton-accesibilidad--cabecera {
+    display: inline-flex;
   }
 }
 

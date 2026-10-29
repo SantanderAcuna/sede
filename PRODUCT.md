@@ -150,8 +150,10 @@ Modal de confirmación antes de redirigir a dominio externo:
 **Implementado:** `sitio/app/composables/useAccesibilidad.ts` ·
 `components/govco/BotonAccesibilidad.vue` · `components/govco/PanelAccesibilidad.vue`
 
-La barra lateral del Kit se sustituyó por **un botón circular flotante** —fijo,
-centrado verticalmente en el lado derecho e igual en todas las pantallas— que abre
+La barra lateral del Kit se sustituyó por **un botón circular**: desde 992 px, fijo y
+centrado verticalmente en el lado derecho; por debajo de 992 px (tableta y móvil, donde
+el Kit 9.2 desaconseja la barra flotante porque oculta contenido) el mismo control
+vive en la cabecera, junto a la galería de aplicaciones. Abre
 **un panel** con los once controles que pide el brief de accesibilidad, agrupados en
 cuatro categorías:
 
@@ -221,7 +223,7 @@ Galería de aplicaciones integrada en la cabecera de la sede:
 | Componente | Archivo | Estado |
 |---|---|---|
 | BarraSuperior | `components/govco/BarraSuperior.vue` | ✅ |
-| BotonAccesibilidad | `components/govco/BotonAccesibilidad.vue` | ✅ (círculo flotante, 11 controles) |
+| BotonAccesibilidad | `components/govco/BotonAccesibilidad.vue` | ✅ (círculo flotante desde 992 px, en la cabecera por debajo; 11 controles) |
 | PanelAccesibilidad | `components/govco/PanelAccesibilidad.vue` | ✅ (`<dialog>` nativo) |
 | CabeceraGovco | `components/govco/CabeceraGovco.vue` | ✅ |
 | MenuNavegacionGovco | `components/govco/MenuNavegacionGovco.vue` | ✅ |

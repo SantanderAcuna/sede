@@ -11,8 +11,9 @@
  *     volver arriba se mueve con el documento.
  *  2. **Que el círculo y el panel no queden dentro del subárbol filtrado**, para
  *     que no se inviertan sus colores.
- *  3. **Que el círculo sea un círculo**, esté centrado verticalmente y pegado al
- *     lado derecho, a cualquier ancho, con área activa de 44 px o más.
+ *  3. **Que el disparador sea un círculo** de 44 px o más a cualquier ancho: fijo,
+ *     centrado verticalmente y pegado al lado derecho desde 992 px; en la cabecera
+ *     (sin flotar) por debajo, como pide el Kit UI 9.2 para tableta y móvil.
  *  4. **Reflujo**: sin desplazamiento horizontal real en los dos casos que fijan
  *     las normas —320 px de ancho con el texto normal (WCAG 1.4.10) y 1280 px con
  *     el texto al 200 % (WCAG 1.4.4)—.
@@ -73,7 +74,7 @@ try {
 
     const estado = await pagina.evaluate(() => {
       const filtrable = document.querySelector('.contenido-filtrable')
-      const circulo = document.querySelector('.boton-accesibilidad')
+      const circulo = document.querySelector('.boton-accesibilidad--flotante')
       const panel = document.querySelector('.panel-accesibilidad')
       return {
         clases: [...document.documentElement.classList].filter((c) => c.includes('contraste')),
@@ -104,7 +105,7 @@ try {
     await pagina.waitForTimeout(500)
     const despues = await pagina.evaluate(() => {
       const caja = document.querySelector('.posicion-volver-arriba')
-      const circulo = document.querySelector('.boton-accesibilidad')
+      const circulo = document.querySelector('.boton-accesibilidad--flotante')
       return {
         arriba: caja ? caja.getBoundingClientRect().top : null,
         circuloTop: circulo ? circulo.getBoundingClientRect().top : null,
@@ -139,41 +140,51 @@ try {
     await pagina.close()
   }
 
-  // ── 3 · Forma, posición y tamaño del círculo a cualquier ancho ───────────
-  console.log('\nForma, posición y tamaño del círculo')
-  for (const [ancho, alto] of [[320, 720], [575, 800], [800, 900], [1280, 900], [1920, 1080]]) {
+  // ── 3 · Forma, posición y tamaño del disparador a cada ancho ─────────────
+  // Desde 992 px: círculo fijo, centrado a la derecha. Por debajo: el mismo control
+  // en la cabecera (Kit UI 9.2: la barra no aparece flotando en tableta/móvil);
+  // círculo de ≥ 44 px, no fijo, dentro de la pantalla.
+  console.log('\nForma, posición y tamaño del disparador')
+  for (const [ancho, alto] of [[320, 720], [575, 800], [800, 900], [991, 900], [992, 900], [1280, 900], [1920, 1080]]) {
     const pagina = await abrir(ancho, alto, preferencias())
     const medida = await pagina.evaluate(() => {
-      const circulo = document.querySelector('.boton-accesibilidad')
-      if (!circulo) return null
+      const visibles = [...document.querySelectorAll('.boton-accesibilidad')].filter((b) => b.getBoundingClientRect().width > 0)
+      if (visibles.length !== 1) return { cuantos: visibles.length }
+      const circulo = visibles[0]
       const caja = circulo.getBoundingClientRect()
       const estilo = getComputedStyle(circulo)
       return {
+        cuantos: 1,
         posicion: estilo.position,
+        enCabecera: Boolean(circulo.closest('.cabecera-govco')),
         redondeo: Number.parseFloat(estilo.borderTopLeftRadius),
         ancho: caja.width,
         alto: caja.height,
         centroY: caja.top + caja.height / 2,
         centroVentana: window.innerHeight / 2,
         separacionDerecha: window.innerWidth - caja.right,
+        dentro: caja.left >= 0 && caja.right <= window.innerWidth + 1,
       }
     })
-    if (medida === null) {
-      informar(`a ${ancho} px hay círculo`, false)
+    if (medida.cuantos !== 1) {
+      informar(`a ${ancho} px hay un solo disparador visible`, false, `hay ${medida.cuantos}`)
       await pagina.close()
       continue
     }
     const esCirculo = Math.abs(medida.ancho - medida.alto) <= 2 && medida.redondeo >= medida.ancho / 2 - 1
-    const centrado = Math.abs(medida.centroY - medida.centroVentana) <= 4
-    const aLaDerecha = medida.separacionDerecha >= 0 && medida.separacionDerecha < 40
     const tactil = medida.ancho >= 44 && medida.alto >= 44
-    informar(
-      `${ancho}×${alto} px`,
-      medida.posicion === 'fixed' && esCirculo && centrado && aLaDerecha && tactil,
-      `${medida.ancho.toFixed(0)}×${medida.alto.toFixed(0)} px · ${medida.posicion} · ` +
-        `centrado: ${centrado} · a la derecha: ${medida.separacionDerecha.toFixed(0)} px · ` +
-        `área activa ≥44: ${tactil}`,
-    )
+    let bien
+    let detalle = `${medida.ancho.toFixed(0)}×${medida.alto.toFixed(0)} px · ${medida.posicion} · área activa ≥44: ${tactil}`
+    if (ancho >= 992) {
+      const centrado = Math.abs(medida.centroY - medida.centroVentana) <= 4
+      const aLaDerecha = medida.separacionDerecha >= 0 && medida.separacionDerecha < 40
+      bien = medida.posicion === 'fixed' && !medida.enCabecera && esCirculo && centrado && aLaDerecha && tactil
+      detalle += ` · flotante centrado: ${centrado} · a la derecha: ${medida.separacionDerecha.toFixed(0)} px`
+    } else {
+      bien = medida.posicion !== 'fixed' && medida.enCabecera && esCirculo && tactil && medida.dentro
+      detalle += ` · en la cabecera: ${medida.enCabecera} · dentro de la pantalla: ${medida.dentro}`
+    }
+    informar(`${ancho}×${alto} px`, bien, detalle)
     await pagina.close()
   }
 

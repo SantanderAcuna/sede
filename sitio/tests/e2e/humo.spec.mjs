@@ -93,7 +93,7 @@ test('carrusel: pausado por defecto, Reproducir/Pausar y flechas', async ({ page
 test('panel de accesibilidad: abre, agranda el texto, atrapa el foco y Esc lo cierra', async ({ page }) => {
   await abrir(page)
   await resolverBanner(page)
-  const abrirPanel = page.locator('.boton-accesibilidad')
+  const abrirPanel = page.locator('.boton-accesibilidad:visible')
   await abrirPanel.click()
   const dialogo = page.locator('dialog[open]')
   await expect(dialogo).toBeVisible()

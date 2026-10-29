@@ -294,66 +294,76 @@ try {
     return { ok: r.existe && r.ancho > 0 && r.alto > 0, detalle: `${r.href} · ${Math.round(r.ancho)}×${Math.round(r.alto)} px` }
   })
 
-  // ── CAG-07 · Accesibilidad: botón circular, panel y cobertura por ancho ───
+  // ── CAG-07 · Accesibilidad: un solo disparador visible, sin tapar nada ────
   //
-  // Esta comprobación se reescribió al sustituir la barra flotante del Kit. La
-  // aserción anterior —«tiene los 3 botones y se oculta por debajo de 992 px»—
-  // medía justo el defecto que había que corregir: no cubría tableta ni móvil,
-  // que es donde más hace falta (RNF-07-D01). Ahora se mide lo que se exige: que
-  // el disparador sea **un círculo, fijo y centrado en el lado derecho a
-  // cualquier ancho**, que abra un panel con los once controles y que `Escape`
-  // cierre devolviendo el foco.
-  await comprobar('CAG-07', 'El botón circular de accesibilidad está centrado a la derecha a cualquier ancho y abre el panel', async () => {
+  // Criterios (Sección 2 · Diseño, CAG-07; Kit UI 9.2, Barra de accesibilidad;
+  // RF-B1-044; RNF-07-D01; HU-07-D02; RNF-B3-005):
+  //   · Desde 992 px: un círculo fijo, centrado verticalmente a la derecha.
+  //   · Por debajo de 992 px (tableta y móvil) la barra NO aparece flotando —el
+  //     Kit lo manda porque «puede llegar a ocultar contenido»— y el mismo control
+  //     vive en la cabecera: visible, operable, de 44 × 44 px o más, sin fijarse.
+  //   · A cualquier ancho hay **exactamente un** disparador visible; abre el mismo
+  //     panel con los mismos controles; `Escape` cierra y devuelve el foco a
+  //     **quien lo abrió**.
+  // La aserción anterior exigía el círculo flotante centrado a 320 px, que es
+  // justo el defecto reportado (ocupaba espacio y se montaba sobre el contenido).
+  await comprobar('CAG-07', 'Un único disparador de accesibilidad visible por ancho: flotante desde 992 px, en la cabecera por debajo, y abre el panel', async () => {
     // `networkidle`, no `domcontentloaded`: el panel se abre con JavaScript, y con
     // `domcontentloaded` la prueba pulsaba Intro antes de que la página se
-    // hidratase —el botón existía pero aún no respondía—. Dependía de la velocidad
-    // de la máquina: pasaba en una rápida y fallaba en las demás.
+    // hidratase.
     await portada.goto(`${base}/`, { waitUntil: 'networkidle' })
 
-    const anchos = [320, 800, 1280]
+    const anchos = [320, 390, 767, 800, 991, 992, 1280]
     const medidas = []
     for (const ancho of anchos) {
       await portada.setViewportSize({ width: ancho, height: 900 })
-      const medida = await portada.evaluate(() => {
-        const boton = document.querySelector('.boton-accesibilidad')
-        if (!boton) return null
-        const caja = boton.getBoundingClientRect()
-        const estilo = getComputedStyle(boton)
-        const radio = Number.parseFloat(estilo.borderTopLeftRadius)
-        const centro = caja.top + caja.height / 2
-        return {
-          visible: caja.width > 0 && caja.height > 0,
-          nombre: (boton.textContent ?? '').trim(),
-          ancho: Math.round(caja.width),
-          alto: Math.round(caja.height),
-          fijo: estilo.position === 'fixed',
-          // Círculo: el radio llega a la mitad del lado y los dos lados coinciden.
-          circular: Math.abs(caja.width - caja.height) <= 2 && radio >= caja.width / 2 - 1,
-          // Centrado vertical en la ventana.
-          centrado: Math.abs(centro - window.innerHeight / 2) <= 4,
-          // Pegado al borde derecho, sin salirse.
-          aLaDerecha: caja.right > window.innerWidth - 40 && caja.right <= window.innerWidth + 1,
-          // Área activa mínima de RNF-B3-005.
-          tactil: caja.width >= 44 && caja.height >= 44,
-        }
-      })
-      medidas.push({
-        ancho,
-        ...(medida ?? {
-          visible: false,
-          nombre: '',
-          ancho: 0,
-          alto: 0,
-          fijo: false,
-          circular: false,
-          centrado: false,
-          aLaDerecha: false,
-          tactil: false,
-        }),
-      })
+      // Espera a que el motor recoloque la página tras cambiar el ancho. Una
+      // ejecución en WebKit midió desborde a 800 px y no se reprodujo ni a mano ni
+      // en las siguientes (HIPÓTESIS: `scrollWidth` leído antes de terminar el
+      // reflujo); con la espera se mide la página ya asentada.
+      await portada.waitForTimeout(250)
+      const visibles = portada.locator('.boton-accesibilidad:visible')
+      const cuantos = await visibles.count()
+      const medida =
+        cuantos === 1
+          ? await visibles.first().evaluate((boton) => {
+              const caja = boton.getBoundingClientRect()
+              const estilo = getComputedStyle(boton)
+              const radio = Number.parseFloat(estilo.borderTopLeftRadius)
+              const cabecera = boton.closest('.cabecera-govco')
+              return {
+                variante: boton.classList.contains('boton-accesibilidad--flotante')
+                  ? 'flotante'
+                  : 'cabecera',
+                nombre: (boton.textContent ?? '').trim(),
+                ancho: Math.round(caja.width),
+                alto: Math.round(caja.height),
+                fijo: estilo.position === 'fixed',
+                enCabecera: Boolean(cabecera),
+                circular: Math.abs(caja.width - caja.height) <= 2 && radio >= caja.width / 2 - 1,
+                centrado: Math.abs(caja.top + caja.height / 2 - window.innerHeight / 2) <= 4,
+                aLaDerecha: caja.right > window.innerWidth - 40 && caja.right <= window.innerWidth + 1,
+                tactil: caja.width >= 44 && caja.height >= 44,
+                // Sin desbordar la ventana (RNF-07-D01 desde 320 px).
+                dentro: caja.left >= 0 && caja.right <= window.innerWidth + 1,
+                sinDesbordeHorizontal:
+                  document.documentElement.scrollWidth <= window.innerWidth + 1,
+              }
+            })
+          : null
+      medidas.push({ vw: ancho, cuantos, ...(medida ?? {}) })
     }
-
     await portada.setViewportSize({ width: 1280, height: 900 })
+
+    const esperadaPorAncho = (m) => (m.vw >= 992 ? 'flotante' : 'cabecera')
+    const variantesOk = medidas.every((m) => m.cuantos === 1 && m.variante === esperadaPorAncho(m))
+    const comunesOk = medidas.every((m) => m.nombre && m.tactil && m.circular && m.dentro && m.sinDesbordeHorizontal)
+    const flotanteOk = medidas
+      .filter((m) => m.vw >= 992)
+      .every((m) => m.fijo && m.centrado && m.aLaDerecha && !m.enCabecera)
+    const cabeceraOk = medidas
+      .filter((m) => m.vw < 992)
+      .every((m) => !m.fijo && m.enCabecera)
 
     const antes = await portada.evaluate(() => {
       const boton = document.querySelector('.boton-accesibilidad')
@@ -365,90 +375,94 @@ try {
       }
     })
 
-    // Se abre con el teclado, que es como lo hace quien no usa ratón.
-    await portada.evaluate(() => document.querySelector('.boton-accesibilidad')?.focus())
-    await portada.keyboard.press('Enter')
-    await portada.waitForTimeout(250)
-
-    const abierto = await portada.evaluate(() => {
-      const panel = document.querySelector('#panel-accesibilidad')
-      const boton = document.querySelector('.boton-accesibilidad')
-      if (!panel) return null
-      const etiqueta = panel.getAttribute('aria-labelledby')
-      return {
-        esDialogo: panel.tagName === 'DIALOG',
-        abierto: panel.hasAttribute('open'),
-        expandido: boton?.getAttribute('aria-expanded') ?? null,
-        titulo: (panel.querySelector('h2')?.textContent ?? '').trim(),
-        tituloEnlazado: Boolean(etiqueta && panel.querySelector(`#${etiqueta}`)),
-        modos: panel.querySelectorAll('input[name="modo-contraste"]').length,
-        interruptores: panel.querySelectorAll('input[role="switch"]').length,
-        relevo: Boolean(panel.querySelector('a[href*="centroderelevo"]')),
-        ayuda: Boolean(panel.querySelector('details summary')),
-        restablecer: [...panel.querySelectorAll('button')].some((b) =>
-          /Restablecer/.test(b.textContent ?? ''),
+    // Se abre con el teclado desde **cada** disparador y se comprueba que el
+    // panel es el mismo y que el foco vuelve a quien lo abrió.
+    const paneles = []
+    for (const ancho of [1280, 800, 390]) {
+      await portada.setViewportSize({ width: ancho, height: 900 })
+      const disparador = portada.locator('.boton-accesibilidad:visible').first()
+      await disparador.focus()
+      await portada.keyboard.press('Enter')
+      await portada.waitForTimeout(250)
+      const abierto = await portada.evaluate(() => {
+        const panel = document.querySelector('#panel-accesibilidad')
+        const boton = document.querySelector('.boton-accesibilidad:not([style*="display: none"])')
+        if (!panel) return null
+        const etiqueta = panel.getAttribute('aria-labelledby')
+        return {
+          esDialogo: panel.tagName === 'DIALOG',
+          abierto: panel.hasAttribute('open'),
+          expandido: [...document.querySelectorAll('.boton-accesibilidad')].some(
+            (b) => b.getAttribute('aria-expanded') === 'true',
+          ),
+          titulo: (panel.querySelector('h2')?.textContent ?? '').trim(),
+          tituloEnlazado: Boolean(etiqueta && panel.querySelector(`#${etiqueta}`)),
+          modos: panel.querySelectorAll('input[name="modo-contraste"]').length,
+          interruptores: panel.querySelectorAll('input[role="switch"]').length,
+          relevo: Boolean(panel.querySelector('a[href*="centroderelevo"]')),
+          ayuda: Boolean(panel.querySelector('details summary')),
+          restablecer: [...panel.querySelectorAll('button')].some((b) =>
+            /Restablecer/.test(b.textContent ?? ''),
+          ),
+          vivo: Boolean(panel.querySelector('[role="status"][aria-live="polite"]')),
+          _boton: Boolean(boton),
+        }
+      })
+      await portada.keyboard.press('Escape')
+      await portada.waitForTimeout(250)
+      const cerrado = await portada.evaluate(() => ({
+        abierto: document.querySelector('#panel-accesibilidad')?.hasAttribute('open') ?? null,
+        expandido: [...document.querySelectorAll('.boton-accesibilidad')].some(
+          (b) => b.getAttribute('aria-expanded') === 'true',
         ),
-        vivo: Boolean(panel.querySelector('[role="status"][aria-live="polite"]')),
-      }
-    })
+        focoDevuelto:
+          (document.activeElement?.className ?? '').includes('boton-accesibilidad') &&
+          getComputedStyle(document.activeElement).display !== 'none',
+        focoEnVisible: document.activeElement?.getBoundingClientRect().width > 0,
+      }))
+      paneles.push({ ancho, abierto, cerrado })
+    }
+    await portada.setViewportSize({ width: 1280, height: 900 })
 
-    // `Escape` cierra y el foco vuelve al disparador.
-    await portada.keyboard.press('Escape')
-    await portada.waitForTimeout(250)
-    const cerrado = await portada.evaluate(() => {
-      const panel = document.querySelector('#panel-accesibilidad')
-      return {
-        abierto: panel?.hasAttribute('open') ?? null,
-        expandido: document.querySelector('.boton-accesibilidad')?.getAttribute('aria-expanded') ?? null,
-        focoDevuelto: (document.activeElement?.className ?? '').includes('boton-accesibilidad'),
-      }
-    })
-
-    const visibleEnTodos = medidas.every((m) => m.visible === true)
-    const conNombre = medidas.every((m) => m.nombre.length > 0)
-    const fijoEnTodos = medidas.every((m) => m.fijo === true)
-    const circularEnTodos = medidas.every((m) => m.circular === true)
-    const centradoEnTodos = medidas.every((m) => m.centrado === true)
-    const aLaDerechaEnTodos = medidas.every((m) => m.aLaDerecha === true)
-    const tactilEnTodos = medidas.every((m) => m.tactil === true)
+    const panelOk = paneles.every(
+      ({ abierto: a, cerrado: c }) =>
+        a !== null &&
+        a.esDialogo &&
+        a.abierto &&
+        a.expandido &&
+        a.titulo === 'Ajustes de accesibilidad' &&
+        a.tituloEnlazado &&
+        a.modos === 4 &&
+        a.interruptores === 5 &&
+        a.relevo &&
+        a.ayuda &&
+        a.restablecer &&
+        a.vivo &&
+        c.abierto === false &&
+        c.expandido === false &&
+        c.focoDevuelto &&
+        c.focoEnVisible,
+    )
     const ok =
-      visibleEnTodos &&
-      conNombre &&
-      fijoEnTodos &&
-      circularEnTodos &&
-      centradoEnTodos &&
-      aLaDerechaEnTodos &&
-      tactilEnTodos &&
+      variantesOk &&
+      comunesOk &&
+      flotanteOk &&
+      cabeceraOk &&
+      panelOk &&
       antes.barraVieja === false &&
       antes.tieneDialogo === 'dialog' &&
       antes.expandido === 'false' &&
-      antes.controla === 'panel-accesibilidad' &&
-      abierto !== null &&
-      abierto.esDialogo &&
-      abierto.abierto &&
-      abierto.expandido === 'true' &&
-      abierto.titulo === 'Ajustes de accesibilidad' &&
-      abierto.tituloEnlazado &&
-      abierto.modos === 4 &&
-      abierto.interruptores === 5 &&
-      abierto.relevo &&
-      abierto.ayuda &&
-      abierto.restablecer &&
-      abierto.vivo &&
-      cerrado.abierto === false &&
-      cerrado.expandido === 'false' &&
-      cerrado.focoDevuelto
+      antes.controla === 'panel-accesibilidad'
 
     return {
       ok,
       detalle:
-        `círculo fijo centrado a la derecha a ${anchos.join('/')} px: ` +
-        `${medidas.filter((m) => m.circular && m.centrado && m.aLaDerecha && m.fijo).length}/${anchos.length} · ` +
-        `tamaños: ${medidas.map((m) => m.ancho).join('/')} px (área activa ≥44: ${tactilEnTodos}) · ` +
-        `panel: ${abierto?.modos ?? 0} modos + ${abierto?.interruptores ?? 0} interruptores · ` +
-        `Centro de Relevo: ${abierto?.relevo} · barra vieja retirada: ${antes.barraVieja === false} · ` +
-        `foco devuelto: ${cerrado.focoDevuelto}` +
-        (ok ? '' : ` · MEDIDAS: ${JSON.stringify({ medidas, antes, abierto, cerrado })}`),
+        `un solo disparador visible a ${anchos.join('/')} px: ${medidas.filter((m) => m.cuantos === 1).length}/${anchos.length} · ` +
+        `variante: ${medidas.map((m) => `${m.vw}→${m.variante ?? '∅'}`).join(' ')} · ` +
+        `tamaños: ${medidas.map((m) => `${m.ancho ?? 0}×${m.alto ?? 0}`).join(' ')} · ` +
+        `flotante fijo y centrado a la derecha: ${flotanteOk} · cabecera sin fijar: ${cabeceraOk} · ` +
+        `panel (1280/800/390): ${panelOk} · barra vieja retirada: ${antes.barraVieja === false}` +
+        (ok ? '' : ` · MEDIDAS: ${JSON.stringify({ medidas, antes, paneles })}`),
     }
   })
 

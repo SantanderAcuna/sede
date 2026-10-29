@@ -7,10 +7,12 @@
 | **Módulo auditado** | 01 · Estructura e Identidad GOV.CO (`estructura-identidad.md`, 181 líneas, idéntico a `sede.md`) |
 | **Fecha de la auditoría** | 2026-10-28 |
 | **Preparado para** | José — equipo TIC, Alcaldía Distrital de Santa Marta |
-| **Preparado por** | Claudio (asistente de IA). Auditoría de solo lectura: **no se modificó ningún archivo del repositorio, ni el servidor, ni GitHub** |
-| **Estado del documento** | BORRADOR para revisión. Nada de lo que propone se ejecuta sin tu aprobación explícita, fase por fase |
+| **Preparado por** | Claudio (asistente de IA). La auditoría (2026-10-28) fue de solo lectura; **la ejecución de las fases 0 y 1 empezó el 2026-10-28 y se documenta en §8.7** (PR #285 a #324 del repositorio; el servidor de staging se tocó con tu aprobación) |
+| **Estado del documento** | **EN EJECUCIÓN** (corte 2026-10-29). Fases 0 y 1: lo que podía hacer la sesión está hecho y comprobado; lo que queda es tuyo (§8.7). Fases 2 a 4: sin empezar. Nada se ejecuta sin tu aprobación explícita, fase por fase |
 
-> ## ⚠️ Antes de nada: este archivo NO debe llegar a git
+> ## ⚠️ Antes de nada: este archivo ya está en un repositorio PÚBLICO
+>
+> **ACTUALIZACIÓN 2026-10-29 (HECHO):** el archivo **ya está versionado en `main`, `staging` y `develop`** y el repo sigue siendo público por decisión D-1. Las dos frases siguientes describen el riesgo original, que **se materializó**: este documento lista debilidades que siguen abiertas (kernel sin actualizar, puerto 22 sin confirmar, MFA sin implementar, CSP en modo informe). **Decisión que te corresponde:** o sacas este archivo del repo (a un lugar privado) y lo dejas en `.git/info/exclude`, o aceptas que ese inventario sea público hasta cerrar las fases 0 y 1. Yo recomiendo lo primero. No reescribí el historial.
 >
 > **HECHO:** el repositorio `SantanderAcuna/sede` es **público** (la API de GitHub responde `200` sin credenciales) y la carpeta `sede-electronica-doc/` está **versionada** (54 archivos rastreados). Este archivo **no está ignorado** por `.gitignore`: un `git add .` lo publicaría.
 >
@@ -925,25 +927,37 @@ No uso «Crítico»: nada de lo que vi se está explotando, y lo que no pude ver
 
 ---
 
-### 8.7 Estado de ejecución (corte 2026-10-28)
+### 8.7 Estado de ejecución (corte 2026-10-29)
 
 Lo que se ha **hecho y comprobado**, lo que está **a medias** y lo que **sigue abierto**. Las casillas marcadas en §8 llevan su evidencia al final de la línea; lo no marcado no está comprobado.
+
+**Resumen del corte (2026-10-29).** Criterios marcados: 45 de 161. De los 31 sin marcar en las fases 0 y 1, 2 pertenecen a T-00 (superada) y 4 a T-10 (diferida por D-3); el resto depende de ti o del servidor.
+
+*Solucionado y comprobado desde la sesión:* T-06 (gitleaks bloqueante, probado con PR fallido #315 y verde #314); T-01 en lo que es del repositorio (AC-01.1 por la vía alternativa, AC-01.4, AC-01.5); T-11, T-13 (AC-13.2 re-medido: 4,7 ms), T-15, T-07, T-09, T-05 en su camino negativo; `shellcheck` de `deploy/droplet/*.sh` sin errores; las tres ramas se mantienen con el mismo árbol de archivos.
+
+*Preparado, a la espera de ti:* ruleset de T-04 (opción (a), comando en T-04); `deploy/droplet/usuario-prueba.sh` para AC-05.5 y AC-12.5 (sin probar contra el servidor).
+
+*Solo tuyo:* rotación de lo descrito en `accesos.md` (AC-01.3, obligatoria porque el repo es público); revocar el token OAuth (AC-01.6); activar *Secret scanning* y *Push protection*; kernel y reinicio, puerto 22 y §9.2 (T-03); clave del usuario `id=1` (AC-14.4); Cloudflare (T-26) y el nonce de Nuxt para pasar la CSP a modo de aplicación (T-08); decidir T-10 (D-3) y S3 frente a disco local (T-12); decidir qué hacer con este mismo archivo (ver la advertencia inicial).
+
+*Hallazgo nuevo del corte:* `PermissionSeeder` no siembra `archivos.*`; hoy solo un super-administrador usa esas rutas (AC-12.5).
+
+*Con matices:* la enumeración por tiempo (H-14) está medida con 30 + 30 intentos sobre credenciales inválidas; no incluye la ruta de contraseña correcta.
 
 | Tarea | Estado | Qué falta |
 |---|---|---|
 | T-00 | Superada | El documento ya está versionado en el repo (AC-00.1 no aplica). |
 | T-01 | **Parcial** | Cumplidos AC-01.4 y AC-01.5 (PR #314). AC-01.1 por la vía alternativa (D-1 = repo público sin `accesos.md`; ver abajo); AC-01.2 parcial (escaneo hecho, 0 hallazgos reales por reglas, pero la vigencia de lo expuesto en `accesos.md` solo la determina la rotación); AC-01.3 (lista de secretos con fecha de rotación, fuera del repo) y AC-01.6 (el remoto local aún lleva el token, H-44; revocar el token OAuth) son tuyos. |
-| T-02 | **Hecha** (staging) | AC-02.6 sin `ls -ld` explícito; `shellcheck` sin ejecutar. |
+| T-02 | **Hecha** (staging) | AC-02.6 sin `ls -ld` explícito (es en el servidor). `shellcheck deploy/droplet/*.sh` ejecutado el 2026-10-29: 0 errores; se corrigió el aviso SC2034 de `despliegue-remoto.sh`. |
 | T-03 | **Parcial** | Firewall 80/443 y Postfix hechos; puerto 22 (cerrado en el firewall de DigitalOcean según José, **sin comprobar desde aquí**) y kernel (H-40, AC-03.5) pendientes; §9.2 filas 2-7 no repetibles desde la sesión (proxy); archivo de evidencia (AC-03.3) entregado aparte, fuera del repo. |
-| T-04 | Abierta | AC-04.1 a 04.6. Las reglas actuales (`deletion`, `non_fast_forward`, `pull_request` con 0 aprobaciones) no exigen `required_status_checks`. Mi sesión no puede modificar rulesets; ver «Aviso sobre `[skip ci]`» en T-04. Un repo privado en plan Free **deja sin efecto** los rulesets actuales. |
+| T-04 | Abierta | AC-04.1 a 04.6. Las reglas actuales (`deletion`, `non_fast_forward`, `pull_request` con 0 aprobaciones) no exigen `required_status_checks`. **Decisión 2026-10-29: opción (a)** (checks solo en `develop`); comando listo en T-04. Mi sesión no puede modificar rulesets (403 del proxy): lo ejecutas tú. Con el repo público (D-1) los rulesets se aplican sin límite de plan. |
 | T-06 | **Hecha** | AC-06.1 a 06.3 (PR #314 y PR de prueba #315). |
 | T-09 | **Hecha** | AC-09.7 (Trivy) sin comprobar aparte. |
-| T-05 | **Hecha** (staging) | AC-05.5 (navegador, con usuario de prueba sin privilegios). PR #296. |
+| T-05 | **Hecha** (staging) | AC-05.5 (camino de éxito en navegador): falta el usuario de prueba; `deploy/droplet/usuario-prueba.sh crear` lo crea (sin probar contra el servidor). PR #296. |
 | T-07 | **Hecha** | AC-07.5 verificado por código, no con `route:list` (sandbox con PHP 8.3). PR #294. |
 | T-08 | **Parcial (fase informe)** | AC-08.1 ✅ en staging; AC-08.4 medido (ver H-09): pendiente nonce en Nuxt y ajuste de Cloudflare; AC-08.2 (7 días de informes); AC-08.3/08.5 (aplicar) y AC-08.4 (Playwright). Depende de T-26 por la analítica. PR #300. |
 | T-10 | **Diferida (D-3)** | Decisión pospuesta a propósito. Mientras tanto `mfa_habilitado` sigue dando falsa seguridad (H-10, H-38, AC-14.5). Nota para retomar en D-3. |
 | T-11 | **Hecha** | Nada abierto. PR #297 (y PR de prueba #307, cerrado). |
-| T-12 | **Hecha en código** | AC-12.5 y el 413/422 de punta a punta en staging. Falta decidir S3 vs disco local: hoy el despliegue usa `local`. PR #299. |
+| T-12 | **Hecha en código** | AC-12.5 y el 413/422 de punta a punta en staging: falta el usuario de prueba (`usuario-prueba.sh crear archivos`). Hallazgo: `PermissionSeeder` no siembra `archivos.*`. Falta decidir S3 vs disco local: hoy el despliegue usa `local`. PR #299. |
 | T-13 | **Hecha** | AC-13.1 a 13.3 cumplidos. AC-13.2: la primera medición falló (−269 ms); tras PR #308 y #310 la re-medición en staging dio 4,7 ms de diferencia de medianas (30 + 30). PR #298. |
 | T-14 | **Parcial** | AC-14.4 (rotar clave `id=1` en staging y producción) y AC-14.5 (MFA para super-admin, con T-10) son tuyos. PR #295. |
 | T-15 | **Hecha** (staging) | Nada abierto salvo lo ya anotado. PR #295 y #296. |

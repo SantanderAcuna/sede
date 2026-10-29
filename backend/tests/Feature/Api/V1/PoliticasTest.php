@@ -10,6 +10,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\PoliticaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 use ZipArchive;
@@ -168,6 +169,17 @@ final class PoliticasTest extends TestCase
         $this->assertSame(1, Politica::query()->where('slug', 'uso-de-cookies')->firstOrFail()->version);
     }
 
+    public function test_un_apartado_adicional_vacio_tampoco_se_guarda(): void
+    {
+        $secciones = Politica::query()->where('slug', 'uso-de-cookies')->firstOrFail()->secciones;
+        $secciones[] = ['id' => 'extra', 'titulo' => 'Un extra', 'parrafos' => ['  ']];
+
+        $this->actingAs($this->editor(), 'web')
+            ->patchJson('/api/v1/panel/politicas/uso-de-cookies', ['secciones' => $secciones])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['politica'], 'errors');
+    }
+
     public function test_no_deja_guardar_el_texto_en_preparacion(): void
     {
         $secciones = Politica::query()->where('slug', 'uso-de-cookies')->firstOrFail()->secciones;
@@ -310,6 +322,18 @@ final class PoliticasTest extends TestCase
 
     // ------------------------------------------------- Documento oficial adjunto
 
+    /**
+     * Cambia de usuario dentro de la misma prueba. El guardia de Sanctum recuerda
+     * al primero que resolvió; sin olvidarlo, el segundo `actingAs` seguiría siendo
+     * el primer usuario y la prueba mediría otra cosa.
+     */
+    private function como(User $usuario): static
+    {
+        Auth::forgetGuards();
+
+        return $this->actingAs($usuario, 'web');
+    }
+
     private function editorConArchivos(): User
     {
         $usuario = $this->editor();
@@ -325,7 +349,7 @@ final class PoliticasTest extends TestCase
     {
         $politica = Politica::query()->where('slug', $slug)->firstOrFail();
 
-        $respuesta = $this->actingAs($usuario, 'web')
+        $respuesta = $this->como($usuario)
             ->postJson("/api/v1/panel/entidad/{$politica->uuid}/archivos", [
                 'archivo' => UploadedFile::fake()->createWithContent('acto.pdf', $contenido),
                 'collection' => Politica::COLECCION_DOCUMENTO,
@@ -337,7 +361,7 @@ final class PoliticasTest extends TestCase
 
     public function test_el_panel_entrega_el_uuid_para_adjuntar_y_no_hay_documento_al_inicio(): void
     {
-        $respuesta = $this->actingAs($this->editor(), 'web')->getJson('/api/v1/panel/politicas')->assertOk();
+        $respuesta = $this->como($this->editor())->getJson('/api/v1/panel/politicas')->assertOk();
 
         $this->assertNotEmpty($respuesta->json('data.0.uuid'));
         $this->assertNull($respuesta->json('data.0.documento_oficial'));
@@ -378,7 +402,7 @@ final class PoliticasTest extends TestCase
         $this->adjuntar($editor);
         $politica = Politica::query()->where('slug', 'uso-de-cookies')->firstOrFail();
 
-        $this->actingAs($editor, 'web')
+        $this->como($editor)
             ->getJson('/api/v1/panel/entidad/'.$politica->uuid.'/archivos?collection='.Politica::COLECCION_DOCUMENTO)
             ->assertOk()
             ->assertJsonCount(1, 'data');
@@ -400,7 +424,7 @@ final class PoliticasTest extends TestCase
         Storage::fake((string) config('filesystems.default'));
         $politica = Politica::query()->where('slug', 'uso-de-cookies')->firstOrFail();
 
-        $this->actingAs($this->editorConArchivos(), 'web')
+        $this->como($this->editorConArchivos())
             ->postJson("/api/v1/panel/entidad/{$politica->uuid}/archivos", [
                 'archivo' => UploadedFile::fake()->createWithContent('logo.pdf', "%PDF-1.4\n"),
                 'collection' => 'logos',
@@ -415,7 +439,7 @@ final class PoliticasTest extends TestCase
         $soloArchivos = User::factory()->create();
         $soloArchivos->givePermissionTo(['archivos.ver', 'archivos.crear', 'archivos.eliminar']);
 
-        $this->actingAs($soloArchivos, 'web')
+        $this->como($soloArchivos)
             ->postJson("/api/v1/panel/entidad/{$politica->uuid}/archivos", [
                 'archivo' => UploadedFile::fake()->createWithContent('acto.pdf', "%PDF-1.4\n"),
                 'collection' => Politica::COLECCION_DOCUMENTO,
@@ -424,10 +448,10 @@ final class PoliticasTest extends TestCase
 
         $archivo = $this->adjuntar($this->editorConArchivos());
 
-        $this->actingAs($soloArchivos, 'web')
+        $this->como($soloArchivos)
             ->getJson("/api/v1/panel/entidad/{$politica->uuid}/archivos?collection=".Politica::COLECCION_DOCUMENTO)
             ->assertForbidden();
-        $this->actingAs($soloArchivos, 'web')->deleteJson("/api/v1/panel/archivos/{$archivo}")->assertForbidden();
+        $this->como($soloArchivos)->deleteJson("/api/v1/panel/archivos/{$archivo}")->assertForbidden();
         $this->assertDatabaseHas('file_media', ['uuid' => $archivo]);
     }
 
@@ -435,7 +459,7 @@ final class PoliticasTest extends TestCase
     {
         $politica = Politica::query()->where('slug', 'uso-de-cookies')->firstOrFail();
 
-        $this->actingAs($this->editor(), 'web')
+        $this->como($this->editor())
             ->postJson("/api/v1/panel/entidad/{$politica->uuid}/archivos", [
                 'archivo' => UploadedFile::fake()->createWithContent('acto.pdf', "%PDF-1.4\n"),
                 'collection' => Politica::COLECCION_DOCUMENTO,
@@ -449,7 +473,7 @@ final class PoliticasTest extends TestCase
         $editor = $this->editorConArchivos();
         $archivo = $this->adjuntar($editor);
 
-        $this->actingAs($editor, 'web')->deleteJson("/api/v1/panel/archivos/{$archivo}")->assertOk();
+        $this->como($editor)->deleteJson("/api/v1/panel/archivos/{$archivo}")->assertOk();
 
         $this->assertDatabaseMissing('file_media', ['uuid' => $archivo]);
         $this->get('/politicas/uso-de-cookies/documento')->assertNotFound();
@@ -461,7 +485,7 @@ final class PoliticasTest extends TestCase
         Storage::fake((string) config('filesystems.default'));
         $politica = Politica::query()->where('slug', 'uso-de-cookies')->firstOrFail();
 
-        $this->actingAs($this->editorConArchivos(), 'web')
+        $this->como($this->editorConArchivos())
             ->postJson("/api/v1/panel/entidad/{$politica->uuid}/archivos", [
                 'archivo' => UploadedFile::fake()->create('texto.odt', 20),
                 'collection' => Politica::COLECCION_DOCUMENTO,

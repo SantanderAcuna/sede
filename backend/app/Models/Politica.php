@@ -131,6 +131,14 @@ final class Politica extends Model
 
         $textos = [];
         foreach ($this->secciones as $seccion) {
+            // Los apartados mínimos ya se revisaron arriba; uno adicional también
+            // tiene que tener título y texto, o la página publicaría un hueco.
+            $id = (string) ($seccion['id'] ?? '');
+            if (! array_key_exists($id, self::COMPONENTES[$this->slug] ?? [])
+                && (trim((string) ($seccion['titulo'] ?? '')) === '' || trim(implode(' ', $seccion['parrafos'] ?? [])) === '')) {
+                $problemas[] = "El apartado adicional «{$id}» no tiene título o no tiene texto.";
+            }
+
             $textos[] = (string) ($seccion['titulo'] ?? '');
             foreach ($seccion['parrafos'] ?? [] as $parrafo) {
                 $textos[] = (string) $parrafo;

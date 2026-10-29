@@ -117,7 +117,7 @@ que permite que el despliegue sea reproducible.
 ## Lo que está pendiente
 
 - **El dominio de producción.** `publicar-entorno.sh produccion` no publica sin
-  `SEDE_DOMINIO_PRODUCTION`, y está sin decidir (D-20 · §21.A de `plan.md`). El
+  `SEDE_DOMINIO_PRODUCTION`, y está sin decidir (D-20 · §21.A de `docs/archivo/plan.md`). El
   guion aborta a propósito en vez de inventarse el dominio.
 - **La política de ramas del entorno `production`** permite `master`, que no
   existe en este repositorio (la rama por defecto es `main`). Mientras siga así,

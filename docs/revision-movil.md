@@ -26,7 +26,7 @@ sitio con datos).
 | Defecto (medido) | Corrección |
 |---|---|
 | Banner de cookies: **88 %** de la pantalla a 390 px y **100 %** a 360, 320×568 y en horizontal; los botones quedaban fuera de vista. Causa: categorías siempre desplegadas y `flex: 1 1 40ch`, que en columna se leía como **alto** y reservaba ~320 px de aire. | Categorías plegadas con «Elegir por categorías» (`aria-expanded`); «Aceptar todas» y «Rechazar opcionales» de igual peso; barra de botones pegada al borde inferior; máximo 70 % de la altura. En escritorio no cambia. |
-| Botón de accesibilidad a media altura: tapaba el final de las líneas en **las 20 rutas**; en horizontal se montaba sobre el botón del menú. | Esquina inferior derecha hasta 767 px (y en pantallas de ≤480 px de alto), con `env(safe-area-inset-*)`. «Volver arriba» queda justo encima. En escritorio sigue centrado. |
+| Botón de accesibilidad a media altura: tapaba el final de las líneas en **las 20 rutas**; en horizontal se montaba sobre el botón del menú. | **Corregido el 2026-10-29 (segunda pasada).** La primera versión lo anclaba abajo a la derecha en móvil, y eso **contradecía el requisito**: el plan del botón (D1, revisión 2, indicación del cliente del 2026-10-01) exige un círculo fijo, centrado verticalmente en el lado derecho e igual en todas las pantallas, y la HU-07-D02 pide que no se solape con el contenido. Se revirtió el anclaje y «Volver arriba» recuperó su sitio; el solape se resuelve apartando el **texto** (carril de 44 px a la derecha en los contenedores y en la leyenda del carrusel, hasta 851 px), no moviendo el botón. Medido: 0 líneas tapadas a 320, 390, 600, 767, 800, 851, 900 y 1024 px en 17 rutas; la prueba automática (`tests/movil.mjs`, sección 2b) repite la medición en 320, 390, 767, 800 y 851 px. Solo cuenta líneas de **texto**: el botón sigue pasando por encima de imágenes y tarjetas, como pide el plan del botón (flota). |
 | Panel de accesibilidad: el aviso fijo restaba ~90 px y cortaba por la mitad el título del grupo al desplazar. | El aviso va dentro de la zona que se desplaza; menos relleno en pantallas estrechas. |
 | Indicadores del carrusel de 16×16 px; «Reproducir» de 34 px. | Área de 44×44 px con pseudoelemento y paso de 44 px; 44 px de alto. |
 | Botón del menú GOV.CO de 42×42; `.btn-govco` de 42 px; «Ver la ficha completa» de 24 px; enlaces de la 404 de 39 px. | 44 px. |
@@ -47,8 +47,7 @@ sitio con datos).
   accidental.
 - Las referencias de `tests/visual/referencia/` deben regenerarse en la máquina de
   quien las mantiene (`node scripts/captura-visual.mjs --guardar`).
-- `tests/verificar-modos-contraste.mjs` esperaba el círculo **centrado** a
-  cualquier ancho; ahora espera «anclado abajo» hasta 767 px.
+- El texto de los contenedores de `main` es 44 px más estrecho hasta 851 px (el carril del botón de accesibilidad).
 
 ## Límites de esta revisión
 
@@ -56,8 +55,7 @@ sitio con datos).
   con Safari ni Firefox móvil (entra en T-29).
 - No hubo lector de pantalla. El banner plegado/desplegado se probó con clics y
   con axe; el recorrido con teclado y con VoiceOver/TalkBack queda sin probar.
-- Los **dos botones flotantes** (accesibilidad y «Volver arriba») siguen
-  cruzando contenido al desplazar; ahora sólo en la esquina.
+- El círculo de accesibilidad **pasa por encima** de bloques que no son texto (imágenes, tarjetas de color) al desplazarse: el carril sólo aparta el texto y los campos de los contenedores. La medida cuenta líneas de texto, no formularios ni imágenes.
 
 ## Ajuste a los requisitos del Módulo 01 (segunda pasada)
 

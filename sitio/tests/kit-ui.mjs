@@ -20,7 +20,6 @@
  * Sale con código 1 si algo falla. Si el catálogo no tiene trámites, el punto 3 se
  * declara «no comprobado» (no pasa en silencio).
  */
-import { createRequire } from 'node:module'
 
 const BASE = (process.env.BASE_URL ?? '').replace(/\/+$/, '')
 if (!BASE) {
@@ -28,9 +27,7 @@ if (!BASE) {
   process.exit(2)
 }
 
-const { chromium } = process.env.PLAYWRIGHT_MODULE
-  ? createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE)
-  : await import('@playwright/test')
+import { lanzar } from './ayudas/motor.mjs'
 
 let fallos = 0
 let sinComprobar = 0
@@ -45,7 +42,7 @@ const omite = (m) => {
 }
 const MIN = 44
 
-const navegador = await chromium.launch()
+const navegador = await lanzar()
 
 async function abrir(ruta, ancho = 1300) {
   const pagina = await navegador.newPage({ viewport: { width: ancho, height: 900 } })

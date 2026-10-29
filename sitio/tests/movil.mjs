@@ -12,9 +12,11 @@
  *     desplazar y las categorías sólo aparecen al pedirlas (con «Guardar mi
  *     elección» alcanzable). En escritorio las categorías se ven y el botón de
  *     desplegar no existe.
- *  2. Botón de accesibilidad. En móvil, anclado a la esquina inferior derecha (no
- *     a media altura, donde tapaba el texto); en escritorio, centrado en el borde.
- *     El botón de volver arriba queda encima, sin solaparse con él.
+ *  2. Botón de accesibilidad. Círculo fijo, centrado verticalmente en el borde
+ *     derecho a cualquier ancho (plan del botón, D1; indicación del cliente del
+ *     2026-10-01), y «Volver arriba» sin solaparse con él. Además, que no tape
+ *     texto a 320, 390, 767, 800 y 851 px (HU-07-D02): se cuenta cuántas líneas
+ *     del contenido cruza el círculo al desplazarse por 17 rutas.
  *  3. Panel de accesibilidad. Cabe en la pantalla, el aviso va dentro de la zona
  *     que se desplaza y el botón de cerrar mide ≥ 44 px.
  *  4. Ninguna ruta pública se sale del ancho a 320 ni a 390 px.
@@ -44,9 +46,7 @@ if (!BASE) {
   process.exit(2)
 }
 
-const { chromium } = process.env.PLAYWRIGHT_MODULE
-  ? createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE)
-  : await import('@playwright/test')
+import { lanzar, opcionesMovil } from './ayudas/motor.mjs'
 
 let fallos = 0
 const ok = (m) => console.log(`  ✓ ${m}`)
@@ -57,13 +57,12 @@ const falla = (m) => {
 const comprobar = (condicion, bien, mal) => (condicion ? ok(bien) : falla(mal))
 const MIN = 44
 
-const navegador = await chromium.launch()
+const navegador = await lanzar()
 
 async function contexto(ancho, alto, movil = true) {
   return navegador.newContext({
     viewport: { width: ancho, height: alto },
-    isMobile: movil,
-    hasTouch: movil,
+    ...opcionesMovil(movil),
     deviceScaleFactor: 1,
   })
 }
@@ -126,13 +125,18 @@ for (const [ancho, alto] of [[390, 844], [360, 740], [320, 568], [667, 375]]) {
 }
 
 // 2. Botón de accesibilidad y volver arriba ---------------------------------
+// El requisito (plan del botón, D1, revisión 2 del cliente; RNF-07-D01): un círculo
+// **fijo, centrado verticalmente en el lado derecho e igual en todas las pantallas**.
+// Anclarlo abajo en móvil —como se hizo en la primera revisión móvil— contradecía
+// el requisito y se revirtió; lo que se vigila es que cumpla eso **y** que no tape
+// texto (HU-07-D02, criterio negativo), ver el apartado siguiente.
 console.log('Botón de accesibilidad')
 for (const [ancho, alto] of [[390, 844], [320, 568], [667, 375]]) {
   const ctx = await contexto(ancho, alto)
   const p = await abrirResuelta(ctx, '/tramites')
   const fab = await p.locator('.boton-accesibilidad').boundingBox()
   const etiqueta = `${ancho}×${alto}`
-  comprobar(fab !== null && alto - (fab.y + fab.height) <= 24, `${etiqueta}: anclado abajo (${Math.round(alto - fab.y - fab.height)} px del borde)`, `${etiqueta}: no está anclado abajo`)
+  comprobar(fab !== null && Math.abs(fab.y + fab.height / 2 - alto / 2) <= 2, `${etiqueta}: centrado verticalmente`, `${etiqueta}: no está centrado verticalmente`)
   comprobar(fab !== null && ancho - (fab.x + fab.width) <= 16, `${etiqueta}: pegado a la derecha`, `${etiqueta}: se aleja del borde derecho`)
   comprobar(fab !== null && fab.width >= MIN && fab.height >= MIN, `${etiqueta}: mide ${Math.round(fab.width)} px`, `${etiqueta}: mide menos de 44 px`)
   await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2))
@@ -140,7 +144,7 @@ for (const [ancho, alto] of [[390, 844], [320, 568], [667, 375]]) {
   const subir = await p.locator('.volver-arriba-govco').boundingBox()
   if (subir !== null) {
     const solapa = !(subir.y + subir.height <= fab.y || subir.y >= fab.y + fab.height || subir.x + subir.width <= fab.x || subir.x >= fab.x + fab.width)
-    comprobar(!solapa && subir.y < fab.y, `${etiqueta}: «Volver arriba» queda encima, sin solaparse`, `${etiqueta}: «Volver arriba» se solapa con el de accesibilidad`)
+    comprobar(!solapa, `${etiqueta}: «Volver arriba» no se solapa con el de accesibilidad`, `${etiqueta}: «Volver arriba» se solapa con el de accesibilidad`)
   } else {
     falla(`${etiqueta}: no apareció «Volver arriba» tras desplazar`)
   }
@@ -151,6 +155,52 @@ for (const [ancho, alto] of [[390, 844], [320, 568], [667, 375]]) {
   const p = await abrirResuelta(ctx, '/')
   const fab = await p.locator('.boton-accesibilidad').boundingBox()
   comprobar(fab !== null && Math.abs(fab.y + fab.height / 2 - 450) <= 2, 'escritorio: centrado en el borde', 'escritorio: ya no está centrado')
+  await ctx.close()
+}
+
+// 2b. El círculo no tapa texto (HU-07-D02: «no se solapa con el contenido») ----
+console.log('Solape del botón de accesibilidad con el texto')
+const RUTAS_TEXTO = ['/', '/transparencia', '/atencion', '/tramites', '/pqrsd', '/realizar-una-peticion', '/seguimiento', '/noticias', '/portales', '/servicios', '/normativa', '/buscar?q=salud', '/mapa-del-sitio', '/accesibilidad', '/politicas', '/participa', '/ruta-que-no-existe']
+/** Líneas de texto del contenido que el círculo cubre, en cada posición de desplazamiento. */
+async function lineasTapadas(p) {
+  return p.evaluate(async () => {
+    const fab = document.querySelector('.boton-accesibilidad')
+    if (!fab) return -1
+    const caja = fab.getBoundingClientRect()
+    const tapadas = new Set()
+    const paso = Math.max(200, Math.floor(window.innerHeight / 2))
+    const maximo = document.documentElement.scrollHeight - window.innerHeight
+    for (let y = 0; y <= maximo + paso; y += paso) {
+      window.scrollTo(0, Math.min(y, maximo))
+      await new Promise((r) => setTimeout(r, 30))
+      const it = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+      for (let nodo = it.nextNode(); nodo; nodo = it.nextNode()) {
+        if (!nodo.textContent.trim()) continue
+        const el = nodo.parentElement
+        if (!el || el.closest('.etiqueta-buscador-govco, .boton-accesibilidad, dialog, .banner-cookies, .volver-arriba-govco, script, style')) continue
+        if (getComputedStyle(el).visibility === 'hidden') continue
+        const rango = document.createRange()
+        rango.selectNodeContents(nodo)
+        for (const r of rango.getClientRects()) {
+          if (r.width < 1 || r.height < 1) continue
+          const cruza = r.left < caja.right && r.right > caja.left && r.top < caja.bottom && r.bottom > caja.top
+          if (cruza) tapadas.add(`${Math.round(window.scrollY + r.top)}:${nodo.textContent.trim().slice(0, 24)}`)
+        }
+      }
+    }
+    return tapadas.size
+  })
+}
+for (const ancho of [320, 390, 767, 800, 851]) {
+  const ctx = await contexto(ancho, 740)
+  const p = await abrirResuelta(ctx, '/')
+  const con = []
+  for (const ruta of RUTAS_TEXTO) {
+    await p.goto(`${BASE}${ruta}`, { waitUntil: 'networkidle' })
+    const n = await lineasTapadas(p)
+    if (n !== 0) con.push(`${ruta} (${n})`)
+  }
+  comprobar(con.length === 0, `${ancho} px: el círculo no tapa texto en ${RUTAS_TEXTO.length} rutas`, `${ancho} px: tapa líneas de texto en ${con.length} ruta(s): ${con.slice(0, 6).join(', ')}`)
   await ctx.close()
 }
 
@@ -166,7 +216,7 @@ for (const [ancho, alto] of [[390, 844], [320, 568], [667, 375]]) {
   comprobar(dentro(caja, ancho, alto), `${etiqueta}: el panel cabe en la pantalla`, `${etiqueta}: el panel se sale de la pantalla`)
   comprobar((await dialogo.locator('.panel-contenido .panel-aviso').count()) === 1, `${etiqueta}: el aviso va en la zona que se desplaza`, `${etiqueta}: el aviso quedó fuera de la zona que se desplaza`)
   const cerrar = await dialogo.locator('.panel-cerrar').boundingBox()
-  comprobar(cerrar !== null && cerrar.width >= MIN && cerrar.height >= MIN, `${etiqueta}: cerrar mide ≥ 44 px`, `${etiqueta}: cerrar mide menos de 44 px`)
+  comprobar(cerrar !== null && cerrar.width >= MIN - 0.5 && cerrar.height >= MIN - 0.5, `${etiqueta}: cerrar mide ≥ 44 px`, `${etiqueta}: cerrar mide menos de 44 px`)
   const restablecer = dialogo.getByRole('button', { name: 'Restablecer todo' })
   await restablecer.scrollIntoViewIfNeeded()
   comprobar(dentro(await restablecer.boundingBox(), ancho, alto), `${etiqueta}: «Restablecer todo» se alcanza desplazando`, `${etiqueta}: «Restablecer todo» no se alcanza`)

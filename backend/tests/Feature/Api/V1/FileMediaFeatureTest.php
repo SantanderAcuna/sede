@@ -32,7 +32,9 @@ final class FileMediaFeatureTest extends TestCase
     {
         parent::setUp();
         Storage::fake('public');
-        // La subida usa el disco por defecto de la configuración (`local`).
+        // La subida usa el disco por defecto de la configuración. El `.env` de CI trae
+        // `FILESYSTEM_DISK=s3`, así que se fija `local` y se simula.
+        config(['filesystems.default' => 'local']);
         Storage::fake('local');
 
         $this->seed([

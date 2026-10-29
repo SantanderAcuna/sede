@@ -38,6 +38,10 @@ final class SubidaDeArchivosTest extends TestCase
     {
         parent::setUp();
 
+        // El `.env` de CI trae `FILESYSTEM_DISK=s3` (el de `.env.example`): sin fijar el
+        // disco, la subida intentaría hablar con S3 de verdad.
+        config(['filesystems.default' => 'local']);
+
         $this->seed([EntidadSeeder::class, PermissionSeeder::class, SuperAdminSeeder::class]);
         $this->superAdmin = User::query()->where('email', config('superadmin.email'))->firstOrFail();
         $this->entidad = Entidad::firstOrFail();
@@ -99,8 +103,23 @@ final class SubidaDeArchivosTest extends TestCase
     {
         Storage::fake('local');
 
-        // PNG de verdad con nombre `foto.php`: el tipo real es png.
-        $respuesta = $this->actingAs($this->superAdmin, 'sanctum')->postJson($this->rutaSubida(), $this->datos($this->archivoReal('foto.php', (string) base64_decode(self::PNG_1X1))));
+        // JPEG de verdad con nombre `.png`: el tipo real es jpg.
+        $jpeg = "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xFF\xD9";
+        $respuesta = $this->actingAs($this->superAdmin, 'sanctum')->postJson($this->rutaSubida(), $this->datos($this->archivoReal('foto.png', $jpeg)));
+        $respuesta->assertOk();
+
+        $fila = FileMedia::query()->where('uuid', $respuesta->json('data.uuid'))->firstOrFail();
+
+        $this->assertStringEndsWith('.jpg', $fila->filename);
+        // El nombre original se conserva como dato, no como parte de la ruta.
+        $this->assertSame('foto.png', $fila->original_filename);
+    }
+
+    public function test_un_doble_nombre_con_php_no_llega_a_la_ruta_guardada(): void
+    {
+        Storage::fake('local');
+
+        $respuesta = $this->actingAs($this->superAdmin, 'sanctum')->postJson($this->rutaSubida(), $this->datos($this->archivoReal('foto.php.png', (string) base64_decode(self::PNG_1X1))));
         $respuesta->assertOk();
 
         $fila = FileMedia::query()->where('uuid', $respuesta->json('data.uuid'))->firstOrFail();
@@ -108,8 +127,16 @@ final class SubidaDeArchivosTest extends TestCase
         $this->assertStringEndsWith('.png', $fila->filename);
         $this->assertStringNotContainsString('.php', $fila->filename);
         $this->assertStringNotContainsString('.php', $fila->path);
-        // El nombre original se conserva como dato, no como parte de la ruta.
-        $this->assertSame('foto.php', $fila->original_filename);
+    }
+
+    public function test_un_archivo_con_nombre_php_se_rechaza_aunque_su_contenido_sea_una_imagen(): void
+    {
+        Storage::fake('local');
+
+        $this->actingAs($this->superAdmin, 'sanctum')->postJson($this->rutaSubida(), $this->datos($this->archivoReal('foto.php', (string) base64_decode(self::PNG_1X1))))
+            ->assertStatus(422);
+
+        $this->assertSame(0, FileMedia::query()->count());
     }
 
     public function test_un_script_php_disfrazado_de_imagen_no_se_acepta(): void

@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
  *
  * Modelo polimórfico: un archivo puede pertenecer a cualquier entidad del sistema
  * (trámite, entidad, usuario, etc.) sin tables intermedias. El archivo físico
- * vive en un disco configurado (por defecto `public`) y este modelo guarda la
+ * vive en un disco configurado (`FILESYSTEM_DISK`) y este modelo guarda la
  * referencia + metadatos.
  *
  * R-52: FilesMedia polymorphic.
@@ -83,11 +83,23 @@ final class FileMedia extends Model
     }
 
     /**
-     * URL pública del archivo (válida mientras el disco sea accesible).
+     * URL del archivo.
+     *
+     * En un disco local servido por Laravel (`serve => true`, el caso de `local`)
+     * la ruta `/storage/…` exige firma en producción: una URL sin firmar da 403. Por
+     * eso se devuelve una URL temporal firmada y no `url()`. En `public` y en discos
+     * remotos se mantiene `url()`.
      */
     public function url(): string
     {
-        return Storage::disk($this->disk)->url($this->path);
+        $disco = Storage::disk($this->disk);
+
+        if (config("filesystems.disks.{$this->disk}.driver") === 'local'
+            && config("filesystems.disks.{$this->disk}.serve") === true) {
+            return $disco->temporaryUrl($this->path, now()->addMinutes(15));
+        }
+
+        return $disco->url($this->path);
     }
 
     /**

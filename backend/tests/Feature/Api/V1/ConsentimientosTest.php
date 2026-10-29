@@ -6,6 +6,7 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\Consentimiento;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -135,15 +136,15 @@ final class ConsentimientosTest extends TestCase
         $reciente = Consentimiento::query()->create(['evento' => 'aceptado', 'categorias' => [], 'version_politica' => 1]);
         $reciente->forceFill(['registrado_en' => now()->subDays(1000)])->save();
 
-        $this->artisan('consentimientos:depurar', ['--simular' => true])->assertSuccessful();
+        $this->assertSame(0, Artisan::call('consentimientos:depurar', ['--simular' => true]));
         $this->assertSame(2, Consentimiento::query()->count(), 'Simular no borra.');
 
-        $this->artisan('consentimientos:depurar')->assertSuccessful();
+        $this->assertSame(0, Artisan::call('consentimientos:depurar'));
         $this->assertSame([$reciente->id], Consentimiento::query()->pluck('id')->all());
     }
 
     public function test_depurar_rechaza_una_retencion_menor_a_un_dia(): void
     {
-        $this->artisan('consentimientos:depurar', ['--dias' => 0])->assertFailed();
+        $this->assertNotSame(0, Artisan::call('consentimientos:depurar', ['--dias' => 0]));
     }
 }

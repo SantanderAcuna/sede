@@ -5,7 +5,7 @@
  * directamente como funciones puras.  Además se monta el componente Vue para
  * cubrir las ramas de apertura/cierre, búsqueda e interacción con el router.
  */
-import { nextTick } from '@vue/runtime-dom'
+import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'

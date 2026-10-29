@@ -404,7 +404,32 @@ jobs:
           correr "maquetación en teléfono" node tests/movil.mjs
           correr "componentes del Kit" node tests/kit-ui.mjs
           correr "conformidad de diseño (CAG)" node tests/diseno.mjs
+          # El resumen del paso se guarda como archivo para poder descargarlo (AC-29.2).
+          cp "$GITHUB_STEP_SUMMARY" "resumen-${NAVEGADOR}.md"
           exit "$fallos"
+      # Evidencia descargable por motor. **No se suben las trazas** (`test-results/`):
+      # llevan el dominio del entorno de pruebas dentro y el enmascarado sólo actúa en
+      # los registros, no en los artefactos. El JSON se limpia del dominio antes de subir.
+      - name: Preparar la evidencia
+        if: ${{ always() }}
+        working-directory: sitio
+        env:
+          DOMINIO: ${{ needs.staging.outputs.dominio }}
+        run: |
+          for f in resultados-navegadores.json "resumen-${NAVEGADOR}.md"; do
+            [ -f "$f" ] && sed -i "s#${DOMINIO}#<dominio>#g" "$f"
+          done
+          true
+      - name: Subir la evidencia
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: navegadores-${{ matrix.motor }}
+          path: |
+            sitio/resultados-navegadores.json
+            sitio/resumen-${{ matrix.motor }}.md
+          if-no-files-found: warn
+          retention-days: 14
 
   produccion:
     name: Desplegar en producción

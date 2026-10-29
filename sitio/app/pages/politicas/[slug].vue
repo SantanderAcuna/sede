@@ -19,6 +19,7 @@
  * sería lo último que conviene hacer.
  */
 /** El catálogo canónico: slug, rótulo y estado de publicación (fuente única). */
+import { DOCUMENTOS_POLITICAS } from '~/config/politicas-contenido'
 import { POLITICAS as POLITICAS_DEL_SITIO } from '~/config/sitemap'
 import { useMetadatosComparticion } from '~/composables/useMetadatosComparticion'
 
@@ -81,6 +82,9 @@ function primerValor(valor: string | string[] | undefined): string {
 }
 
 const slug = computed<string>(() => primerValor(ruta.params.slug))
+
+/** El documento adoptado, o `null` mientras la Entidad no lo entregue. */
+const documento = computed(() => DOCUMENTOS_POLITICAS[slug.value] ?? null)
 const politica = computed<Politica | null>(() => POLITICAS[slug.value] ?? null)
 
 if (politica.value === null) {
@@ -130,7 +134,17 @@ const otras = computed(() =>
       <div class="col-lg-8">
         <p class="lead">{{ politica.proposito }}</p>
 
-        <div class="aviso-preparacion" role="status">
+        <template v-if="documento">
+          <p class="text-muted" data-politica-vigencia>
+            Versión {{ documento.version }} · Vigente desde {{ documento.vigenteDesde }} ·
+            {{ documento.acto.tipo }} {{ documento.acto.numero }} del {{ documento.acto.fecha }}
+          </p>
+          <section v-for="seccion in documento.secciones" :key="seccion.id" :aria-labelledby="`politica-${seccion.id}`">
+            <h2 :id="`politica-${seccion.id}`" class="h4 mt-4">{{ seccion.titulo }}</h2>
+            <p v-for="(parrafo, i) in seccion.parrafos" :key="i">{{ parrafo }}</p>
+          </section>
+        </template>
+        <div v-else class="aviso-preparacion" role="status">
           <p class="mb-0">
             Este documento está en preparación. La política se publicará aquí con su
             texto completo y con el acto administrativo que la adopta, para que pueda

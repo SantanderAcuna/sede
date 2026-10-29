@@ -14,14 +14,12 @@
  * mientras la Entidad no entregue las suyas, porque una foto de archivo haría
  * pasar por institucional algo que no lo es.
  *
- * **Sobre el `h1`.** El carrusel lleva la marca «Sede Electrónica» en su
- * primera diapositiva y el `<title>` declara el nombre completo del sitio en
- * la pestaña del navegador. El `<h1>` explícito que abría esta página se
- * retiró: WCAG 1.3.1 admite que un carrusel con texto alternativo equivalente
- * cumpla el rol del encabezado principal, y la frase repetida («Sede
- * Electrónica / Punto de acceso electrónico…») ocupaba un valioso viewport
- * que el carrusel necesita para mostrar las secciones obligatorias con
- * suficiente presencia visual.
+ * **Sobre el `h1`.** La portada tiene UN `<h1>` (RF-B1-001, AC-27.3), visualmente
+ * oculto: el viewport lo necesita el carrusel para mostrar las secciones
+ * obligatorias, pero la imagen con texto de una diapositiva no es un encabezado
+ * que un lector de pantalla o un buscador reconozca como tal. Antes se retiró
+ * apoyándose en WCAG 1.3.1; no basta, porque la técnica de la imagen con texto
+ * alternativo no crea un encabezado en el árbol de accesibilidad.
  *
  * Tampoco se anuncia una carta de trámites que no existe: la Sede los publicará
  * cuando el CMS y la migración estén hechos. Poner contenido de relleno en una
@@ -51,9 +49,8 @@ useHead({
  * no ve la imagen debe saber que es un marcador y no una fotografía de la
  * Entidad.
  *
- * **La primera diapositiva lleva la marca «Sede Electrónica»** para cubrir
- * el rol del `<h1>` retirado: WCAG 1.3.1 considera la imagen con texto
- * equivalente como un encabezado válido.
+ * **La primera diapositiva lleva la marca «Sede Electrónica»**; el `<h1>` oculto de la
+ * plantilla es quien cumple el rol de encabezado principal.
  */
 const diapositivas: DiapositivaCarrusel[] = [
   {
@@ -161,10 +158,12 @@ const tramitesDestacados = computed(() =>
     <!--
       El carrusel es la pieza protagonista de la portada: ocupa el ancho
       completo y se eleva como el primer contenido visible bajo la cabecera.
-      El `<h1>` de la página se ha retirado (ver el `script`) y la marca de
-      la Sede vive en la primera diapositiva del carrusel, que abre con la
-      relación de aspecto del banner institucional de Montería (≈1.5).
+      El `<h1>` va oculto a la vista y visible para lectores de pantalla (ver
+      el `script`); la marca de la Sede vive además en la primera diapositiva
+      del carrusel, que abre con la relación de aspecto del banner
+      institucional de Montería (≈1.5).
     -->
+    <h1 class="visually-hidden">Sede Electrónica de la Alcaldía Distrital de Santa Marta</h1>
     <CarruselGovco :diapositivas="diapositivas" class="carrusel-portada" />
 
     <div class="container py-5">
@@ -237,6 +236,24 @@ const tramitesDestacados = computed(() =>
 </template>
 
 <style scoped>
+/*
+ * El `<h1>` de la portada se oculta a la vista pero no al árbol de accesibilidad
+ * (`display: none` lo sacaría de él). Mismo patrón que `.solo-lectores` del pie y
+ * `.etiqueta-buscador-govco`: se escribe aquí para no depender de utilidades de
+ * Bootstrap con `!important`.
+ */
+.titulo-solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /*
  * **Carrusel protagonista de la portada.** Las reglas de alto yacen en
  * `sitio.css` (CSS global) porque la imagen del carrusel vive dentro de

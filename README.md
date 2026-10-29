@@ -96,7 +96,7 @@ castellano — describen el efecto, no el archivo tocado.
 | Ruta | Contenido |
 |---|---|
 | `plan.md` | **El plan de construcción.** Empieza por aquí |
-| `accesos.md` | Qué credenciales existen, dónde viven y quién las custodia. Sin valores |
+| `accesos.local.md` *(no versionado)* | Qué credenciales existen, dónde viven y quién las custodia. Vive solo en la máquina del administrador; se retiró del repositorio (auditoría Módulo 01, T-01) |
 | `docs/` | Expediente normativo: las seis secciones y los 140 criterios de aceptación |
 | `docs/adr/` | Decisiones de arquitectura |
 | `docs/investigacion/` | Investigación destilada: entidad, integración estatal, requisitos |

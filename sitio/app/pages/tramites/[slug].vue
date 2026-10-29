@@ -1107,16 +1107,12 @@ function formatoTipoValor(tipo: string | null | undefined): string {
             :key="idx"
             class="paso-card"
           >
-            <details :open="idx === 0">
-              <summary class="paso-encabezado">
-                <span class="paso-chevron" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M6 3l5 5-5 5V3z"/>
-                  </svg>
-                </span>
-                <span class="paso-orden">{{ paso.orden ?? idx + 1 }}</span>
-                <span class="paso-titulo">{{ paso.titulo }}</span>
-              </summary>
+            <AcordeonGovco
+              :titulo="paso.titulo"
+              :numero="paso.orden ?? idx + 1"
+              :abierto="idx === 0"
+              :nivel="3"
+            >
 
               <div v-if="opcional(paso.descripcion)" class="paso-descripcion">
                 {{ paso.descripcion }}
@@ -1141,7 +1137,7 @@ function formatoTipoValor(tipo: string | null | undefined): string {
                   </span>
                 </li>
               </ul>
-            </details>
+            </AcordeonGovco>
           </li>
         </ol>
       </section>
@@ -1590,14 +1586,11 @@ function formatoTipoValor(tipo: string | null | undefined): string {
 }
 
 /*
-  Pasos del trámite: tarjetas expandibles con el patrón del visor de GOV.CO,
-  adaptado a la paleta institucional de la Sede (cobalto del Kit).
+  Pasos del trámite: un acordeón del Kit por paso (`AcordeonGovco`, RF-B3-062).
 
-  Cada paso es un `<details>` con un `<summary>` que tiene un chevron a la
-  izquierda, el número del paso y el título. El cuerpo se expande con los
-  requisitos del paso, cada uno con su tipo y descripción. La paleta
-  institucional es la misma del Kit: el cobalto `#004884` para el borde
-  activo y el chip de tipo, el cyan `#00ADE7` para el número del paso.
+  Antes cada paso era un `<details>` con un chevron y un círculo dibujados a mano
+  y colores sueltos; el acordeón del Kit trae encabezado, número, chevron y
+  estados, así que aquí sólo queda el espaciado de la lista y del contenido.
 */
 .pasos-listado {
   margin-top: 1.5rem;
@@ -1605,88 +1598,17 @@ function formatoTipoValor(tipo: string | null | undefined): string {
 
 .paso-card {
   margin-bottom: 0.75rem;
-  background: #fff;
-  border: 1px solid #d6d6d6;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.paso-card details {
-  margin: 0;
-}
-
-.paso-card details[open] {
-  border-left: 4px solid #004884;
-}
-
-.paso-encabezado {
-  display: grid;
-  grid-template-columns: 2.25rem 2.25rem 1fr;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.875rem 1rem;
-  cursor: pointer;
-  font-weight: 600;
-  list-style: none;
-  background: #f4f8fc;
-  color: #004884;
-  font-size: 1rem;
-}
-
-.paso-card details[open] .paso-encabezado {
-  background: #fff;
-  border-bottom: 1px solid #e5e5e5;
-}
-
-.paso-encabezado::-webkit-details-marker {
-  display: none;
-}
-
-.paso-encabezado::marker {
-  display: none;
-  content: '';
-}
-
-.paso-chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #004884;
-  transition: transform 0.2s ease;
-}
-
-.paso-card details[open] .paso-chevron {
-  transform: rotate(90deg);
-}
-
-.paso-orden {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 50%;
-  background: #00ade7;
-  color: #fff;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.paso-titulo {
-  font-weight: 600;
-  color: #1a1a1a;
-  line-height: 1.4;
 }
 
 .paso-descripcion {
-  padding: 0.75rem 1rem 0.5rem 3.5rem;
+  padding: 0 0 0.5rem;
   color: #4b4b4b;
   font-size: 0.95rem;
   line-height: 1.5;
 }
 
 .paso-requisitos {
-  padding: 0.5rem 1rem 1rem 1rem;
+  padding: 0.5rem 0 0;
   margin: 0;
 }
 

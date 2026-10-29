@@ -63,6 +63,15 @@ async function cerrarCookies(pagina) {
     if (texto.includes('aceptar') || texto.includes('rechazar')) {
       await boton.click().catch(() => {})
       await esperar(300)
+      // Elegir en el banner dispara un aviso emergente de confirmación (T-28,
+      // `useToast`) arriba a la derecha. Es un estado pasajero que falsearía la
+      // comparación igual que el propio banner, así que se cierra.
+      await pagina
+        .getByRole('button', { name: 'Cerrar notificación' })
+        .first()
+        .click({ timeout: 1500 })
+        .catch(() => {})
+      await esperar(200)
       return
     }
   }

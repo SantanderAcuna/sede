@@ -22,6 +22,7 @@
 import { onMounted } from 'vue'
 
 import { useConsentimientoCookies } from '~/composables/useConsentimientoCookies'
+import { useToast } from '~/composables/useToast'
 
 const { visible, preferencias, inicializar, aceptarTodo, rechazarOpcionales, guardarPreferencias } =
   useConsentimientoCookies()
@@ -49,6 +50,32 @@ const categorias = [
  */
 const obligatoriaInfo =
   'Las cookies estrictamente necesarias permiten que el sitio funcione —recordar su consentimiento, por ejemplo— y no requieren autorización.'
+
+const { mostrar } = useToast()
+
+/**
+ * Al elegir, el banner desaparece sin más, y quien no ve la pantalla —o la
+ * mira de reojo— no sabe si su elección quedó guardada. El aviso emergente lo
+ * confirma (RF-B3-064) sin devolver el banner a la página.
+ */
+function confirmar(mensaje: string): void {
+  mostrar({ tipo: 'positiva', mensaje })
+}
+
+function alAceptarTodo(): void {
+  aceptarTodo()
+  confirmar('Guardamos su elección: aceptó todas las cookies.')
+}
+
+function alRechazarOpcionales(): void {
+  rechazarOpcionales()
+  confirmar('Guardamos su elección: sólo usaremos las cookies necesarias.')
+}
+
+function alGuardarPreferencias(): void {
+  guardarPreferencias()
+  confirmar('Guardamos sus preferencias de cookies.')
+}
 
 onMounted(inicializar)
 </script>
@@ -113,13 +140,13 @@ onMounted(inicializar)
       </div>
 
       <div class="acciones-banner">
-        <button type="button" class="btn btn-aceptar-todo" @click="aceptarTodo">
+        <button type="button" class="btn btn-aceptar-todo" @click="alAceptarTodo">
           Aceptar todas
         </button>
-        <button type="button" class="btn btn-rechazar" @click="rechazarOpcionales">
+        <button type="button" class="btn btn-rechazar" @click="alRechazarOpcionales">
           Rechazar opcionales
         </button>
-        <button type="button" class="btn btn-configurar" @click="guardarPreferencias">
+        <button type="button" class="btn btn-configurar" @click="alGuardarPreferencias">
           Guardar mi elección
         </button>
       </div>

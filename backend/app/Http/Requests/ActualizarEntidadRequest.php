@@ -51,7 +51,9 @@ final class ActualizarEntidadRequest extends FormRequest
             'logo' => ['sometimes', 'nullable', 'string', 'max:500'],
             'redes' => ['sometimes', 'nullable', 'array'],
             'redes.*.red' => ['required_with:redes', 'string', 'in:facebook,instagram,x,youtube,linkedin'],
-            'redes.*.url' => ['required_with:redes', 'url', 'max:500'],
+            // `regex` además de `url`: una dirección con espacio no es válida y no debe
+            // llegar al pie (H-22, AC-21.4).
+            'redes.*.url' => ['required_with:redes', 'url', 'regex:/^\S+$/', 'max:500'],
             'politicas' => ['sometimes', 'nullable', 'array'],
             'politicas.*.slug' => ['required_with:politicas', 'string', 'max:100'],
             'politicas.*.nombre' => ['required_with:politicas', 'string', 'max:200'],
@@ -73,6 +75,7 @@ final class ActualizarEntidadRequest extends FormRequest
             'dominio.url' => 'El dominio debe ser una URL válida (incluyendo http:// o https://).',
             'redes.*.red.in' => 'La red social debe ser una de las permitidas: facebook, instagram, x, youtube, linkedin.',
             'redes.*.url.url' => 'Cada URL de red social debe ser una dirección web válida.',
+            'redes.*.url.regex' => 'La URL de la red social no puede contener espacios.',
             'politicas.*.slug.required_with' => 'Cada política debe tener un identificador (slug).',
             'politicas.*.nombre.required_with' => 'Cada política debe tener un nombre.',
         ];

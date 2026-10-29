@@ -26,7 +26,7 @@ sitio con datos).
 | Defecto (medido) | Corrección |
 |---|---|
 | Banner de cookies: **88 %** de la pantalla a 390 px y **100 %** a 360, 320×568 y en horizontal; los botones quedaban fuera de vista. Causa: categorías siempre desplegadas y `flex: 1 1 40ch`, que en columna se leía como **alto** y reservaba ~320 px de aire. | Categorías plegadas con «Elegir por categorías» (`aria-expanded`); «Aceptar todas» y «Rechazar opcionales» de igual peso; barra de botones pegada al borde inferior; máximo 70 % de la altura. En escritorio no cambia. |
-| Botón de accesibilidad a media altura: tapaba el final de las líneas en **las 20 rutas**; en horizontal se montaba sobre el botón del menú. | **Rediseñado el 2026-10-29 (tercera pasada).** La 1.ª versión lo anclaba abajo a la derecha (contradecía D1) y la 2.ª reservaba un carril de 44–56 px que estrechaba todo el texto en móvil: **ocupaba espacio y tapaba contenido** a la vez. Ahora, según el Kit UI 9.2 y CAG-07: **por debajo de 992 px no hay círculo flotante** y el mismo control vive en la cabecera, junto a la galería de aplicaciones (hueco que ya existía; no flota, no reserva espacio, queda arriba de todo); **desde 992 px** es el círculo fijo, centrado a la derecha, y el contenido deja libre su columna (el contenedor se estrecha 8–56 px según el ancho). Pruebas: ver «Casos de prueba del botón de accesibilidad». |
+| Botón de accesibilidad a media altura: tapaba el final de las líneas en **las 20 rutas**; en horizontal se montaba sobre el botón del menú. | **Tercera pasada (2026-10-29).** La 1.ª versión lo anclaba abajo a la derecha (contradecía D1); la 2.ª reservaba un carril de 44–56 px que **ocupaba espacio** y estrechaba el texto en móvil. Se retira el carril: el círculo es **fijo, centrado a la derecha, igual en todas las pantallas y por encima del contenido, sin reservar espacio** (D1). En teléfono mide 44 px (el mínimo táctil) para cubrir lo menos posible. Desde 992 px, donde el margen de Bootstrap casi alcanza, los contenedores se limitan de forma simétrica para que el círculo no cubra tarjetas, buscador ni controles. Se probó y **se descartó** una variante en la cabecera por debajo de 992 px (Kit UI 9.2); el cliente no la aceptó. Pruebas: «Casos de prueba del botón de accesibilidad». |
 | Panel de accesibilidad: el aviso fijo restaba ~90 px y cortaba por la mitad el título del grupo al desplazar. | El aviso va dentro de la zona que se desplaza; menos relleno en pantallas estrechas. |
 | Indicadores del carrusel de 16×16 px; «Reproducir» de 34 px. | Área de 44×44 px con pseudoelemento y paso de 44 px; 44 px de alto. |
 | Botón del menú GOV.CO de 42×42; `.btn-govco` de 42 px; «Ver la ficha completa» de 24 px; enlaces de la 404 de 39 px. | 44 px. |
@@ -47,8 +47,7 @@ sitio con datos).
   accidental.
 - Las referencias de `tests/visual/referencia/` deben regenerarse en la máquina de
   quien las mantiene (`node scripts/captura-visual.mjs --guardar`).
-- Entre 992 y ~1430 px el contenedor de `main` y la miga de pan se estrechan de forma simétrica (máximo ~56 px a 992 px, ~28 a 1200, ~8 a 1400) para dejar libre la columna del círculo; a partir de ~1430 px no cambia nada. Por debajo de 992 px no se reserva nada.
-- Entre 768 y 991 px la cabecera aloja el disparador de accesibilidad (44 × 44 px) y el buscador pierde ~52 px de ancho.
+- Entre 992 y ~1430 px el contenedor de `main` y la miga de pan se estrechan de forma simétrica (máximo ~56 px a 992 px, ~28 a 1200, ~8 a 1400) para dejar libre la columna del círculo; a partir de ~1430 px no cambia nada. **Por debajo de 992 px no se reserva nada.** Si se prefiere que el escritorio tampoco ceda espacio, basta quitar los tres bloques `max-width` de «columna del círculo» en `sitio.css`, a costa de que el círculo cubra tarjetas y botones entre 992 y 1430 px.
 
 ## Límites de esta revisión
 
@@ -56,9 +55,9 @@ sitio con datos).
   con Safari ni Firefox móvil (entra en T-29).
 - No hubo lector de pantalla. El banner plegado/desplegado se probó con clics y
   con axe; el recorrido con teclado y con VoiceOver/TalkBack queda sin probar.
-- **«Volver arriba»** es lo único que flota por debajo de 992 px y, mientras se desplaza, puede cubrir contenido: lo fijan el Kit y RF-B3-061 (abajo a la derecha) y sólo aparece tras desplazar. No se movió.
-- **Desviación declarada de D1** (plan del botón, rev. 2 del cliente, 2026-10-01: «igual en todas las pantallas»): por debajo de 992 px el control cambia de sitio (cabecera) y deja de flotar. Lo justifican CAG-07 oficial («oculta entre 768–992 px»), el Kit UI 9.2 (p. 6: la barra «no aparece desde el breakpoint de tablets porque puede llegar a ocultar contenido; los móviles tienen opciones nativas») y HU-07-D02 (sin solape). Falta la confirmación del cliente. **[INFERENCIA]** un auditor podría leer el disparador de la cabecera en tableta como «barra visible» frente a CAG-07; se mitiga porque es otro control (abre el diálogo) y no la barra flotante.
-- El Kit recomienda que la barra sea accesible por teclado justo después del menú principal; el disparador de la cabecera lo precede en el DOM (declarado, no cambia la función).
+- **Límite que no se puede quitar sin reservar espacio:** por debajo de 992 px el círculo es fijo, está a media altura y no reserva carril, así que **al desplazarse pasa por encima** de lo que haya en el borde derecho (el contenido llega a 12 px de él en un teléfono): el final de alguna línea o un control de ese borde. Las dos exigencias —«igual en todas las pantallas» (D1) y «no ocupa espacio»— y «no cubrir contenido» (HU-07-D02) no caben juntas a 320–575 px; la prueba (`movil.mjs` §2b) informa cuánto cubre en cada ejecución. El carril anterior lo evitaba a costa de ocupar espacio y se descartó.
+- **«Volver arriba»** (Kit + RF-B3-061: flotante, inferior derecha) sigue cubriendo contenido mientras se desplaza; sólo aparece tras desplazar.
+- **Variante de cabecera descartada.** Se propuso al cliente (2026-10-29) llevar el botón a la cabecera por debajo de 992 px, apoyándose en el Kit UI 9.2 y CAG-07; **no fue aceptada**, así que no se aplica. La propuesta queda registrada como «Revisión 3» en `docs/archivo/plan-barra-accesibilidad.md`.
 - Medida analítica de la columna libre: ignora textos sólo para lectores de pantalla y las imágenes o enlaces que ocupan el ancho entero (el cartel del carrusel).
 
 ## Ajuste a los requisitos del Módulo 01 (segunda pasada)
@@ -81,24 +80,25 @@ de letras de ancho medio; con mayúsculas o con «m/w» cabrían menos.
 
 ## Casos de prueba del botón de accesibilidad
 
-Criterios de aceptación (de `estructura-identidad.md` y del Kit UI 9.2) y cómo se verifica cada uno. «Auto.» = prueba automática (`tests/diseno.mjs` CAG-07, `tests/movil.mjs` §2/§2b/§4, `tests/verificar-modos-contraste.mjs` §3, `tests/e2e/humo.spec.mjs`); «QA» = pasos manuales para el equipo de calidad.
+Criterios de aceptación (de `estructura-identidad.md`, el plan del botón y el Kit UI 9.2) y cómo se verifica cada uno. «Auto.» = prueba automática (`tests/diseno.mjs` CAG-07, `tests/movil.mjs` §2/§2b/§4/§6, `tests/verificar-modos-contraste.mjs` §3, `tests/e2e/humo.spec.mjs`); «QA» = pasos manuales para el equipo de calidad.
 
 | ID | Criterio | Pasos | Resultado esperado | Cómo |
 |---|---|---|---|---|
-| TC-ACC-01 | CAG-07 / Kit 9.2: la barra no flota en tableta ni móvil | Abrir `/` a 320, 390, 767, 800 y 991 px | No hay círculo flotante; hay **un** disparador visible, dentro de la cabecera | Auto. + QA en un teléfono y una tableta reales |
-| TC-ACC-02 | RF-B1-044 / CAG-07: círculo fijo, centrado a la derecha desde 992 px | Abrir `/` a 992, 1280, 1536 px y desplazar | Un círculo de 48 px, centrado verticalmente, pegado al borde derecho; sigue ahí al desplazar | Auto. + QA |
-| TC-ACC-03 | HU-07-D02: sin solape con el contenido | Recorrer 17 rutas a 992–1920 px, buscando texto, imagen o control bajo el círculo | 0 elementos bajo la columna del círculo | Auto. (analítico) + QA visual en 1024, 1280 y 1440 px |
-| TC-ACC-04 | La barra «no ocupa espacio» por debajo de 992 px | Medir el ancho del contenedor de `main` a 320/390/800 px | Ancho de la ventana menos los márgenes habituales: sin 44–56 px de carril; el círculo flotante no existe | Auto. en lo que flota (§2: ningún `fixed` con la clase del círculo); el ancho del contenedor lo cubre el QA con las herramientas del navegador |
-| TC-ACC-05 | RNF-07-D01: operable desde 320 px, sin desbordar | A 320, 390, 800, 992 y 1000 px comprobar tamaño y desplazamiento horizontal | ≥ 44 × 44 px, dentro de la pantalla, `scrollWidth` = ancho de ventana | Auto. |
-| TC-ACC-06 | RNF-B3-005: área activa ≥ 44 × 44 px | Medir el disparador visible en cada ancho | 44 px (cabecera) y 48 px (flotante) | Auto. |
-| TC-ACC-07 | Mismas funciones en ambos sitios | Abrir con Intro desde cada disparador | Mismo diálogo, 4 modos de contraste, 5 interruptores, Centro de Relevo, ayuda, restablecer | Auto. |
-| TC-ACC-08 | CC17 / foco: `Escape` cierra y devuelve el foco al que abrió | Abrir y cerrar desde cada disparador | `aria-expanded` vuelve a `false`; el foco está en el disparador visible | Auto. |
+| TC-ACC-01 | D1 / CAG-07: círculo fijo, centrado a la derecha, igual en todas las pantallas | Abrir `/` a 320, 390, 667, 767, 800, 991, 992, 1280 y 1536 px y desplazar | **Un** círculo visible, fijo, centrado verticalmente, pegado al borde derecho, fuera de la cabecera; no se oculta a ningún ancho | Auto. + QA en un teléfono y una tableta reales |
+| TC-ACC-02 | No ocupa espacio (TC-ACC-04 del plan) | Medir el contenedor de `main` a 320/390/667/800/991 px | Ocupa todo el ancho de la ventana; relleno derecho ≤ 16 px (sin carril de 44–56 px) | Auto. (`movil.mjs` §2) |
+| TC-ACC-03 | HU-07-D02: sin solape con el contenido desde 992 px | Recorrer 17 rutas a 992–1920 px buscando texto, imagen o control bajo el círculo | 0 elementos bajo la columna del círculo | Auto. (analítico) + QA visual en 1024, 1280 y 1440 px |
+| TC-ACC-04 | Límite declarado: por debajo de 992 px el círculo pasa por encima del contenido | Desplazar 17 rutas a 320–991 px y observar el borde derecho | Se informa cuántas líneas/controles cubre; **no** se exige cero | Auto. (informativo, `movil.mjs` §2b) + QA |
+| TC-ACC-05 | RNF-07-D01: operable desde 320 px, sin desbordar | A 320, 390, 800, 992 y 1000 px comprobar tamaño y desplazamiento horizontal | ≥ 44 × 44 px, dentro de la ventana, `scrollWidth` = ancho de ventana | Auto. |
+| TC-ACC-06 | RNF-B3-005: área activa ≥ 44 × 44 px | Medir el círculo en cada ancho | 44 px (teléfono, ≤ 575 px y pantallas bajas) y 48 px (resto) | Auto. |
+| TC-ACC-07 | Panel con todas las funciones | Abrir con Intro a 1280, 800 y 390 px | Diálogo, 4 modos de contraste, 5 interruptores, Centro de Relevo, ayuda, restablecer | Auto. |
+| TC-ACC-08 | CC17 / foco: `Escape` cierra y devuelve el foco | Abrir y cerrar | `aria-expanded` vuelve a `false`; el foco está en el círculo | Auto. |
 | TC-ACC-09 | Modos de contraste no rompen la posición | Activar los 4 modos y desplazar | El círculo sigue fuera del subárbol filtrado y centrado | Auto. |
-| TC-ACC-10 | RF-B3-061 / Kit: «Volver arriba» no choca con el círculo | Desplazar en escritorio | Las dos cajas no se solapan | Auto. |
-| TC-ACC-11 | Lector de pantalla anuncia un solo control | Con NVDA/VoiceOver/TalkBack listar los botones de la cabecera | Un «Ajustes de accesibilidad» (el otro ejemplar está en `display: none`) | **QA** (no automatizable aquí) |
-| TC-ACC-12 | Defecto previo: el pie desbordaba a 992–1008 px | Medir `scrollWidth` a 992, 1000 px | Sin desbordamiento (las redes del pie saltan de fila) | Auto. (§4) |
+| TC-ACC-10 | RF-B3-061 / Kit: «Volver arriba» no choca con el círculo | Desplazar a cada ancho | Las dos cajas no se solapan | Auto. |
+| TC-ACC-11 | Un solo círculo en el documento y en el árbol de accesibilidad | Contar los elementos del círculo; con un lector de pantalla, listar los botones | Exactamente 1 círculo (el pie ofrece además su propio botón «Ajustes de accesibilidad», a propósito: CC12) | Auto. (`diseno.mjs` CAG-07). **QA:** confirmar con NVDA/VoiceOver/TalkBack en dispositivos reales |
+| TC-ACC-12 | Defecto previo: el pie desbordaba a 992–1008 px | Medir `scrollWidth` a 992 y 1000 px | Sin desbordamiento (las redes del pie saltan de fila) | Auto. (`movil.mjs` §4) |
+| TC-ACC-13 | Defecto previo: «Inicio» se partía en la miga de pan | Abrir `/tramites` a 320 y 390 px | «Inicio» en una línea (≤ 50 px de alto) | Auto. (`movil.mjs` §6) |
 
-**Reversión:** revertir el PR del rediseño restablece el comportamiento anterior (círculo flotante centrado a cualquier ancho con carril de texto hasta 851 px); no hay migración ni datos implicados.
+**Reversión:** revertir el PR de esta pasada devuelve el diseño anterior (círculo con carril de texto hasta 851 px, que ocupaba espacio); no hay migración ni datos implicados.
 
 ## Abierto
 

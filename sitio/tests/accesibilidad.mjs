@@ -50,17 +50,17 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync(RUTA_NAVEGADORES)) {
 
 // La importación va después de fijar la variable: Playwright resuelve la ruta de
 // sus navegadores al cargarse.
-const { chromium } = await import('@playwright/test')
+import { lanzar } from './ayudas/motor.mjs'
 
-/** Lanza Chromium con un mensaje útil si no hay navegadores instalados. */
+/** Lanza el motor elegido (`NAVEGADOR`, por defecto Chromium) con un mensaje útil si no hay navegadores instalados. */
 async function abrirNavegador() {
   try {
-    return await chromium.launch()
+    return await lanzar()
   } catch (error) {
     if (/Executable doesn't exist|playwright install/i.test(error.message)) {
       throw new Error(
         `No hay navegadores de Playwright en ${process.env.PLAYWRIGHT_BROWSERS_PATH}. ` +
-          'Instálelos con: npx playwright install chromium',
+          'Instálelos con: npx playwright install chromium firefox webkit',
       )
     }
     throw error

@@ -57,7 +57,10 @@ final class AuditoriaController extends Controller
             page: (int) $request->input('pagina', 1),
         );
 
-        $coleccion = AuditLogResource::collection($query->limit(0)->get());
+        // Los datos son los de la PÁGINA ya paginada. Antes se volvía a consultar con
+        // `limit(0)`, así que `data` salía siempre vacío aunque `meta.total` dijera
+        // lo contrario (H-08).
+        $coleccion = AuditLogResource::collection($pagina->getCollection());
 
         return ApiResponse::coleccion($coleccion, $pagina);
     }

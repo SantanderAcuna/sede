@@ -31,6 +31,8 @@
  * una solicitud cuando no ha llegado nada es el peor fallo posible en una sede
  * electrónica.
  */
+
+import type { ColumnaTabla, FilaTabla } from '../utils/tabla-ordenable'
 useHead({
   title: 'PQRSD · Sede Electrónica',
   meta: [
@@ -125,6 +127,42 @@ const tipos: TipoDeSolicitud[] = [
     definicion:
       'Es la manifestación con la que una persona expresa su satisfacción o reconocimiento por el servicio o la atención recibida.',
     boton: 'Enviar una felicitación',
+  },
+]
+
+/**
+ * Los términos del artículo 14 del CPACA, como filas de la tabla ordenable.
+ *
+ * `orden` lleva los días en número: el texto empieza por «Quince», «Diez» y
+ * «Treinta», y ordenarlos por la letra daría Diez, Quince, Treinta, que sólo
+ * coincide con el orden por plazo por casualidad.
+ */
+const COLUMNAS_TERMINOS: ColumnaTabla[] = [
+  { clave: 'tipo', titulo: 'Tipo de petición', ordenable: true },
+  { clave: 'termino', titulo: 'Término para resolver', ordenable: true },
+]
+
+const FILAS_TERMINOS: FilaTabla[] = [
+  {
+    id: 'general',
+    celdas: {
+      tipo: { texto: 'Regla general' },
+      termino: { texto: 'Quince (15) días siguientes a su recepción', orden: 15 },
+    },
+  },
+  {
+    id: 'documentos',
+    celdas: {
+      tipo: { texto: 'Peticiones de documentos y de información' },
+      termino: { texto: 'Diez (10) días', orden: 10 },
+    },
+  },
+  {
+    id: 'consultas',
+    celdas: {
+      tipo: { texto: 'Consultas sobre las materias a cargo de la Entidad' },
+      termino: { texto: 'Treinta (30) días', orden: 30 },
+    },
   },
 ]
 </script>
@@ -226,34 +264,12 @@ const tipos: TipoDeSolicitud[] = [
           modo que hace también el trabajo que aquí hacía el `table-responsive`
           de Bootstrap.
         -->
-        <div class="tabla-govco">
-          <table>
-            <caption class="text2-govco">
-              Términos para resolver las peticiones, según el artículo 14 del Código
-              de Procedimiento Administrativo y de lo Contencioso Administrativo
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Tipo de petición</th>
-                <th scope="col">Término para resolver</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th scope="row">Regla general</th>
-                <td>Quince (15) días siguientes a su recepción</td>
-              </tr>
-              <tr>
-                <th scope="row">Peticiones de documentos y de información</th>
-                <td>Diez (10) días</td>
-              </tr>
-              <tr>
-                <th scope="row">Consultas sobre las materias a cargo de la Entidad</th>
-                <td>Treinta (30) días</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <TablaOrdenableGovco
+          :columnas="COLUMNAS_TERMINOS"
+          :filas="FILAS_TERMINOS"
+          columna-encabezado-fila="tipo"
+          leyenda="Términos para resolver las peticiones, según el artículo 14 del Código de Procedimiento Administrativo y de lo Contencioso Administrativo"
+        />
 
         <p class="mt-3">
           Estos términos se cuentan <strong>desde la recepción</strong> de la

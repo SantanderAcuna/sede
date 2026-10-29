@@ -55,6 +55,12 @@ tags:
     description: Datos institucionales de la autoridad titular
   - name: Trámites
     description: Catálogo de trámites y servicios
+  - name: Políticas
+    description: Las cinco políticas de la sede (texto, versión, acto administrativo)
+  - name: Panel — Políticas
+    description: Edición de las políticas desde el panel
+  - name: Consentimientos
+    description: Registro del consentimiento de cookies (Ley 1581 de 2012)
   - name: Salud
     description: Health check
   - name: Identidad
@@ -505,63 +511,6 @@ paths:
       security: []
 
   # ══════════════════════════════════════════════════════════════════════════════
-  # POLÍTICAS
-  # ══════════════════════════════════════════════════════════════════════════════
-  /politicas:
-    get:
-      tags: [Identidad]
-      operationId: listarPoliticas
-      summary: Listado de políticas
-      description: Lista las 5 políticas obligatorias vigentes. RF-01-018.
-      x-status: pending
-      x-criterios: [RF-01-018, RN-04]
-      responses:
-        '200':
-          description: Lista de políticas vigentes
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiEnvelope'
-                  - type: object
-                    required: [data]
-                    properties:
-                      data:
-                        type: array
-                        items: { $ref: '#/components/schemas/PoliticaItem' }
-      security: []
-
-  /politicas/{codigo}:
-    get:
-      tags: [Identidad]
-      operationId: obtenerPolitica
-      summary: Detalle de una política
-      x-status: pending
-      parameters:
-        - name: codigo
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [terminos, privacidad, cookies, derechos-autor, accesibilidad]
-      responses:
-        '200':
-          description: Política
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiEnvelope'
-                  - type: object
-                    required: [data]
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/PoliticaItem'
-        '404':
-          $ref: '#/components/responses/NoEncontrado'
-      security: []
-
-  # ══════════════════════════════════════════════════════════════════════════════
   # NOTICIAS
   # ══════════════════════════════════════════════════════════════════════════════
   /noticias:
@@ -969,6 +918,137 @@ paths:
                 type: string
       security: []
 
+  /consentimientos:
+    post:
+      tags: [Consentimientos]
+      operationId: registrarConsentimiento
+      summary: Registrar un consentimiento de cookies
+      description: |
+        Guarda lo que decidió un navegador sobre las cookies no esenciales: el evento,
+        las categorías vigentes tras él y la versión de la política. La fecha la pone
+        el servidor. **No se guarda IP, agente de usuario ni identificador alguno**: no
+        hay forma de saber quién consintió, sólo qué se consintió y cuándo.
+
+        Eventos: `aceptado`, `rechazado`, `revocado` y `caducado` (el consentimiento
+        guardado venció o es de una versión anterior de la política y se bloqueó la
+        categoría que había aceptado). Los registros se borran al cumplirse el plazo
+        de retención (`consentimientos.retencion_dias`).
+
+        Es público y limita a treinta peticiones por minuto y por IP.
+      x-status: implemented
+      x-criterios: [RF-B1-008, RF-01-D01, RN-01-D01]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [evento, categorias, version_politica]
+              properties:
+                evento:
+                  type: string
+                  enum: [aceptado, rechazado, revocado, caducado]
+                categorias:
+                  type: array
+                  description: Categorías opcionales vigentes tras el evento; vacío = sólo las necesarias.
+                  uniqueItems: true
+                  items:
+                    type: string
+                    enum: [analitica, preferencias]
+                version_politica:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+            example:
+              evento: aceptado
+              categorias: [analitica]
+              version_politica: 1
+      responses:
+        '201':
+          description: Consentimiento registrado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: object
+                        required: [id, type, evento, categorias, version_politica, registrado_en]
+                        properties:
+                          id: { type: integer }
+                          type: { type: string, enum: [consentimiento] }
+                          evento: { type: string, enum: [aceptado, rechazado, revocado, caducado] }
+                          categorias:
+                            type: array
+                            items: { type: string, enum: [analitica, preferencias] }
+                          version_politica: { type: integer }
+                          registrado_en: { type: string, format: date-time }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
+  /politicas:
+    get:
+      tags: [Políticas]
+      operationId: listarPoliticas
+      summary: Las cinco políticas, sin el texto
+      description: |
+        Versión, vigencia, acto administrativo y estado de cada política, en el orden
+        del pie de página. El texto se pide por política en `/politicas/{slug}`.
+      x-status: implemented
+      x-criterios: [RF-B1-009, RF-B3-058, RF-B2-008, RF-B2-009, RF-B2-010]
+      responses:
+        '200':
+          description: Lista de políticas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/PoliticaResumen' }
+      security: []
+
+  /politicas/{slug}:
+    get:
+      tags: [Políticas]
+      operationId: obtenerPolitica
+      summary: Una política completa
+      description: |
+        Versión, vigencia, acto administrativo y apartados de la política. Mientras
+        `es_ejemplo` sea verdadero el texto es de ejemplo y el sitio lo avisa. Cada
+        política se descarga además en `/politicas/{slug}.odt` y `/politicas/{slug}.pdf`
+        (PDF/A), servidas fuera de `/api`.
+      x-status: implemented
+      x-criterios: [RF-B1-009, RF-B3-058, RF-B2-008, RF-B2-009, RF-B2-010]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-z0-9-]+$' }
+      responses:
+        '200':
+          description: La política
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/PoliticaDocumento' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security: []
+
   # ══════════════════════════════════════════════════════════════════════════════
   # PANEL — AUTH (Sanctum)
   # ══════════════════════════════════════════════════════════════════════════════
@@ -1198,6 +1278,82 @@ paths:
                         $ref: '#/components/schemas/EntidadItem'
         '401':
           $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PANEL — POLÍTICAS
+  # ══════════════════════════════════════════════════════════════════════════════
+  /panel/politicas:
+    get:
+      tags: [Panel — Políticas]
+      operationId: listarPoliticasPanel
+      summary: Las políticas con su estado de completitud
+      description: Requiere el permiso `politicas.gestionar`.
+      x-status: implemented
+      x-criterios: [RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010]
+      responses:
+        '200':
+          description: Políticas con apartados exigidos, `completa` y `problemas`
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/PoliticaPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+      security:
+        - cookieSesion: []
+
+  /panel/politicas/{slug}:
+    patch:
+      tags: [Panel — Políticas]
+      operationId: actualizarPolitica
+      summary: Editar una política
+      description: |
+        Actualización parcial; los campos no enviados conservan su valor. Requiere el
+        permiso `politicas.gestionar`.
+
+        Si cambia el texto y no se envía `version`, la versión sube sola. La política
+        debe quedar completa: todos sus apartados con texto y sin «en preparación». Para
+        pasar `es_ejemplo` a `false` hacen falta además la vigencia y el acto
+        administrativo (tipo, número y fecha) sin marcadores «[por ...]»; si no, `422`.
+        La versión de `uso-de-cookies` es la que el sitio usa para volver a pedir el
+        consentimiento (RN-01-D01).
+      x-status: implemented
+      x-criterios: [RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010, RN-01-D01]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-z0-9-]+$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PoliticaInput' }
+      responses:
+        '200':
+          description: Política actualizada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/PoliticaPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
         '422':
           $ref: '#/components/responses/ValidacionInvalida'
       security:
@@ -1677,6 +1833,101 @@ components:
   # SCHEMAS
   # ══════════════════════════════════════════════════════════════════════════════
   schemas:
+    PoliticaActo:
+      type: object
+      properties:
+        tipo: { type: [string, 'null'], example: Resolución }
+        numero: { type: [string, 'null'] }
+        fecha: { type: [string, 'null'], format: date }
+
+    PoliticaSeccion:
+      type: object
+      required: [id, titulo, parrafos]
+      properties:
+        id: { type: string, pattern: '^[a-z0-9-]+$' }
+        titulo: { type: string }
+        parrafos:
+          type: array
+          items: { type: string }
+
+    PoliticaResumen:
+      type: object
+      required: [id, type, slug, nombre, version, es_ejemplo]
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [politica] }
+        slug: { type: string }
+        nombre: { type: string }
+        version: { type: integer }
+        vigente_desde: { type: [string, 'null'], format: date }
+        acto: { $ref: '#/components/schemas/PoliticaActo' }
+        es_ejemplo:
+          type: boolean
+          description: Verdadero mientras el texto sea de ejemplo, pendiente de aprobación por la Entidad.
+        documento_oficial:
+          description: >-
+            Documento oficial adjunto desde el panel (acto administrativo o texto
+            aprobado), guardado en la tabla común de archivos. `null` si no hay.
+            Se descarga en la dirección estable `url`, relativa al sitio.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/PoliticaDocumentoOficial'
+        actualizada_en: { type: string, format: date }
+
+    PoliticaDocumentoOficial:
+      type: object
+      required: [nombre, tipo, tamano, url]
+      properties:
+        nombre: { type: string }
+        tipo: { type: string, description: Tipo MIME. }
+        tamano: { type: integer, description: Bytes. }
+        url: { type: string, example: /politicas/cookies/documento }
+
+    PoliticaDocumento:
+      allOf:
+        - $ref: '#/components/schemas/PoliticaResumen'
+        - type: object
+          required: [secciones]
+          properties:
+            secciones:
+              type: array
+              items: { $ref: '#/components/schemas/PoliticaSeccion' }
+
+    PoliticaPanelItem:
+      allOf:
+        - $ref: '#/components/schemas/PoliticaDocumento'
+        - type: object
+          required: [uuid, componentes, completa, problemas]
+          properties:
+            uuid:
+              type: string
+              format: uuid
+              description: >-
+                Identificador para adjuntar el documento oficial con
+                `POST /panel/entidad/{modelUuid}/archivos` (colección `documento-oficial`).
+            componentes:
+              type: object
+              description: Apartados mínimos exigidos, `id` → rótulo.
+              additionalProperties: { type: string }
+            completa: { type: boolean }
+            problemas:
+              type: array
+              items: { type: string }
+
+    PoliticaInput:
+      type: object
+      properties:
+        nombre: { type: string, maxLength: 200 }
+        version: { type: integer, minimum: 1, maximum: 65535 }
+        vigente_desde: { type: [string, 'null'], format: date }
+        acto_tipo: { type: [string, 'null'], maxLength: 60 }
+        acto_numero: { type: [string, 'null'], maxLength: 60 }
+        acto_fecha: { type: [string, 'null'], format: date }
+        es_ejemplo: { type: boolean }
+        secciones:
+          type: array
+          items: { $ref: '#/components/schemas/PoliticaSeccion' }
+
 
     # ─── Esquemas compartidos ───────────────────────────────────────────────
     ApiEnvelope:

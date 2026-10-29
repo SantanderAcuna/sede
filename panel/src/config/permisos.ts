@@ -45,6 +45,7 @@ export const PERMISO_POR_RUTA: Record<string, string> = {
   '/reportes': 'reportes.ver',
   '/asignacion': 'asignacion.gestionar',
   '/configuracion/entidad': 'entidad.gestionar',
+  '/configuracion/politicas': 'politicas.gestionar',
   '/configuracion': 'configuracion.gestionar',
 
   // Mi cuenta

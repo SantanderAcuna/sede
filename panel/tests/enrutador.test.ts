@@ -36,6 +36,7 @@ const ALL_PERMISSIONS = [
   'reportes.ver',
   'asignacion.gestionar',
   'entidad.gestionar',
+  'politicas.gestionar',
   'configuracion.gestionar',
   'perfil.ver',
 ]

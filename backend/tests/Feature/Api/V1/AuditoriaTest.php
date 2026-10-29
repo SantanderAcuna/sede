@@ -113,7 +113,6 @@ final class AuditoriaTest extends TestCase
                     'recurso' => 'session',
                     'causer_id' => $this->user->id,
                     'ip_origen' => '127.0.0.1',
-                    'created_at' => now()->subMinutes($i),
                 ]);
             }
         });
@@ -201,36 +200,33 @@ final class AuditoriaTest extends TestCase
 
         $fechaCorte = now()->subDays(5)->toDateString();
 
+        // `created_at` NO es asignable en masa (ver AuditLog::$fillable): pasarlo a
+        // `create()` lo descartaba en silencio y los dos registros nacían con la hora
+        // actual. Esta prueba pasaba en verde sin ejercer el filtro, porque además
+        // `data` salía vacío (H-08). Se fija la fecha después de crear.
         AuditLog::withoutEvents(function (): void {
-            AuditLog::create([
+            $antiguo = AuditLog::create([
                 'accion' => 'login',
                 'recurso' => 'session',
                 'causer_id' => $this->user->id,
                 'ip_origen' => '127.0.0.1',
-                'created_at' => now()->subDays(10),
             ]);
+            $antiguo->forceFill(['created_at' => now()->subDays(10)])->save();
 
             AuditLog::create([
                 'accion' => 'logout',
                 'recurso' => 'session',
                 'causer_id' => $this->user->id,
                 'ip_origen' => '127.0.0.1',
-                'created_at' => now(),
             ]);
         });
 
         $response = $this->actingAs($this->user, 'web')
             ->getJson('/api/v1/panel/auditoria?fecha_desde='.$fechaCorte);
 
-        $response->assertOk();
+        $response->assertOk()->assertJsonPath('meta.total', 1);
 
-        // Solo el registro reciente (logout de hoy) debe aparecer
-        $total = $response->json('meta.total');
-        $this->assertGreaterThanOrEqual(1, $total, 'Debe haber al menos 1 registro desde la fecha de corte');
-
-        // Y ninguno de los registros debe ser el login antiguo
-        foreach ($response->json('data') as $item) {
-            $this->assertNotEquals('login', $item['accion']);
-        }
+        // Solo el registro reciente (logout de hoy); el login de hace 10 días queda fuera.
+        $this->assertSame(['logout'], array_column($response->json('data'), 'accion'));
     }
 }

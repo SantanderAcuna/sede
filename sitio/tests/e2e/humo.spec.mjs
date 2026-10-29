@@ -68,7 +68,10 @@ test('cookies: rechazar cierra el banner y la elección sobrevive a recargar', a
   await expect(rechazar).toBeVisible()
   await rechazar.click()
   await expect(rechazar).toBeHidden()
-  await page.reload({ waitUntil: 'networkidle' })
+  // `networkidle` puede no llegar nunca contra un entorno remoto (la red del ejecutor
+  // no es la de un portátil): se espera la carga y, como máximo, 8 s de calma.
+  await page.reload({ waitUntil: 'load' })
+  await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {})
   await expect(page.getByRole('button', { name: /rechazar/i })).toHaveCount(0)
 })
 

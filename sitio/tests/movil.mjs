@@ -70,7 +70,8 @@ async function contexto(ancho, alto, movil = true) {
 /** Abre una ruta con el banner ya resuelto (para medir el resto de la página). */
 async function abrirResuelta(ctx, ruta) {
   const p = await ctx.newPage()
-  p.setDefaultTimeout(10000)
+  // En CI se prueba contra un entorno remoto: 10 s no alcanzan con `networkidle`.
+  p.setDefaultTimeout(Number(process.env.TIEMPO_ESPERA_MS) || 10000)
   await p.goto(`${BASE}${ruta}`, { waitUntil: 'networkidle' })
   const rechazar = p.getByRole('button', { name: /rechazar/i }).first()
   if (await rechazar.count()) {

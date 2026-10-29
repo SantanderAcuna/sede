@@ -284,6 +284,7 @@ final class PoliticasTest extends TestCase
         $contenido = (string) $respuesta->getContent();
         $this->assertStringStartsWith('%PDF-', $contenido);
         $this->assertStringContainsString('pdfaid:part', $contenido, 'Debe declarar su conformidad PDF/A en los metadatos XMP.');
+        $this->assertStringContainsString('<pdfaid:part>2</pdfaid:part>', $contenido, 'PDF/A-2: el 1b no valida con veraPDF.');
         $this->assertStringContainsString('<pdfaid:conformance>B</pdfaid:conformance>', $contenido);
     }
 

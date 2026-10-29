@@ -107,7 +107,7 @@ async function capturar(navegador, vista) {
      * además comprueba que ese camino funciona para quien navega.
      */
     /*
-     * El disparador se busca **por su clase**, no por su etiqueta.
+     * El disparador se busca **por su clase** (el que esté visible: hay dos ejemplares y CSS muestra uno según el ancho), no por su etiqueta.
      *
      * La versión anterior buscaba un botón que dijera «accesibilidad» y
      * encontraba antes «×Cerrar los ajustes de accesibilidad» —el botón de
@@ -115,7 +115,7 @@ async function capturar(navegador, vista) {
      * Es el riesgo de seleccionar por texto: siempre hay alguien más que dice lo
      * mismo con el sentido contrario.
      */
-    await pagina.locator('.boton-accesibilidad').first().click().catch(() => {})
+    await pagina.locator('.boton-accesibilidad:visible').first().click().catch(() => {})
     await esperar(600)
 
     const radio = pagina.locator('input[name="modo-contraste"][value="alto"]')

@@ -55,6 +55,69 @@ final class AuditoriaTest extends TestCase
             ]);
     }
 
+    public function test_usuario_sin_permiso_auditoria_ver_recibe_403(): void
+    {
+        $sinPermisos = User::factory()->create();
+
+        $this->actingAs($sinPermisos, 'web')
+            ->getJson('/api/v1/panel/auditoria')
+            ->assertForbidden();
+    }
+
+    public function test_usuario_con_permiso_auditoria_ver_recibe_200(): void
+    {
+        $conPermiso = User::factory()->create();
+        $conPermiso->givePermissionTo('auditoria.ver');
+
+        $this->actingAs($conPermiso, 'web')
+            ->getJson('/api/v1/panel/auditoria')
+            ->assertOk();
+    }
+
+    public function test_los_datos_devueltos_son_los_de_la_pagina_y_no_una_lista_vacia(): void
+    {
+        $this->crearRegistros(3);
+
+        $respuesta = $this->actingAs($this->user, 'web')
+            ->getJson('/api/v1/panel/auditoria');
+
+        $respuesta->assertOk()->assertJsonPath('meta.total', 3);
+        $this->assertCount(3, $respuesta->json('data'));
+    }
+
+    public function test_por_pagina_limita_los_datos_y_calcula_las_paginas(): void
+    {
+        $this->crearRegistros(3);
+
+        $respuesta = $this->actingAs($this->user, 'web')
+            ->getJson('/api/v1/panel/auditoria?por_pagina=2');
+
+        $respuesta->assertOk()
+            ->assertJsonPath('meta.total', 3)
+            ->assertJsonPath('meta.last_page', 2);
+        $this->assertCount(2, $respuesta->json('data'));
+    }
+
+    /**
+     * Deja exactamente $cantidad registros en el log, sin disparar los eventos que
+     * a su vez escribirían más filas.
+     */
+    private function crearRegistros(int $cantidad): void
+    {
+        AuditLog::query()->delete();
+
+        AuditLog::withoutEvents(function () use ($cantidad): void {
+            for ($i = 0; $i < $cantidad; $i++) {
+                AuditLog::create([
+                    'accion' => 'login',
+                    'recurso' => 'session',
+                    'causer_id' => $this->user->id,
+                    'ip_origen' => '127.0.0.1',
+                ]);
+            }
+        });
+    }
+
     public function test_asignar_permiso_a_rol_crea_permission_attached_y_detached(): void
     {
         $role = Role::findByName('super-admin', 'web');
@@ -137,36 +200,33 @@ final class AuditoriaTest extends TestCase
 
         $fechaCorte = now()->subDays(5)->toDateString();
 
+        // `created_at` NO es asignable en masa (ver AuditLog::$fillable): pasarlo a
+        // `create()` lo descartaba en silencio y los dos registros nacían con la hora
+        // actual. Esta prueba pasaba en verde sin ejercer el filtro, porque además
+        // `data` salía vacío (H-08). Se fija la fecha después de crear.
         AuditLog::withoutEvents(function (): void {
-            AuditLog::create([
+            $antiguo = AuditLog::create([
                 'accion' => 'login',
                 'recurso' => 'session',
                 'causer_id' => $this->user->id,
                 'ip_origen' => '127.0.0.1',
-                'created_at' => now()->subDays(10),
             ]);
+            $antiguo->forceFill(['created_at' => now()->subDays(10)])->save();
 
             AuditLog::create([
                 'accion' => 'logout',
                 'recurso' => 'session',
                 'causer_id' => $this->user->id,
                 'ip_origen' => '127.0.0.1',
-                'created_at' => now(),
             ]);
         });
 
         $response = $this->actingAs($this->user, 'web')
             ->getJson('/api/v1/panel/auditoria?fecha_desde='.$fechaCorte);
 
-        $response->assertOk();
+        $response->assertOk()->assertJsonPath('meta.total', 1);
 
-        // Solo el registro reciente (logout de hoy) debe aparecer
-        $total = $response->json('meta.total');
-        $this->assertGreaterThanOrEqual(1, $total, 'Debe haber al menos 1 registro desde la fecha de corte');
-
-        // Y ninguno de los registros debe ser el login antiguo
-        foreach ($response->json('data') as $item) {
-            $this->assertNotEquals('login', $item['accion']);
-        }
+        // Solo el registro reciente (logout de hoy); el login de hace 10 días queda fuera.
+        $this->assertSame(['logout'], array_column($response->json('data'), 'accion'));
     }
 }

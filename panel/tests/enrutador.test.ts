@@ -49,16 +49,16 @@ const ALL_PERMISSIONS = [
  */
 function establecerSesion(permisos: string[]): void {
   const sesion = useSesionStore()
-  // @ts-ignore — accedemos al estado interno del store para los tests.
+  // @ts-expect-error — accedemos al estado interno del store para los tests.
   sesion.usuario = {
     id: 99,
     email: 'test@santamarta.gov.co',
     nombre: 'Test User',
     permisos,
   }
-  // @ts-ignore
+  // @ts-expect-error — estado interno del store, solo para la prueba.
   sesion.token = 'test-token'
-  // @ts-ignore
+  // @ts-expect-error — estado interno del store, solo para la prueba.
   sesion.inicializado = true
 }
 
@@ -67,11 +67,11 @@ function establecerSesion(permisos: string[]): void {
  */
 function limpiarSesion(): void {
   const sesion = useSesionStore()
-  // @ts-ignore
+  // @ts-expect-error — estado interno del store, solo para la prueba.
   sesion.usuario = null
-  // @ts-ignore
+  // @ts-expect-error — estado interno del store, solo para la prueba.
   sesion.token = null
-  // @ts-ignore
+  // @ts-expect-error — estado interno del store, solo para la prueba.
   sesion.inicializado = false
 }
 

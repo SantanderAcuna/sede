@@ -2,44 +2,36 @@
 /**
  * Botón de accesibilidad (brief §5.2.1). Abre el panel de ajustes.
  *
- * **Dos sitios según el ancho, una sola función.**
+ * **Un círculo fijo, centrado verticalmente en el lado derecho y igual en todas
+ * las pantallas** (plan del botón, D1, revisión 2, indicación del cliente del
+ * 2026-10-01; es también lo que recomienda el Kit UI 9.2: «ubica el componente en
+ * un lugar visible y de fácil acceso; preferiblemente, en el centro y a la
+ * derecha»). El cliente **no aceptó** la alternativa de llevarlo a la cabecera por
+ * debajo de 992 px (propuesta del 2026-10-29), así que no hay variante de cabecera
+ * y no se oculta a ningún ancho.
  *
- *  - **Desde 992 px (`flotante`)**: un círculo fijo, centrado verticalmente en el
- *    lado derecho. Es el sitio que pidió el cliente (plan del botón, D1, rev. 2) y
- *    el que recomienda el Kit UI 9.2 para la barra de accesibilidad: «ubica el
- *    componente en un lugar visible y de fácil acceso; preferiblemente, en el
- *    centro y a la derecha».
- *  - **Por debajo de 992 px (`cabecera`)**: no hay círculo flotante; el mismo
- *    control vive en la cabecera, junto a la galería de aplicaciones. Lo manda el
- *    Kit UI 9.2 (Barra de accesibilidad › Buenas prácticas › Tamaños pertinentes):
- *    «es recomendable que la barra de accesibilidad **no aparezca desde el
- *    breakpoint de tablets (768 a 992 px)** porque a partir de allí puede llegar a
- *    **ocultar contenido**. (Los dispositivos móviles cuentan con opciones de
- *    accesibilidad nativas)». Y lo confirma la medición: a 375 px un círculo de
- *    48 px es el 13 % del ancho, y la única forma de que no tape texto era
- *    reservarle un carril de 56 px a la derecha, que estrecha todo el contenido.
- *    En la cabecera ocupa un hueco que ya existía (la fila del logotipo), no tapa
- *    nada, no reserva espacio y queda arriba de todo.
+ * **No ocupa espacio.** Flota por encima del contenido (`position: fixed`,
+ * `z-index` por encima de «Volver arriba» y de los menús): no reserva carril ni
+ * estrecha ningún contenedor por debajo de 992 px. Desde 992 px, donde los
+ * márgenes de Bootstrap ya son casi tan anchos como el círculo, los contenedores
+ * se limitan de forma simétrica para que deje libre su columna (ver `sitio.css`,
+ * «columna del círculo»).
  *
- * Así se cumple la disponibilidad que pide RNF-07-D01 («opera de 320 px en
- * adelante») sin el solape que prohíbe la HU-07-D02. **Se aparta de D1 en un
- * punto**: «igual en todas las pantallas» deja de ser cierto por debajo de 992 px;
- * está declarado en `docs/revision-movil.md`. El enlace del pie sigue abriendo el
- * mismo panel.
+ * **Límite que no se puede quitar sin reservar espacio.** Un elemento fijo que no
+ * reserva espacio y está a media altura pasa, al desplazarse, por encima de lo que
+ * haya en el borde derecho. En pantallas de teléfono el contenido llega a 12 px de
+ * ese borde, así que el círculo puede cubrir el final de alguna línea o un control
+ * de ese borde mientras se desplaza. Reservar la columna (lo que hacía el carril
+ * anterior) es lo que se descartó por «ocupar espacio». El tamaño baja a 44 px, el
+ * mínimo táctil de RNF-B3-005, en teléfono para reducir lo que cubre.
  *
- * Los dos ejemplares están siempre en el documento y CSS muestra uno u otro
- * (`display: none` los saca del árbol de accesibilidad: el lector de pantalla ve
- * **uno solo** con ese nombre). Comparten estado —`panelAbierto`— y el panel
- * devuelve el foco a quien lo abrió, sea cual sea.
- *
- * **Vive fuera del envoltorio filtrable (el flotante).** Los modos de contraste
- * «colores invertidos» y «escala de grises» aplican un `filter` a
- * `.contenido-filtrable`, y un `filter` convierte a su elemento en bloque
- * contenedor de los descendientes con `position: fixed`; además invertiría los
- * colores del propio botón. Por eso la disposición monta el flotante fuera de ese
- * envoltorio y **no** lo teletransporta: teletransportarlo lo colocaría antes del
- * enlace de salto y rompería RF-B3-022. El de la cabecera no es `fixed`, así que sí
- * puede ir dentro.
+ * **Vive fuera del envoltorio filtrable.** Los modos de contraste «colores
+ * invertidos» y «escala de grises» aplican un `filter` a `.contenido-filtrable`, y
+ * un `filter` convierte a su elemento en bloque contenedor de los descendientes con
+ * `position: fixed`; además invertiría los colores del propio botón. Por eso la
+ * disposición monta el botón fuera de ese envoltorio y **no** lo teletransporta:
+ * teletransportarlo lo colocaría antes del enlace de salto y rompería RF-B3-022. El
+ * enlace del pie abre el mismo panel.
  *
  * **No choca con «Volver arriba».** Aquél vive en `bottom: 10%` y éste en el
  * centro vertical, así que ocupan franjas distintas del borde derecho.
@@ -56,11 +48,10 @@
  * desaparecería. Con `currentColor` hereda el color que imponga cada modo.
  *
  * **Criterios:** CAG-07 (barra de accesibilidad) · RF-B1-044 (barra persistente) ·
- * RNF-07-D01 (disponible y operable en tableta) · HU-07-D02 (sin solape) ·
- * RNF-B3-005 (44 × 44 px) · CC12 (varias vías de acceso) · CC17 (foco visible).
+ * RNF-07-D01 (disponible y operable en tableta) · HU-07-D02 (sin solape, con el
+ * límite de arriba) · RNF-B3-005 (44 × 44 px) · CC12 (varias vías de acceso) ·
+ * CC17 (foco visible).
  */
-withDefaults(defineProps<{ variante?: 'flotante' | 'cabecera' }>(), { variante: 'flotante' })
-
 const { panelAbierto, abrirPanel } = useAccesibilidad()
 
 /** Identificador del panel que este botón abre y anuncia con `aria-controls`. */
@@ -71,7 +62,6 @@ const ID_PANEL = 'panel-accesibilidad'
   <button
     type="button"
     class="boton-accesibilidad"
-    :class="`boton-accesibilidad--${variante}`"
     aria-haspopup="dialog"
     :aria-expanded="panelAbierto"
     :aria-controls="ID_PANEL"
@@ -105,9 +95,8 @@ const ID_PANEL = 'panel-accesibilidad'
 
 <style scoped>
 /*
- * Base común: círculo cobalto con el icono del Kit. El tamaño es una variable para
- * que cada variante lo ajuste, y nunca baja de 44 px, el mínimo táctil de
- * RNF-B3-005.
+ * Círculo cobalto con el icono del Kit. El tamaño es una variable y nunca baja de
+ * 44 px, el mínimo táctil de RNF-B3-005.
  */
 .boton-accesibilidad {
   --fab-tamano: 3.5rem;
@@ -163,13 +152,13 @@ const ID_PANEL = 'panel-accesibilidad'
 }
 
 /*
- * Flotante (desde 992 px): fijo, centrado verticalmente en el borde derecho y por
- * encima del contenido (`z-index` 1210: sobre «Volver arriba», 1200, y sobre los
- * menús; por debajo del banner de cookies y de los modales, que han de ganarle).
- * La sombra es lo que lo separa del contenido cuando pasa por encima, en cualquier
- * modo de contraste.
+ * Fijo, centrado verticalmente en el borde derecho y por encima del contenido, a
+ * cualquier ancho (D1). `z-index` 1210: sobre «Volver arriba» (1200) y los menús;
+ * por debajo del banner de cookies y de los modales, que han de ganarle. La sombra
+ * es lo que lo separa del contenido cuando pasa por encima, en cualquier modo de
+ * contraste.
  */
-.boton-accesibilidad--flotante {
+.boton-accesibilidad {
   --fab-tamano: var(--acc-flotante-tamano);
 
   position: fixed;
@@ -180,42 +169,18 @@ const ID_PANEL = 'panel-accesibilidad'
   box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.28);
 }
 
-.boton-accesibilidad--flotante:hover {
+.boton-accesibilidad:hover {
   transform: translateY(-50%) scale(1.06);
 }
 
-.boton-accesibilidad--flotante:active {
+.boton-accesibilidad:active {
   transform: translateY(-50%) scale(0.97);
 }
 
-/* Pantallas muy bajas: se mantiene centrado, pero el tamaño no crece. */
-@media (min-width: 992px) and (max-height: 480px) {
-  .boton-accesibilidad--flotante {
-    --fab-tamano: 2.875rem;
-  }
-}
-
-/* Por debajo de 992 px el flotante no se muestra (Kit UI 9.2): lo sustituye el de la cabecera. */
-@media (max-width: 991px) {
-  .boton-accesibilidad--flotante {
-    display: none;
-  }
-}
-
-/*
- * En la cabecera (por debajo de 992 px): en el flujo, 44 px —el mínimo táctil—,
- * sin sombra ni posición. Hace de pareja de la galería de aplicaciones, que es un
- * círculo cobalto del mismo tamaño.
- */
-.boton-accesibilidad--cabecera {
-  --fab-tamano: 2.75rem;
-
-  display: none;
-}
-
-@media (max-width: 991px) {
-  .boton-accesibilidad--cabecera {
-    display: inline-flex;
+/* Teléfono y pantallas muy bajas: 44 px, el mínimo táctil, para cubrir lo menos posible. */
+@media (max-width: 575px), (max-height: 480px) {
+  .boton-accesibilidad {
+    --fab-tamano: 2.75rem;
   }
 }
 

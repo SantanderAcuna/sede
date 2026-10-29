@@ -93,3 +93,7 @@ id_ed25519*
 backend/sede
 backend/*.sqlite
 backend/database/*.sqlite
+
+# Informe de auditoría del Módulo 01: lista debilidades abiertas de un sistema en
+# construcción, así que vive fuera del repositorio público (decisión del 2026-10-29).
+/sede-electronica-doc/01-estructura-identidad/auditoria-estructura-identidad.md

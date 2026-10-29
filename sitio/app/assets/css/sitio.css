@@ -1992,3 +1992,29 @@ main {
     min-height: 0;
   }
 }
+
+/*
+ * Carril del botón de accesibilidad en teléfono y tableta pequeña.
+ *
+ * El botón es un círculo **fijo, centrado verticalmente en el borde derecho e
+ * igual en todas las pantallas** (plan del botón, D1, indicación del cliente del
+ * 2026-10-01) y la HU-07-D02 pide que no se solape con el contenido. En un
+ * teléfono el contenido llega hasta 12 px del borde y el círculo ocupa los
+ * últimos 56 px (3 rem + 0,5 rem de margen): al desplazarse, tapaba el final de
+ * las líneas de los párrafos de introducción en la mayoría de las rutas (se
+ * contó con `tests/movil.mjs`). Moverlo contradice el requisito, así que se
+ * reserva su carril: 44 px más de relleno a la derecha (56 − los 12 que ya hay)
+ * en los contenedores del contenido. El fondo no cambia: sólo el texto se aparta.
+ *
+ * El carril se reserva hasta 851 px, no sólo en teléfono: a 768–851 px el
+ * contenedor de Bootstrap (720 px, centrado) deja menos de 62 px de margen y el
+ * círculo —3,25 rem + 0,625 rem de margen— tapaba una línea en 5 rutas (se midió
+ * a 768 y 800 px, el caso de la tableta de la HU-07-D02). Desde 852 px los
+ * márgenes ya lo dejan libre (medido a 900, 991, 1024 y 1280: 0 líneas).
+ */
+@media (max-width: 851px) {
+  main .container,
+  main .container-fluid {
+    padding-right: calc(var(--bs-gutter-x, 1.5rem) * 0.5 + 2.75rem);
+  }
+}

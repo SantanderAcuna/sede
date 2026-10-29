@@ -372,6 +372,16 @@ onBeforeUnmount(() => {
   border-radius: 0;
 }
 
+/* En un teléfono el círculo de accesibilidad (fijo, centrado en el borde derecho:
+   3 rem + 0,5 rem de margen) pasa por encima de la leyenda al desplazarse. Con
+   3,5 rem a cada lado el texto —centrado— queda fuera de su carril. */
+@media (max-width: 575px) {
+  .responsive-carrusel-govco .leyenda-carrusel {
+    padding-right: 3.5rem;
+    padding-left: 3.5rem;
+  }
+}
+
 .barra-controles-carrusel {
   display: flex;
   flex-wrap: wrap;

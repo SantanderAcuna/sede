@@ -63,8 +63,9 @@ final class IdentidadDatosTest extends TestCase
     public function test_todo_slug_de_politica_existe_como_pagina_del_sitio(): void
     {
         $config = (string) file_get_contents($this->rutaDelSitio('app/config/sitemap.ts'));
-        $this->assertSame(1, preg_match('/export const POLITICAS[^=]*=\s*\[(.*?)\n\]/s', $config, $bloque));
-        preg_match_all("/slug:\s*'([^']+)'/", $bloque[1], $coincidencias);
+        preg_match('/export const POLITICAS[^=]*=\s*\[(.*?)\n\]/s', $config, $bloque);
+        $this->assertNotSame('', $bloque[1] ?? '', 'No se encontró POLITICAS en sitemap.ts.');
+        preg_match_all("/slug:\s*'([^']+)'/", $bloque[1] ?? '', $coincidencias);
         $delSitio = $coincidencias[1];
         $this->assertCount(5, $delSitio);
 

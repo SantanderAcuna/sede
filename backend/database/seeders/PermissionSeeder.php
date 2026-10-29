@@ -52,6 +52,14 @@ final class PermissionSeeder extends Seeder
         'reportes.ver',
         'asignacion.gestionar',
         'entidad.gestionar',
+        'politicas.gestionar',
+
+        // Archivos (tabla común `file_media`). Antes no se sembraban: las rutas de
+        // archivos los exigen con `can:` y sólo el super-admin podía usarlas.
+        'archivos.ver',
+        'archivos.crear',
+        'archivos.eliminar',
+
         'configuracion.gestionar',
     ];
 

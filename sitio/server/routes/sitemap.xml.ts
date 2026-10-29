@@ -11,13 +11,14 @@
  * fuente centralizada de rutas. Cualquier cambio en la navegación se refleja
  * automáticamente aquí y en el menú de la sede (RF-B1-010).
  */
-import { todasLasRutas } from '../../app/config/sitemap'
+import { slugsAdoptados } from '../../app/config/politicas-contenido'
+import { POLITICAS, todasLasRutas } from '../../app/config/sitemap'
 
 /** Escapa lo que va dentro de un nodo XML. */
 const escapar = (texto: string): string =>
   texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-export default defineEventHandler((evento): string => {
+export default defineEventHandler(async (evento): Promise<string> => {
   const config = useRuntimeConfig(evento)
 
   /*
@@ -32,8 +33,25 @@ export default defineEventHandler((evento): string => {
    * Las rutas se filtran a las que ya publican contenido, para no anunciar
    * páginas que devuelven 404.
    */
+  /*
+   * Las políticas se anuncian cuando la API dice que su texto ya no es de ejemplo.
+   * Si la API no responde se omiten: es preferible no anunciarlas un rato a
+   * anunciar un texto que no se pudo comprobar.
+   */
+  const urlApi = String(config.public.apiUrl ?? '').replace(/\/+$/, '')
+  let adoptadas: string[] = []
+  try {
+    const respuesta = await $fetch<unknown>(`${urlApi}/politicas`, { timeout: 3000 })
+    adoptadas = slugsAdoptados(
+      respuesta,
+      POLITICAS.map((politica) => politica.slug),
+    )
+  } catch {
+    adoptadas = []
+  }
+
   const entradas = todasLasRutas()
-    .filter((ruta) => ruta.publicada)
+    .filter((ruta) => ruta.publicada || adoptadas.some((slug) => ruta.ruta === `/politicas/${slug}`))
     .map(
       (p) =>
         `  <url>\n` +

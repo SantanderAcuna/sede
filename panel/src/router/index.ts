@@ -95,6 +95,13 @@ const rutas: RouteRecordRaw[] = [
         component: () => import('@/views/admin/EntidadView.vue'),
         meta: { requiereSesion: true, titulo: 'Entidad', permiso: PERMISO_POR_RUTA['/configuracion/entidad'] },
       },
+      // Las cinco políticas del sitio: texto, versión, vigencia, acto y documento oficial (T-20)
+      {
+        path: 'configuracion/politicas',
+        name: 'panel.politicas',
+        component: () => import('@/views/admin/PoliticasView.vue'),
+        meta: { requiereSesion: true, titulo: 'Políticas del sitio', permiso: PERMISO_POR_RUTA['/configuracion/politicas'] },
+      },
       ...MODULOS.map(
         (modulo): RouteRecordRaw => ({
           path: modulo.ruta,

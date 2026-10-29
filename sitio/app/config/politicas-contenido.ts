@@ -1,20 +1,20 @@
 /**
- * El contenido de las cinco políticas (T-20, H-21).
+ * Las cinco políticas del sitio tal como las entrega la API (T-20, H-21).
  *
- * **Aquí NO hay texto legal, y es a propósito.** Las políticas son obligaciones
- * jurídicas de la Entidad: las redacta y las adopta por acto administrativo
- * Jurídica —y, para datos personales, el Oficial de Protección de Datos—. TIC no
- * las escribe; TIC les da el sitio donde se publican, con versión, vigencia y acto,
- * y con una prueba que impide publicar una a medias.
+ * **El texto ya no vive en el repositorio.** Antes este archivo guardaba un
+ * `null` por política hasta que Jurídica entregara el documento; ahora el texto
+ * vive en base de datos (`GET /politicas/{slug}`) y se edita desde el panel, con
+ * su versión, su vigencia y su acto administrativo. Cambiar una política es una
+ * edición en el panel, no un despliegue.
  *
- * Una política vale `null` hasta que se entrega su documento. Mientras sea
- * `null` la página dice que está en preparación y el `sitemap.xml` no la anuncia:
- * `publicada` se **deriva** de aquí, no se escribe a mano (regresión R-03: el
- * mapa del sitio ya anunció páginas vacías una vez).
+ * **Lo que el servidor entrega hoy es texto de ejemplo**, y la respuesta lo dice
+ * (`es_ejemplo: true`): lo redactó TIC como punto de partida y lleva marcadores
+ * «[por definir: …]» donde falta un dato institucional. No es texto legal
+ * adoptado. Cuando Jurídica lo apruebe y se registre su acto, se quita la marca
+ * desde el panel y la página deja de avisarlo.
  *
- * Para publicar una política, se sustituye su `null` por un `DocumentoPolitica`
- * completo. `tests/politicas-contenido.test.ts` falla si falta un componente
- * mínimo, el acto administrativo, la versión o la vigencia.
+ * Aquí quedan los tipos y la lectura defensiva de la respuesta: la API es una
+ * frontera, y una página pública no debe romperse porque llegue un campo vacío.
  */
 
 /** Una sección del documento: el `id` es el componente mínimo que cubre. */
@@ -24,117 +24,137 @@ export interface SeccionPolitica {
   parrafos: string[]
 }
 
-/** Lo que Jurídica entrega para una política. */
-export interface DocumentoPolitica {
-  /**
-   * Versión entera, creciente. En la política de cookies **es** `VERSION_POLITICA`
-   * (`useConsentimientoCookies`): subir una sin la otra deja a la ciudadanía con un
-   * consentimiento dado a un texto que ya no existe (AC-20.8).
-   */
+/** El documento oficial adjunto desde el panel (acto administrativo o texto aprobado). */
+export interface DocumentoOficial {
+  nombre: string
+  tipo: string
+  tamano: number
+  /** Dirección estable, relativa al sitio. */
+  url: string
+}
+
+/** Una política, lista para pintar. */
+export interface PoliticaDelSitio {
+  slug: string
+  nombre: string
   version: number
-  /** Fecha de entrada en vigor, `AAAA-MM-DD`. */
-  vigenteDesde: string
-  /** El acto administrativo que adopta la política (AC-20.6). */
-  acto: { tipo: string; numero: string; fecha: string }
+  /** `AAAA-MM-DD` o `null` si aún no hay vigencia. */
+  vigenteDesde: string | null
+  acto: { tipo: string | null; numero: string | null; fecha: string | null }
+  /** Verdadero mientras el texto sea de ejemplo, pendiente de aprobación por la Entidad. */
+  esEjemplo: boolean
+  documentoOficial: DocumentoOficial | null
   secciones: SeccionPolitica[]
 }
 
-/**
- * Los componentes mínimos de cada política: la lista de comprobación contra la que
- * se verifica el documento antes de publicarlo.
- *
- * **Confirmar con Jurídica.** El expediente habla de «6 componentes mínimos» para los
- * términos y condiciones pero no los enumera uno a uno; aquí van los siete que
- * enumera la auditoría (AC-20.2). Los de privacidad son los de AC-20.3, los de
- * derechos de autor salen de RF-B2-010, y los de cookies del propósito que la
- * página ya declara. Si Jurídica cambia la lista, se cambia aquí y la prueba la
- * aplica.
- */
-export const COMPONENTES_MINIMOS: Record<string, { id: string; rotulo: string }[]> = {
-  'terminos-y-condiciones-de-uso': [
-    { id: 'condiciones-y-alcance', rotulo: 'Condiciones y alcance de uso' },
-    { id: 'limites-de-uso', rotulo: 'Límites de uso' },
-    { id: 'derechos-del-usuario', rotulo: 'Derechos del usuario' },
-    { id: 'deberes-del-usuario', rotulo: 'Deberes del usuario' },
-    { id: 'responsabilidad-de-la-entidad', rotulo: 'Responsabilidad de la Entidad' },
-    { id: 'contacto', rotulo: 'Contacto' },
-    { id: 'privacidad-y-seguridad', rotulo: 'Referencia a la política de privacidad y seguridad' },
-  ],
-  'seguridad-y-privacidad': [
-    { id: 'categorias-de-datos', rotulo: 'Categorías de datos' },
-    { id: 'finalidades', rotulo: 'Finalidades' },
-    { id: 'derechos-arco', rotulo: 'Derechos de acceso, rectificación, supresión y revocatoria' },
-    { id: 'responsable', rotulo: 'Contacto del responsable' },
-    { id: 'reclamos', rotulo: 'Mecanismo de reclamo' },
-  ],
-  'proteccion-y-tratamiento-de-datos-personales': [
-    { id: 'categorias-de-datos', rotulo: 'Categorías de datos' },
-    { id: 'finalidades', rotulo: 'Finalidades' },
-    { id: 'derechos-arco', rotulo: 'Derechos de acceso, rectificación, supresión y revocatoria' },
-    { id: 'responsable', rotulo: 'Contacto del responsable' },
-    { id: 'reclamos', rotulo: 'Mecanismo de reclamo' },
-  ],
-  'uso-de-cookies': [
-    { id: 'cookies-que-usa', rotulo: 'Qué cookies usa el sitio' },
-    { id: 'finalidad', rotulo: 'Finalidad de cada una' },
-    { id: 'duracion', rotulo: 'Duración' },
-    { id: 'consentimiento', rotulo: 'Cómo se administra el consentimiento' },
-  ],
-  'derechos-de-autor-y-uso-sobre-contenidos': [
-    { id: 'titularidad', rotulo: 'Titularidad de los contenidos' },
-    { id: 'reutilizacion', rotulo: 'Condiciones de reutilización' },
-    { id: 'licencia', rotulo: 'Licencia que los acompaña' },
-    { id: 'como-citar', rotulo: 'Cómo citarlos' },
-  ],
-}
+const cadena = (valor: unknown): string | null =>
+  typeof valor === 'string' && valor.trim() !== '' ? valor : null
+
+/** Sólo direcciones del propio sitio: nunca se enlaza algo que la API invente fuera de él. */
+const esRutaDelSitio = (valor: unknown): valor is string =>
+  typeof valor === 'string' && /^\/politicas\/[a-z0-9-]+\/documento$/.test(valor)
 
 /**
- * Los documentos entregados. Todos `null`: ninguna política tiene aún su texto
- * adoptado (D-4 sin resolver: faltan los responsables y la fecha de entrega).
+ * Lee la respuesta de `GET /politicas/{slug}` con tolerancia: lo que no
+ * reconoce se descarta y, si falta lo esencial (slug, nombre, versión), devuelve
+ * `null` para que la página muestre el aviso de error en vez de una política
+ * rota.
  */
-export const DOCUMENTOS_POLITICAS: Record<string, DocumentoPolitica | null> = {
-  'terminos-y-condiciones-de-uso': null,
-  'seguridad-y-privacidad': null,
-  'proteccion-y-tratamiento-de-datos-personales': null,
-  'uso-de-cookies': null,
-  'derechos-de-autor-y-uso-sobre-contenidos': null,
-}
+export function politicaDesdeApi(crudo: unknown): PoliticaDelSitio | null {
+  if (typeof crudo !== 'object' || crudo === null) return null
+  const datos = crudo as Record<string, unknown>
 
-/** ¿Tiene esta política su documento publicado? */
-export function politicaPublicada(slug: string): boolean {
-  return (DOCUMENTOS_POLITICAS[slug] ?? null) !== null
-}
+  const slug = cadena(datos.slug)
+  const nombre = cadena(datos.nombre)
+  const version = typeof datos.version === 'number' && Number.isInteger(datos.version) ? datos.version : null
+  if (slug === null || nombre === null || version === null || version < 1) return null
 
-const FECHA = /^\d{4}-\d{2}-\d{2}$/
-const EN_PREPARACION = /en preparaci[oó]n/i
+  const acto = (typeof datos.acto === 'object' && datos.acto !== null ? datos.acto : {}) as Record<string, unknown>
 
-/**
- * Qué le falta a un documento para poder publicarse. Lista vacía = completo.
- *
- * Es una función pura y no sólo una prueba para poder ejercitarla con documentos
- * de ejemplo —buenos y malos— y comprobar que de verdad detecta lo que dice
- * detectar, antes de que llegue el primer documento real.
- */
-export function problemasDelDocumento(slug: string, documento: DocumentoPolitica): string[] {
-  const problemas: string[] = []
-
-  if (!Number.isInteger(documento.version) || documento.version < 1) problemas.push('versión inválida')
-  if (!FECHA.test(documento.vigenteDesde)) problemas.push('vigencia sin fecha AAAA-MM-DD')
-  if (documento.acto.tipo.trim() === '') problemas.push('acto sin tipo')
-  if (documento.acto.numero.trim() === '') problemas.push('acto sin número')
-  if (!FECHA.test(documento.acto.fecha)) problemas.push('acto sin fecha AAAA-MM-DD')
-
-  const porId = new Map(documento.secciones.map((seccion) => [seccion.id, seccion]))
-  for (const componente of COMPONENTES_MINIMOS[slug] ?? []) {
-    const seccion = porId.get(componente.id)
-    if (!seccion) problemas.push(`falta «${componente.rotulo}»`)
-    else if (seccion.titulo.trim() === '' || seccion.parrafos.join(' ').trim() === '') {
-      problemas.push(`«${componente.rotulo}» está vacío`)
+  const secciones: SeccionPolitica[] = []
+  if (Array.isArray(datos.secciones)) {
+    for (const bruta of datos.secciones) {
+      if (typeof bruta !== 'object' || bruta === null) continue
+      const seccion = bruta as Record<string, unknown>
+      const id = cadena(seccion.id)
+      const titulo = cadena(seccion.titulo)
+      if (id === null || titulo === null) continue
+      const parrafos = Array.isArray(seccion.parrafos)
+        ? seccion.parrafos.filter((p): p is string => typeof p === 'string' && p.trim() !== '')
+        : []
+      secciones.push({ id, titulo, parrafos })
     }
   }
 
-  const texto = documento.secciones.flatMap((seccion) => [seccion.titulo, ...seccion.parrafos]).join('\n')
-  if (EN_PREPARACION.test(texto)) problemas.push('contiene «en preparación»')
+  const oficial = datos.documento_oficial
+  let documentoOficial: DocumentoOficial | null = null
+  if (typeof oficial === 'object' && oficial !== null) {
+    const o = oficial as Record<string, unknown>
+    if (esRutaDelSitio(o.url)) {
+      documentoOficial = {
+        nombre: cadena(o.nombre) ?? 'Documento oficial',
+        tipo: cadena(o.tipo) ?? 'application/octet-stream',
+        tamano: typeof o.tamano === 'number' ? o.tamano : 0,
+        url: o.url,
+      }
+    }
+  }
 
-  return problemas
+  return {
+    slug,
+    nombre,
+    version,
+    vigenteDesde: cadena(datos.vigente_desde),
+    acto: { tipo: cadena(acto.tipo), numero: cadena(acto.numero), fecha: cadena(acto.fecha) },
+    // Si la API no lo dice, se trata como ejemplo: avisar de más es el error barato.
+    esEjemplo: datos.es_ejemplo !== false,
+    documentoOficial,
+    secciones,
+  }
+}
+
+/** `2026-10-29` → «29 de octubre de 2026». Una fecha ilegible se muestra tal cual. */
+export function fechaLarga(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (m === null) return iso
+  const fecha = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
+  return new Intl.DateTimeFormat('es-CO', { dateStyle: 'long', timeZone: 'UTC' }).format(fecha)
+}
+
+/** El acto administrativo en una línea («Resolución 123 del 10 de enero de 2026»), o `null` si no hay. */
+export function actoEnUnaLinea(acto: PoliticaDelSitio['acto']): string | null {
+  const partes = [acto.tipo, acto.numero].filter((p): p is string => p !== null)
+  if (partes.length === 0) return null
+  const base = partes.join(' ')
+  return acto.fecha === null ? base : `${base} del ${fechaLarga(acto.fecha)}`
+}
+
+/** Tamaño legible: «182 KB», «1,4 MB». */
+export function tamanoLegible(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const kb = bytes / 1024
+  if (kb < 1024) return `${Math.round(kb)} KB`
+  return `${(kb / 1024).toLocaleString('es-CO', { maximumFractionDigits: 1 })} MB`
+}
+
+/**
+ * Los slugs de las políticas que ya no son de ejemplo, a partir de la respuesta de
+ * `GET /politicas`. Sólo esos se anuncian en el `sitemap.xml`: un texto de ejemplo
+ * no debe indexarse como si fuera la política oficial de la Entidad (R-03).
+ *
+ * Es estricta a propósito: `es_ejemplo` tiene que ser exactamente `false`. Una
+ * respuesta rara, vacía o sin el campo no anuncia nada.
+ */
+export function slugsAdoptados(crudo: unknown, conocidos: readonly string[]): string[] {
+  if (typeof crudo !== 'object' || crudo === null) return []
+  const lista = (crudo as { data?: unknown }).data
+  if (!Array.isArray(lista)) return []
+
+  const adoptados: string[] = []
+  for (const elemento of lista) {
+    if (typeof elemento !== 'object' || elemento === null) continue
+    const { slug, es_ejemplo: esEjemplo } = elemento as Record<string, unknown>
+    if (typeof slug === 'string' && esEjemplo === false && conocidos.includes(slug)) adoptados.push(slug)
+  }
+  return adoptados
 }

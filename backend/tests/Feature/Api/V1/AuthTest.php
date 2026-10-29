@@ -49,7 +49,7 @@ final class AuthTest extends TestCase
         // persistente) no se puede testear con PHPUnit porque `Auth::guard('web')->
         // login($user)` llama a `session()->regenerate()` que reinicia el array
         // store antes de que el response se construya. La verificacion real
-        // del flujo completo se hace en `panel/test_sesion.mjs` con Playwright.
+        // del flujo completo se hace en `docs/archivo/panel-depuracion/test_sesion.mjs` con Playwright.
         // Aqui solo verificamos que el endpoint valida las credenciales:
         // NO debe devolver 401 (creds invalidas) ni 422 (validacion fallida).
         $respuesta = $this->postJson('/api/v1/panel/login', [

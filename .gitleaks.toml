@@ -1,0 +1,30 @@
+# Configuración de gitleaks para el job `Credenciales` de `ci.yml` (H-05, T-06).
+#
+# Se parte de las reglas por defecto y se añade SOLO una lista de excepciones
+# revisada a mano. Cada entrada nombra un archivo concreto —no carpetas— para que
+# una credencial real en otro lugar de `backend/tests/` o de la documentación siga
+# haciendo fallar el job. Añadir una excepción exige explicar aquí por qué lo es.
+#
+# Revisión inicial: 2026-10-28, escaneo de los 300 commits de todas las ramas
+# (20 hallazgos en 11 líneas), ninguno una credencial vigente.
+
+title = "Sede Electrónica"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Hallazgos revisados que no son credenciales"
+paths = [
+  # Contraseñas literales de pruebas automatizadas: se crean usuarios de prueba
+  # en una base efímera del CI. Ninguna corresponde a una cuenta real.
+  '''backend/tests/Unit/DTOs/LoginCredentialsTest\.php''',
+  '''backend/tests/Feature/Seguridad/LoginEndurecidoTest\.php''',
+  '''backend/tests/Feature/Seguridad/SuperAdminSeederTest\.php''',
+  # Ejemplo de respuesta de la API: `mfa_token` truncado con puntos suspensivos.
+  '''entidad-transparencia/05-especificaciones-api/errores-y-codigos\.md''',
+  # Documentación que cita la EXPRESIÓN REGULAR que detecta claves SSH
+  # (`-----BEGIN OPENSSH PRIVATE KEY-----[\s\S]+?…`), no una clave.
+  '''docs-security/capitulo-05\.md''',
+  '''docs/investigacion/INFORME-capitulo-05\.md''',
+]

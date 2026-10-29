@@ -3,7 +3,7 @@
 > **Versión:** 1.0
 > **Fecha:** 2025-01-15
 > **Superficie:** `sitio/` (portal público Nuxt 4)
-> **Auditoría:** `auditoria-sede.md` (3.ª edición)
+> **Auditoría:** `docs/archivo/auditoria-sede.md` (3.ª edición)
 
 ---
 

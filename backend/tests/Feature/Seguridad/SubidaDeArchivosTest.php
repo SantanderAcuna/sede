@@ -161,14 +161,22 @@ final class SubidaDeArchivosTest extends TestCase
 
     public function test_la_url_de_un_archivo_en_disco_local_va_firmada(): void
     {
-        Storage::fake('local');
-        $respuesta = $this->actingAs($this->superAdmin, 'sanctum')->postJson($this->rutaSubida(), $this->datos($this->archivoReal('acta.png', (string) base64_decode(self::PNG_1X1))));
-        $respuesta->assertOk();
+        // Sin `Storage::fake()`: el disco simulado devuelve una URL de pruebas sin
+        // firma. Generar la URL no toca el sistema de archivos, así que se usa el
+        // controlador real del disco, el que firma en producción.
+        $archivo = FileMedia::factory()->make(['disk' => 'local', 'path' => 'file_media/x/documentos/acta.pdf']);
 
-        $url = (string) $respuesta->json('data.url');
+        $url = $archivo->url();
 
-        $this->assertStringContainsString('/storage/', $url);
+        $this->assertStringContainsString('/storage/file_media/x/documentos/acta.pdf', $url);
         $this->assertStringContainsString('signature=', $url);
         $this->assertStringContainsString('expires=', $url);
+    }
+
+    public function test_la_url_de_un_archivo_en_el_disco_public_no_se_firma(): void
+    {
+        $archivo = FileMedia::factory()->make(['disk' => 'public', 'path' => 'file_media/x/documentos/acta.pdf']);
+
+        $this->assertStringNotContainsString('signature=', $archivo->url());
     }
 }

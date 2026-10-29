@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Seguridad;
 
 use App\Models\AuditLog;
+use App\Services\AuthService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -118,6 +119,16 @@ final class LoginEndurecidoTest extends TestCase
 
         $this->assertSame(1, $conUsuario);
         $this->assertSame($conUsuario, $sinUsuario);
+    }
+
+    public function test_el_hash_de_relleno_es_bcrypt_con_el_coste_de_produccion(): void
+    {
+        // Si el coste del relleno baja del de las contraseñas reales, el correo
+        // inexistente vuelve a responder más rápido y delata qué cuentas existen.
+        $info = password_get_info(AuthService::HASH_DE_RELLENO);
+
+        $this->assertSame('bcrypt', $info['algoName']);
+        $this->assertSame(12, $info['options']['cost'] ?? null, 'Debe coincidir con BCRYPT_ROUNDS de producción (12).');
     }
 
     public function test_pasado_el_limite_hay_429_con_retry_after_y_el_sobre_de_la_api(): void

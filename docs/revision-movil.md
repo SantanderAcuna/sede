@@ -79,8 +79,10 @@ de letras de ancho medio; con mayúsculas o con «m/w» cabrían menos.
 
 ## Abierto
 
-- La diapositiva de la portada usa la imagen gris de marcador del Kit: en móvil
-  ocupa ~270 px de pantalla sin información. **AC-23.3 exige que ninguna imagen sea
+- **Imagen del carrusel en teléfono: de 216 a 136 px** (≤ 575 px), a petición de José
+  sobre una captura (la franja gris entre el menú y el texto azul). Es un valor de
+  diseño en `sitio.css`; sube si la Entidad prefiere más foto.
+- La diapositiva de la portada sigue usando la imagen gris de marcador del Kit. **AC-23.3 exige que ninguna imagen sea
   `fondo-gris-carrusel.jpg`**: es trabajo de T-23 (carrusel con contenido) y necesita
   las imágenes de la Entidad; inventarlas contradice la regla de no crear contenido
   institucional.

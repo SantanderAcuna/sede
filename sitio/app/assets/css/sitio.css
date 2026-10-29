@@ -2017,21 +2017,12 @@ main {
 }
 
 /*
- * Acciones de la cabecera (botón de accesibilidad por debajo de 992 px + galería de
- * aplicaciones). Un contenedor en fila, a la derecha del logotipo.
- */
-.cabecera-govco .acciones-cabecera {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: none;
-}
-
-/*
- * El círculo de accesibilidad flotante (desde 992 px) no debe cubrir contenido
- * (HU-07-D02). Está a media altura de la ventana, así que al desplazarse puede
- * pasar por cualquier punto de la columna del borde derecho; el contenido tiene que
- * quedar fuera de ella.
+ * Columna del círculo de accesibilidad, desde 992 px. El círculo es fijo y está a
+ * media altura de la ventana, así que al desplazarse puede pasar por cualquier punto
+ * de la columna del borde derecho; HU-07-D02 pide que no cubra contenido, y donde el
+ * margen natural de la página casi alcanza (992–1430 px) se completa con el límite
+ * de ancho de abajo. Por debajo de 992 px **no se reserva nada** (el círculo flota
+ * sobre el contenido; ver el límite declarado en `BotonAccesibilidad.vue`).
  *
  * Los contenedores de Bootstrap (960, 1140 y 1320 px) dejan a los lados
  * (ventana − contenedor) / 2, y entre 992 y ~1430 px eso es menos que la columna del
@@ -2041,8 +2032,6 @@ main {
  * lado). A partir de ~1430 px el límite no llega a aplicar y nada cambia.
  *
  *   ancho ≤ ventana − 2 × columna + 2 × relleno del contenedor (0,75 rem)
- *
- * Por debajo de 992 px el círculo no existe (Kit UI 9.2; CAG-07) y no hay límite.
  */
 @media (min-width: 992px) {
   main .container,

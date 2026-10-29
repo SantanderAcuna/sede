@@ -294,20 +294,18 @@ try {
     return { ok: r.existe && r.ancho > 0 && r.alto > 0, detalle: `${r.href} · ${Math.round(r.ancho)}×${Math.round(r.alto)} px` }
   })
 
-  // ── CAG-07 · Accesibilidad: un solo disparador visible, sin tapar nada ────
+  // ── CAG-07 · Accesibilidad: círculo fijo, centrado a la derecha, en todas las pantallas
   //
-  // Criterios (Sección 2 · Diseño, CAG-07; Kit UI 9.2, Barra de accesibilidad;
-  // RF-B1-044; RNF-07-D01; HU-07-D02; RNF-B3-005):
-  //   · Desde 992 px: un círculo fijo, centrado verticalmente a la derecha.
-  //   · Por debajo de 992 px (tableta y móvil) la barra NO aparece flotando —el
-  //     Kit lo manda porque «puede llegar a ocultar contenido»— y el mismo control
-  //     vive en la cabecera: visible, operable, de 44 × 44 px o más, sin fijarse.
-  //   · A cualquier ancho hay **exactamente un** disparador visible; abre el mismo
-  //     panel con los mismos controles; `Escape` cierra y devuelve el foco a
-  //     **quien lo abrió**.
-  // La aserción anterior exigía el círculo flotante centrado a 320 px, que es
-  // justo el defecto reportado (ocupaba espacio y se montaba sobre el contenido).
-  await comprobar('CAG-07', 'Un único disparador de accesibilidad visible por ancho: flotante desde 992 px, en la cabecera por debajo, y abre el panel', async () => {
+  // Criterios (Sección 2 · Diseño, CAG-07; plan del botón D1 rev. 2; RF-B1-044;
+  // RNF-07-D01; RNF-B3-005):
+  //   · **A cualquier ancho** hay exactamente un disparador visible: un círculo
+  //     fijo, centrado verticalmente en el lado derecho, de 44 px o más, dentro de
+  //     la ventana y sin provocar desplazamiento horizontal.
+  //   · No está en la cabecera ni se oculta por debajo de 992 px: el cliente no
+  //     aceptó la variante de cabecera (2026-10-29).
+  //   · Abre el mismo panel con los mismos controles; `Escape` cierra y devuelve
+  //     el foco al disparador.
+  await comprobar('CAG-07', 'Un único círculo de accesibilidad, fijo y centrado a la derecha a cualquier ancho, y abre el panel', async () => {
     // `networkidle`, no `domcontentloaded`: el panel se abre con JavaScript, y con
     // `domcontentloaded` la prueba pulsaba Intro antes de que la página se
     // hidratase.
@@ -332,9 +330,6 @@ try {
               const radio = Number.parseFloat(estilo.borderTopLeftRadius)
               const cabecera = boton.closest('.cabecera-govco')
               return {
-                variante: boton.classList.contains('boton-accesibilidad--flotante')
-                  ? 'flotante'
-                  : 'cabecera',
                 nombre: (boton.textContent ?? '').trim(),
                 ancho: Math.round(caja.width),
                 alto: Math.round(caja.height),
@@ -351,19 +346,18 @@ try {
               }
             })
           : null
-      medidas.push({ vw: ancho, cuantos, ...(medida ?? {}) })
+      // TC-ACC-11 (parte automatizable): existe **un solo** círculo en el documento.
+      // (El pie ofrece además su propio botón «Ajustes de accesibilidad», a propósito:
+      // CC12, varias vías de acceso; por eso no se cuenta por nombre.)
+      const leidos = await portada.locator('.boton-accesibilidad').count()
+      medidas.push({ vw: ancho, cuantos, leidos, ...(medida ?? {}) })
     }
     await portada.setViewportSize({ width: 1280, height: 900 })
 
-    const esperadaPorAncho = (m) => (m.vw >= 992 ? 'flotante' : 'cabecera')
-    const variantesOk = medidas.every((m) => m.cuantos === 1 && m.variante === esperadaPorAncho(m))
-    const comunesOk = medidas.every((m) => m.nombre && m.tactil && m.circular && m.dentro && m.sinDesbordeHorizontal)
-    const flotanteOk = medidas
-      .filter((m) => m.vw >= 992)
-      .every((m) => m.fijo && m.centrado && m.aLaDerecha && !m.enCabecera)
-    const cabeceraOk = medidas
-      .filter((m) => m.vw < 992)
-      .every((m) => !m.fijo && m.enCabecera)
+    const unoVisible = medidas.every((m) => m.cuantos === 1)
+    const unoSoloEnElArbol = medidas.every((m) => m.leidos === 1)
+    const comunesOk = unoSoloEnElArbol && medidas.every((m) => m.nombre && m.tactil && m.circular && m.dentro && m.sinDesbordeHorizontal)
+    const flotanteOk = medidas.every((m) => m.fijo && m.centrado && m.aLaDerecha && !m.enCabecera)
 
     const antes = await portada.evaluate(() => {
       const boton = document.querySelector('.boton-accesibilidad')
@@ -375,8 +369,8 @@ try {
       }
     })
 
-    // Se abre con el teclado desde **cada** disparador y se comprueba que el
-    // panel es el mismo y que el foco vuelve a quien lo abrió.
+    // Se abre con el teclado a tres anchos y se comprueba que el panel es el
+    // mismo y que el foco vuelve al disparador.
     const paneles = []
     for (const ancho of [1280, 800, 390]) {
       await portada.setViewportSize({ width: ancho, height: 900 })
@@ -444,10 +438,9 @@ try {
         c.focoEnVisible,
     )
     const ok =
-      variantesOk &&
+      unoVisible &&
       comunesOk &&
       flotanteOk &&
-      cabeceraOk &&
       panelOk &&
       antes.barraVieja === false &&
       antes.tieneDialogo === 'dialog' &&
@@ -458,9 +451,9 @@ try {
       ok,
       detalle:
         `un solo disparador visible a ${anchos.join('/')} px: ${medidas.filter((m) => m.cuantos === 1).length}/${anchos.length} · ` +
-        `variante: ${medidas.map((m) => `${m.vw}→${m.variante ?? '∅'}`).join(' ')} · ` +
+        `círculos en el documento: ${medidas.map((m) => m.leidos).join('/')} · ` +
         `tamaños: ${medidas.map((m) => `${m.ancho ?? 0}×${m.alto ?? 0}`).join(' ')} · ` +
-        `flotante fijo y centrado a la derecha: ${flotanteOk} · cabecera sin fijar: ${cabeceraOk} · ` +
+        `fijo, centrado a la derecha y fuera de la cabecera: ${flotanteOk} · ` +
         `panel (1280/800/390): ${panelOk} · barra vieja retirada: ${antes.barraVieja === false}` +
         (ok ? '' : ` · MEDIDAS: ${JSON.stringify({ medidas, antes, paneles })}`),
     }

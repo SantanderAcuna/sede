@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Support\Cors\OrigenesPermitidos;
+
 /*
  * CORS.
  *
@@ -26,19 +28,14 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        // El valor de FRONTEND_URL cubre cualquier despliegue — staging, producción
-        // o desarrollo. Si no está definido, cae al default de desarrollo.
-        env('FRONTEND_URL', 'http://localhost:5190'),
-        // 127.0.0.1 es necesario porque el panel puede correr en ese host.
-        'http://127.0.0.1:5190',
-        // Desarrollo local del sitio (Nuxt) — hydration desde el navegador.
-        'http://localhost:3001',
-        'http://127.0.0.1:3001',
-        // El navegador del usuario puede resolver el sitio a `0.0.0.0` por
-        // configuración de proxy de la red local.
-        'http://0.0.0.0:3001',
-    ],
+    // Ver `App\Support\Cors\OrigenesPermitidos`: en producción solo los orígenes
+    // declarados en SEDE_ORIGENES_PERMITIDOS / FRONTEND_URL; los de desarrollo
+    // (`localhost`, `0.0.0.0`) solo en `local` y `testing`.
+    'allowed_origins' => OrigenesPermitidos::para(
+        (string) env('APP_ENV', 'production'),
+        env('SEDE_ORIGENES_PERMITIDOS'),
+        env('FRONTEND_URL'),
+    ),
 
     'allowed_headers' => ['*'],
 

@@ -19,10 +19,11 @@ use Spatie\Permission\Models\Role;
  * aquí —y no en un comando aparte— hace que una base recién creada ya pueda
  * administrarse.
  *
- * El sembrador es idempotente: `updateOrCreate` para la cuenta, `findOrCreate`
- * para el rol y `syncRoles` para la relación. Volver a ejecutarlo deja la misma
- * fila y la misma contraseña, que es lo que permite repetirlo en cada despliegue
- * sin duplicar ni pisar la corrección de una persona.
+ * El sembrador es idempotente: crea la cuenta solo si no existe (y solo entonces
+ * le pone contraseña), `findOrCreate` para el rol y `syncRoles` para la relación.
+ * Volver a ejecutarlo deja la misma fila y el mismo hash de contraseña, que es lo
+ * que permite repetirlo en cada despliegue sin duplicar ni pisar la corrección de
+ * una persona.
  */
 final class SuperAdminSeeder extends Seeder
 {
@@ -43,9 +44,13 @@ final class SuperAdminSeeder extends Seeder
         // Sin esta guarda, desplegar sin definir la variable dejaría la cuenta de
         // máximo privilegio con una contraseña publicada en el repositorio. Fallar
         // el sembrado es preferible a dejar la puerta abierta en silencio.
-        if ($clave === self::CLAVE_DE_DESARROLLO && app()->isProduction()) {
+        //
+        // Solo `local` y `testing` pueden usar la clave de desarrollo. Antes la
+        // guarda era `isProduction()`, y un entorno con otro nombre (`staging`) la
+        // habría aceptado: la clave está publicada en el repositorio.
+        if ($clave === self::CLAVE_DE_DESARROLLO && ! app()->environment(['local', 'testing'])) {
             throw new RuntimeException(
-                'Falta SUPER_ADMIN_PASSWORD: el sembrador no crea el super-admin en producción con la clave de desarrollo.'
+                'Falta SUPER_ADMIN_PASSWORD: el sembrador no crea el super-admin fuera de local/testing con la clave de desarrollo.'
             );
         }
 
@@ -54,14 +59,21 @@ final class SuperAdminSeeder extends Seeder
         // asignar.
         $rol = Role::findOrCreate('super-admin', 'web');
 
-        $usuario = User::updateOrCreate(
-            ['email' => (string) config('superadmin.email')],
-            [
+        // La contraseña se fija SOLO al crear la cuenta. `updateOrCreate` la reescribía
+        // en cada ejecución —y esta siembra corre en cada despliegue—, así que una
+        // rotación hecha por la persona se deshacía en el siguiente despliegue y el
+        // hash cambiaba aunque la clave fuera la misma (H-16). Rotarla es una acción
+        // deliberada (cambiarla en la aplicación o con `tinker`), no un efecto
+        // secundario de desplegar.
+        $usuario = User::firstOrNew(['email' => (string) config('superadmin.email')]);
+
+        if (! $usuario->exists) {
+            // Texto plano a propósito: el cast `hashed` de `User` lo cifra.
+            $usuario->forceFill([
                 'name' => (string) config('superadmin.name'),
-                // Texto plano a propósito: el cast `hashed` de `User` lo cifra.
                 'password' => $clave,
-            ],
-        );
+            ])->save();
+        }
 
         // Asegurar que el UUID está poblado (filas preexistentes en migrate normal)
         if ($usuario->uuid === null) {

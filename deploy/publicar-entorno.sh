@@ -90,15 +90,10 @@ else
   [ -n "$DOMINIO" ] || { rojo "El dominio de producción no está decidido (ver §21.A del plan)."; exit 1; }
 fi
 
-# Rangos oficiales de Cloudflare, NUNCA «*»: la aplicación sólo debe fiarse de
-# quien de verdad está delante. Se descargan para no quedarse desactualizados.
-TRUSTED_PROXIES="$(curl -fsS --max-time 20 https://www.cloudflare.com/ips-v4 2>/dev/null | tr '\n' ',' | sed 's/,$//')"
-if [ -z "$TRUSTED_PROXIES" ]; then
-  rojo "No se pudieron obtener los rangos de Cloudflare."
-  rojo "No se publica un entorno fiándose de «*»: eso haría que la aplicación"
-  rojo "creyera a cualquiera que enviara la cabecera de reenvío."
-  exit 1
-fi
+# (La dirección real del visitante la restaura nginx con los rangos de Cloudflare,
+# `docker/nginx/snippets/cloudflare-realip.conf`; la aplicación recibe `REMOTE_ADDR`
+# ya resuelto y no necesita una lista propia. La
+# lista de proxies de confianza que se generaba aquí no la leía nadie.)
 
 # --- Renderizado --------------------------------------------------------------
 paso "1. Renderizado del entorno ($ENTORNO)"
@@ -108,7 +103,7 @@ paso "1. Renderizado del entorno ($ENTORNO)"
 # es peor que decir que no está.
 export APP_KEY DB_PASSWORD REDIS_PASSWORD BACKUP_PASSPHRASE
 export S3_ACCESS_KEY S3_SECRET_KEY
-export DOMINIO ENTORNO TRUSTED_PROXIES
+export DOMINIO ENTORNO
 export SUPER_ADMIN_EMAIL SUPER_ADMIN_NAME SUPER_ADMIN_PASSWORD
 
 export DB_DATABASE="sede"

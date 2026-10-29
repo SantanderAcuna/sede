@@ -219,16 +219,19 @@ const puedeRestablecer = computed(() => hayAjustes.value)
           </button>
         </header>
 
-        <!--
-          El aviso va ANTES de los controles, como exige CC15: quien navega con
-          lector de pantalla tiene que saberlo antes de tocar nada.
-        -->
-        <p class="panel-aviso">
-          Los cambios se aplican al instante y se guardan en este navegador para su
-          próxima visita.
-        </p>
-
         <div class="panel-contenido">
+          <!--
+            El aviso va ANTES de los controles, como exige CC15: quien navega con
+            lector de pantalla tiene que saberlo antes de tocar nada. Está dentro
+            de la zona que se desplaza —no entre la cabecera y ella— para que en
+            un móvil no le quite al panel unos 90 px de altura fija y no corte
+            por la mitad el título del grupo que pasa por debajo al desplazar.
+          -->
+          <p class="panel-aviso">
+            Los cambios se aplican al instante y se guardan en este navegador para
+            su próxima visita.
+          </p>
+
           <!-- ── Contraste ─────────────────────────────────────────────── -->
           <fieldset class="panel-grupo">
             <legend class="panel-grupo-titulo">Contraste</legend>
@@ -479,8 +482,8 @@ const puedeRestablecer = computed(() => hayAjustes.value)
 }
 
 .panel-aviso {
-  margin: 0;
-  padding: 0.875rem 1.5rem 0;
+  margin: 0 0 1rem;
+  padding: 0;
   font-family: 'Verdana-Regular', system-ui, sans-serif;
   font-size: 0.875rem;
   line-height: 1.5;
@@ -814,5 +817,26 @@ const puedeRestablecer = computed(() => hayAjustes.value)
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/* ── Pantallas estrechas y bajas ────────────────────────────────────────── */
+/*
+ * A 390 px el panel medía 352 px de ancho con 24 px de relleno a cada lado, y las
+ * etiquetas de los interruptores se partían en dos líneas sin necesidad. Con 16 px
+ * el texto gana 16 px de línea y cada fila de interruptores un poco de alto. En
+ * horizontal (375 px de alto) el cuerpo se desplaza y la cabecera queda fija.
+ */
+@media (max-width: 575px), (max-height: 480px) {
+  .panel-cabecera {
+    padding: 0.75rem 1rem 0.5rem;
+  }
+
+  .panel-contenido {
+    padding: 0.75rem 1rem 1rem;
+  }
+
+  .panel-grupo {
+    margin-bottom: 1rem;
+  }
 }
 </style>

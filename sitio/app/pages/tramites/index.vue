@@ -669,7 +669,7 @@ function reintentar(): void {
           faculta, que es lo que el SUIT no declara por atributo y lo que la Sede
           sí puede sostener.
         -->
-        <NuxtLink class="d-block mb-2" :to="`/tramites/${elemento.slug}`">
+        <NuxtLink class="enlace-ficha-tramite" :to="`/tramites/${elemento.slug}`">
           Ver la ficha completa<span class="solo-lectores">: {{ elemento.nombre }}</span>
         </NuxtLink>
 

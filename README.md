@@ -5,7 +5,7 @@ para cumplir el Decreto Ley 2106 de 2019, la Resolución MinTIC 1519 de 2020 y l
 de aceptación del expediente normativo que vive en `docs/`.
 
 **Estado:** en construcción. Aprovisionamiento del servidor terminado; la aplicación todavía
-no existe. El plan completo está en [`plan.md`](plan.md).
+no existe. El plan completo está en [`plan.md`](docs/archivo/plan.md).
 
 ---
 
@@ -95,13 +95,13 @@ castellano — describen el efecto, no el archivo tocado.
 
 | Ruta | Contenido |
 |---|---|
-| `plan.md` | **El plan de construcción.** Empieza por aquí |
+| `docs/archivo/plan.md` | **El plan de construcción.** Empieza por aquí. Está archivado junto con los informes de agentes (auditoría Módulo 01, T-01) |
 | `accesos.local.md` *(no versionado)* | Qué credenciales existen, dónde viven y quién las custodia. Vive solo en la máquina del administrador; se retiró del repositorio (auditoría Módulo 01, T-01) |
 | `docs/` | Expediente normativo: las seis secciones y los 140 criterios de aceptación |
 | `docs/adr/` | Decisiones de arquitectura |
 | `docs/investigacion/` | Investigación destilada: entidad, integración estatal, requisitos |
 | `docs-security/` | Guía de seguridad: cinco capítulos y cinco apéndices |
-| `GUIA-MAESTRA-COMPLETA.md` | Guía de casa: stack, metodología y reglas absolutas |
+| `docs/archivo/GUIA-MAESTRA-COMPLETA.md` | Guía de casa: stack, metodología y reglas absolutas |
 | `contract/` | Contrato OpenAPI |
 | `docker/` | Imágenes y configuración de los contenedores |
 

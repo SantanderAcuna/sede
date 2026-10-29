@@ -72,7 +72,7 @@ contrato: ## Valida el contrato y comprueba que no derive de las rutas
 .PHONY: cobertura
 cobertura: ## Mide la cobertura de las pruebas y falla si baja del trinquete
 	@echo "RNF-B1-043 pide 70 % de cobertura. Hoy no se alcanza: las cifras medidas"
-	@echo "están publicadas en auditoria-sede.md. Estos umbrales son un trinquete para"
+	@echo "están publicadas en docs/archivo/auditoria-sede.md. Estos umbrales son un trinquete para"
 	@echo "que no baje, no el objetivo."
 	@echo "Nota: los avisos PARSE_ERROR de los .vue son ruido del remapeo de v8 sobre"
 	@echo "componentes, no fallos; lo que decide la puerta es el código de salida."

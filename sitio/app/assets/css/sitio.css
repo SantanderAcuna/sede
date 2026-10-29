@@ -1600,3 +1600,191 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
     border-bottom: 0;
   }
 }
+
+/* ============================================================================
+   Componentes del Kit UI (T-28): acordeón, toast, carga, paginación, tabla
+   ============================================================================
+   Los cinco componentes de `app/components/govco/` que cierran RF-B3-062, 064,
+   070, 075 y 076. El Kit trae el CSS de tres de ellos (acordeón, toast, tabla);
+   aquí sólo se corrige lo que el Kit no resuelve y se estila lo que no trae
+   (paginación y carga). Todo con tokens: ningún color en crudo.
+
+   Va al final, y no entre las secciones de arriba, porque nada de esto compite
+   con los modos de accesibilidad: el modo de alto contraste los alcanza por el
+   selector `#__nuxt *` de su capa, que ya gana a cualquier clase de este bloque.
+   ============================================================================ */
+
+/*
+ * Acordeón. El Kit dibuja el botón con interlínea 0 en el encabezado y 1rem en
+ * el texto: un título que se parte en dos líneas se pisa a sí mismo. Se le
+ * devuelve una interlínea legible y se deja crecer al botón.
+ *
+ * El «pasar el cursor» tampoco lo define el Kit para el acordeón, y el
+ * requisito pide los cuatro estados (normal, hover, foco, deshabilitado). Un
+ * fondo neutro, sin tocar el color del texto, para que el contraste del título
+ * no baje.
+ */
+.acordeon-govco .button-accordion-govco {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: auto;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  cursor: pointer;
+}
+
+.acordeon-govco .button-accordion-govco:hover:not(:disabled) {
+  background-color: var(--color-superficie-neutra);
+}
+
+.acordeon-govco .button-accordion-govco:disabled {
+  cursor: not-allowed;
+}
+
+.acordeon-govco .text-button-accordion-govco {
+  line-height: 1.4;
+}
+
+/*
+ * Toast. El Kit lo ancla arriba a la derecha con `z-index: 2`, por debajo de la
+ * cabecera y del menú pegajoso: un aviso oculto detrás de la barra no se lee. Se
+ * sube por encima de la página, pero por debajo del panel de accesibilidad y del
+ * aviso de salida (que son modales y van en la capa superior del navegador).
+ */
+.contenedor-toasts-govco {
+  z-index: 1080;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  pointer-events: none;
+}
+
+.contenedor-toasts-govco .toast {
+  pointer-events: auto;
+}
+
+/* El botón de cerrar es un botón de verdad, no el ícono suelto del Kit: 44 px de
+   área activa (WCAG 2.5.5) con el ícono de 12 px centrado. */
+.toast-govco-cerrar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/*
+ * Carga. El Kit trae el ícono del spinner (`govco-spinner`) pero sólo anima el
+ * suyo de carga de archivos. Se hace girar éste; con «detener animaciones» o
+ * `prefers-reduced-motion` el ícono se queda quieto y el texto sigue diciendo
+ * que se espera, que es lo que importa.
+ */
+.cargando-govco {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cargando-govco-indicador {
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  background-size: 1.5rem 1.5rem;
+}
+
+.cargando-govco .aviso-carga-larga {
+  flex-basis: 100%;
+  color: var(--color-texto);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cargando-govco-indicador {
+    animation: cargando-govco-giro 0.9s linear infinite;
+  }
+}
+
+@keyframes cargando-govco-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * Paginación. Cada control mide al menos 44 × 44 px (RF-B3-075, WCAG 2.5.5).
+ * Bootstrap los deja en ~38 px de alto y el número «1» en ~35 de ancho. Los
+ * elementos llevan los bordes pegados —Bootstrap los une con un margen
+ * negativo—, así que sólo se separan las filas cuando la paginación parte.
+ */
+.paginacion-govco {
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
+
+.paginacion-govco .page-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  color: var(--color-enlace);
+}
+
+.paginacion-govco .page-item.active .page-link {
+  background-color: var(--color-enlace);
+  border-color: var(--color-enlace);
+  color: var(--color-texto-sobre-enlace);
+}
+
+.paginacion-govco .page-link:focus-visible {
+  outline: 3px solid var(--color-enlace);
+  outline-offset: 2px;
+}
+
+/*
+ * Tabla ordenable. **Corrige un defecto del Kit** (regla 4 de este archivo): el
+ * Kit estiliza cualquier `button` dentro de un `<th>` como un icono suelto de
+ * 16 × 15 px, en el gris-violeta «portage» y sin relleno
+ * (`.tabla-govco tr th button`). Eso es lo que espera su propio marcado —un
+ * texto con un botoncito al lado—, pero deja un área activa de 16 px (WCAG 2.5.8
+ * pide 24 como mínimo y este sitio se ha fijado 44) y, con el título DENTRO del
+ * botón como aquí, lo encoge a 16 px de ancho y lo pinta en un tono que sobre el
+ * azul de la cabecera no llega a contraste. Se decidió poner el título dentro del
+ * botón, y no al lado, porque así el nombre accesible del control es el del
+ * encabezado entero («Término para resolver») y no un «Ordenar» suelto.
+ *
+ * Los selectores llevan dos clases para ganarle por especificidad al del Kit
+ * (una clase y tres elementos) sin recurrir a `!important`.
+ */
+.tabla-ordenable-govco .tabla-ordenable-boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: auto;
+  height: auto;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* El icono del Kit es negro por defecto: sobre la cabecera azul se vuelve blanco
+   con el filtro que el propio Kit declara para eso. */
+.tabla-ordenable-govco .tabla-ordenable-boton .govco-svg {
+  filter: var(--govcolor-svg-white);
+}
+
+.tabla-ordenable-govco .tabla-ordenable-boton:focus-visible {
+  outline: 3px solid currentcolor;
+  outline-offset: 2px;
+}

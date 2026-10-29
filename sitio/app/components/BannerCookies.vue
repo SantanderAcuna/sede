@@ -19,7 +19,7 @@
  * pintara la página sin él y el cliente con él, que es un desajuste de
  * hidratación garantizado.
  */
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 
 import { useConsentimientoCookies } from '~/composables/useConsentimientoCookies'
 import { useToast } from '~/composables/useToast'
@@ -52,6 +52,16 @@ const obligatoriaInfo =
   'Las cookies estrictamente necesarias permiten que el sitio funcione —recordar su consentimiento, por ejemplo— y no requieren autorización.'
 
 const { mostrar } = useToast()
+
+/**
+ * Sólo cuenta en pantallas estrechas o bajas, donde las tres categorías
+ * desplegadas ocupaban entre el 88 y el 100 % de la pantalla (medido a 390, 360 y
+ * 320 px, y en horizontal) y dejaban los botones fuera de vista. Ahí el banner
+ * arranca con lo esencial —texto y las dos salidas de igual peso, «Aceptar
+ * todas» y «Rechazar opcionales»— y las categorías se despliegan a petición. En
+ * pantalla ancha el estado no tiene efecto: la CSS no oculta nada.
+ */
+const configurando = ref(false)
 
 /**
  * Al elegir, el banner desaparece sin más, y quien no ve la pantalla —o la
@@ -93,6 +103,7 @@ onMounted(inicializar)
   <div
     v-if="visible"
     class="banner-cookies"
+    :class="{ 'banner-cookies--configurando': configurando }"
     role="dialog"
     aria-labelledby="titulo-banner-cookies"
     aria-describedby="descripcion-banner-cookies"
@@ -111,7 +122,7 @@ onMounted(inicializar)
           <NuxtLink to="/politicas/uso-de-cookies">política de uso de cookies</NuxtLink>.
         </p>
 
-        <div class="categorias-cookies">
+        <div id="categorias-cookies" class="categorias-cookies">
           <div class="categoria-item">
             <div class="categoria-encabezado">
               <span class="nombre-categoria">
@@ -146,6 +157,17 @@ onMounted(inicializar)
         <button type="button" class="btn btn-rechazar" @click="alRechazarOpcionales">
           Rechazar opcionales
         </button>
+        <!-- Sólo se ve en pantalla estrecha o baja (ver la CSS). El foco se queda
+             en este botón al desplegar: no desaparece, sólo cambia de texto. -->
+        <button
+          type="button"
+          class="btn btn-categorias"
+          aria-controls="categorias-cookies"
+          :aria-expanded="configurando ? 'true' : 'false'"
+          @click="configurando = !configurando"
+        >
+          {{ configurando ? 'Ocultar categorías' : 'Elegir por categorías' }}
+        </button>
         <button type="button" class="btn btn-configurar" @click="alGuardarPreferencias">
           Guardar mi elección
         </button>
@@ -168,6 +190,7 @@ onMounted(inicializar)
   /* El banner no debe crecer más allá de la pantalla: en un móvil con el texto
      desplegado, la zona de botones tiene que seguir siendo alcanzable. */
   max-height: 100vh;
+  max-height: 100dvh;
   overflow-y: auto;
 }
 
@@ -305,21 +328,104 @@ onMounted(inicializar)
   background-color: var(--govcolor-solitude, #e5ecf8);
 }
 
-@media (max-width: 767px) {
+/* Sólo existe en pantalla estrecha o baja; en las demás las categorías ya se ven. */
+.btn-categorias {
+  display: none;
+  background-color: transparent;
+  border: 0.125rem solid var(--govcolor-cobalt, #0943b5);
+  color: var(--govcolor-cobalt, #0943b5);
+}
+
+.btn-categorias:hover {
+  background-color: var(--govcolor-solitude, #e5ecf8);
+}
+
+/*
+ * Pantalla estrecha (móvil en vertical) o baja (móvil en horizontal).
+ *
+ * Antes el banner ocupaba el 88 % de la pantalla a 390 px y el 100 % a 360 px, a
+ * 320 × 568 y en horizontal, con las tres categorías siempre desplegadas. Ahora:
+ *
+ *  - las categorías y «Guardar mi elección» sólo aparecen al pedirlas;
+ *  - el texto baja un punto de tamaño y los botones pueden partir su rótulo
+ *    (`nowrap` a 320 px los sacaba del ancho);
+ *  - el banner nunca pasa del 70 % de la altura, y la barra de botones queda
+ *    pegada al borde inferior cuando hay que desplazar el contenido, así que
+ *    aceptar o rechazar se alcanza siempre sin buscarlo.
+ */
+@media (max-width: 767px), (max-height: 480px) {
   .banner-cookies {
-    padding: 1rem;
+    padding: 0.75rem 1rem 0;
+    max-height: 70vh;
+    max-height: 70dvh;
   }
 
   .contenido-banner {
-    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .titulo-cookies {
+    margin-bottom: 0.25rem;
+    font-size: 1.0625rem;
+  }
+
+  .descripcion-cookies {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  .categorias-cookies {
+    display: none;
+    margin-bottom: 0.5rem;
+  }
+
+  .banner-cookies--configurando .categorias-cookies {
+    display: flex;
+  }
+
+  .btn-configurar {
+    display: none;
+  }
+
+  .banner-cookies--configurando .btn-configurar {
+    display: inline-flex;
+  }
+
+  .btn-categorias {
+    display: inline-flex;
   }
 
   .acciones-banner {
+    position: sticky;
+    bottom: 0;
     width: 100%;
+    gap: 0.5rem;
+    padding: 0.5rem 0 0.75rem;
+    background-color: #ffffff;
   }
 
   .btn {
-    flex: 1 1 auto;
+    flex: 1 1 8.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 767px) {
+  .contenido-banner {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  /* `flex: 1 1 40ch` es una anchura mínima pensada para la fila de escritorio;
+     en columna el mismo valor se lee como ALTO y reservaba unos 320 px de aire
+     entre el texto y los botones (de ahí buena parte del 88 % que ocupaba). */
+  .texto-banner {
+    flex: 0 0 auto;
   }
 }
 </style>

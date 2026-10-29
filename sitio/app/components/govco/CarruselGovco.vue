@@ -488,6 +488,31 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
+/*
+ * Con el dedo, un punto de 16 px es imposible de acertar. El área de pulsación se
+ * agranda con un pseudoelemento de 44 × 44 px que no cambia lo que se ve, y el
+ * paso entre puntos sube a 44 px (16 de punto + 14 de margen a cada lado) para que
+ * las áreas de dos vecinos no se solapen. Sólo con puntero grueso o en pantalla
+ * estrecha: con ratón el paso de 27 px de arriba basta.
+ */
+@media (max-width: 575px), (pointer: coarse) {
+  .carrusel-govco .carousel-indicators {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .carrusel-govco .carousel-indicators button {
+    position: relative;
+    margin: 0.875rem;
+  }
+
+  .carrusel-govco .carousel-indicators button::after {
+    content: '';
+    position: absolute;
+    inset: -1rem;
+  }
+}
+
 .carrusel-govco .carousel-indicators button:not(.active) {
   opacity: 1;
   background-color: transparent;
@@ -511,6 +536,7 @@ onBeforeUnmount(() => {
 }
 
 .carrusel-govco .control-start-pause button {
+  min-height: 2.75rem;
   border-radius: 0.25rem;
   background-color: transparent;
   cursor: pointer;

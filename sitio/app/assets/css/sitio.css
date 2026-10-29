@@ -1022,7 +1022,22 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .form-check {
   display: flex;
   align-items: center;
+  /* Bootstrap deja 1,5 em de relleno a la izquierda y saca el control flotando
+     con margen negativo: con el cuadro de 20 px de arriba casi no queda hueco y la
+     etiqueta se ve pegada al círculo. Con `gap` la separación es una medida. */
+  gap: 0.75rem;
   min-height: 2.75rem;
+  padding-left: 0;
+}
+
+.form-check .form-check-input {
+  flex: none;
+  float: none;
+  margin: 0;
+}
+
+.form-check .form-check-label {
+  flex: 1 1 auto;
 }
 
 /*
@@ -1795,4 +1810,115 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
 .tabla-ordenable-govco .tabla-ordenable-boton:focus-visible {
   outline: 3px solid currentcolor;
   outline-offset: 2px;
+}
+
+/* ============================================================================
+   Ajustes móviles (revisión con Playwright, 20 rutas × 320/360/390 px)
+   ============================================================================
+
+   Lo que se midió y se corrige aquí, siempre en la hoja del sitio y nunca en
+   `public/govco/**` (regla 4 de este archivo):
+
+     migas de pan         sangría de 58 px y niveles apilados en vertical
+     botón del menú GOV.CO 42 × 42 px
+     botones `.btn-govco`  42 px de alto
+     lupa del buscador    invisible: el Kit la dibuja en blanco sobre un fondo
+                          cobalto que este sitio no usa
+     casillas y radios    el control pegado al texto de la etiqueta
+
+   Los cambios de tamaño táctil se limitan a pantallas estrechas o con puntero
+   grueso: en escritorio el diseño del Kit queda como estaba.
+   ============================================================================ */
+
+/* La lupa del Kit es un SVG negro pensado para ir con el filtro «blanco» sobre el
+   círculo cobalto de su ejemplo. Aquí el botón es transparente, y sin filtro el
+   icono se pierde (no hay nada que indique dónde buscar); con el filtro
+   «cobalto» del propio Kit se ve en cualquier ancho. */
+.govco-search-basic .btn-search-basic-govco .govco-svg {
+  filter: var(--govcolor-svg-cobalt);
+}
+
+@media (max-width: 767px) {
+  /*
+   * Migas de pan. El Kit pone `padding: 0 46px !important` al `<ul>` —sin
+   * permitir que otra regla lo cambie— y 0,8 rem a cada lado de cada nivel, de
+   * modo que a 390 px la miga empieza a 70 px del borde (el texto, a 12) y el
+   * segundo nivel salta de línea aunque quepa. Como esa sangría no se puede
+   * ganar sin `!important`, se compensa con un margen negativo **sólo a la
+   * izquierda** (a la derecha el `<ul>` se saldría de la página y el navegador
+   * móvil ensancharía la ventana) y se recorta el relleno de cada nivel.
+   */
+  .breadcrumb-govco {
+    max-width: none;
+    margin-bottom: 0.5rem;
+    margin-left: -2.875rem;
+  }
+
+  .breadcrumb-item-govco {
+    padding: 0 0.5rem 0.3rem 0;
+  }
+
+  .breadcrumb-item-govco + .breadcrumb-item-govco::before {
+    padding-right: 0.5rem;
+  }
+
+  /* El nivel enlazado llega a 44 px de alto y de ancho sin mover nada: el relleno
+     lo agranda y el margen negativo de la misma medida devuelve el espacio. */
+  .breadcrumb-item-govco > a {
+    display: inline-block;
+    padding: 0.75rem 0.25rem;
+    margin: -0.75rem -0.25rem;
+  }
+
+  /* El rótulo del campo («Buscar trámite») no cabía en el hueco que deja el
+     logotipo, y se cortaba a media letra («trámit»). Con menos relleno gana
+     14 px y, si aun así no cabe, termina en puntos suspensivos. */
+  form.govco-search-basic .input-search-basic-govco {
+    padding-right: 0.25rem;
+    padding-left: 0.875rem;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  /* El Kit fija 42 × 42 px (sin `!important` en el tamaño). */
+  .button-rounded-menu-govco {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  /* Relleno de 0,688 rem + línea de 1 rem + borde de 2 px = 42 px. */
+  .btn-govco {
+    min-height: 2.75rem;
+  }
+
+  /* Enlaces de bloque que sólo median el alto de su línea (24 px). */
+  .btn-govco.link-btn-govco {
+    line-height: 1.4;
+  }
+}
+
+/* «Ver la ficha completa» de cada trámite del listado: un enlace de bloque que
+   sólo medía el alto de su línea (24 px). */
+.enlace-ficha-tramite {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .enlace-ficha-tramite {
+    min-height: 2.75rem;
+  }
+}
+
+/*
+ * Una palabra sin espacios más larga que la línea —un correo, una dirección web—
+ * no se parte por sí sola y empuja el ancho de la página: en la declaración de
+ * accesibilidad, el correo de notificaciones judiciales (36 caracteres sin
+ * espacio) sacaba la página 30 px por la derecha a 390 px y 99 px a 320 px. En
+ * pantalla ancha no cambia nada: `break-word` sólo parte lo que no cabe.
+ */
+main {
+  overflow-wrap: break-word;
 }

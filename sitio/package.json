@@ -20,6 +20,7 @@
     "test:cookies": "node tests/cookies.mjs",
     "test:politicas": "node tests/politicas.mjs",
     "test:kit-ui": "node tests/kit-ui.mjs",
+    "test:movil": "node tests/movil.mjs",
     "test:braces": "node ../scripts/audit-deps.sh",
     "test:node-forge": "node ../scripts/validate-node-forge.mjs"
   },

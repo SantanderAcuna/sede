@@ -17,6 +17,7 @@ use Spatie\Permission\Events\RoleAttachedEvent;
 use Spatie\Permission\Events\RoleDetachedEvent;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Throwable;
 
 /**
  * Listener que registra en audit_log los eventos de Spatie Permission y Auth.
@@ -171,15 +172,22 @@ final class PermissionAuditListener
         $email = $event->credentials['email'] ?? null;
         $motivo = $event->credentials['motivo'] ?? null;
 
-        $this->registrar([
-            'accion' => 'login_failed',
-            'recurso' => 'session',
-            'cambios' => [
-                'email' => is_string($email) ? mb_substr($email, 0, 254) : null,
-                'motivo' => is_string($motivo) ? $motivo : null,
-            ],
-            'causer_id' => $event->user?->getAuthIdentifier(),
-        ]);
+        // Un fallo al escribir la auditoría no debe cambiar la respuesta del login:
+        // el intento ya fue rechazado, y convertir ese 401 en un 500 solo le diría a
+        // quien ataca que la base de datos tiene un problema. Se reporta al log.
+        try {
+            $this->registrar([
+                'accion' => 'login_failed',
+                'recurso' => 'session',
+                'cambios' => [
+                    'email' => is_string($email) ? mb_substr($email, 0, 254) : null,
+                    'motivo' => is_string($motivo) ? $motivo : null,
+                ],
+                'causer_id' => $event->user?->getAuthIdentifier(),
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

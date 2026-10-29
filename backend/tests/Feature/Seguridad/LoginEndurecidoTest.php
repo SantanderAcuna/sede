@@ -69,16 +69,27 @@ final class LoginEndurecidoTest extends TestCase
         );
     }
 
-    public function test_un_acceso_correcto_no_deja_registro_de_fallo(): void
+    public function test_una_cuenta_inactiva_con_la_clave_correcta_se_audita_con_su_motivo(): void
     {
-        User::factory()->create(['email' => 'bien@example.com', 'password' => 'Clave.Correcta.2026']);
+        $usuario = User::factory()->create([
+            'email' => 'baja@example.com',
+            'password' => 'Clave.Correcta.2026',
+            'estado' => 'inactivo',
+        ]);
 
         $this->postJson('/api/v1/panel/login', [
-            'email' => 'bien@example.com',
+            'email' => 'baja@example.com',
             'password' => 'Clave.Correcta.2026',
-        ])->assertOk();
+        ])->assertStatus(401);
 
-        $this->assertSame(0, AuditLog::query()->where('accion', 'login_failed')->count());
+        $registro = AuditLog::query()->where('accion', 'login_failed')->firstOrFail();
+        $cambios = $registro->cambios;
+
+        $this->assertIsArray($cambios);
+        $this->assertSame('cuenta_inactiva', $cambios['motivo']);
+        $this->assertSame($usuario->id, $registro->causer_id);
+        // Ninguna sesión se abrió.
+        $this->assertGuest('web');
     }
 
     public function test_el_correo_inexistente_comprueba_un_hash_igual_que_el_existente(): void

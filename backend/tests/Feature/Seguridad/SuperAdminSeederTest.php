@@ -59,7 +59,10 @@ final class SuperAdminSeederTest extends TestCase
             $this->app['env'] = $entorno;
 
             try {
-                $this->seed(SuperAdminSeeder::class);
+                // Directo y no con `$this->seed()`: `db:seed` en `production` pide
+                // confirmación y se salta la siembra sin lanzar nada, y la prueba
+                // nunca llegaría al sembrador.
+                (new SuperAdminSeeder)->run();
                 $this->fail("Debía negarse a sembrar con la clave de desarrollo en '{$entorno}'.");
             } catch (RuntimeException $e) {
                 $this->assertStringContainsString('SUPER_ADMIN_PASSWORD', $e->getMessage());

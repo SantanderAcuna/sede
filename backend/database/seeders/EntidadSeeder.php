@@ -36,19 +36,27 @@ final class EntidadSeeder extends Seeder
                 'horario' => 'Lunes a viernes de 8:00 a 12:00 y de 14:00 a 18:00',
                 'codigo_postal' => '470004',
                 'dominio' => 'https://staging.santamarta.gov.co',
-                'logo' => '/storage/entidad/escudo.svg',
+                // El escudo lo sirve el sitio (`sitio/public/logo-entidad.png`). Antes apuntaba a
+                // `/storage/entidad/escudo.svg`, que daba 404 (H-22, AC-21.3).
+                'logo' => '/logo-entidad.png',
+                // Las cuentas que publica www.santamarta.gov.co en su pie. El pie del sitio
+                // las lee de aquí y `redes-sociales.ts` guarda el mismo juego como respaldo;
+                // `IdentidadDatosTest` falla si divergen.
                 'redes' => [
                     ['red' => 'facebook', 'url' => 'https://www.facebook.com/SantaMartaDTCH'],
-                    ['red' => 'instagram', 'url' => 'https://www.instagram.com/alcaldiadesantamarta'],
-                    ['red' => 'x', 'url' => 'https://twitter.com/alcaldesantamarta'],
-                    ['red' => 'youtube', 'url' => 'https://www.youtube.com/@AlcaldiadeSanta Marta'],
+                    ['red' => 'instagram', 'url' => 'https://www.instagram.com/santamartadtch'],
+                    ['red' => 'x', 'url' => 'https://x.com/SantaMartaDTCH'],
+                    ['red' => 'youtube', 'url' => 'https://www.youtube.com/@Alcald%C3%ADadeSantaMartaDTCH'],
                 ],
                 'politicas' => [
-                    ['slug' => 'terminos-y-condiciones', 'nombre' => 'Términos y condiciones'],
+                    // Los slugs y nombres son los de `POLITICAS` en
+                    // `sitio/app/config/sitemap.ts`, que es la lista única (D-31).
+                    // Una prueba (`IdentidadDatosTest`) falla si divergen.
+                    ['slug' => 'terminos-y-condiciones-de-uso', 'nombre' => 'Términos y condiciones de uso'],
                     ['slug' => 'seguridad-y-privacidad', 'nombre' => 'Seguridad y privacidad'],
-                    ['slug' => 'tratamiento-de-datos', 'nombre' => 'Protección y tratamiento de datos personales'],
+                    ['slug' => 'proteccion-y-tratamiento-de-datos-personales', 'nombre' => 'Protección y tratamiento de datos personales'],
                     ['slug' => 'uso-de-cookies', 'nombre' => 'Uso de cookies'],
-                    ['slug' => 'derechos-de-autor', 'nombre' => 'Derechos de autor y uso sobre los contenidos'],
+                    ['slug' => 'derechos-de-autor-y-uso-sobre-contenidos', 'nombre' => 'Derechos de autor y uso sobre contenidos'],
                 ],
                 'datos_por_confirmar' => [],
             ]

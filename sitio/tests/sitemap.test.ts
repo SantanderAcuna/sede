@@ -72,6 +72,10 @@ describe('el menú principal', () => {
     expect(pqrsd).toBeGreaterThan(participa)
   })
 
+  it('el segundo rótulo es el que manda la norma, completo (RF-B1-003, AC-27.1)', () => {
+    expect(menuPrincipal[1]?.etiqueta).toBe('Transparencia y acceso a la información pública')
+  })
+
   it('ninguna opción despliega más de cuatro secciones internas (CAG-09)', () => {
     for (const item of menuPrincipal) {
       expect(item.subsecciones?.length ?? 0).toBeLessThanOrEqual(4)

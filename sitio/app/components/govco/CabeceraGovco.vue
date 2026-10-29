@@ -74,10 +74,10 @@ const {
 
           En escritorio se acota con `hueco-buscador` (regla más abajo) para que
           no ocupe todo el ancho y se vea centrado: la barra mide mucho y el
-          campo a 100 % descuadra el conjunto. En móvil el buscador pasa al menú
-          desplegable y este hueco ya ni se monta, pero por si el consumidor lo
-          reutiliza en otra barra estrecha, se deja al 100 % por debajo de
-          992 px.
+          campo a 100 % descuadra el conjunto. En móvil (< 768 px) el hueco pasa
+          a su propia fila a todo el ancho (reglas al final de `sitio.css`): es el
+          único buscador de la página —el menú ya no lleva otro— y RF-B1-005 lo
+          quiere visible en el encabezado, con espacio para 27 caracteres.
         -->
         <div class="hueco-buscador">
           <slot name="buscador" />
@@ -141,10 +141,9 @@ const {
  * centrar el buscador rompe ese reparto y queda más equilibrado. El logo
  * queda a la izquierda y las acciones a la derecha, como manda el Anexo 2.1.
  *
- * **Por qué sólo en pantallas grandes.** Por debajo de 992 px el buscador se
- * va al menú desplegable y este contenedor ni se renderiza, pero si algún día
- * se reutiliza el slot en otra barra estrecha, se mantiene al 100 % para no
- * comprimir el campo por debajo del mínimo táctil de 44 px de alto.
+ * **Por qué sólo en pantallas grandes.** Por debajo de 992 px el hueco ocupa todo
+ * el ancho que le deja la barra para no comprimir el campo; por debajo de
+ * 768 px, además, baja a su propia fila (`sitio.css`).
  */
 .hueco-buscador {
   /* Por defecto ocupa todo el ancho disponible: el buscador manda en su

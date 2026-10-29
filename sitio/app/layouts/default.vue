@@ -281,16 +281,16 @@ const aplicacionesGaleria = [
       </CabeceraGovco>
 
       <!--
-        El buscador se pasa también al menú, en el hueco que el componente
-        expone. En escritorio el componente lo oculta —el buscador ya está en la
-        cabecera— y en móvil, con el menú desplegado, es la única forma de buscar
-        sin cerrarlo: el Kit sitúa ahí su buscador y aquí se respeta (D-50).
+        El menú NO lleva buscador. Hasta ahora recibía un segundo ejemplar, como
+        en el ejemplo del Kit, y en móvil la página mostraba dos buscadores con el
+        mismo nombre (dos regiones «search» iguales), uno de ellos con el campo
+        de ~16 caracteres: menos de los 27 que exige RF-B1-005. El que cuenta es
+        el de la cabecera —RF-B1-005 lo quiere visible en el encabezado de todas
+        las páginas—, y en móvil ocupa su propia fila a todo el ancho (reglas al
+        final de `sitio.css`). `MenuNavegacionGovco` conserva el hueco por si el
+        Kit lo necesita en otra disposición, pero aquí no se rellena.
       -->
-      <MenuNavegacionGovco :items="menu" etiqueta-accesible="Menú principal de la Sede Electrónica">
-        <template #buscador>
-          <BuscadorGovco @buscar="alBuscar" />
-        </template>
-      </MenuNavegacionGovco>
+      <MenuNavegacionGovco :items="menu" etiqueta-accesible="Menú principal de la Sede Electrónica" />
 
       <MigaDePanGovco :niveles="migaDePan" />
 

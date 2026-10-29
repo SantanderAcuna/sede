@@ -55,6 +55,70 @@ final class AuditoriaTest extends TestCase
             ]);
     }
 
+    public function test_usuario_sin_permiso_auditoria_ver_recibe_403(): void
+    {
+        $sinPermisos = User::factory()->create();
+
+        $this->actingAs($sinPermisos, 'web')
+            ->getJson('/api/v1/panel/auditoria')
+            ->assertForbidden();
+    }
+
+    public function test_usuario_con_permiso_auditoria_ver_recibe_200(): void
+    {
+        $conPermiso = User::factory()->create();
+        $conPermiso->givePermissionTo('auditoria.ver');
+
+        $this->actingAs($conPermiso, 'web')
+            ->getJson('/api/v1/panel/auditoria')
+            ->assertOk();
+    }
+
+    public function test_los_datos_devueltos_son_los_de_la_pagina_y_no_una_lista_vacia(): void
+    {
+        $this->crearRegistros(3);
+
+        $respuesta = $this->actingAs($this->user, 'web')
+            ->getJson('/api/v1/panel/auditoria');
+
+        $respuesta->assertOk()->assertJsonPath('meta.total', 3);
+        $this->assertCount(3, $respuesta->json('data'));
+    }
+
+    public function test_por_pagina_limita_los_datos_y_calcula_las_paginas(): void
+    {
+        $this->crearRegistros(3);
+
+        $respuesta = $this->actingAs($this->user, 'web')
+            ->getJson('/api/v1/panel/auditoria?por_pagina=2');
+
+        $respuesta->assertOk()
+            ->assertJsonPath('meta.total', 3)
+            ->assertJsonPath('meta.last_page', 2);
+        $this->assertCount(2, $respuesta->json('data'));
+    }
+
+    /**
+     * Deja exactamente $cantidad registros en el log, sin disparar los eventos que
+     * a su vez escribirían más filas.
+     */
+    private function crearRegistros(int $cantidad): void
+    {
+        AuditLog::query()->delete();
+
+        AuditLog::withoutEvents(function () use ($cantidad): void {
+            for ($i = 0; $i < $cantidad; $i++) {
+                AuditLog::create([
+                    'accion' => 'login',
+                    'recurso' => 'session',
+                    'causer_id' => $this->user->id,
+                    'ip_origen' => '127.0.0.1',
+                    'created_at' => now()->subMinutes($i),
+                ]);
+            }
+        });
+    }
+
     public function test_asignar_permiso_a_rol_crea_permission_attached_y_detached(): void
     {
         $role = Role::findByName('super-admin', 'web');

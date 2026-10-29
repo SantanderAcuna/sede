@@ -48,10 +48,12 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth:sanctum');
         Route::get('/perfil', [AuthController::class, 'perfil'])->name('perfil')->middleware('auth:sanctum');
 
-        // Auditoría — log de auditoría (requiere autenticación)
+        // Auditoría — log de auditoría (requiere autenticación + permiso). Sin el
+        // permiso, cualquier cuenta autenticada podía leer quién hizo qué (H-07).
         Route::get('/auditoria', [AuditoriaController::class, 'index'])
             ->name('auditoria.index')
-            ->middleware('auth:sanctum');
+            ->middleware('auth:sanctum')
+            ->middleware('can:auditoria.ver');
 
         // Entidad — gestión de datos institucionales (requiere autenticación + permiso)
         Route::patch('/entidad', [EntidadController::class, 'actualizar'])

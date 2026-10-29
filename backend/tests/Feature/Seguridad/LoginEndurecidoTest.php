@@ -38,8 +38,10 @@ final class LoginEndurecidoTest extends TestCase
 
         $this->assertSame('203.0.113.9', $registro->ip_origen);
         $this->assertSame($usuario->id, $registro->causer_id);
-        $this->assertSame('funcionaria@example.com', $registro->cambios['email']);
-        $this->assertSame('contrasena_incorrecta', $registro->cambios['motivo']);
+        $cambios = $registro->cambios;
+        $this->assertIsArray($cambios);
+        $this->assertSame('funcionaria@example.com', $cambios['email']);
+        $this->assertSame('contrasena_incorrecta', $cambios['motivo']);
 
         // Lo que más importa: ni la contraseña ni nada derivado en ninguna columna.
         $this->assertStringNotContainsString(
@@ -58,7 +60,9 @@ final class LoginEndurecidoTest extends TestCase
         $registro = AuditLog::query()->where('accion', 'login_failed')->firstOrFail();
 
         $this->assertNull($registro->causer_id);
-        $this->assertSame('usuario_inexistente', $registro->cambios['motivo']);
+        $cambios = $registro->cambios;
+        $this->assertIsArray($cambios);
+        $this->assertSame('usuario_inexistente', $cambios['motivo']);
         $this->assertStringNotContainsString(
             self::CLAVE_ERRADA,
             json_encode($registro->getAttributes(), JSON_THROW_ON_ERROR)

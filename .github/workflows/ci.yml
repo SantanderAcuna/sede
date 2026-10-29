@@ -209,6 +209,27 @@ jobs:
             exit 1
           fi
           echo "nginx declara /sanctum/csrf-cookie y /api/v1/panel/login."
+      - name: nginx emite la política de contenido en modo informe
+        run: |
+          # T-08 (H-09). El sitio y el panel emiten `Content-Security-Policy-Report-Only`.
+          # Un `add_header` dentro de un `location` anula los del servidor, así que la
+          # guarda comprueba que los dos bloques de documentos incluyen el snippet y que
+          # la política no recupera `unsafe-eval` ni abre `unsafe-inline` en scripts.
+          f=docker/nginx/conf.d/default.conf
+          p=docker/nginx/snippets/csp-informe.conf
+          [ "$(grep -c 'snippets/csp-informe.conf' "$f")" -ge 2 ] \
+            || { echo "Faltan includes de csp-informe.conf en los locations del sitio y del panel."; exit 1; }
+          grep -q '^add_header Content-Security-Policy-Report-Only ' "$p" \
+            || { echo "El snippet ya no emite Content-Security-Policy-Report-Only."; exit 1; }
+          linea="$(grep '^add_header Content-Security-Policy-Report-Only ' "$p")"
+          for requerido in "default-src 'self'" "object-src 'none'" "base-uri 'self'" "frame-ancestors 'none'"; do
+            echo "$linea" | grep -qF "$requerido" || { echo "Falta la directiva: $requerido"; exit 1; }
+          done
+          if echo "$linea" | grep -q "unsafe-eval"; then echo "La política contiene unsafe-eval."; exit 1; fi
+          if echo "$linea" | grep -oE "script-src [^;]*" | grep -q "unsafe-inline"; then
+            echo "script-src contiene unsafe-inline."; exit 1
+          fi
+          echo "CSP en modo informe: includes y directivas esenciales presentes."
 
   # ---------------------------------------------------------------------------
   # Dependencias de terceros

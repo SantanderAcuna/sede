@@ -10,20 +10,21 @@
  * debajo de 992 px (propuesta del 2026-10-29), así que no hay variante de cabecera
  * y no se oculta a ningún ancho.
  *
- * **No ocupa espacio.** Flota por encima del contenido (`position: fixed`,
- * `z-index` por encima de «Volver arriba» y de los menús): no reserva carril ni
- * estrecha ningún contenedor por debajo de 992 px. Desde 992 px, donde los
- * márgenes de Bootstrap ya son casi tan anchos como el círculo, los contenedores
- * se limitan de forma simétrica para que deje libre su columna (ver `sitio.css`,
- * «columna del círculo»).
+ * **No ocupa espacio, a ningún ancho.** Flota por encima del contenido
+ * (`position: fixed`, `z-index` por encima de «Volver arriba» y de los menús) con un
+ * margen de 0,5 rem al borde derecho: no reserva carril, no estrecha ningún
+ * contenedor y no provoca desplazamiento horizontal (queda dentro de la ventana). Se
+ * probó reservar su columna desde 992 px (límite de ancho simétrico en los
+ * contenedores y relleno en la barra del carrusel) y se retiró: ocupaba espacio.
  *
  * **Límite que no se puede quitar sin reservar espacio.** Un elemento fijo que no
  * reserva espacio y está a media altura pasa, al desplazarse, por encima de lo que
- * haya en el borde derecho. En pantallas de teléfono el contenido llega a 12 px de
- * ese borde, así que el círculo puede cubrir el final de alguna línea o un control
- * de ese borde mientras se desplaza. Reservar la columna (lo que hacía el carril
- * anterior) es lo que se descartó por «ocupar espacio». El tamaño baja a 44 px, el
- * mínimo táctil de RNF-B3-005, en teléfono para reducir lo que cubre.
+ * haya en el borde derecho: en un teléfono el contenido llega a 12 px de él y, entre
+ * 992 y ~1430 px, los contenedores de Bootstrap dejan menos margen que el círculo, así
+ * que puede cubrir el final de una línea, una tarjeta, el botón de buscar o la
+ * flecha «siguiente» del carrusel mientras pasa. Reservar la columna es lo que se
+ * descartó por «ocupar espacio». El tamaño baja a 44 px, el mínimo táctil de
+ * RNF-B3-005, en teléfono para cubrir lo menos posible.
  *
  * **Vive fuera del envoltorio filtrable.** Los modos de contraste «colores
  * invertidos» y «escala de grises» aplican un `filter` a `.contenido-filtrable`, y

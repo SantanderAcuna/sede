@@ -160,8 +160,7 @@ en móvil que no dependa de una lista de botones al final de la página (§6.8).
 > derecha, igual en todas las pantallas). Consecuencia asumida: **sin carril, por
 > debajo de 992 px el círculo pasa por encima de lo que haya en el borde derecho
 > mientras se desplaza** (no se puede cumplir a la vez «igual en todas las pantallas»,
-> «no ocupa espacio» y «no cubre contenido» a 320–575 px). Desde 992 px el contenido
-> deja libre su columna. Ver `docs/revision-movil.md` (TC-ACC-01..13).
+> «no ocupa espacio» y «no cubre contenido» a 320–575 px). Se probó también reservar su columna desde 992 px y se retiró por ocupar espacio. Ver `docs/revision-movil.md` (TC-ACC-01..13).
 
 El brief admite dos ubicaciones: «en header o como botón flotante persistente»
 (§5.1). Se elige **botón flotante**.
@@ -181,7 +180,7 @@ programar a mano y que son justo donde más se falla.
 | Consecuencia | Resolución |
 |---|---|
 | Un círculo no admite etiqueta visible al lado sin dejar de ser círculo | El nombre accesible viaja en un texto **recortado**, no en un `aria-label`, para que exista también en modo lectura y para que el control por voz diga lo mismo |
-| Flota sobre el contenido y en pantallas estrechas lo tapaba | ~~Se le reserva su franja en `#contenido-principal` por debajo de 576 px (§9.3)~~ **Retirado en la revisión 3**: el carril ocupaba espacio. Ahora no se reserva nada por debajo de 992 px y desde ahí los contenedores dejan libre su columna; el círculo baja a 44 px en teléfono |
+| Flota sobre el contenido y en pantallas estrechas lo tapaba | ~~Se le reserva su franja en `#contenido-principal` por debajo de 576 px (§9.3)~~ **Retirado en la revisión 3**: el carril ocupaba espacio. Ahora no se reserva nada a ningún ancho; el círculo baja a 44 px en teléfono |
 | Podría chocar con «Volver arriba» | No choca: aquél está en `bottom: 10%` y éste en el centro vertical. Siguen siendo dos módulos independientes |
 | Un `filter` lo desanclaría en los modos inverso y grises | Se teletransporta a `body`, fuera de `#__nuxt` (§4, D3) |
 

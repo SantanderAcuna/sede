@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\ArchivoController;
 use App\Http\Controllers\Api\V1\AuditoriaController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\ConsentimientoController;
 use App\Http\Controllers\Api\V1\EntidadController;
 use App\Http\Controllers\Api\V1\IdentidadController;
 use App\Http\Controllers\Api\V1\TramiteController;
@@ -29,6 +30,14 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/entidad', [EntidadController::class, 'mostrar'])
         ->name('entidad.mostrar')
         ->withoutMiddleware('auth:sanctum');
+
+    // Registro del consentimiento de cookies — público (lo llama el navegador del
+    // ciudadano) y con límite propio por IP: no guarda nada identificable, pero
+    // sigue siendo una escritura abierta a internet.
+    Route::post('/consentimientos', [ConsentimientoController::class, 'store'])
+        ->name('consentimientos.store')
+        ->withoutMiddleware('auth:sanctum')
+        ->middleware('throttle:consentimientos');
 
     // Identidad: top-bar, footer y menú — públicos
     Route::get('/identidad/top-bar', [IdentidadController::class, 'topBar'])->name('identidad.top-bar');

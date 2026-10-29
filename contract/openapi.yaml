@@ -55,6 +55,8 @@ tags:
     description: Datos institucionales de la autoridad titular
   - name: Trámites
     description: Catálogo de trámites y servicios
+  - name: Consentimientos
+    description: Registro del consentimiento de cookies (Ley 1581 de 2012)
   - name: Salud
     description: Health check
   - name: Identidad
@@ -967,6 +969,80 @@ paths:
             application/xml:
               schema:
                 type: string
+      security: []
+
+  /consentimientos:
+    post:
+      tags: [Consentimientos]
+      operationId: registrarConsentimiento
+      summary: Registrar un consentimiento de cookies
+      description: |
+        Guarda lo que decidió un navegador sobre las cookies no esenciales: el evento,
+        las categorías vigentes tras él y la versión de la política. La fecha la pone
+        el servidor. **No se guarda IP, agente de usuario ni identificador alguno**: no
+        hay forma de saber quién consintió, sólo qué se consintió y cuándo.
+
+        Eventos: `aceptado`, `rechazado`, `revocado` y `caducado` (el consentimiento
+        guardado venció o es de una versión anterior de la política y se bloqueó la
+        categoría que había aceptado). Los registros se borran al cumplirse el plazo
+        de retención (`consentimientos.retencion_dias`).
+
+        Es público y limita a treinta peticiones por minuto y por IP.
+      x-status: implemented
+      x-criterios: [RF-B1-008, RF-01-D01, RN-01-D01]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [evento, categorias, version_politica]
+              properties:
+                evento:
+                  type: string
+                  enum: [aceptado, rechazado, revocado, caducado]
+                categorias:
+                  type: array
+                  description: Categorías opcionales vigentes tras el evento; vacío = sólo las necesarias.
+                  uniqueItems: true
+                  items:
+                    type: string
+                    enum: [analitica, preferencias]
+                version_politica:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+            example:
+              evento: aceptado
+              categorias: [analitica]
+              version_politica: 1
+      responses:
+        '201':
+          description: Consentimiento registrado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: object
+                        required: [id, type, evento, categorias, version_politica, registrado_en]
+                        properties:
+                          id: { type: integer }
+                          type: { type: string, enum: [consentimiento] }
+                          evento: { type: string, enum: [aceptado, rechazado, revocado, caducado] }
+                          categorias:
+                            type: array
+                            items: { type: string, enum: [analitica, preferencias] }
+                          version_politica: { type: integer }
+                          registrado_en: { type: string, format: date-time }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
       security: []
 
   # ══════════════════════════════════════════════════════════════════════════════

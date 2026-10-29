@@ -8,10 +8,13 @@
  * política. También se prueba la revocación, que es la mitad de RF-B1-008 y la
  * que no se ve en una captura de pantalla.
  */
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
+  analiticaPermitida,
+  configurarRegistroConsentimiento,
   consentimientoVigente,
+  type RegistroConsentimiento,
   leerConsentimiento,
   useConsentimientoCookies,
   VERSION_POLITICA,
@@ -291,5 +294,125 @@ describe('decidir — llamada directa', () => {
     // fecha debe ser string y version debe ser number.
     guardarCrudo({ fecha: 123, version: 'no-es-numero', aceptadas: [] } as Record<string, unknown>)
     expect(leerConsentimiento()).toBeNull()
+  })
+})
+
+describe('registro del consentimiento en el servidor (AC-26.4, AC-26.6)', () => {
+  let registros: RegistroConsentimiento[] = []
+
+  beforeEach(() => {
+    registros = []
+    sessionStorage.clear()
+    configurarRegistroConsentimiento((registro) => registros.push(registro))
+  })
+
+  afterEach(() => configurarRegistroConsentimiento(null))
+
+  it('aceptar todo registra «aceptado» con las categorías y la versión', () => {
+    consentimiento.aceptarTodo()
+    expect(registros).toEqual([
+      { evento: 'aceptado', categorias: ['analitica', 'preferencias'], version_politica: VERSION_POLITICA },
+    ])
+  })
+
+  it('rechazar sin nada previo registra «rechazado»', () => {
+    consentimiento.rechazarOpcionales()
+    expect(registros.map((r) => r.evento)).toEqual(['rechazado'])
+    expect(registros[0]?.categorias).toEqual([])
+  })
+
+  it('quitar lo aceptado registra «revocado», no «rechazado»', () => {
+    consentimiento.aceptarTodo()
+    consentimiento.rechazarOpcionales()
+    expect(registros.map((r) => r.evento)).toEqual(['aceptado', 'revocado'])
+  })
+
+  it('retirar una sola categoría y conservar otra también es «revocado»', () => {
+    consentimiento.aceptarTodo()
+    consentimiento.preferencias.value = { analitica: false, preferencias: true }
+    consentimiento.guardarPreferencias()
+    expect(registros.map((r) => r.evento)).toEqual(['aceptado', 'revocado'])
+    expect(registros[1]?.categorias).toEqual(['preferencias'])
+    expect(analiticaPermitida()).toBe(false)
+  })
+
+  it('revocar registra «revocado» aunque no hubiera nada previo', () => {
+    consentimiento.revocar()
+    expect(registros.map((r) => r.evento)).toEqual(['revocado'])
+  })
+
+  it('el registro no lleva ningún dato que identifique a quien consiente', () => {
+    consentimiento.aceptarTodo()
+    expect(Object.keys(registros[0] ?? {}).sort()).toEqual(['categorias', 'evento', 'version_politica'])
+  })
+
+  it('un consentimiento caducado con categorías registra «caducado» y no activa nada', () => {
+    guardarCrudo({ fecha: haceDias(400), version: VERSION_POLITICA, aceptadas: ['analitica'] })
+    consentimiento.inicializar()
+
+    expect(registros).toEqual([{ evento: 'caducado', categorias: [], version_politica: VERSION_POLITICA }])
+    expect(consentimiento.visible.value).toBe(true)
+    expect(consentimiento.puedeUsar('analitica')).toBe(false)
+    expect(analiticaPermitida()).toBe(false)
+  })
+
+  it('la caducidad se registra una sola vez por sesión, aunque se visiten más páginas', () => {
+    guardarCrudo({ fecha: haceDias(401), version: VERSION_POLITICA, aceptadas: ['analitica'] })
+    consentimiento.inicializar()
+    consentimiento.inicializar()
+    expect(registros.filter((r) => r.evento === 'caducado')).toHaveLength(1)
+  })
+
+  it('un cambio de versión de la política también cuenta como caducado, con la versión vieja', () => {
+    guardarCrudo({ fecha: haceDias(2), version: VERSION_POLITICA + 5, aceptadas: ['preferencias'] })
+    consentimiento.inicializar()
+    expect(registros).toEqual([{ evento: 'caducado', categorias: [], version_politica: VERSION_POLITICA + 5 }])
+  })
+
+  it('un consentimiento caducado que sólo tenía las necesarias no registra nada', () => {
+    guardarCrudo({ fecha: haceDias(500), version: VERSION_POLITICA, aceptadas: [] })
+    consentimiento.inicializar()
+    expect(registros).toEqual([])
+  })
+
+  it('un registrador que falla no rompe la decisión del ciudadano', () => {
+    configurarRegistroConsentimiento(() => {
+      throw new Error('API caída')
+    })
+    expect(() => consentimiento.aceptarTodo()).not.toThrow()
+    expect(leerConsentimiento()?.aceptadas).toEqual(['analitica', 'preferencias'])
+  })
+})
+
+describe('analiticaPermitida (AC-26.3)', () => {
+  it('es falsa sin consentimiento', () => {
+    expect(analiticaPermitida()).toBe(false)
+  })
+
+  it('es verdadera sólo con la analítica aceptada y vigente', () => {
+    consentimiento.aceptarTodo()
+    expect(analiticaPermitida()).toBe(true)
+  })
+
+  it('es falsa si sólo se aceptaron las preferencias', () => {
+    guardarCrudo({ fecha: haceDias(1), version: VERSION_POLITICA, aceptadas: ['preferencias'] })
+    expect(analiticaPermitida()).toBe(false)
+  })
+
+  it('se apaga al revocar', () => {
+    consentimiento.aceptarTodo()
+    consentimiento.revocar()
+    expect(analiticaPermitida()).toBe(false)
+  })
+
+  it('se apaga al caducar, sin esperar a recargar', () => {
+    guardarCrudo({ fecha: haceDias(366), version: VERSION_POLITICA, aceptadas: ['analitica'] })
+    expect(analiticaPermitida()).toBe(false)
+  })
+
+  it('el consentimiento de hace 13 meses vuelve a pedir el banner (AC-26.5)', () => {
+    guardarCrudo({ fecha: haceDias(395), version: VERSION_POLITICA, aceptadas: ['analitica'] })
+    consentimiento.inicializar()
+    expect(consentimiento.visible.value).toBe(true)
   })
 })

@@ -149,13 +149,27 @@ en móvil que no dependa de una lista de botones al final de la página (§6.8).
 > garantizar eso —cambia de forma, de orden y de contenido según el ancho—, así
 > que manda el requisito nuevo. Lo que no cambia es el panel.
 
+> **Revisión 3 (2026-10-29) — propuesta rechazada por el cliente; D1 sigue vigente.**
+> La medición en teléfono mostró que el círculo flotante en todas las pantallas
+> **tapa contenido** si no se le reserva espacio, y que reservarlo (el carril de
+> §9.3) **ocupa espacio**: José pidió que no ocupe espacio ni se monte sobre otros
+> elementos. Se propuso al cliente llevar el control a la cabecera por debajo de
+> 992 px (Kit UI 9.2, Barra de accesibilidad › Tamaños pertinentes: la barra no debe
+> aparecer flotando desde el breakpoint de tabletas; CAG-07: «oculta entre 768–992
+> px»). **No fue aceptada**; se cumple D1 tal cual (círculo fijo, centrado a la
+> derecha, igual en todas las pantallas). Consecuencia asumida: **sin carril, por
+> debajo de 992 px el círculo pasa por encima de lo que haya en el borde derecho
+> mientras se desplaza** (no se puede cumplir a la vez «igual en todas las pantallas»,
+> «no ocupa espacio» y «no cubre contenido» a 320–575 px). Desde 992 px el contenido
+> deja libre su columna. Ver `docs/revision-movil.md` (TC-ACC-01..13).
+
 El brief admite dos ubicaciones: «en header o como botón flotante persistente»
 (§5.1). Se elige **botón flotante**.
 
 | Opción | Veredicto |
 |---|---|
 | **A. Barra lateral fija siempre visible** (lo de hoy) | **Descartada.** Once controles a 44 px, con sus 8 px de separación y los separadores de grupo, ocupan unos 600 px de alto: entran a duras penas en un portátil de 768 px y, sobre todo, **tapan contenido durante toda la visita**, que es justo lo que el brief prohíbe (§5.1). No escala. |
-| **B. Disparador con etiqueta en la cabecera** | **Descartada** en la revisión 2. No cumple «siempre en el mismo sitio en cualquier pantalla»: la cabecera se reorganiza por anchos y el control se mudaría de lugar. |
+| **B. Disparador con etiqueta en la cabecera** | **Descartada** en la revisión 2; reconsiderada en la revisión 3 y **rechazada** por el cliente (ver arriba). No cumple «siempre en el mismo sitio en cualquier pantalla»: la cabecera se reorganiza por anchos y el control se mudaría de lugar. |
 | **C. Círculo flotante, fijo, centrado en el lado derecho** | **Elegida.** Mismo sitio en móvil, tableta y escritorio; forma reconocible de un vistazo; no depende de la cabecera ni de su orden; y el panel puede crecer sin coste. |
 
 El `<dialog>` se abre con `showModal()`, que da **trampa de foco, fondo inerte y
@@ -167,7 +181,7 @@ programar a mano y que son justo donde más se falla.
 | Consecuencia | Resolución |
 |---|---|
 | Un círculo no admite etiqueta visible al lado sin dejar de ser círculo | El nombre accesible viaja en un texto **recortado**, no en un `aria-label`, para que exista también en modo lectura y para que el control por voz diga lo mismo |
-| Flota sobre el contenido y en pantallas estrechas lo tapaba | Se le reserva su franja en `#contenido-principal` por debajo de 576 px (§9.3) |
+| Flota sobre el contenido y en pantallas estrechas lo tapaba | ~~Se le reserva su franja en `#contenido-principal` por debajo de 576 px (§9.3)~~ **Retirado en la revisión 3**: el carril ocupaba espacio. Ahora no se reserva nada por debajo de 992 px y desde ahí los contenedores dejan libre su columna; el círculo baja a 44 px en teléfono |
 | Podría chocar con «Volver arriba» | No choca: aquél está en `bottom: 10%` y éste en el centro vertical. Siguen siendo dos módulos independientes |
 | Un `filter` lo desanclaría en los modos inverso y grises | Se teletransporta a `body`, fuera de `#__nuxt` (§4, D3) |
 

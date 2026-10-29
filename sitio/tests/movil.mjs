@@ -12,12 +12,13 @@
  *     desplazar y las categorías sólo aparecen al pedirlas (con «Guardar mi
  *     elección» alcanzable). En escritorio las categorías se ven y el botón de
  *     desplegar no existe.
- *  2. Botón de accesibilidad (CAG-07, Kit UI 9.2, RNF-07-D01, HU-07-D02). Por
- *     debajo de 992 px el único disparador visible es el de la cabecera (no flota,
- *     ≥ 44 px, cabe en la pantalla) y el círculo flotante no se dibuja; desde 992
- *     px es un círculo fijo, centrado a la derecha, sin solaparse con «Volver
- *     arriba». Además, desde 992 px, medido de forma analítica en 17 rutas y 5
- *     anchos: ningún texto, imagen ni control entra en la columna del círculo.
+ *  2. Botón de accesibilidad (D1, CAG-07, RNF-07-D01, RNF-B3-005). Un único
+ *     círculo visible a cualquier ancho (320–1536 px): fijo, centrado
+ *     verticalmente, pegado a la derecha, de ≥ 44 px, fuera de la cabecera y sin
+ *     solaparse con «Volver arriba». Por debajo de 992 px no reserva espacio (el
+ *     contenedor ocupa todo el ancho). Desde 992 px, medido de forma analítica en
+ *     17 rutas y 5 anchos: ningún texto, imagen ni control entra en su columna.
+ *     Por debajo de 992 px se **informa** (no se afirma) cuánto cubre al pasar.
  *  3. Panel de accesibilidad. Cabe en la pantalla, el aviso va dentro de la zona
  *     que se desplaza y el botón de cerrar mide ≥ 44 px.
  *  4. Ninguna ruta pública se sale del ancho a 320 ni a 390 px.
@@ -128,18 +129,16 @@ for (const [ancho, alto] of [[390, 844], [360, 740], [320, 568], [667, 375]]) {
 }
 
 // 2. Botón de accesibilidad y volver arriba ---------------------------------
-// Criterios: CAG-07 y Kit UI 9.2 (la barra no aparece flotando por debajo de 992 px
-// porque «puede llegar a ocultar contenido»), RF-B1-044, RNF-07-D01 (disponible y
-// operable desde 320 px), HU-07-D02 (sin solape con el contenido), RNF-B3-005
-// (≥ 44 × 44 px).
-//   · < 992 px: el único disparador visible es el de la cabecera. No es `fixed`,
-//     no reserva carril y queda por encima de todo (es parte de la cabecera).
-//   · ≥ 992 px: el círculo flotante, fijo y centrado a la derecha.
+// Criterios: D1 del plan del botón (rev. 2, indicación del cliente del 2026-10-01:
+// círculo **fijo, centrado verticalmente en el lado derecho e igual en todas las
+// pantallas**), CAG-07, RF-B1-044, RNF-07-D01 (operable desde 320 px), RNF-B3-005
+// (≥ 44 × 44 px) y «no ocupa espacio» (TC-ACC-04: sin carril ni cabecera
+// alternativa; el cliente no aceptó la variante de cabecera el 2026-10-29).
 // La primera revisión móvil lo anclaba abajo y la segunda reservaba un carril de
-// 56 px: las dos tapaban o estrechaban el contenido. Esta lo resuelve de raíz.
+// 44–56 px: la primera contradecía D1 y la segunda ocupaba espacio.
 console.log('Botón de accesibilidad')
-for (const [ancho, alto] of [[390, 844], [320, 568], [667, 375], [800, 1000], [991, 800]]) {
-  const ctx = await contexto(ancho, alto)
+for (const [ancho, alto, movil] of [[390, 844, true], [320, 568, true], [667, 375, true], [800, 1000, true], [991, 800, true], [992, 800, false], [1300, 900, false], [1536, 864, false]]) {
+  const ctx = await contexto(ancho, alto, movil)
   const p = await abrirResuelta(ctx, '/tramites')
   const etiqueta = `${ancho}×${alto}`
   const visibles = p.locator('.boton-accesibilidad:visible')
@@ -148,55 +147,55 @@ for (const [ancho, alto] of [[390, 844], [320, 568], [667, 375], [800, 1000], [9
     const c = b.getBoundingClientRect()
     return { fijo: getComputedStyle(b).position === 'fixed', cabecera: Boolean(b.closest('.cabecera-govco')), x: c.x, y: c.y, w: c.width, h: c.height }
   })
-  comprobar(!m.fijo && m.cabecera, `${etiqueta}: va en la cabecera y no flota`, `${etiqueta}: el disparador no está en la cabecera o flota (fijo=${m.fijo}, cabecera=${m.cabecera})`)
-  comprobar(m.w >= MIN && m.h >= MIN, `${etiqueta}: mide ${Math.round(m.w)}×${Math.round(m.h)} px`, `${etiqueta}: mide menos de 44 px`)
-  comprobar(m.x >= 0 && m.x + m.w <= ancho + 1 && m.y >= 0, `${etiqueta}: cabe en la pantalla`, `${etiqueta}: se sale de la pantalla`)
+  comprobar(m.fijo && !m.cabecera, `${etiqueta}: es fijo y no está en la cabecera`, `${etiqueta}: no es fijo o está en la cabecera (fijo=${m.fijo}, cabecera=${m.cabecera})`)
+  comprobar(Math.abs(m.y + m.h / 2 - alto / 2) <= 2, `${etiqueta}: centrado verticalmente`, `${etiqueta}: no está centrado verticalmente`)
+  comprobar(ancho - (m.x + m.w) <= 16 && m.x + m.w <= ancho + 1, `${etiqueta}: pegado a la derecha`, `${etiqueta}: se aleja del borde derecho o se sale`)
+  comprobar(m.w >= MIN && m.h >= MIN && Math.abs(m.w - m.h) <= 1, `${etiqueta}: círculo de ${Math.round(m.w)} px`, `${etiqueta}: mide ${Math.round(m.w)}×${Math.round(m.h)} px (menos de 44 o no es circular)`)
+  // TC-ACC-04: no reserva espacio por debajo de 992 px. El contenedor de `main` ocupa
+  // todo el ancho y su relleno derecho es el de Bootstrap (≤ 16 px).
+  if (ancho < 992) {
+    const carril = await p.evaluate(() => {
+      const c = document.querySelector('main .container')
+      if (!c) return null
+      return { ancho: c.getBoundingClientRect().width, derecho: Number.parseFloat(getComputedStyle(c).paddingRight) }
+    })
+    // En teléfono (< 576 px) el contenedor de Bootstrap ocupa toda la ventana; de 576 a
+    // 991 px mide 540 o 720 px centrado por diseño del propio Bootstrap. En los dos
+    // casos el relleno derecho es el suyo (12 px), no el carril de 44–56 px.
+    const llena = ancho >= 576 || (carril !== null && carril.ancho >= ancho - 1)
+    comprobar(carril !== null && llena && carril.derecho <= 16, `${etiqueta}: el contenedor no reserva carril (${Math.round(carril?.ancho ?? 0)} px de ancho, relleno derecho ${carril?.derecho} px)`, `${etiqueta}: el contenedor reserva espacio a la derecha (ancho ${carril?.ancho}, relleno derecho ${carril?.derecho} px)`)
+  }
   await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2))
   await p.waitForTimeout(400)
-  // Tras desplazar, lo único que flota es «Volver arriba»: el círculo no existe.
-  const flotantes = await p.evaluate(() =>
-    [...document.querySelectorAll('body *')]
-      .filter((e) => getComputedStyle(e).position === 'fixed' && e.getBoundingClientRect().width > 0 && !e.closest('dialog, .banner-cookies'))
-      .map((e) => e.className?.baseVal ?? String(e.className)),
-  )
-  comprobar(!flotantes.some((c) => c.includes('boton-accesibilidad')), `${etiqueta}: el círculo flotante no se dibuja`, `${etiqueta}: hay un círculo flotante visible (${flotantes.join(' | ')})`)
-  await ctx.close()
-}
-for (const [ancho, alto] of [[1300, 900], [992, 800], [1536, 864]]) {
-  const ctx = await contexto(ancho, alto, false)
-  const p = await abrirResuelta(ctx, '/')
-  const etiqueta = `${ancho}×${alto}`
-  const visibles = p.locator('.boton-accesibilidad:visible')
-  comprobar((await visibles.count()) === 1, `escritorio ${etiqueta}: un solo disparador visible`, `escritorio ${etiqueta}: hay ${await visibles.count()} disparadores visibles`)
   const fab = await visibles.first().boundingBox()
-  comprobar(fab !== null && Math.abs(fab.y + fab.height / 2 - alto / 2) <= 2, `escritorio ${etiqueta}: centrado verticalmente`, `escritorio ${etiqueta}: no está centrado`)
-  comprobar(fab !== null && ancho - (fab.x + fab.width) <= 16, `escritorio ${etiqueta}: pegado a la derecha`, `escritorio ${etiqueta}: se aleja del borde derecho`)
-  comprobar(fab !== null && fab.width >= MIN && fab.height >= MIN, `escritorio ${etiqueta}: mide ${Math.round(fab.width)} px`, `escritorio ${etiqueta}: mide menos de 44 px`)
-  await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2))
-  await p.waitForTimeout(400)
   const subir = await p.locator('.volver-arriba-govco').boundingBox()
   if (subir !== null && fab !== null) {
     const solapa = !(subir.y + subir.height <= fab.y || subir.y >= fab.y + fab.height || subir.x + subir.width <= fab.x || subir.x >= fab.x + fab.width)
-    comprobar(!solapa, `escritorio ${etiqueta}: «Volver arriba» no se solapa con el círculo`, `escritorio ${etiqueta}: «Volver arriba» se solapa con el círculo`)
+    comprobar(!solapa, `${etiqueta}: «Volver arriba» no se solapa con el círculo`, `${etiqueta}: «Volver arriba» se solapa con el círculo`)
   } else {
-    falla(`escritorio ${etiqueta}: no apareció «Volver arriba» tras desplazar`)
+    falla(`${etiqueta}: no apareció «Volver arriba» tras desplazar`)
   }
   await ctx.close()
 }
 
-// 2b. El círculo no tapa contenido (HU-07-D02: «no se solapa con el contenido») -
-// Desde 992 px el círculo flota; para que no cubra nada, el contenido deja libre la
-// columna de su ancho (`--acc-flotante-columna`). Se mide **analíticamente**: el
-// círculo, al desplazarse, puede cruzar cualquier altura de la página, así que no
-// puede haber texto, imagen ni control cuya caja entre en esa columna. No se
-// cuenta lo que no es contenido: textos sólo para lectores de pantalla y las
-// imágenes o enlaces que ocupan el ancho entero (el cartel del carrusel).
-console.log('Columna libre del círculo flotante (≥ 992 px)')
+// 2b. Qué cubre el círculo (HU-07-D02: «no se solapa con el contenido») ---------
+// El círculo es fijo y está a media altura, así que al desplazarse puede pasar por
+// cualquier punto de la columna del borde derecho. Se mide **analíticamente** qué
+// contenido tiene su caja dentro de esa columna. No se cuenta lo que no es
+// contenido: textos sólo para lectores de pantalla y las imágenes o enlaces que
+// ocupan el ancho entero (el cartel del carrusel).
+//   · Desde 992 px: el contenido deja libre la columna (límite de ancho simétrico
+//     en `sitio.css`) → **0 elementos**; si no, falla.
+//   · Por debajo de 992 px: no se reserva espacio (el cliente descartó el carril),
+//     así que el círculo **sí** pasa por encima de lo que haya en el borde derecho.
+//     No es una aserción: se informa cuánto cubre en cada ejecución, para que ese
+//     límite declarado se vea y se pueda comparar entre versiones.
+console.log('Columna del círculo flotante')
 const RUTAS_TEXTO = ['/', '/transparencia', '/atencion', '/tramites', '/pqrsd', '/realizar-una-peticion', '/seguimiento', '/noticias', '/portales', '/servicios', '/normativa', '/buscar?q=salud', '/mapa-del-sitio', '/accesibilidad', '/politicas', '/participa', '/ruta-que-no-existe']
 /** Elementos de contenido cuya caja entra en la columna del círculo flotante. */
 async function invadenLaColumna(p) {
   return p.evaluate(() => {
-    const fab = document.querySelector('.boton-accesibilidad--flotante')
+    const fab = document.querySelector('.boton-accesibilidad')
     if (!fab || getComputedStyle(fab).display === 'none') return { sin: true }
     const f = fab.getBoundingClientRect()
     const alto = document.documentElement.scrollHeight
@@ -208,7 +207,8 @@ async function invadenLaColumna(p) {
       el.closest('.etiqueta-buscador-govco, .boton-accesibilidad, dialog, .banner-cookies, .volver-arriba-govco, .visually-hidden, .sr-only, script, style') ||
       getComputedStyle(el).visibility === 'hidden' ||
       getComputedStyle(el).display === 'none'
-    const hallados = []
+    const textos = []
+    const controles = []
     const it = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
     for (let n = it.nextNode(); n; n = it.nextNode()) {
       if (!n.textContent.trim()) continue
@@ -217,16 +217,16 @@ async function invadenLaColumna(p) {
       const g = document.createRange()
       g.selectNodeContents(n)
       for (const r of g.getClientRects()) {
-        if (cruza(r)) { hallados.push(`texto «${n.textContent.trim().slice(0, 22)}»`); break }
+        if (cruza(r)) { textos.push(`texto «${n.textContent.trim().slice(0, 22)}»`); break }
       }
     }
     for (const el of document.querySelectorAll('img, svg, input, select, textarea, button, a[href], table, hr, summary, video')) {
       if (ignorado(el)) continue
       const r = el.getBoundingClientRect()
       if (r.width > window.innerWidth * 0.9) continue
-      if (cruza(r)) hallados.push(`${el.tagName.toLowerCase()}.${String(el.className?.baseVal ?? el.className).split(' ')[0]}`)
+      if (cruza(r)) controles.push(`${el.tagName.toLowerCase()}.${String(el.className?.baseVal ?? el.className).split(' ')[0]}`)
     }
-    return { sin: false, hallados: [...new Set(hallados)] }
+    return { sin: false, textos: [...new Set(textos)], controles: [...new Set(controles)] }
   })
 }
 for (const ancho of [992, 1100, 1280, 1536, 1920]) {
@@ -237,9 +237,26 @@ for (const ancho of [992, 1100, 1280, 1536, 1920]) {
     await p.goto(`${BASE}${ruta}`, { waitUntil: 'networkidle' })
     const r = await invadenLaColumna(p)
     if (r.sin) con.push(`${ruta} (sin círculo)`)
-    else if (r.hallados.length) con.push(`${ruta} → ${r.hallados.slice(0, 3).join(', ')}`)
+    else if (r.textos.length + r.controles.length) con.push(`${ruta} → ${[...r.textos, ...r.controles].slice(0, 3).join(', ')}`)
   }
   comprobar(con.length === 0, `${ancho} px: el círculo no cubre contenido en ${RUTAS_TEXTO.length} rutas`, `${ancho} px: contenido bajo el círculo en ${con.length} ruta(s): ${con.slice(0, 4).join(' ; ')}`)
+  await ctx.close()
+}
+for (const ancho of [320, 390, 767, 800, 991]) {
+  const ctx = await contexto(ancho, 740)
+  const p = await abrirResuelta(ctx, '/')
+  let lineas = 0
+  let controles = 0
+  const rutasConControles = []
+  for (const ruta of RUTAS_TEXTO) {
+    await p.goto(`${BASE}${ruta}`, { waitUntil: 'networkidle' })
+    const r = await invadenLaColumna(p)
+    if (r.sin) { falla(`${ancho} px: ${ruta} no tiene círculo`); continue }
+    lineas += r.textos.length
+    controles += r.controles.length
+    if (r.controles.length) rutasConControles.push(`${ruta} (${r.controles.length})`)
+  }
+  console.log(`  ℹ ${ancho} px: sin reservar espacio, el círculo pasa por encima de ${lineas} línea(s) de texto y ${controles} control(es)/imagen(es) en ${RUTAS_TEXTO.length} rutas (límite declarado, no aserción)`)
   await ctx.close()
 }
 

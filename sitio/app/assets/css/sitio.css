@@ -1646,6 +1646,14 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
   line-height: 1.4;
 }
 
+/* El Kit da 1,5 rem de relleno a cada lado del cuerpo; con un móvil de 360 px eso
+   es casi el 10 % del ancho en cada borde. Se reduce sólo en pantallas estrechas. */
+@media (max-width: 47.9375rem) {
+  .acordeon-govco .body-accordion-govco {
+    padding: 1rem;
+  }
+}
+
 /*
  * Toast. El Kit lo ancla arriba a la derecha con `z-index: 2`, por debajo de la
  * cabecera y del menú pegajoso: un aviso oculto detrás de la barra no se lee. Se

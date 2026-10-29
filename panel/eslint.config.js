@@ -16,9 +16,9 @@ import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
   {
-    // `openapi.d.ts` se genera desde el contrato; los `test_*.mjs` de la raíz son
-    // scripts de depuración sueltos (H-18, T-01), no código del panel.
-    ignores: ['dist/**', 'node_modules/**', '.vitest/**', 'coverage/**', 'src/types/openapi.d.ts', 'test_*.mjs'],
+    // `openapi.d.ts` se genera desde el contrato. Los scripts de depuración que
+    // vivían aquí (H-18, T-01) se archivaron en `docs/archivo/panel-depuracion/`.
+    ignores: ['dist/**', 'node_modules/**', '.vitest/**', 'coverage/**', 'src/types/openapi.d.ts'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

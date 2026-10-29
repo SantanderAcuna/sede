@@ -339,34 +339,25 @@ jobs:
             exit 1
           fi
           echo "Ninguno."
-      - name: Ninguna clave privada en el contenido
+      - name: Ninguna credencial en el contenido ni en el historial
         run: |
-          if git grep -nIE 'BEGIN [A-Z ]*PRIVATE KEY' -- . ':!*.md' ; then
-            echo "Hay una clave privada en el repositorio."
-            exit 1
-          fi
-          echo "Ninguna."
-      - name: Rastro de credenciales en el historial
-        run: |
-          # La comprobación anterior mira el ÁRBOL, así que sólo ve el estado
-          # actual. Un archivo retirado sigue en el historial, y el repositorio es
-          # público: mientras no se limpie, el secreto sigue siendo visible.
+          # Escaneo POR CONTENIDO de todos los commits de todas las ramas
+          # (fetch-depth: 0), con las reglas por defecto de gitleaks más la lista
+          # de excepciones revisada de `.gitleaks.toml`. Sustituye a dos pasos
+          # anteriores que dejaban fuera los `.md` y que sólo avisaban sobre el
+          # historial (H-05, T-06).
           #
-          # Avisa en lugar de bloquear, a propósito. Un trabajo que falla siempre
-          # hasta que se reescriba el historial se acaba desactivando, y entonces
-          # deja de avisar de las fugas NUEVAS, que son las que este trabajo sí
-          # puede evitar. Lo que impide una fuga nueva es la protección de empuje
-          # del repositorio, no este trabajo: la canalización corre DESPUÉS del
-          # empuje y no puede adelantarse a él.
-          prohibidos='(^|/)(pass\.md|accesos\.local\.md|\.accesos\.local\.env)$|^\.claves/'
-          rastro=$(git log --all --pretty=format: --name-only --diff-filter=A \
-            | grep -E "$prohibidos" | sort -u || true)
-          if [ -n "$rastro" ]; then
-            echo "::warning::Hay credenciales en el HISTORIAL: $(echo "$rastro" | tr '\n' ' ')"
-            echo "Retirar un archivo no lo borra del historial. Hay que reescribirlo."
-          else
-            echo "Historial limpio."
-          fi
+          # Falla ante cualquier hallazgo no clasificado. Un hallazgo nuevo se
+          # resuelve de una de dos maneras: rotando la credencial, o —si de verdad
+          # no lo es— añadiendo una excepción con su motivo en `.gitleaks.toml`,
+          # que se revisa en el PR. No se silencia el paso.
+          #
+          # Se compila desde el módulo de Go (preinstalado en el ejecutor), cuyo
+          # resumen verifica sum.golang.org, en lugar de descargar un binario sin
+          # comprobar.
+          GOBIN="$RUNNER_TEMP/bin" go install github.com/zricethezav/gitleaks/v8@v8.18.4
+          "$RUNNER_TEMP/bin/gitleaks" detect --source . --config .gitleaks.toml \
+            --log-opts="--all" --redact --no-banner --verbose
 
   # ---------------------------------------------------------------------------
   # Lo que TODAVÍA NO se comprueba

@@ -566,10 +566,10 @@ No uso «Crítico»: nada de lo que vi se está explotando, y lo que no pude ver
   5. Revocar el token OAuth de `gh` que estaba en la URL del remoto: *GitHub → Settings → Applications → Authorized OAuth Apps → GitHub CLI → Revoke*; revisar *Settings → SSH and GPG keys* por llaves que no reconozcas; cambiar el remoto a SSH; volver a iniciar sesión con `gh auth login` si lo necesitas.
 - **Criterios de aceptación**
   - [ ] **AC-01.1** — Verificación: `curl -s -o /dev/null -w '%{http_code}\n' https://api.github.com/repos/SantanderAcuna/sede` · Esperado: `404` (repo privado). *Alternativa si D-1 = público:* `git ls-files | grep -ci '^accesos'` → `0` en cada una de `main`, `staging`, `develop`.
-  - [ ] **AC-01.2** — Verificación: `gitleaks detect --source . --log-opts="--all" --redact` (en versiones nuevas: `gitleaks git`) · Esperado: tabla de hallazgos con **0 clasificados como «vigente»**; cada uno con fecha y decisión.
+  - [ ] **AC-01.2** — Verificación: `gitleaks detect --source . --log-opts="--all" --redact` (en versiones nuevas: `gitleaks git`) · Esperado: tabla de hallazgos con **0 clasificados como «vigente»**; cada uno con fecha y decisión. *— ⚠️ **Parcial, 2026-10-29.** `gitleaks` 8.18.4 sobre los 300 commits de todas las ramas: 20 hallazgos en 11 líneas, **todos falsos positivos revisados a mano** (contraseñas de prueba en 3 archivos de `backend/tests/`, un `mfa_token` truncado de ejemplo en un `.md`, y una expresión regular de clave SSH citada en 2 documentos); quedaron en `.gitleaks.toml` con su motivo. **Límite:** las reglas buscan cadenas con forma de secreto; `accesos.md` estuvo en el historial del 2026-09-30 al 2026-10-28 (229 → 340 líneas, con 4-6 direcciones IPv4 y una sección «Incidente del 2026-09-30: credenciales publicadas») y no dispara ninguna regla. Que ninguna sea «vigente» no lo puede decir un escáner: depende de la rotación (AC-01.3), que es tuya.*
   - [ ] **AC-01.3** — Verificación: lista de secretos (solo nombres) con propietario y fecha de última rotación, guardada fuera del repo · Esperado: todos los secretos que el inventario público mencionaba figuran con fecha posterior a la decisión D-1.
-  - [ ] **AC-01.4** — Verificación: `git ls-files 'panel/test_*.mjs' | wc -l` · Esperado: `0`.
-  - [ ] **AC-01.5** — Verificación: `git ls-files '*.md' | grep -v / ` · Esperado: solo los `.md` de raíz de una lista que apruebas (propuesta: `README.md`, `PRODUCT.md`, `DESIGN.md`).
+  - [x] **AC-01.4** — Verificación: `git ls-files 'panel/test_*.mjs' | wc -l` · Esperado: `0`. *— ✅ 2026-10-29, PR #314: los 6 scripts pasaron a `docs/archivo/panel-depuracion/` (`git ls-files 'panel/test_*.mjs' | wc -l` → 0). Se actualizaron `panel/eslint.config.js` y el comentario de `AuthTest.php` que los citaban.*
+  - [x] **AC-01.5** — Verificación: `git ls-files '*.md' | grep -v / ` · Esperado: solo los `.md` de raíz de una lista que apruebas (propuesta: `README.md`, `PRODUCT.md`, `DESIGN.md`). *— ✅ 2026-10-29, PR #314: la raíz solo conserva `README.md`, `PRODUCT.md` y `DESIGN.md`; los otros 15 `.md` están en `docs/archivo/` (decisión tuya: archivar, no borrar). Se corrigieron los enlaces de `README.md`, `DESIGN.md`, `Makefile`, `deploy/README.md` y `.dockerignore`.*
   - [ ] **AC-01.6** — Verificación: `git remote -v | grep -c -E '://[^/ ]*:[^@ ]*@'` y *Settings → Applications → Authorized OAuth Apps* · Esperado: `0` URL con credencial incrustada; el token anterior revocado (una llamada a la API con él devuelve `401`) y ninguna llave SSH desconocida en la cuenta.
 - **Prueba que lo guarda:** job `Credenciales` corregido (T-06). **Reversión:** el historial no se reescribe; si algo faltó, se restaura desde el commit anterior.
 
@@ -609,12 +609,24 @@ No uso «Crítico»: nada de lo que vi se está explotando, y lo que no pude ver
   - [ ] **AC-04.5** — Verificación: `gh api repos/SantanderAcuna/sede/environments/production --jq '.protection_rules'` · Esperado: incluye una regla `required_reviewers` con ≥ 1 revisor (que no sea quien despliega, si hay ≥ 2 personas).
   - [ ] **AC-04.6** — Verificación: `gh api repos/SantanderAcuna/sede/actions/secrets --jq '.secrets[].name'` · Esperado: ya no incluye `DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PORT` ni `DEPLOY_KNOWN_HOSTS`; existen en `staging` y `production` por separado, con llave distinta por entorno si el servidor lo permite.
 
+- **Aviso sobre `[skip ci]` (hallazgo del 2026-10-29, HECHO + INFERENCIA):** hoy las sincronizaciones hacia `staging` y `main` se fusionan con `[skip ci]` para **no disparar el workflow `Despliegue`** (se activa con `push` a `main` y `staging`). Un commit con `[skip ci]` no genera ningún check; con `required_status_checks` el PR quedaría en «Expected — Waiting for status to be reported» y **no se podría fusionar**. Quitar el `[skip ci]` desbloquea el PR, pero entonces cada sincronización **despliega** (a `main`, a producción). Hay tres salidas: (a) exigir los checks **solo en `develop`**, donde todo entra por PR con CI, y dejar `staging`/`main` con PR obligatorio hasta decidir producción; (b) exigirlos en las tres y aceptar que sincronizar `main` despliega, lo que antes necesita el revisor requerido de AC-04.5; (c) separar el despliegue de `main` en un workflow manual. **Recomiendo (a) ahora.** Mi sesión no puede crear rulesets (el proxy bloquea los ajustes del repositorio): el comando para (a), que ejecutas tú con el repo en su estado actual, es
+  ```bash
+  gh api -X POST repos/SantanderAcuna/sede/rulesets --input - <<'JSON'
+  {"name":"Checks obligatorios en develop","target":"branch","enforcement":"active","bypass_actors":[],
+   "conditions":{"ref_name":{"include":["refs/heads/develop"],"exclude":[]}},
+   "rules":[{"type":"required_status_checks","parameters":{"strict_required_status_checks_policy":true,
+     "required_status_checks":[{"context":"Contrato"},{"context":"Backend"},{"context":"Panel"},
+     {"context":"Sitio"},{"context":"Pila"},{"context":"Dependencias"},{"context":"Credenciales"}]}}]}
+  JSON
+  ```
+  *Antes de ejecutarlo, comprueba que los siete nombres coinciden con los de la pestaña Checks de un PR reciente; un nombre que no existe bloquea todos los PR.* Con `strict_required_status_checks_policy` los PR deben estar al día con `develop` (mi script ya hace `update-branch`). El plan Free de un repo privado ignoraría este ruleset (ver T-01).
+
 #### T-06 · Que el CI de credenciales no sea ciego a los `.md` ni al historial
 - **Resuelve:** H-05. **Esfuerzo:** 0,25 d. **Riesgo:** bajo (puede aparecer ruido en documentos que citan patrones; se resuelve con una lista de permitidos explícita y revisada). **Depende de:** T-01.
 - **Criterios de aceptación**
-  - [ ] **AC-06.1** — Verificación: PR de prueba que añade a un `.md` una cadena con forma de secreto (inventada) · Esperado: el job `Credenciales` **falla**.
-  - [ ] **AC-06.2** — Verificación: el mismo PR sin la cadena · Esperado: el job pasa.
-  - [ ] **AC-06.3** — Verificación: revisar `ci.yml`, job `Credenciales` · Esperado: la búsqueda de claves privadas ya no excluye `':!*.md'`; existe un escaneo **por contenido** (gitleaks o equivalente) sobre árbol e historial; el paso de historial **falla** ante hallazgos no clasificados (decisión consciente frente al comentario actual del paso, que prefiere advertir: se acepta una lista de excepciones revisada en lugar de silenciar el paso).
+  - [x] **AC-06.1** — Verificación: PR de prueba que añade a un `.md` una cadena con forma de secreto (inventada) · Esperado: el job `Credenciales` **falla**. *— ✅ 2026-10-29: PR de prueba #315 (cadena inventada con forma de token de GitHub en `docs/prueba-credencial.md`): el job `Credenciales` **falló** con `RuleID: github-pat`; los otros 6 pasaron. PR cerrado sin fusionar.*
+  - [x] **AC-06.2** — Verificación: el mismo PR sin la cadena · Esperado: el job pasa. *— ✅ 2026-10-29: el PR #314 (sin la cadena) pasó los 7 jobs, incluido `Credenciales`.*
+  - [x] **AC-06.3** — Verificación: revisar `ci.yml`, job `Credenciales` · Esperado: la búsqueda de claves privadas ya no excluye `':!*.md'`; existe un escaneo **por contenido** (gitleaks o equivalente) sobre árbol e historial; el paso de historial **falla** ante hallazgos no clasificados (decisión consciente frente al comentario actual del paso, que prefiere advertir: se acepta una lista de excepciones revisada en lugar de silenciar el paso). *— ✅ 2026-10-29, PR #314: `ci.yml` ya no excluye `*.md`; el job compila `gitleaks` v8.18.4 desde el módulo de Go (resumen verificado por sum.golang.org) y escanea todos los commits de todas las ramas con `.gitleaks.toml` (reglas por defecto + 6 excepciones por archivo, revisadas); falla ante cualquier hallazgo no clasificado. Se retiró la búsqueda `git grep` de claves privadas (dejaba fuera los `.md`) y el paso del historial que solo avisaba.*
 
 ---
 
@@ -639,7 +651,7 @@ No uso «Crítico»: nada de lo que vi se está explotando, y lo que no pude ver
   - [x] **AC-07.2** — Verificación: prueba nueva «con 3 registros, `count(data) == 3` y `meta.total == 3`» · Esperado: pasa; y **falla** contra el código actual (hoy `count(data) == 0`). *— ✅ 2026-10-28, PR #294: `AuditoriaTest` (4 pruebas nuevas), CI Backend verde. No se ejecutaron contra el código anterior, así que el «falla hoy» no está demostrado.*
   - [x] **AC-07.3** — Verificación: prueba nueva «`por_pagina=2` con 3 registros → `count(data) == 2`, `meta.last_page == 2`» · Esperado: pasa. *— ✅ 2026-10-28, PR #294: `AuditoriaTest` (4 pruebas nuevas), CI Backend verde. No se ejecutaron contra el código anterior, así que el «falla hoy» no está demostrado.*
   - [x] **AC-07.4** — Verificación: prueba «usuario con `auditoria.ver` → 200» · Esperado: pasa. *— ✅ 2026-10-28, PR #294: `AuditoriaTest` (4 pruebas nuevas), CI Backend verde. No se ejecutaron contra el código anterior, así que el «falla hoy» no está demostrado.*
-  - [ ] **AC-07.5** — Verificación: `php artisan route:list --path=panel/auditoria -v` · Esperado: el middleware de permiso aparece listado.
+  - [ ] **AC-07.5** — Verificación: `php artisan route:list --path=panel/auditoria -v` · Esperado: el middleware de permiso aparece listado. *— ⚠️ 2026-10-29: `route:list` no se puede ejecutar en mi sandbox (PHP 8.3; el backend exige 8.5). Verificado por código: `backend/routes/api.php:53-56` declara `GET /auditoria` con `auth:sanctum` y `can:auditoria.ver`, y `AuditoriaTest` (en verde en CI) cubre el rechazo sin permiso. Para marcarlo literal: `php artisan route:list --path=panel/auditoria -v` en tu máquina.*
   - [x] **AC-07.6** — Verificación: `vendor/bin/phpunit` completo · Esperado: ≥ 244 pruebas (240 + 4 nuevas), 0 fallos. *— ✅ 2026-10-28: CI Backend con 265 pruebas, 0 fallos (tras T-07 a T-13).*
 - **Prueba que lo guarda:** las 4 nuevas en `tests/Feature/Api/V1/AuditoriaTest.php`. **Reversión:** revertir el commit.
 
@@ -920,13 +932,14 @@ Lo que se ha **hecho y comprobado**, lo que está **a medias** y lo que **sigue 
 | Tarea | Estado | Qué falta |
 |---|---|---|
 | T-00 | Superada | El documento ya está versionado en el repo (AC-00.1 no aplica). |
-| T-01 | **Parcial** | Repo sigue público (AC-01.1); historial con `accesos.md`; rotación de lo vigente (AC-01.2/01.3); 6 `panel/test_*.mjs` y 18 `.md` en la raíz (3 aprobables) (AC-01.4/01.5); el remoto local aún lleva el token (AC-01.6, H-44). |
+| T-01 | **Parcial** | Cumplidos AC-01.4 y AC-01.5 (PR #314). Abiertos: repo todavía público (AC-01.1); AC-01.2 parcial (escaneo hecho, 0 hallazgos reales por reglas, pero la vigencia de lo expuesto en `accesos.md` solo la determina la rotación); AC-01.3 (lista de secretos con fecha de rotación, fuera del repo) y AC-01.6 (el remoto local aún lleva el token, H-44; revocar el token OAuth) son tuyos. |
 | T-02 | **Hecha** (staging) | AC-02.6 sin `ls -ld` explícito; `shellcheck` sin ejecutar. |
 | T-03 | **Parcial** | Firewall 80/443 y Postfix hechos; puerto 22 (cerrado en el firewall de DigitalOcean según José, **sin comprobar desde aquí**) y kernel (H-40, AC-03.5) pendientes; §9.2 filas 2-7 no repetibles desde la sesión (proxy); archivo de evidencia (AC-03.3) entregado aparte, fuera del repo. |
-| T-04, T-06 | Abiertas | Reglas de rama con revisión y CI de credenciales. Un repo privado en plan Free **deja sin efecto** los rulesets actuales. |
+| T-04 | Abierta | AC-04.1 a 04.6. Las reglas actuales (`deletion`, `non_fast_forward`, `pull_request` con 0 aprobaciones) no exigen `required_status_checks`. Mi sesión no puede modificar rulesets; ver «Aviso sobre `[skip ci]`» en T-04. Un repo privado en plan Free **deja sin efecto** los rulesets actuales. |
+| T-06 | **Hecha** | AC-06.1 a 06.3 (PR #314 y PR de prueba #315). |
 | T-09 | **Hecha** | AC-09.7 (Trivy) sin comprobar aparte. |
 | T-05 | **Hecha** (staging) | AC-05.5 (navegador, con usuario de prueba sin privilegios). PR #296. |
-| T-07 | **Hecha** | AC-07.5 (`route:list`) sin ejecutar: no hay `vendor/` local. PR #294. |
+| T-07 | **Hecha** | AC-07.5 verificado por código, no con `route:list` (sandbox con PHP 8.3). PR #294. |
 | T-08 | **Parcial (fase informe)** | AC-08.1 ✅ en staging; AC-08.4 medido (ver H-09): pendiente nonce en Nuxt y ajuste de Cloudflare; AC-08.2 (7 días de informes); AC-08.3/08.5 (aplicar) y AC-08.4 (Playwright). Depende de T-26 por la analítica. PR #300. |
 | T-10 | **Diferida (D-3)** | Decisión pospuesta a propósito. Mientras tanto `mfa_habilitado` sigue dando falsa seguridad (H-10, H-38, AC-14.5). Nota para retomar en D-3. |
 | T-11 | **Hecha** | Nada abierto. PR #297 (y PR de prueba #307, cerrado). |

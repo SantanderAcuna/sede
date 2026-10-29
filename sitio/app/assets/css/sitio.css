@@ -2017,44 +2017,6 @@ main {
 }
 
 /*
- * Columna del círculo de accesibilidad, desde 992 px. El círculo es fijo y está a
- * media altura de la ventana, así que al desplazarse puede pasar por cualquier punto
- * de la columna del borde derecho; HU-07-D02 pide que no cubra contenido, y donde el
- * margen natural de la página casi alcanza (992–1430 px) se completa con el límite
- * de ancho de abajo. Por debajo de 992 px **no se reserva nada** (el círculo flota
- * sobre el contenido; ver el límite declarado en `BotonAccesibilidad.vue`).
- *
- * Los contenedores de Bootstrap (960, 1140 y 1320 px) dejan a los lados
- * (ventana − contenedor) / 2, y entre 992 y ~1430 px eso es menos que la columna del
- * círculo (56 px): se midió que tapaba tarjetas, el botón de buscar y los botones de
- * los pasos del formulario. Se limita el ancho del contenedor para que **el margen
- * sea siempre ≥ la columna, a los dos lados** (simétrico: no es un carril de un solo
- * lado). A partir de ~1430 px el límite no llega a aplicar y nada cambia.
- *
- *   ancho ≤ ventana − 2 × columna + 2 × relleno del contenedor (0,75 rem)
- */
-@media (min-width: 992px) {
-  main .container,
-  .breadcrumb-nav-govco .container {
-    max-width: min(960px, calc(100vw - 2 * var(--acc-flotante-columna) + 1.5rem));
-  }
-}
-
-@media (min-width: 1200px) {
-  main .container,
-  .breadcrumb-nav-govco .container {
-    max-width: min(1140px, calc(100vw - 2 * var(--acc-flotante-columna) + 1.5rem));
-  }
-}
-
-@media (min-width: 1400px) {
-  main .container,
-  .breadcrumb-nav-govco .container {
-    max-width: min(1320px, calc(100vw - 2 * var(--acc-flotante-columna) + 1.5rem));
-  }
-}
-
-/*
  * «Ver todos los trámites y servicios» en la portada. El Kit estira `.btn-govco` al
  * ancho de su contenedor (una cápsula de 1100 px pegada a la izquierda); aquí se
  * ajusta a su texto y el párrafo que lo contiene (`text-center`) lo centra. 0,3,0:

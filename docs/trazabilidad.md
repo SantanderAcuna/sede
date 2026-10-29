@@ -95,7 +95,7 @@ Enunciados en `docs/Sección 2 §2.4`.
 | **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/tests/diseno.mjs:211` |
 | **CAG-05** | **prueba** | `sitio/tests/diseno.mjs:287` |
 | **CAG-06** | desviación declarada | `sitio/app/components/govco/BarraSuperior.vue:19` · `sitio/scripts/trazabilidad.mjs:251` · `sitio/tests/diseno.mjs:72` |
-| **CAG-07** | **prueba** | `sitio/app/components/govco/BotonAccesibilidad.vue:50` · `sitio/app/components/govco/PanelAccesibilidad.vue:38` · `sitio/tests/diseno.mjs:297` · `sitio/tests/movil.mjs:15` |
+| **CAG-07** | **prueba** | `sitio/app/components/govco/BotonAccesibilidad.vue:51` · `sitio/app/components/govco/PanelAccesibilidad.vue:38` · `sitio/tests/diseno.mjs:297` · `sitio/tests/movil.mjs:15` |
 | **CAG-08** | **prueba** | `sitio/app/layouts/default.vue:9` · `sitio/tests/diseno.mjs:462` |
 | **CAG-09** | **prueba** | `sitio/.vitest/json/output.json:1` · `sitio/app/components/govco/MenuNavegacionGovco.vue:91` · `sitio/app/config/sitemap.ts:8` · `sitio/tests/diseno.mjs:479` · +1 |
 | **CAG-10** | implementación | `sitio/app/components/govco/MenuNavegacionGovco.vue:98` |

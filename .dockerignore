@@ -71,7 +71,6 @@ backend/storage/app/public/*
 backend/tests
 docs/
 docs-security/
-plan.md
 Makefile
 
 # --- Herramientas de desarrollo -----------------------------------------------

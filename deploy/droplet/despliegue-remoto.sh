@@ -186,7 +186,7 @@ verde "  contenedores en marcha"
 
 echo -n "Esperando a que la sede responda…"
 ESPERADO=$((ESPERA / 5))
-for i in $(seq 1 "$ESPERADO"); do
+for _ in $(seq 1 "$ESPERADO"); do
   if curl -fsSk "https://127.0.0.1:${NGINX_HTTPS_PORT:-443}/ready" >/dev/null 2>&1; then
     echo
     verde "  la sede responde"

@@ -26,3 +26,4 @@ logs
 # Resultados de Playwright (T-29)
 test-results/
 resultados-navegadores.json
+resumen-*.md

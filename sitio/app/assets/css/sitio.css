@@ -330,6 +330,20 @@
   padding-left: 1.25rem;
 }
 
+/*
+ * Las cuatro redes sociales caben en una fila sólo si el pie mide ≥ ~1010 px:
+ * el Kit las pone en `flex` sin `wrap` y el usuario «AlcaldíadeSantaMartaDTCH» no
+ * se parte. Entre 992 y ~1008 px la fila se salía de la ventana (888 px de enlaces
+ * en 829 de contenedor) y aparecía desplazamiento horizontal en toda la sede. Con
+ * `wrap` el último pasa a una segunda fila en vez de desbordar. Lo destapó la
+ * comprobación de «sin desbordamiento» que ahora acompaña a CAG-07; ya ocurría
+ * antes de rediseñar el botón de accesibilidad.
+ */
+.pie-pagina-govco .links-container {
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
+
 /* Los enlaces de la primera sección van sobre blanco: azul noche, que da 7,19:1
    y sigue siendo un azul de la paleta de la Entidad. */
 .pie-pagina-govco .first-section a {
@@ -1870,6 +1884,15 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
     margin: -0.75rem -0.25rem;
   }
 
+  /* «Inicio» no se parte. Con `overflow-wrap: anywhere` heredado del bloque de
+     arriba y los márgenes negativos de la regla anterior, el nivel de inicio
+     medía 4 px menos de lo que el texto necesita y el navegador lo partía en
+     «Inici / o» en las subpáginas, a cualquier ancho de teléfono. Es una palabra
+     corta y siempre la primera; los demás niveles sí pueden partirse. */
+  .breadcrumb-item-govco:first-child > a {
+    white-space: nowrap;
+  }
+
   /* El rótulo del campo no cabía y se cortaba a media letra. Con menos relleno
      gana espacio y, si aun así no cabe, termina en puntos suspensivos.
 
@@ -1994,28 +2017,51 @@ main {
 }
 
 /*
- * Carril del botón de accesibilidad en teléfono y tableta pequeña.
- *
- * El botón es un círculo **fijo, centrado verticalmente en el borde derecho e
- * igual en todas las pantallas** (plan del botón, D1, indicación del cliente del
- * 2026-10-01) y la HU-07-D02 pide que no se solape con el contenido. En un
- * teléfono el contenido llega hasta 12 px del borde y el círculo ocupa los
- * últimos 56 px (3 rem + 0,5 rem de margen): al desplazarse, tapaba el final de
- * las líneas de los párrafos de introducción en la mayoría de las rutas (se
- * contó con `tests/movil.mjs`). Moverlo contradice el requisito, así que se
- * reserva su carril: 44 px más de relleno a la derecha (56 − los 12 que ya hay)
- * en los contenedores del contenido. El fondo no cambia: sólo el texto se aparta.
- *
- * El carril se reserva hasta 851 px, no sólo en teléfono: a 768–851 px el
- * contenedor de Bootstrap (720 px, centrado) deja menos de 62 px de margen y el
- * círculo —3,25 rem + 0,625 rem de margen— tapaba una línea en 5 rutas (se midió
- * a 768 y 800 px, el caso de la tableta de la HU-07-D02). Desde 852 px los
- * márgenes ya lo dejan libre (medido a 900, 991, 1024 y 1280: 0 líneas).
+ * Acciones de la cabecera (botón de accesibilidad por debajo de 992 px + galería de
+ * aplicaciones). Un contenedor en fila, a la derecha del logotipo.
  */
-@media (max-width: 851px) {
+.cabecera-govco .acciones-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+
+/*
+ * El círculo de accesibilidad flotante (desde 992 px) no debe cubrir contenido
+ * (HU-07-D02). Está a media altura de la ventana, así que al desplazarse puede
+ * pasar por cualquier punto de la columna del borde derecho; el contenido tiene que
+ * quedar fuera de ella.
+ *
+ * Los contenedores de Bootstrap (960, 1140 y 1320 px) dejan a los lados
+ * (ventana − contenedor) / 2, y entre 992 y ~1430 px eso es menos que la columna del
+ * círculo (56 px): se midió que tapaba tarjetas, el botón de buscar y los botones de
+ * los pasos del formulario. Se limita el ancho del contenedor para que **el margen
+ * sea siempre ≥ la columna, a los dos lados** (simétrico: no es un carril de un solo
+ * lado). A partir de ~1430 px el límite no llega a aplicar y nada cambia.
+ *
+ *   ancho ≤ ventana − 2 × columna + 2 × relleno del contenedor (0,75 rem)
+ *
+ * Por debajo de 992 px el círculo no existe (Kit UI 9.2; CAG-07) y no hay límite.
+ */
+@media (min-width: 992px) {
   main .container,
-  main .container-fluid {
-    padding-right: calc(var(--bs-gutter-x, 1.5rem) * 0.5 + 2.75rem);
+  .breadcrumb-nav-govco .container {
+    max-width: min(960px, calc(100vw - 2 * var(--acc-flotante-columna) + 1.5rem));
+  }
+}
+
+@media (min-width: 1200px) {
+  main .container,
+  .breadcrumb-nav-govco .container {
+    max-width: min(1140px, calc(100vw - 2 * var(--acc-flotante-columna) + 1.5rem));
+  }
+}
+
+@media (min-width: 1400px) {
+  main .container,
+  .breadcrumb-nav-govco .container {
+    max-width: min(1320px, calc(100vw - 2 * var(--acc-flotante-columna) + 1.5rem));
   }
 }
 

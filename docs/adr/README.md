@@ -549,3 +549,35 @@ experimental en la lengua de una comunidad sin hablantes que lo revisen.
 `sitio/app/components/govco/BarraSuperior.vue` (por qué no hay botón),
 `sitio/app/config/sitemap.ts` (rótulos en un solo sitio). La contradicción C-08 de
 `auditoria-sede.md` §6 apunta aquí.
+
+---
+
+## ADR-0017 — Búsqueda de la sede con PostgreSQL (`pg_trgm`)
+
+**Estado:** Propuesta (fase 1 de T-22). Pasa a Aceptada cuando la fase 2 calibre el umbral.
+
+**Contexto.** La sede necesita sugerencias mientras se escribe, tolerancia a erratas y
+resultados por pertinencia (RF-B1-005/006, RF-B2-035/036). Hoy busca con
+`busqueda LIKE '%q%'` sobre texto sin tildes: acierta el texto exacto y nada más.
+**Medido** con el catálogo real: 0 de 10 consultas con errata. El catálogo tiene 124
+trámites y 5 políticas.
+
+**Decisión.** Mantener la búsqueda dentro de PostgreSQL: extensión `pg_trgm`, índices GIN
+sobre columnas de texto ya normalizado (`busqueda`, `busqueda_titulo`) y `word_similarity`
+con el umbral fijado por transacción. No se instala `unaccent` y no se añade un servicio
+de búsqueda.
+
+**Alternativas.** (a) Meilisearch / Elasticsearch: tolerancia y ranking a medida, pero otra
+pieza que desplegar, parchear y mantener sincronizada, para unos 130 documentos.
+(b) Búsqueda de texto completo de PostgreSQL (`tsvector`) sola: stemming en español, pero no
+tolera erratas; puede sumarse después para el ranking. (c) `unaccent()` en la consulta: está
+declarada `STABLE`, no `IMMUTABLE`, y no se indexa sin envolverla.
+
+**Consecuencias.** Una extensión más, de confianza: la crea el dueño de la base, sin
+superusuario. El texto buscable es un dato derivado que mantienen los modelos; cambiar la
+normalización exige reindexar. El umbral y la fórmula de orden viven en el código y se
+prueban con un banco de consultas versionado. Si el contenido crece órdenes de magnitud, la
+decisión se revisa con el p95 medido (AC-22.6), no antes.
+
+**Evidencia.** `docs/busqueda.md` §2 (mediciones), `BancoDeErratasTest`,
+`IndicesDeBusquedaTest`.

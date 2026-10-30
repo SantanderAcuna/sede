@@ -8,11 +8,11 @@ use App\Enums\CanalInicioTramite;
 use App\Enums\CostoTramite;
 use App\Enums\ModalidadTramite;
 use App\Models\Traits\HasUuids;
+use App\Support\Busqueda\TextoBuscable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /**
  * Un trámite del catálogo de la Entidad.
@@ -80,6 +80,7 @@ use Illuminate\Support\Str;
  * @property string|null $categoria_nombre
  * @property string|null $url_ficha_gov_co
  * @property string $busqueda
+ * @property string $busqueda_titulo
  * @property string|null $procedencia_fuente
  * @property string|null $procedencia_url
  * @property Carbon|null $procedencia_obtenido_en
@@ -193,6 +194,9 @@ final class Tramite extends Model
     {
         self::saving(function (Tramite $tramite): void {
             $tramite->busqueda = self::textoBuscable($tramite->nombre, $tramite->resumen);
+            // Sólo el nombre, aparte: un término que coincide con el título pesa
+            // más que uno que aparece en el resumen (ver `docs/busqueda.md`).
+            $tramite->busqueda_titulo = TextoBuscable::normalizar($tramite->nombre);
         });
     }
 
@@ -211,13 +215,13 @@ final class Tramite extends Model
      */
     public static function normalizar(string $texto): string
     {
-        return str_replace(['%', '_'], '', Str::lower(Str::ascii(trim($texto))));
+        return TextoBuscable::normalizar($texto);
     }
 
     /** El texto contra el que se compara el término de búsqueda de un trámite. */
     public static function textoBuscable(string $nombre, ?string $resumen): string
     {
-        return self::normalizar($nombre.' '.($resumen ?? ''));
+        return TextoBuscable::deTramite($nombre, $resumen);
     }
 
     /**

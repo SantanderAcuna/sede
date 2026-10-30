@@ -101,6 +101,19 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    /*
+     * Dirección INTERNA de la API para el renderizado en servidor (ADR-0018).
+     *
+     * Es privada —no está bajo `public`—: el navegador nunca la ve. Apunta al
+     * puerto 8080 de nginx, que sólo existe dentro de la red de Docker y es el
+     * único donde nginx cree la cabecera `X-Sede-Cliente-Ip`. En producción la
+     * pone el despliegue (`NUXT_API_INTERNA`); en desarrollo coincide con el
+     * proxy de Vite. Vacía significa «sin canal»: la ruta responde 503 en lugar
+     * de buscar otro camino.
+     */
+    apiInterna:
+      process.env.NUXT_API_INTERNA ??
+      (process.env.NODE_ENV === 'production' ? '' : 'http://127.0.0.1:8000'),
     public: {
       // La URL de la API la pone el entorno. En producción el sitio y la API
       // comparten origen, así que la ruta relativa es suficiente.

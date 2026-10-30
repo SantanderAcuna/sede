@@ -2447,7 +2447,10 @@ components:
         fecha:
           type: [string, 'null']
           format: date
-          description: Publicación (trámite) o inicio de vigencia (política)
+          description: |
+            Trámite: fecha en que la sede lo publicó (`publicado_en`), **no** la de su ficha
+            oficial en GOV.CO ni la de su última actualización en la fuente. Política: inicio
+            de su vigencia.
         autor:
           type: [string, 'null']
           description: Siempre `null` hoy; ningún contenido registra autor

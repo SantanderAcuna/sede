@@ -20,7 +20,7 @@ return [
     | Similitud mínima de palabra (`pg_trgm.word_similarity`) para que un contenido
     | entre en los resultados. Se fija por transacción: el valor global de la base
     | (0,6) no encontraría «licensia» (0,556) y cambiarlo afectaría a todo lo demás.
-    | Meseta medida: de 0,45 a 0,50 con la cobertura de abajo.
+    | Meseta medida: de 0,45 a 0,50 con la cobertura de abajo (docs/busqueda.md §2.1).
     */
     'umbral' => 0.45,
 
@@ -29,8 +29,11 @@ return [
     | aparecer en el contenido, con esta similitud como mínimo. Es lo que impide
     | que «licencia de conducción» encuentre «licencia de exhumación»: sin esta
     | exigencia ninguna cifra de `umbral` separaba ese ruido de un acierto legítimo.
+    |
+    | 0,40 desde la medición sintética (docs/busqueda.md §2.3): con 0,45 se perdían
+    | erratas reales en palabras largas; con 0,35 aparece ruido en el banco negativo.
     */
-    'cobertura_palabra' => 0.45,
+    'cobertura_palabra' => 0.40,
 
     /* Las palabras más cortas (de, y, la, el…) no se exigen: no distinguen nada. */
     'palabra_minima' => 4,

@@ -588,9 +588,10 @@ declarada `STABLE`, no `IMMUTABLE`, y no se indexa sin envolverla.
 **Consecuencias.** Una extensión más, de confianza: la crea el dueño de la base, sin
 superusuario. El texto buscable es un dato derivado que mantienen los modelos; cambiar la
 normalización exige reindexar (`busqueda:reindexar`). El umbral (0,45) y la cobertura por palabra
-(cada palabra de ≥ 4 letras de la consulta debe aparecer en el contenido) viven en
+(0,40: cada palabra de ≥ 4 letras de la consulta debe aparecer en el contenido) viven en
 `config/busqueda.php`, la fórmula de orden en el repositorio, y se prueban con bancos de
-consultas versionados: 30 con errata, 12 negativas y 10 de validación. Un falso positivo
+consultas versionados: 30 con errata, 12 negativas y 10 de validación, más un banco generado por
+reglas (330 + 300) que corrige el optimismo de los otros (≈ 90 % de acierto, no 100 %). Un falso positivo
 conocido queda documentado, no oculto. Si el contenido crece órdenes de magnitud, la
 decisión se revisa con el p95 medido (AC-22.6), no antes.
 

@@ -311,6 +311,24 @@ final class BusquedaApiTest extends TestCase
         $this->assertGreaterThan(0, (int) $respuesta->headers->get('Retry-After'));
     }
 
+    public function test_el_limite_de_la_busqueda_es_el_configurado_y_no_el_general_de_la_api(): void
+    {
+        // El grupo `api` trae `throttle:api` (60 por minuto). Si se aplicara además del
+        // límite propio, el tope real sería 60 aunque la configuración dijera más: en
+        // staging se observó 429 desde la petición 61.
+        config(['busqueda.limite_por_minuto' => 100]);
+
+        foreach (range(1, 100) as $numero) {
+            $this->assertSame(
+                200,
+                $this->getJson('/api/v1/busqueda/sugerencias?q=licencia')->status(),
+                "La petición {$numero} de 100 no debía limitarse.",
+            );
+        }
+
+        $this->getJson('/api/v1/busqueda/sugerencias?q=licencia')->assertStatus(429);
+    }
+
     public function test_cada_ip_tiene_su_propio_cupo(): void
     {
         config(['busqueda.limite_por_minuto' => 1]);

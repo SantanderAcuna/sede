@@ -269,6 +269,23 @@ jobs:
           grep -Eq '^\s*proxy_set_header\s+X-Sede-Cliente-Ip\s+"";' "$conf/conf.d/default.conf" \
             || { echo "default.conf ya no vacía X-Sede-Cliente-Ip en la ruta del sitio."; exit 1; }
           echo "El 8080 no se publica y la confianza en X-Sede-Cliente-Ip está acotada a interno.conf."
+      - name: El entorno del despliegue encaja (ADR-0019)
+        run: |
+          # El entorno lo renderiza `desplegar.sh` EN el servidor, con la plantilla y
+          # los valores que viajan dentro de la imagen y los secretos que viven allí.
+          # Son cuatro archivos en sitios distintos que sólo se usan juntos una vez por
+          # despliegue: un desencaje entre ellos se descubriría en el servidor, con el
+          # despliegue a medias. Estas dos puertas lo descubren aquí.
+          #
+          #   guarda-entorno.sh        las cuatro piezas encajan: cada variable tiene
+          #                            proveedor, ningún secreto viaja en la imagen, el
+          #                            contrato y el registro coinciden, el Dockerfile
+          #                            copia el entorno.
+          #   prueba-render-entorno.sh el renderizador real: sustitución literal, de una
+          #                            sola pasada, y rechazo de todo lo que no sea
+          #                            CLAVE=valor.
+          bash deploy/pruebas/guarda-entorno.sh
+          bash deploy/pruebas/prueba-render-entorno.sh
       - name: La salud del sitio no depende de la API (ADR-0018)
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=

@@ -284,13 +284,24 @@ titular y B fue el testigo. La IP del render se leyó después en el registro de
 observarse es la IP leída en la propia API; nginx se la pasa a PHP como `REMOTE_ADDR`, así que es
 una inferencia razonable, no una lectura.
 
+**Repetición tras el redespliegue (2026-10-30, entorno ya renderizado en el servidor).** Mismo diseño,
+midiendo la carga de la página `/tramites` y no la API directa. A (equipo del titular, una carga tras
+otra): 31 correctas y desde la 32 el aviso «No se pudo cargar el catálogo» en cada carga (31 cargas × 2
+llamadas ≈ 60 por minuto), hasta que la ventana del minuto se desplazó (≈ 34 s). B (mi entorno, una
+carga por segundo en esa misma ventana): 44 correctas, ninguna con el aviso, y 1 petición que falló al
+conectar (código 000, entre dos correctas; no es un aviso de error del catálogo). **Lectura:** el cupo
+sigue siendo por visitante tras el redespliegue y el límite que alcanzó A lo aplica la API, así que la
+IP del visitante le llega. **Límites:** dos clientes, una ejecución; el cliente B sale por un proxy
+de IP no fija.
+
 **Límites de la verificación previa.** No corrió PHP-FPM ni Laravel reales ni el contenedor de nginx del
 proyecto (usé el nginx del sistema con los mismos archivos de configuración); el `Host` y el esquema se
 comprobaron en los parámetros FastCGI, no en un enlace generado por la API. **Lo que cierra el hallazgo
 es repetir la medición de dos clientes en staging tras el despliegue** (tarea abierta).
 
 **Residual.** El `sitemap.xml` lo genera el sitio con un `$fetch` simple, sin visitante: comparte el
-cupo del servidor (poco tráfico). La IP de la propia API sigue sin leerse en un registro (ver arriba); la de nginx sí.
+cupo del servidor (poco tráfico). La IP de la propia API no se leyó en un registro, pero su efecto sí se observó (ver la repetición
+de arriba): el límite por IP de Laravel separó a los dos clientes.
 
 ## 3. Decisiones
 

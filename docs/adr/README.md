@@ -602,17 +602,19 @@ decisión se revisa con el p95 medido (AC-22.6), no antes.
 
 ## ADR-0018 — El render en servidor consulta la API por un canal interno, con la IP del visitante
 
-**Estado:** Aceptada con una reserva (T-22, 2026-10-30). Medida en staging con dos clientes: el cupo es por
-visitante (`docs/busqueda.md` §2.5). Reservas cerradas el mismo día: (1) el primer despliegue falló (ver
-«Incidente» abajo); quedó corregido en #404 y redesplegado en verde con el `compose.yaml` nuevo (#408);
-(2) la IP que recibe el render no se había leído en un registro del servidor: **HECHO**, tres cargas
-reales de `/tramites` desde un cliente externo, y en las tres la llamada de render a `/api/v1/tramites`
-quedó registrada por nginx con la misma IP que la página (3 de 3, ninguna interna). **Reserva que
-sigue abierta:** la medición del cupo por visitante (dos clientes) se hizo una sola vez y antes del
-último redespliegue; no se repitió con el entorno ya renderizado en el servidor.
-**Límite de la prueba de IP:** compara lo que nginx registra en el 8080 con lo que registra en el 443
-(la IP del visitante tal como la restaura Cloudflare). `fastcgi.conf` pasa esa misma dirección a PHP
-como `REMOTE_ADDR`, de modo que la API la ve igual (**INFERENCIA**, no leída en la propia API).
+**Estado:** Aceptada (T-22, 2026-10-30). Tres reservas que tuvo, todas cerradas el mismo día en
+staging: (1) el primer despliegue falló (ver «Incidente» abajo); quedó corregido en #404 y redesplegado
+en verde con el `compose.yaml` nuevo (#408). (2) La IP que recibe el render no se había leído en un
+registro del servidor: **HECHO**, tres cargas reales de `/tramites` desde un cliente externo, y en las
+tres la llamada de render a `/api/v1/tramites` quedó registrada por nginx con la misma IP que la página
+(3 de 3, ninguna interna). (3) La medición del cupo se había hecho una sola vez y antes de ese
+redespliegue: **HECHO**, repetida con el entorno ya renderizado en el servidor (`docs/busqueda.md`
+§2.5). Con la ráfaga de A (31 cargas correctas y el resto con el aviso de error del catálogo, hasta
+que la ventana del minuto se desplazó) B cargó 44 páginas correctas en la misma ventana, sin aviso de
+error, y una petición que falló al conectar (código 000) entre dos correctas. Como el límite lo aplica
+Laravel con un cubo por IP, que B quedara libre mientras A estaba limitado es lectura del lado de la API.
+**Límites que quedan:** son dos clientes y dos ejecuciones, no una prueba de carga; el cliente B sale
+por el proxy de mi entorno, cuya IP de salida no controlo.
 
 **Contexto.** El sitio renderiza en servidor y pide datos a la API. Se le dio la URL pública del
 dominio; la petición sale a Internet, vuelve por Cloudflare y la API ve la dirección del servidor del

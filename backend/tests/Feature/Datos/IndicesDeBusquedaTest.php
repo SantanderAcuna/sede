@@ -66,9 +66,10 @@ final class IndicesDeBusquedaTest extends TestCase
 
         // La corrección desde el panel no debe dejar el índice con el nombre viejo.
         $tramite->update(['nombre' => 'Certificado de Vecindad']);
+        $tramite->refresh();
 
-        $this->assertSame('certificado de vecindad', $tramite->fresh()->busqueda_titulo);
-        $this->assertStringStartsWith('certificado de vecindad', $tramite->fresh()->busqueda);
+        $this->assertSame('certificado de vecindad', $tramite->busqueda_titulo);
+        $this->assertStringStartsWith('certificado de vecindad', $tramite->busqueda);
     }
 
     public function test_la_politica_mantiene_su_texto_buscable_con_el_texto_de_sus_apartados(): void
@@ -87,8 +88,9 @@ final class IndicesDeBusquedaTest extends TestCase
         $politica->update(['secciones' => [
             ['id' => 'duracion', 'titulo' => 'Vigencia', 'parrafos' => ['Seis meses.']],
         ]]);
+        $politica->refresh();
 
-        $this->assertSame('uso de cookies vigencia seis meses.', $politica->fresh()->busqueda);
+        $this->assertSame('uso de cookies vigencia seis meses.', $politica->busqueda);
     }
 
     public function test_el_texto_buscable_no_se_puede_rellenar_a_mano(): void

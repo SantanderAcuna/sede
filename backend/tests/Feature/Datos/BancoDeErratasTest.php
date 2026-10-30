@@ -153,6 +153,6 @@ final class BancoDeErratasTest extends TestCase
             ['q' => $q, 'umbral' => self::UMBRAL],
         );
 
-        return array_map(fn (stdClass $fila): string => (string) $fila->codigo, $filas);
+        return array_values(array_map(fn (stdClass $fila): string => (string) $fila->codigo, $filas));
     }
 }

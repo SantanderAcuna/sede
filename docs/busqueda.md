@@ -278,8 +278,11 @@ reenvía las lecturas del render a un puerto interno de nginx con la IP del visi
 **Límites de la medición.** Un solo par de clientes y una sola ejecución. El cliente B salía por el proxy
 de mi entorno, cuya IP de salida no controlo (no pude limitarlo yo mismo: 100 llamadas directas en 49 s no
 dieron 429, lo que sugiere que su IP de salida no es fija); por eso el límite se agotó en el equipo del
-titular y B fue el testigo. Tampoco observé la IP que ve la API en un registro del servidor: la
-conclusión se apoya en el efecto (cupo por visitante), no en la lectura de la IP.
+titular y B fue el testigo. La IP del render se leyó después en el registro de nginx del servidor
+(2026-10-30, tres cargas reales de `/tramites` desde un cliente externo): la llamada de render a
+`/api/v1/tramites` quedó con la misma IP que la página en las tres (ver ADR-0018). Lo que sigue sin
+observarse es la IP leída en la propia API; nginx se la pasa a PHP como `REMOTE_ADDR`, así que es
+una inferencia razonable, no una lectura.
 
 **Límites de la verificación previa.** No corrió PHP-FPM ni Laravel reales ni el contenedor de nginx del
 proyecto (usé el nginx del sistema con los mismos archivos de configuración); el `Host` y el esquema se
@@ -287,7 +290,7 @@ comprobaron en los parámetros FastCGI, no en un enlace generado por la API. **L
 es repetir la medición de dos clientes en staging tras el despliegue** (tarea abierta).
 
 **Residual.** El `sitemap.xml` lo genera el sitio con un `$fetch` simple, sin visitante: comparte el
-cupo del servidor (poco tráfico). La IP exacta que ve la API sigue sin observarse en un registro real.
+cupo del servidor (poco tráfico). La IP de la propia API sigue sin leerse en un registro (ver arriba); la de nginx sí.
 
 ## 3. Decisiones
 

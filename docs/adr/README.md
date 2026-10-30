@@ -658,3 +658,101 @@ los resultados: pierde el resultado sin JavaScript. Detalle en `docs/busqueda.md
 
 **Evidencia.** `docs/busqueda.md` §2.5; `sitio/tests/canal-interno.test.ts` (31 casos);
 `docker/nginx/conf.d/interno.conf`; guarda en `.github/workflows/ci.yml`.
+
+---
+
+## ADR-0019 — El entorno del despliegue viaja con la versión y se renderiza en el servidor
+
+**Estado:** Aceptada (2026-10-30). Implementada y probada en seco (ver «Evidencia»); **el primer
+despliegue con ella todavía no ha ocurrido**, y exige instalar una vez el guion nuevo y el archivo
+de secretos en el servidor.
+
+**Contexto.** `.env` y `compose.yaml` los escribía en el servidor `deploy/publicar-entorno.sh`,
+ejecutado **a mano** desde la máquina de operación. La canalización sólo puede ejecutar
+`desplegar.sh <entorno> <versión>`, porque la llave de despliegue es un comando forzado. Tres
+consecuencias, las tres medidas:
+
+1. **Un cambio de configuración no tenía efecto** hasta acordarse de publicar el entorno, y el
+   orden importaba. El 2026-10-30 la canalización desplegó la imagen nueva con el `compose.yaml`
+   viejo y dejó el dominio entero en 521 (ADR-0018, «Incidente»).
+2. **Volver atrás devolvía el código pero no su configuración.** La etiqueta de cada versión es la
+   confirmación, así que el código es reproducible; el entorno era el último que alguien publicó.
+3. **El entorno no era auditable por versión:** no había forma de saber con qué configuración corrió
+   una versión dada.
+
+**Decisión.** El entorno se parte en tres por **quién debe poder cambiarlo**:
+
+| Pieza | Dónde vive | Cómo llega al servidor |
+|---|---|---|
+| Secretos | `/etc/sede/<entorno>.secretos.env`, `root`, 600 | Se instalan una vez con `publicar-entorno.sh`; sólo se vuelven a tocar al rotar un secreto. **Nunca viajan.** |
+| Plantilla y valores no secretos | `deploy/plantilla.env`, `deploy/valores-<entorno>.env` | Dentro de la imagen de la aplicación (`/opt/sede-entorno/`), atados a la etiqueta de la versión |
+| El guion que los junta | `/usr/local/bin/desplegar.sh` | A mano, deliberadamente (ver abajo) |
+
+En cada despliegue, `desplegar.sh` extrae la configuración de la imagen de esa versión, la renderiza
+con los secretos del servidor, valida y sólo entonces sustituye los archivos.
+
+**Reparto de confianza, que es lo que hace esto seguro.**
+- **Los secretos no se mueven.** No están en este repositorio —que es público—, no están en GitHub
+  Actions y no entran en ninguna imagen. Es la propiedad más fuerte del diseño, y la razón por la
+  que se descartó la alternativa cómoda (pasar el `.env` renderizado desde GitHub Secrets): habría
+  puesto la clave de la aplicación, la de la base y la del super-admin en un tercero.
+- **Lo que llega en la imagen es DATOS, no código.** La plantilla y los valores se interpretan con un
+  analizador estricto (`CLAVE=valor`, valor literal) y **nunca** con `source`. Si se ejecutaran, quien
+  pudiera empujar al registro ejecutaría órdenes como `root` en el servidor en el siguiente
+  despliegue. Por el mismo motivo la sustitución es propia y no `envsubst`: `envsubst` expandiría
+  cualquier variable del entorno del proceso que apareciera en la plantilla, y además obligaría a
+  añadir `gettext` como dependencia del despliegue.
+- **El guion del servidor es el ancla y no se autoactualiza.** Extraerlo de la imagen como el resto
+  sería más cómodo y sería una escalada de privilegio. Por eso lleva escritos el registro de
+  confianza, el nombre de la aplicación y la lista de nombres de secretos: **un archivo que viaja en
+  una imagen no puede fijar un secreto ni redirigir de dónde se traen las imágenes**, y el guion
+  rechaza el que lo intente.
+- **Contrato explícito.** Los valores declaran `CONTRATO_ENTORNO` y el guion sólo acepta el que
+  entiende: una imagen con un entorno de forma nueva detiene el despliegue con un mensaje que pide
+  actualizar el guion, en lugar de renderizar a medias algo que nadie revisó.
+- **Fallo cerrado.** Se renderiza en una carpeta temporal que sólo `root` puede leer, con la máscara
+  cerrada; se comprueban dueño y permisos del archivo de secretos, los secretos obligatorios no
+  vacíos, que toda variable de la plantilla tenga proveedor, que no quede ningún marcador y que la
+  pila resuelva. Sólo entonces se intercambian los archivos con `mv` —un cambio de nombre, atómico—
+  guardando `.env.anterior` y `compose.yaml.anterior`. En los trece caminos de fallo probados, el
+  `.env` que ya estaba quedó intacto.
+
+**Consecuencias.**
+- La configuración pasa a ser inmutable y direccionable por versión, igual que el código, y **volver
+  atrás devuelve también la configuración anterior** (`volver_atras` restaura los archivos guardados).
+- Un cambio en la plantilla o en los valores se despliega como cualquier otro cambio: solicitud de
+  incorporación, revisión, canalización. El dominio de producción, cuando se decida, es una línea en
+  `deploy/valores-produccion.env`, no una sesión en el servidor.
+- `publicar-entorno.sh` cambia de trabajo: ahora instala los secretos. Sigue publicando `.env` y
+  `compose.yaml` como arranque, para la primera vez y para poder volver a una versión anterior a este
+  mecanismo.
+- **Dos pasos manuales quedan, y son deliberados:** instalar el guion del servidor cuando cambie el
+  contrato, y el certificado del origen (F0.11), que lo emite `droplet/certificado.sh` en el servidor.
+- Dos puertas nuevas en la canalización: `deploy/pruebas/guarda-entorno.sh` (las piezas encajan) y
+  `deploy/pruebas/prueba-render-entorno.sh` (el renderizador real).
+
+**Riesgos residuales, declarados.**
+- **La imagen se identifica por su etiqueta**, que es la confirmación, no por su digestión. Quien
+  tuviera permiso de escritura en el registro podría reemplazar el contenido de una etiqueta. Fijar
+  por digestión exigiría que la canalización se la pasara al guion, y la llave de despliegue sólo
+  admite dos argumentos. Mitigación actual: el guion no acepta de la imagen ni el registro ni los
+  secretos, así que el daño queda acotado a los valores no secretos.
+- **El primer despliegue con este mecanismo no ha ocurrido.** Lo probado es el renderizado y los
+  caminos de fallo, con un sustituto de `docker` y sin PHP ni el contenedor real.
+- Si una versión anterior a este cambio se despliega, su imagen no trae entorno: el guion lo dice en
+  voz alta y sigue con el que haya en el servidor, que es el comportamiento de antes.
+
+**Alternativas descartadas.** (a) *Dejarlo manual y documentado*: coste cero y el fallo se repite; la
+regla ya estaba escrita cuando ocurrió el 521. (b) *El `.env` renderizado desde GitHub Secrets*: lo
+más cómodo, y pone todos los secretos de la sede en un tercero, además de exigir ampliar lo que puede
+hacer la llave de despliegue. (c) *Un gestor de secretos* (Vault y similares): es la respuesta
+correcta a otra escala; para un servidor y dos entornos añade una pieza crítica más que operar y
+parchear, y el ADR-0001 ya fija ese criterio.
+
+**Evidencia.** `deploy/pruebas/prueba-render-entorno.sh` (27 comprobaciones del renderizador real,
+extraído del guion del servidor, incluida la equivalencia con la sustitución anterior);
+`deploy/pruebas/guarda-entorno.sh`; trece caminos de fallo ejercitados con un sustituto de `docker`
+(permisos y dueño del archivo de secretos, secreto obligatorio ausente y vacío, imagen que intenta
+fijar un secreto, contrato desconocido, registro distinto, variable sin proveedor, línea que no es
+`CLAVE=valor`, pila que no resuelve, imagen sin entorno, producción sin dominio), con el `.env`
+anterior intacto en todos.

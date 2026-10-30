@@ -5,7 +5,8 @@ escribe, tolerancia a erratas y resultados por pertinencia.
 
 - **Resuelve:** H-23 · RF-B1-005, RF-B1-006, RF-B2-035, RF-B2-036, RF-B3-067 · D-03.
 - **Decisión de arquitectura:** [ADR-0017](adr/README.md).
-- **Estado:** fase 1 (contrato, datos, premisa medida) · fases 2 y 3 pendientes.
+- **Estado:** entrega 1 (contrato, datos, premisa medida; PR #380) · entregas 2 y 3 pendientes. Se llaman *entregas* (E1-E3) para no confundirlas con las fases 0-4 del plan de remediación.
+- **Criterios y casos de prueba:** [`casos-de-prueba-t22-busqueda.md`](../sede-electronica-doc/01-estructura-identidad/casos-de-prueba-t22-busqueda.md) (§5 y §7 de este documento sólo remiten a él).
 - **Convención:** **HECHO** = medido o leído en el repositorio · **INFERENCIA** = deducido
   de hechos · **HIPÓTESIS** = no verificado todavía.
 
@@ -25,10 +26,10 @@ del panel (sólo los tipos generados).
 
 | Operación | Forma | Estado |
 |---|---|---|
-| `GET /api/v1/busqueda/sugerencias?q=` | ≤ 10 × {título, categoría, tipo, url, score} | `pending` → `implemented` en la fase 2 |
+| `GET /api/v1/busqueda/sugerencias?q=` | ≤ 10 × {título, categoría, tipo, url, score} | `pending` → `implemented` en la entrega 2 |
 | `GET /api/v1/buscar?q=&tipo=&page=&per_page=` | Colección paginada × {título, categoría, extracto, fecha, autor, miniatura, url, score} | ídem |
 
-## 2. Qué se midió (fase 1)
+## 2. Qué se midió (entrega 1)
 
 Catálogo real: **124 trámites** de la entidad `0043` de SUIT, nombres publicados
 (`nombreEstandarizado_govco`) y resumen recortado a 500 caracteres. PostgreSQL 16.15 local;
@@ -59,84 +60,56 @@ resultado se mantuvo, pero el banco y el piso de 0,500 salen de la segunda.
 | D4 | Dos operaciones distintas | Una con `autocompletar` | Ver §1. |
 | D5 | `word_similarity` y umbral por transacción (`SET LOCAL` / `set_config(…, true)`) | Umbral global del servidor | Cambiar el global afectaría a toda consulta de la base. |
 | D6 | Desempate por `similarity()` de la cadena entera | Orden alfabético | HECHO: sin él, «Exención del impuesto predial…» ganaba a «Impuesto predial…» por orden alfabético. |
-| D7 | Umbral inicial 0,4 y **calibración en la fase 2** | Fijar 0,5 hoy | Por el piso de 0,500 (sin margen) y el ruido de 0,4; se resuelve con un banco ampliado y uno negativo. |
+| D7 | Umbral inicial 0,4 y **calibración en la entrega 2** | Fijar 0,5 hoy | Por el piso de 0,500 (sin margen) y el ruido de 0,4; se resuelve con un banco ampliado y uno negativo. |
 
 ## 4. Riesgos
 
 | # | Riesgo | Tipo | Mitigación | Cuándo |
 |---|---|---|---|---|
-| R1 | Un volumen mucho mayor que 124 filas degrada el p95 | HIPÓTESIS | AC-22.6 mide contra staging; el índice GIN ya existe | F3 |
-| R2 | El banco es optimista (lo escribí yo) | HECHO | Pedir a la Entidad consultas reales de atención; ampliar a ≥ 30 con casos de una palabra y negativos | F2 |
-| R3 | **El texto buscado queda en el registro de acceso.** `docker/nginx/nginx.conf` registra `$request` (con `?q=`) y `$http_referer` (el sitio pide sus recursos con la página `/buscar?q=…` como referer). Un ciudadano puede escribir un número de documento. | HECHO el formato · INFERENCIA el contenido | `log_format` sin argumentos para `/api/v1/buscar` y `/api/v1/busqueda`, y referer sin consulta; revisar con el oficial de datos personales (Ley 1581) | F2 |
-| R4 | Cada pulsación es una petición: abuso o carga | INFERENCIA | Pausa de 250 ms en el cliente, `throttle:busqueda` en el servidor (429 declarado en el contrato) | F2 |
+| R1 | Un volumen mucho mayor que 124 filas degrada el p95 | HIPÓTESIS | AC-22.6 mide contra staging; el índice GIN ya existe | E3 |
+| R2 | El banco es optimista (lo escribí yo) | HECHO | Pedir a la Entidad consultas reales de atención; ampliar a ≥ 30 con casos de una palabra y negativos | E2 |
+| R3 | **El texto buscado queda en el registro de acceso.** `docker/nginx/nginx.conf` registra `$request` (con `?q=`) y `$http_referer` (el sitio pide sus recursos con la página `/buscar?q=…` como referer). Un ciudadano puede escribir un número de documento. | HECHO el formato · INFERENCIA el contenido | `log_format` sin argumentos para `/api/v1/buscar` y `/api/v1/busqueda`, y referer sin consulta; revisar con el oficial de datos personales (Ley 1581) | E2 |
+| R4 | Cada pulsación es una petición: abuso o carga | INFERENCIA | Pausa de 250 ms en el cliente, `throttle:busqueda` en el servidor (429 declarado en el contrato) | E2 |
 | R5 | Las políticas indexan texto de ejemplo (`es_ejemplo`) | HECHO | La página enlazada muestra ese mismo texto con su aviso; al aprobarse el texto, el hook reindexa solo | — |
-| R6 | Relevancia subjetiva | HECHO (Guía §D-03) | Orden documentado y reproducible: la fórmula está en el código y el banco en el repositorio | F2 |
-| R7 | Si `TextoBuscable::normalizar` cambia, lo guardado queda desfasado | INFERENCIA | Prueba que fija su salida; comando `busqueda:reindexar` | F2 |
-| R8 | Sin Cloudflare caché sobre `/api/v1/buscar` el origen recibe todo | HIPÓTESIS | Medir antes de decidir; no se cachea una búsqueda con texto del ciudadano | F3 |
+| R6 | Relevancia subjetiva | HECHO (Guía §D-03) | Orden documentado y reproducible: la fórmula está en el código y el banco en el repositorio | E2 |
+| R7 | Si `TextoBuscable::normalizar` cambia, lo guardado queda desfasado | INFERENCIA | Prueba que fija su salida; comando `busqueda:reindexar` | E2 |
+| R8 | Sin Cloudflare caché sobre `/api/v1/buscar` el origen recibe todo | HIPÓTESIS | Medir antes de decidir; no se cachea una búsqueda con texto del ciudadano | E3 |
 
 ## 5. Criterios de aceptación
 
-Heredados de la auditoría (AC-22.1…22.6), con el reparto por fase. Los umbrales marcados
-con † son míos y se revisan tras medir.
-
-| AC | Criterio | Verificación | Fase |
-|---|---|---|---|
-| AC-22.1 | ≤ 10 sugerencias con título, categoría y URL; contrato `pending` → `implemented` | `curl '…/api/v1/busqueda/sugerencias?q=licen'` | F2 |
-| AC-22.2 | Con < 3 caracteres no consulta; con ≥ 3 muestra sugerencias | Prueba del componente | F3 |
-| AC-22.3 | ≥ 8 de 10 consultas con errata devuelven el esperado entre los 3 primeros † | Banco `tests/Support/banco-erratas.php` | **F1 (consulta)** · F2 (API) |
-| AC-22.4 | `GET /buscar?q=`: sólo contenido de la sede; fecha, categoría, título, extracto (autor y miniatura cuando existan); orden por pertinencia | Prueba HTTP + `curl` | F2 |
-| AC-22.5 | axe: 0 críticas/serias; patrón `combobox` (`aria-expanded`, `aria-controls`, `listbox`), con teclado | axe sobre `/buscar` y el encabezado | F3 |
-| AC-22.6 | 100 consultas contra staging: p95 < 300 ms † | Script de carga contra staging | F3 |
-
-**Criterios añadidos por el análisis de riesgos** (no estaban en la auditoría):
-
-| AC | Criterio | Verificación | Fase |
-|---|---|---|---|
-| AC-22.7 | El texto buscado no aparece en el registro de acceso ni en el referer registrado | Petición real + lectura del registro de nginx | F2 |
-| AC-22.8 | Una consulta sin sentido devuelve lista vacía, no ruido | Banco negativo | F2 |
-| AC-22.9 | La corrección de un trámite o una política desde el panel se refleja en la búsqueda sin reindexar a mano | Prueba de modelo | **F1** |
+Los AC-22.1 a AC-22.12 los define la auditoría del Módulo 01 (§8, T-22; es un archivo local). Su
+resumen de lectura, con la entrega en que se comprueba cada uno, está en el §1 de los casos de
+prueba (enlace arriba). Los umbrales que la auditoría marca como «míos» (8 de 10, p95 < 300 ms)
+se revisan tras medir.
 
 ## 6. Definición de hecho (DoD)
 
-Aplica a cada fase de T-22:
+La de T-22 es la DoD global del plan (auditoría §8.0): AC ejecutados con su salida en el PR, CI 7/7,
+prueba que guarda la corrección (en rojo antes y en verde después, o la razón por la que no aplica),
+`make trazabilidad` regenerado, sin secretos ni IP, reversión descrita y, desde 2026-10-29,
+documentación al día y casos de prueba ejecutados con su resultado anotado. Más dos ítems propios:
 
-- [ ] Criterios de la fase ejecutados con su salida en el PR.
-- [ ] CI 7/7 (Contrato, Backend, Panel, Sitio, Pila, Dependencias, Credenciales).
-- [ ] Prueba en rojo antes y en verde después, o la razón por la que no aplica.
 - [ ] Contrato validado (`redocly lint`, sin avisos nuevos) y tipos regenerados.
-- [ ] `make trazabilidad` regenerado.
-- [ ] Sin secretos, IP ni dominios en código, pruebas ni documentos.
-- [ ] Reversa descrita: la migración tiene `down()` y no borra la extensión.
-- [ ] Límites declarados, no ocultos.
+- [ ] Límites declarados, no ocultos (§9).
 
 ## 7. Casos de prueba
 
-| TC | Verifica | Pasos | Esperado | Tipo |
-|---|---|---|---|---|
-| TC-BUS-01 | Extensión instalada | `select count(*) from pg_extension where extname='pg_trgm'` | 1 | Auto. (`IndicesDeBusquedaTest`) |
-| TC-BUS-02 | Índices GIN de trigramas | Leer `pg_indexes` de los cuatro índices | `USING gin` + `gin_trgm_ops` sobre su columna | Auto. |
-| TC-BUS-03 | Texto buscable del trámite al guardar y al corregir | Crear, actualizar el nombre | `busqueda_titulo` y `busqueda` siguen el cambio | Auto. (AC-22.9) |
-| TC-BUS-04 | Texto buscable de la política con el texto de sus apartados | Crear, cambiar apartados | `busqueda` incluye nombre, títulos y párrafos | Auto. (AC-22.9) |
-| TC-BUS-05 | El texto buscable no se rellena a mano | `create(['busqueda' => 'x'])` | Se ignora | Auto. |
-| TC-BUS-06 | Normalización fija | Tildes, eñes, comodines, dobles espacios | Salidas exactas | Auto. (`TextoBuscableTest`) |
-| TC-BUS-07 | Línea base | LIKE sobre el banco de erratas | 0 aciertos | Auto. (`BancoDeErratasTest`) |
-| TC-BUS-08 | Tolerancia a erratas (consulta) | Banco de 10 sobre el catálogo sembrado | ≥ 8 en el top 3 | Auto. (AC-22.3) |
-| TC-BUS-09 | Consulta sin sentido | «xyzxyz» | 0 filas | Auto. |
-| TC-BUS-10 | Operador con índice y umbral por transacción | `EXPLAIN` de `'licensia' <% busqueda_titulo` | Plan con `tramites_busqueda_titulo_trgm`; ≥ 1 fila | Auto. |
-| TC-BUS-11 | Contrato | `redocly lint` | Válido, sin avisos nuevos | Auto. (CI Contrato) |
-| TC-BUS-12 | Deriva del contrato | `DerivaDelContratoTest` | Las operaciones `pending` no exigen ruta | Auto. |
-| TC-BUS-13 | Revertir la migración | `migrate:rollback --step=1` | Columnas e índices fuera; la extensión se queda | Manual (QA / despliegue) |
-| TC-BUS-14… | Sugerencias, API, componente, axe, p95, registro de acceso | Ver §5 | — | Fases 2 y 3 |
+Viven en el documento enlazado arriba: 32 casos (TC-BUS-01 a TC-BUS-32) con pasos, resultado
+esperado, tipo y resultado obtenido. De la entrega 1, TC-BUS-01 a 12 están ejecutados en CI (08, 09
+y 10 con salvedades escritas allí) y TC-BUS-13 (revertir la migración) está **sin ejecutar**. Los de
+las entregas 2 y 3 están sin ejecutar porque aún no se han construido. La matriz AC → TC está en la
+auditoría (§10).
 
-## 8. Plan por fases
+## 8. Plan por entregas
 
-1. **Fase 1 (este PR):** contrato, extensión e índices, texto buscable, premisa medida.
+1. **Entrega 1 (PR #380):** contrato, extensión e índices, texto buscable, premisa medida.
    Sin ruta nueva: las operaciones siguen `pending`.
-2. **Fase 2:** repositorio y servicio de búsqueda, controladores, `throttle:busqueda`, comando
+2. **Entrega 2:** repositorio y servicio de búsqueda, controladores, `throttle:busqueda`, comando
    `busqueda:reindexar`, calibración del umbral con el banco ampliado y el negativo,
    registro de acceso sin consulta (R3), pruebas HTTP. Contrato → `implemented`.
-3. **Fase 3:** sitio — `combobox` accesible en el encabezado, página `/buscar` con los
-   campos nuevos, pausa de 250 ms; axe; p95 contra staging.
+3. **Entrega 3:** sitio — `combobox` accesible en el encabezado, página `/buscar` con los
+   campos nuevos, pausa de 250 ms; axe; p95 contra staging. Antes de codificarla, la
+   especificación de interacción (AC-22.12) la aprueba el titular.
 
 ## 9. Límites que quedan
 
@@ -145,4 +118,4 @@ Aplica a cada fase de T-22:
 - Los sinónimos («carro» ↔ «vehículo», «cédula» ↔ «documento») no los resuelven los
   trigramas; si la Entidad los necesita, se incorporan por el campo `palabras_relacionadas`
   del trámite, que hoy no se indexa. Decisión de la Entidad, no de TIC.
-- No se probó con lector de pantalla ni dispositivos reales (fase 3).
+- No se probó con lector de pantalla ni dispositivos reales (entrega 3).

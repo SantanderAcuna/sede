@@ -32,7 +32,7 @@ use Illuminate\Support\Str;
  *
  * **Esta clase es parte del contrato de datos de la búsqueda:** si cambia lo que
  * hace `normalizar`, el texto ya guardado queda desfasado y hay que reindexar
- * (`busqueda:reindexar`, fase 2). Por eso hay una prueba que fija su salida.
+ * (`busqueda:reindexar`, entrega 2). Por eso hay una prueba que fija su salida.
  */
 final class TextoBuscable
 {

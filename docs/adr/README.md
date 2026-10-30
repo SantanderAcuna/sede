@@ -566,7 +566,7 @@ experimental en la lengua de una comunidad sin hablantes que lo revisen.
 
 ## ADR-0017 — Búsqueda de la sede con PostgreSQL (`pg_trgm`)
 
-**Estado:** Propuesta (fase 1 de T-22). Pasa a Aceptada cuando la fase 2 calibre el umbral.
+**Estado:** Propuesta (entrega 1 de T-22). Pasa a Aceptada cuando la entrega 2 calibre el umbral.
 
 **Contexto.** La sede necesita sugerencias mientras se escribe, tolerancia a erratas y
 resultados por pertinencia (RF-B1-005/006, RF-B2-035/036). Hoy busca con

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * La capa de datos de la búsqueda (T-22, fase 1).
+ * La capa de datos de la búsqueda (T-22, entrega 1).
  *
  * Lo que protege: que la extensión y los cuatro índices existan **con el tipo
  * correcto** —un índice B-tree sobre `busqueda` existiría y no serviría de nada

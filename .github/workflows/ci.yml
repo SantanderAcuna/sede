@@ -224,19 +224,32 @@ jobs:
           # alguien publicara el 8080, cualquier visitante podría falsear su
           # dirección y saltarse los límites de peticiones sin que nada fallara.
           #
-          # 1) Ningún servicio publica el 8080, ni en el puerto del anfitrión ni
-          #    como destino. Se lee la pila ya resuelta, no el texto de compose.yaml,
-          #    para que también la atrape una variable o un archivo de anulación.
-          docker compose config --format json > /tmp/pila.json
-          publicados=$(jq -r '[.services[] | (.ports // [])[] | select((.target|tostring)=="8080" or (.published|tostring)=="8080")] | length' /tmp/pila.json)
-          if [ "$publicados" != "0" ]; then
-            echo "Algún servicio publica el puerto 8080: el canal interno quedaría abierto a Internet."
-            jq '[.services | to_entries[] | {servicio: .key, puertos: (.value.ports // [])} | select(.puertos | length > 0)]' /tmp/pila.json
-            exit 1
-          fi
-          # 2) La pila sí publica el 80 y el 443 (si esto cambiara, la comprobación
-          #    anterior podría estar mirando una pila vacía).
-          jq -e '[.services.nginx.ports[].target] | sort == [80, 443]' /tmp/pila.json > /dev/null \
+          # 1) Ningún servicio publica el puerto 8080 DEL CONTENEDOR. Se lee la pila ya
+          #    resuelta, no el texto de compose.yaml, para que también la atrape una
+          #    variable o un archivo de anulación.
+          #
+          #    Se mira `target` (el puerto dentro del contenedor) y no `published`: el
+          #    `compose.override.yaml` de desarrollo publica el 8080 DEL ANFITRIÓN hacia
+          #    el 80 de nginx (`8080:80`), que es otra cosa y no expone el canal
+          #    interno. Mirar `published` dio un falso positivo en la primera
+          #    ejecución de esta guarda.
+          #
+          #    Se comprueban las dos pilas: la de producción (sólo compose.yaml, que es
+          #    lo que publica `deploy/publicar-entorno.sh`) y la de desarrollo (con la
+          #    anulación que Compose carga sola).
+          docker compose -f compose.yaml config --format json > /tmp/pila-prod.json
+          docker compose config --format json > /tmp/pila-dev.json
+          for pila in /tmp/pila-prod.json /tmp/pila-dev.json; do
+            publicados=$(jq -r '[.services[] | (.ports // [])[] | select((.target|tostring)=="8080")] | length' "$pila")
+            if [ "$publicados" != "0" ]; then
+              echo "Un servicio publica el puerto 8080 del contenedor ($pila): el canal interno quedaría abierto."
+              jq '[.services | to_entries[] | {servicio: .key, puertos: (.value.ports // [])} | select(.puertos | length > 0)]' "$pila"
+              exit 1
+            fi
+          done
+          # 2) La pila de producción sí publica el 80 y el 443 (si esto cambiara, la
+          #    comprobación anterior podría estar mirando una pila vacía).
+          jq -e '[.services.nginx.ports[].target] | sort == [80, 443]' /tmp/pila-prod.json > /dev/null \
             || { echo "nginx ya no publica exactamente el 80 y el 443; revisar esta guarda."; exit 1; }
           # 3) La confianza amplia está en UN solo archivo.
           conf=docker/nginx

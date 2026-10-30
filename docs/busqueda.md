@@ -85,6 +85,21 @@ inadvertido.
 y con el catálogo a la vista (R2); la elección se hizo sobre el banco de calibración, no sobre el de
 validación; y los sinónimos y siglas («Sisbén») no los resuelven los trigramas (§9).
 
+## 2.2 Registro de acceso sin la consulta (R3, AC-22.7)
+
+En `docker/nginx/nginx.conf`, dos `map` (`$uri_registrable`, `$referer_registrable`) recortan la
+cadena de consulta cuando trae el parámetro `q` o `buscar`, y `log_format principal` los usa en
+lugar de `$request` y `$http_referer`. **HECHO:** probado con nginx 1.24 real (`nginx -t` y 11
+peticiones: ninguna consulta ni su referer llegó al registro; `?page=2&per_page=20`,
+`?categoria=x&quest=1` y `/buscar` sin consulta se conservan). En CI, una guarda aplica las
+expresiones del propio archivo a URL de ejemplo. **No está probado en staging:** TC-BUS-23 (leer el
+registro real) lo ejecuta el titular.
+
+**Informes de la política de contenido.** Su cuerpo trae la URL del documento (`document-uri`, `referrer`); una violación en `/buscar?q=…` llevaría la consulta al registro `csp_informe`. nginx no puede reescribir un JSON, así que un tercer `map` (`$informe_registrable`) sustituye el cuerpo completo por un aviso cuando contiene un parámetro `q` o `buscar` (también como `\u0026`). Se pierde el detalle de esos informes, no el hecho de que ocurrieron. HECHO: probado con nginx 1.24 real con cinco informes (tres con consulta omitidos, dos sin ella conservados, 0 fugas); la guarda de CI aplica la misma expresión.
+
+La aplicación tampoco registra la consulta: ninguna capa llama a `Log::` con ella y una prueba lo
+comprueba para éxito, validación fallida y 429.
+
 ## 2.3 Medición sintética: cuánto acierta de verdad (R2)
 
 **Problema.** Los tres bancos manuales los escribí con el catálogo a la vista; «30 de 30» no es la
@@ -133,20 +148,99 @@ sigue pendiente de las consultas que aporte la Entidad. El archivo sintético es
 regresión congelada** (la prueba exige 85 % y a lo sumo 1 / 300 con ruido; hoy 88,8 % y 0); no es
 una validación independiente nueva, porque la elección de 0,40 salió de la misma familia de reglas.
 
-## 2.2 Registro de acceso sin la consulta (R3, AC-22.7)
+## 2.4 Carga que produce quien escribe, y qué protege el límite (R4)
 
-En `docker/nginx/nginx.conf`, dos `map` (`$uri_registrable`, `$referer_registrable`) recortan la
-cadena de consulta cuando trae el parámetro `q` o `buscar`, y `log_format principal` los usa en
-lugar de `$request` y `$http_referer`. **HECHO:** probado con nginx 1.24 real (`nginx -t` y 11
-peticiones: ninguna consulta ni su referer llegó al registro; `?page=2&per_page=20`,
-`?categoria=x&quest=1` y `/buscar` sin consulta se conservan). En CI, una guarda aplica las
-expresiones del propio archivo a URL de ejemplo. **No está probado en staging:** TC-BUS-23 (leer el
-registro real) lo ejecuta el titular.
+**Pregunta.** El límite de peticiones por IP se fijó como «lo que genera quien escribe con
+normalidad», pero nadie había contado cuántas peticiones son. Con sugerencias mientras se
+escribe, el cliente consulta cada vez que el ciudadano se detiene más tiempo que la pausa
+(*debounce*); si su ritmo de escritura es más lento que la pausa, consulta en **cada** tecla.
 
-**Informes de la política de contenido.** Su cuerpo trae la URL del documento (`document-uri`, `referrer`); una violación en `/buscar?q=…` llevaría la consulta al registro `csp_informe`. nginx no puede reescribir un JSON, así que un tercer `map` (`$informe_registrable`) sustituye el cuerpo completo por un aviso cuando contiene un parámetro `q` o `buscar` (también como `\u0026`). Se pierde el detalle de esos informes, no el hecho de que ocurrieron. HECHO: probado con nginx 1.24 real con cinco informes (tres con consulta omitidos, dos sin ella conservados, 0 fugas); la guarda de CI aplica la misma expresión.
+**Datos publicados** (verificados en las fuentes): intervalo medio entre teclas en escritorio
+**238,66 ms** (DE 111,6), y **más de 480 ms, hasta 900 ms**, en el 10 % más lento (Dhakal et al.,
+CHI 2018, 168 000 voluntarios). En móvil, **36,17 palabras por minuto** de media, 26,3 entre los 50 y
+los 59 años y 24,3 en menores de 10 (Palin et al., MobileHCI 2019, 37 370 voluntarios; no publican
+intervalos entre teclas). Convertidos con la convención de 5 caracteres por palabra (INFERENCIA):
+≈ 333 ms entre teclas a 36 WPM y ≈ 460 ms a 26 WPM.
 
-La aplicación tampoco registra la consulta: ninguna capa llama a `Log::` con ella y una prueba lo
-comprueba para éxito, validación fallida y 429.
+**Modelo** (INFERENCIA; simulación de 4 000 consultas por celda, intervalos lognormales con el
+coeficiente de variación del dato de escritorio, que es un supuesto mío para los otros grupos; largo de
+la consulta tomado del banco sintético, mediana 14 caracteres; mínimo de 3 caracteres):
+
+| Peticiones por consulta | pausa 250 ms | 300 ms | **350 ms** | 400 ms | 500 ms |
+|---|---|---|---|---|---|
+| escritorio, ritmo medio | 5,4 | 3,7 | 2,7 | 2,0 | 1,4 |
+| móvil, 36 WPM | 8,7 | 6,7 | 5,3 | 4,1 | 2,5 |
+| móvil, 50–59 años (26 WPM) | 11,2 | 10,0 | 8,6 | 7,1 | 4,9 |
+| escritor lento (≈ 500 ms) | 11,7 | 10,5 | 9,4 | 8,1 | 5,8 |
+
+Con la pausa de **250 ms** de la auditoría, una persona en móvil dispara 9–11 peticiones por
+consulta: la pausa queda por debajo de su ritmo y consulta casi en cada tecla. Con **350 ms** baja a
+5–9.
+
+**Probabilidad de que un minuto supere el límite cuando varias personas comparten IP** (móvil a
+36 WPM; cada persona hace en promedio 1 consulta por minuto; 20 000 minutos simulados):
+
+| Personas activas en la misma IP | pausa 250 ms: > 60 | > 120 | pausa 350 ms: > 60 | > 120 | > 240 |
+|---|---|---|---|---|---|
+| 5 | 20,1 % | 0,2 % | 1,2 % | 0,0 % | 0,0 % |
+| 10 | 79,9 % | 13,7 % | 31,8 % | **0,1 %** | 0,0 % |
+| 20 | 99,9 % | 88,6 % | 96,9 % | 28,6 % | 0,0 % |
+| 40 | 100 % | 100 % | 100 % | 99,6 % | 22,6 % |
+
+**Lectura.**
+1. El tope real de 60 por minuto que existía hasta #393 habría dado 429 a una oficina de 5
+   personas el 20 % de los minutos con la pausa de 250 ms: el error no era teórico.
+2. **Con una pausa de 350 ms, 120 por minuto protege a unas 10 personas buscando a la vez detrás de
+   una IP (0,1 % de minutos con 429); para 20 haría falta 240.** Esa es ahora la afirmación del
+   límite, y es una **INFERENCIA** sujeta a los supuestos de arriba, no una medición con ciudadanos.
+3. No se cambia el valor por defecto (120): subirlo a ciegas debilita la defensa sin dato que lo
+   pida. Se fija el criterio para cambiarlo: si tras salir a producción los 429 de `/buscar` y de las
+   sugerencias superan el 1 % de las peticiones, o una IP concentra más de 10 personas, subir
+   `BUSQUEDA_LIMITE_POR_MINUTO` a 240 sin tocar código.
+4. **Consecuencia para la entrega 3:** la pausa pasa de 250 a **350 ms**. Es una desviación de
+   AC-22.2 y de «Parámetros fijados» de la auditoría; la propone la especificación AC-22.12 y la
+   decide el titular.
+
+**Qué no demuestra.** Los supuestos de ritmo son de poblaciones de estudios, no de la ciudadanía de
+Santa Marta; no incluye a quien pega texto, ni a lectores de pantalla (que pueden escribir más lento
+o más rápido); y supone una consulta por minuto y persona activa, sin dato de uso real.
+
+## 2.5 El render en servidor comparte cupo: hallazgo medido en staging
+
+**Pregunta pendiente desde #386:** ¿qué IP ve la API cuando es el *servidor del sitio* quien la
+consulta (render en servidor)? Lectura del código (HECHO): en el despliegue a staging `NUXT_PUBLIC_API_URL` es la URL pública
+del propio dominio y el sitio la consulta con `useRequestFetch()` desde su contenedor. **INFERENCIA** a
+partir de ello: la petición sale a Internet, vuelve por Cloudflare y la API (`real_ip_header
+CF-Connecting-IP`) ve la IP de salida del servidor, no la del visitante, de modo que todas las cargas
+de página compartirían un solo cupo. No vi esa IP.
+
+**Medición en staging (HECHO, 2026-10-30):** 60 cargas seguidas de `/tramites` desde un solo cliente, a
+0,4–0,7 s entre ellas. La página sirvió el catálogo hasta la carga nº 49 y desde la nº 50 el HTML
+traía «No se pudo cargar el catálogo». **La causa no se observó** (no leí el registro del servidor; ver
+abajo). Se recuperó unos 80 s después de empezar la ráfaga. La comprobación previa y un navegador real
+posterior mostraron los 6 trámites, así que la API y la página funcionan fuera de la ráfaga.
+
+**Qué significa (INFERENCIA):** un solo cliente puede degradar el contenido servido por el servidor
+para **todos** los visitantes durante ≈ un minuto, y el tráfico normal de un sitio con muchos
+visitantes agota el cupo sin que nadie abuse. No es de T-22: afecta a toda página que consulte la API
+desde el servidor (catálogo, pie de página). T-22 lo hereda en la página `/buscar`.
+
+**Qué NO está medido:** qué limitador respondió (el de Laravel `throttle:api` es el candidato por la
+cifra de 60 y por el tiempo de recuperación, pero no leí el registro del servidor); si la IP vista era
+la del servidor (lo implica el diseño, pero no lo vi); ni el efecto sobre un segundo cliente desde otra
+IP. Para cerrarlo hace falta el registro del contenedor del sitio y de nginx en staging.
+
+**Opciones** (la decisión es del titular; ninguna se aplicó):
+- **A. Canal interno de confianza:** el sitio llama a la API por la red interna con la IP del visitante
+  en una cabecera que nginx sólo acepta desde esa red. Corrige la causa; toca nginx, compose y el
+  sitio, y abre una frontera de confianza que hay que probar.
+- **B. Exención por secreto compartido:** las llamadas del sitio llevan un token y la API no las
+  limita por IP. Simple; un secreto más que rotar y un atajo al límite.
+- **C. Caché de las respuestas en el servidor del sitio** (`swr` de Nitro por minuto): reduce las
+  llamadas por orden de magnitud para páginas iguales; no sirve para búsquedas distintas por
+  visitante.
+- **D. Resultados de `/buscar` pedidos por el navegador** (con la IP real): resuelve sólo la
+  búsqueda y pierde el resultado sin JavaScript.
 
 ## 3. Decisiones
 
@@ -193,7 +287,7 @@ documentación al día y casos de prueba ejecutados con su resultado anotado. M�
 
 ## 7. Casos de prueba
 
-Viven en el documento enlazado arriba: 32 casos (TC-BUS-01 a TC-BUS-32) con pasos, resultado
+Viven en el documento enlazado arriba: 36 casos (TC-BUS-01 a TC-BUS-32, más TC-BUS-33 a 36 propuestos por la especificación de interacción) con pasos, resultado
 esperado, tipo y resultado obtenido. De la entrega 1, TC-BUS-01 a 12 están ejecutados en CI (08, 09
 y 10 con salvedades escritas allí) y TC-BUS-13 (revertir la migración) está **sin ejecutar**. Los de
 la entrega 2 (TC-BUS-14 a 24) tienen su estado y su evidencia en ese documento; los de la entrega 3
@@ -209,7 +303,8 @@ auditoría (§10).
    registro de acceso sin consulta (§2.2), pruebas HTTP. Contrato → `implemented`.
 3. **Entrega 3:** sitio — `combobox` accesible en el encabezado, página `/buscar` con los
    campos nuevos, pausa de 250 ms; axe; p95 contra staging. Antes de codificarla, la
-   especificación de interacción (AC-22.12) la aprueba el titular.
+   especificación de interacción (AC-22.12) la aprueba el titular: está redactada en
+   [`busqueda-interaccion.md`](busqueda-interaccion.md), pendiente de sus nueve decisiones.
 
 ## 9. Límites que quedan
 
@@ -245,9 +340,9 @@ auditoría (§10).
   para todos y reciben 429 sin haber hecho nada. HIPÓTESIS (no hay datos de la distribución de
   IP de los visitantes). Para detectarlo: contar los 429 de `/buscar` en el registro de acceso
   tras la salida a producción y subir `BUSQUEDA_LIMITE_POR_MINUTO` sin tocar código si hace falta.
-  **A verificar en la entrega 3:** si el sitio consulta a la API desde su propio servidor (render en
-  servidor de `/buscar?q=`), todas esas peticiones podrían llegar con la IP del servidor del sitio y
-  compartir un solo cupo. HIPÓTESIS: no se ha revisado qué IP ve la API en ese camino.
+  **Revisado (§2.4 y §2.5):** el modelo de carga fija qué protege el valor (≈ 10 personas por IP con la
+  pausa de 350 ms) y el criterio para subirlo; el render en servidor comparte un solo cupo —medido en
+  staging— y está pendiente de decisión (opciones A–D en §2.5).
 - El texto de búsqueda de una política se calcula al guardarla; las políticas sembradas son de
   ejemplo (R5).
 - Los sinónimos («carro» ↔ «vehículo», «cédula» ↔ «documento») no los resuelven los

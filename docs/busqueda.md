@@ -261,7 +261,27 @@ reenvía las lecturas del render a un puerto interno de nginx con la IP del visi
   vacío; POST responde 405; una ruta fuera de `/api/v1` responde 503.
 - 285 pruebas unitarias del sitio (31 nuevas) pasan.
 
-**Límites de esa verificación.** No corrió PHP-FPM ni Laravel reales ni el contenedor de nginx del
+**Medición en staging tras el despliegue (HECHO, 2026-10-30).**
+1. *Primer intento, sin efecto:* el despliegue de CI no vuelve a escribir el `.env`; el sitio seguía con la URL
+   pública. Prueba directa: desde el equipo del titular, la API directa bajaba el cupo de 1 en 1
+   (`x-ratelimit-remaining` 59, 58, 57, 56) y tres cargas de página no gastaron nada de ese cupo.
+2. *Segundo intento, incidente:* con el `.env` nuevo el despliegue dejó el dominio en 521 (ADR-0018,
+   «Incidente»). Se levantó arrancando nginx a mano; la corrección de fondo es #404.
+3. *Con el canal activo:* cada carga de página consume **2 unidades del cupo de quien la pide**
+   (59 → 56 → 53 → 50 entre lecturas de la API directa: 1 de la lectura + 2 del render).
+4. *Dos clientes a la vez:* el cliente A (equipo del titular) hizo 66 cargas seguidas y desde la carga 31
+   (~60 llamadas a la API, el límite de `throttle:api`) recibió el estado de error: 26 cargas con error.
+   El cliente B (otra red), sondeando cada 2 s durante todo ese tiempo, tuvo **38 de 38 cargas correctas,
+   0 con error, también durante los ~36 s en que A estaba limitado**. Antes del cambio, el error de uno
+   apareció en el mismo segundo que el del otro.
+
+**Límites de la medición.** Un solo par de clientes y una sola ejecución. El cliente B salía por el proxy
+de mi entorno, cuya IP de salida no controlo (no pude limitarlo yo mismo: 100 llamadas directas en 49 s no
+dieron 429, lo que sugiere que su IP de salida no es fija); por eso el límite se agotó en el equipo del
+titular y B fue el testigo. Tampoco observé la IP que ve la API en un registro del servidor: la
+conclusión se apoya en el efecto (cupo por visitante), no en la lectura de la IP.
+
+**Límites de la verificación previa.** No corrió PHP-FPM ni Laravel reales ni el contenedor de nginx del
 proyecto (usé el nginx del sistema con los mismos archivos de configuración); el `Host` y el esquema se
 comprobaron en los parámetros FastCGI, no en un enlace generado por la API. **Lo que cierra el hallazgo
 es repetir la medición de dos clientes en staging tras el despliegue** (tarea abierta).

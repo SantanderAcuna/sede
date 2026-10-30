@@ -22,14 +22,18 @@ use Tests\TestCase;
  * `GET /api/v1/busqueda/sugerencias` y comprueba que el trámite esperado queda entre
  * los tres primeros, con los 124 trámites sembrados desde la fuente oficial.
  *
- * Tres bancos, con papeles distintos:
+ * Cuatro bancos, con papeles distintos:
  *  - `banco-erratas` (30): con él se calibraron los parámetros. Exige 27 de 30 (90 %).
  *  - `banco-negativo` (12): consultas que no deben devolver nada. Exige 12 de 12.
  *  - `banco-validacion` (10 + 5 + 1): escrito después y corrido con los parámetros ya
  *    congelados; mide si la calibración generaliza. Exige 8 de 10.
+ *  - `banco-sintetico` (331 + 300): erratas generadas por reglas y semilla fija, sin elegir
+ *    los casos. Es el que corrige el optimismo de los otros: aquí 30 de 30 se convierte en
+ *    ≈ 90 %. Exige 85 % de aciertos y a lo sumo 1 de 300 consultas con ruido.
  *
- * **Límite declarado:** los tres los escribió quien calibró, con el catálogo a la vista;
- * miden lo que es técnicamente posible, no cómo escriben los ciudadanos.
+ * **Límite declarado:** los tres primeros los escribió quien calibró, con el catálogo a la
+ * vista; miden lo que es técnicamente posible, no cómo escriben los ciudadanos. El sintético
+ * quita la selección a mano, pero no el autor ni el catálogo.
  */
 final class BancoDeErratasTest extends TestCase
 {
@@ -79,7 +83,11 @@ final class BancoDeErratasTest extends TestCase
     {
         // Si el sembrador descarta uno de los esperados, el banco mediría contra
         // la nada y el resultado sería un falso rojo (o un falso verde).
-        $casos = array_merge($this->bancoDeErratas(), $this->bancoDeValidacion()['positivos']);
+        $casos = array_merge(
+            $this->bancoDeErratas(),
+            $this->bancoDeValidacion()['positivos'],
+            $this->bancoSintetico()['positivos'],
+        );
 
         foreach ($casos as $caso) {
             foreach ($caso['esperado'] as $codigo) {
@@ -174,6 +182,55 @@ final class BancoDeErratasTest extends TestCase
         }
     }
 
+    public function test_el_banco_sintetico_acierta_al_menos_el_85_por_ciento_entre_los_tres_primeros(): void
+    {
+        $banco = $this->bancoSintetico()['positivos'];
+        $porTipo = [];
+        $aciertos = 0;
+        $fallos = [];
+
+        foreach ($banco as $caso) {
+            $primeros = array_slice($this->sugerencias($caso['consulta']), 0, 3);
+            $esperados = array_map(fn (string $codigo): string => $this->slugs[$codigo], $caso['esperado']);
+            $acierto = array_intersect($primeros, $esperados) !== [];
+
+            $porTipo[$caso['tipo']][] = $acierto;
+            $aciertos += $acierto ? 1 : 0;
+
+            if (! $acierto) {
+                $fallos[] = "{$caso['tipo']}: {$caso['consulta']} → [".implode(', ', $primeros).']';
+            }
+        }
+
+        $total = count($banco);
+        $detalle = collect($porTipo)
+            ->map(fn (array $v, string $tipo): string => $tipo.' '.count(array_filter($v)).'/'.count($v))
+            ->implode(' · ');
+
+        $this->assertGreaterThanOrEqual(
+            (int) ceil($total * 0.85),
+            $aciertos,
+            "Aciertos sintéticos: {$aciertos}/{$total} ({$detalle}).\n".implode("\n", array_slice($fallos, 0, 40)),
+        );
+    }
+
+    public function test_el_banco_sintetico_negativo_casi_no_devuelve_ruido(): void
+    {
+        $conRuido = [];
+
+        foreach ($this->bancoSintetico()['negativos'] as $consulta) {
+            if ($this->sugerencias($consulta) !== []) {
+                $conRuido[] = $consulta;
+            }
+        }
+
+        $this->assertLessThanOrEqual(
+            1,
+            count($conRuido),
+            'Consultas de palabras corrientes que devolvieron algo: '.implode(' | ', $conRuido),
+        );
+    }
+
     public function test_una_consulta_sin_sentido_no_devuelve_nada(): void
     {
         $this->assertSame([], $this->sugerencias('xyzxyz'));
@@ -198,6 +255,17 @@ final class BancoDeErratasTest extends TestCase
         );
 
         $this->assertNotEmpty($conErrata, '«licensia» no encontró ninguna licencia con umbral 0.5.');
+    }
+
+    /**
+     * @return array{positivos: list<array{consulta: string, esperado: list<string>, tipo: string}>, negativos: list<string>}
+     */
+    private function bancoSintetico(): array
+    {
+        /** @var array{positivos: list<array{consulta: string, esperado: list<string>, tipo: string}>, negativos: list<string>} $banco */
+        $banco = require __DIR__.'/../../Support/banco-sintetico.php';
+
+        return $banco;
     }
 
     /**

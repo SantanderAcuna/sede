@@ -161,6 +161,27 @@ RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/fra
     && chown -R sede:sede storage bootstrap/cache \
     && chmod -R a+rX /app
 
+# EL ENTORNO DEL DESPLIEGUE VIAJA CON LA VERSIÓN (ADR-0019).
+#
+# Estos cuatro archivos no los usa la aplicación: los extrae `desplegar.sh` en el
+# servidor —con `docker create` + `docker cp`, sin ejecutar nada de la imagen— para
+# renderizar el `.env` de ESTA versión con los secretos que viven allí. Que la
+# configuración viaje por el registro, atada a la etiqueta del commit, es lo que hace
+# que volver a una versión anterior devuelva también SU configuración.
+#
+# AQUÍ NO HAY NI UN SECRETO, y no es una casualidad: los valores de
+# `valores-*.env` son públicos (dominio, nombre de la base, integraciones apagadas) y
+# los secretos sólo existen en `/etc/sede/<entorno>.secretos.env`, en el servidor.
+# `.dockerignore` excluye `**/.env` y `**/*.local.env` justamente para que un archivo
+# de valores reales no pueda entrar aquí por descuido, y una guarda de la canalización
+# comprueba que ningún nombre de secreto esté declarado en estos archivos.
+#
+# Van como `root` y legibles: es configuración, no código, y el proceso de la
+# aplicación corre como `sede` y no necesita tocarlos.
+COPY compose.yaml /opt/sede-entorno/compose.yaml
+COPY deploy/plantilla.env deploy/valores-staging.env deploy/valores-produccion.env \
+     /opt/sede-entorno/
+
 # Se declaran para que la pila sepa que ahí se escribe. Es lo que permite montar
 # volúmenes y, aun así, ejecutar el contenedor con el sistema de archivos de sólo
 # lectura.

@@ -8,9 +8,13 @@ Cómo se publica la Sede en el servidor y qué hay que hacer a mano.
 |---|---|---|
 | `droplet/preparar.sh` | Se ejecuta **en** el servidor, una vez | Prepara la máquina: docker, cortafuegos, fail2ban, la cuenta de despliegue y su llave restringida |
 | `droplet/certificado.sh` | En el servidor | Emite y renueva el certificado del origen |
-| `droplet/despliegue-remoto.sh` | **`/usr/local/bin/desplegar.sh`** | Despliega una versión y vuelve atrás si algo falla |
-| `publicar-entorno.sh` | Se ejecuta desde tu máquina | Escribe `/opt/sede/<entorno>/` con `.env`, `compose.yaml` y `certs/` |
-| `plantilla.env` | — | La plantilla con la que se renderiza cada `.env` |
+| `droplet/despliegue-remoto.sh` | **`/usr/local/bin/desplegar.sh`** | Despliega una versión, **renderiza su entorno** y vuelve atrás si algo falla |
+| `publicar-entorno.sh` | Se ejecuta desde tu máquina | Instala los **secretos** en `/etc/sede/<entorno>.secretos.env` y publica el arranque de `/opt/sede/<entorno>/` |
+| `plantilla.env` | Dentro de la imagen de la app | La plantilla con la que se renderiza cada `.env`, en el servidor |
+| `valores-<entorno>.env` | Dentro de la imagen de la app | Los valores **no secretos** de cada entorno (dominio, base, integraciones) |
+| `secretos-requeridos.txt` | — | Los **nombres** de los secretos (ni un valor): la canalización comprueba con ella que nada falte y que ningún secreto viaje en la imagen |
+| `pruebas/guarda-entorno.sh` | Canalización | Que las cuatro piezas del entorno encajen |
+| `pruebas/prueba-render-entorno.sh` | Canalización | El renderizador real del servidor, con sus caminos de fallo |
 
 La canalización (`.github/workflows/despliegue.yml`) sólo puede ejecutar **un**
 comando en el servidor: `desplegar.sh <entorno> <versión>`. La llave de
@@ -32,7 +36,10 @@ ssh -t ops@<servidor> 'sudo bash /tmp/preparar.sh'
 scp deploy/droplet/despliegue-remoto.sh ops@<servidor>:/tmp/
 ssh ops@<servidor> 'sudo install -m 755 -o root -g root /tmp/despliegue-remoto.sh /usr/local/bin/desplegar.sh'
 
-# 3. Publicar el entorno. Exige los valores en `.accesos.local.env`, que no se versiona.
+# 3. Publicar el entorno: instala los SECRETOS en el servidor y deja el arranque de
+#    /opt/sede/<entorno>. Exige los valores en `.accesos.local.env`, que no se versiona.
+#    Desde el ADR-0019 esto NO hay que repetirlo al cambiar una variable: sólo al
+#    rotar un secreto.
 ./deploy/publicar-entorno.sh staging
 
 # 4. Certificado.
@@ -42,21 +49,40 @@ scp deploy/droplet/certificado.sh ops@<servidor>:/tmp/ && ssh ops@<servidor> 'su
 #    entorno que ya existía hay que hacerlo una vez a mano (ver más abajo).
 ```
 
-## El entorno no viaja con el despliegue de CI
+## El entorno: qué viaja solo y qué hay que instalar a mano
 
-La canalización sólo ejecuta `desplegar.sh <entorno> <versión>`: cambia las IMÁGENES. El `.env` y el
-`compose.yaml` del servidor los escribe `publicar-entorno.sh`, a mano. Por eso:
+Desde el ADR-0019 el entorno se parte en tres, según quién deba poder cambiarlo:
 
-- Un cambio en `deploy/plantilla.env` o en `compose.yaml` **no tiene efecto** hasta volver a ejecutar
-  `./deploy/publicar-entorno.sh <entorno>` desde tu máquina (con el repositorio actualizado: el script
-  renderiza TU copia local).
-- Publicar el entorno no reinicia nada. Los contenedores toman el `.env` y el `compose.yaml` nuevos en el
-  siguiente despliegue.
-- **Orden cuando un cambio toca la comprobación de salud o variables de un servicio:** primero publicar el
-  entorno, después desplegar. Al revés, la imagen nueva arranca con la configuración vieja.
-- Antes de ejecutarlo, `git pull` en la rama correcta. Si `git checkout` cambia a una rama que todavía
-  versiona un archivo que en tu rama actual está ignorado (como la auditoría local), git lo sobrescribe
-  sin avisar.
+| Pieza | Dónde vive | Cómo llega |
+|---|---|---|
+| **Secretos** | `/etc/sede/<entorno>.secretos.env` (root, 600) | `./deploy/publicar-entorno.sh <entorno>`, una vez y al rotar un secreto |
+| **Plantilla y valores** | `deploy/plantilla.env`, `deploy/valores-<entorno>.env` | **Solos**, dentro de la imagen de cada versión |
+| **El guion que los junta** | `/usr/local/bin/desplegar.sh` | A mano, sólo al cambiar `CONTRATO_ENTORNO` |
+
+Lo que eso significa en el día a día:
+
+- **Cambiar una variable del entorno ya no exige tocar el servidor.** Se edita
+  `deploy/plantilla.env` o `deploy/valores-<entorno>.env`, se incorpora y se despliega. El guion del
+  servidor renderiza el `.env` de esa versión con los secretos que viven allí.
+- **Volver atrás devuelve también la configuración** de la versión anterior.
+- **Un secreto nuevo** se añade a `deploy/secretos-requeridos.txt` (sólo el NOMBRE), al guion del
+  servidor y a `.accesos.local.env`; después se publica el entorno y se instala el guion. La puerta
+  `deploy/pruebas/guarda-entorno.sh` falla si las listas no coinciden.
+- **El dominio de producción**, cuando se decida, son dos líneas en
+  `deploy/valores-produccion.env`. Mientras no estén, un despliegue a producción se detiene antes de
+  tocar un contenedor y dice qué falta.
+- **Por qué el guion no se autoactualiza:** si se extrajera de la imagen como el resto, quien pudiera
+  empujar al registro ejecutaría código como `root` en el servidor. Es el ancla de confianza y se
+  instala deliberadamente:
+
+  ```bash
+  scp deploy/droplet/despliegue-remoto.sh ops@<servidor>:/tmp/
+  ssh ops@<servidor> 'sudo install -m 755 -o root -g root /tmp/despliegue-remoto.sh /usr/local/bin/desplegar.sh'
+  ```
+
+- **Cuidado al cambiar de rama antes de publicar.** `publicar-entorno.sh` renderiza TU copia local.
+  Y si `git checkout` va a una rama que todavía versiona un archivo que en la rama actual está
+  ignorado, git lo sobrescribe sin avisar.
 
 ## La trampa: el guion vive en dos sitios
 

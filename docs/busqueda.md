@@ -93,6 +93,8 @@ peticiones: ninguna consulta ni su referer llegó al registro; `?page=2&per_page
 expresiones del propio archivo a URL de ejemplo. **No está probado en staging:** TC-BUS-23 (leer el
 registro real) lo ejecuta el titular.
 
+**Informes de la política de contenido.** Su cuerpo trae la URL del documento (`document-uri`, `referrer`); una violación en `/buscar?q=…` llevaría la consulta al registro `csp_informe`. nginx no puede reescribir un JSON, así que un tercer `map` (`$informe_registrable`) sustituye el cuerpo completo por un aviso cuando contiene un parámetro `q` o `buscar` (también como `\u0026`). Se pierde el detalle de esos informes, no el hecho de que ocurrieron. HECHO: probado con nginx 1.24 real con cinco informes (tres con consulta omitidos, dos sin ella conservados, 0 fugas); la guarda de CI aplica la misma expresión.
+
 La aplicación tampoco registra la consulta: ninguna capa llama a `Log::` con ella y una prueba lo
 comprueba para éxito, validación fallida y 429.
 
@@ -115,7 +117,7 @@ comprueba para éxito, validación fallida y 429.
 |---|---|---|---|---|
 | R1 | Un volumen mucho mayor que 124 filas degrada el p95 | HIPÓTESIS | AC-22.6 mide contra staging; el índice GIN ya existe | E3 |
 | R2 | Los bancos son optimistas (los escribí yo, con el catálogo a la vista) y los parámetros se eligieron con uno de ellos | HECHO | Ampliados a 30 + 12 negativos + 10 de validación con los parámetros ya congelados (§2.1). Sigue pendiente pedir a la Entidad consultas reales de atención | E2 (parcial) |
-| R3 | **El texto buscado queda en el registro de acceso.** `docker/nginx/nginx.conf` registraba `$request` (con `?q=`) y `$http_referer` (el sitio pide sus recursos con la página `/buscar?q=…` como referer). Un ciudadano puede escribir un número de documento. | HECHO el formato · INFERENCIA el contenido | **Mitigado en E2** (§2.2): si la consulta trae `q` o `buscar`, el registro lleva sólo la ruta, en la petición y en el `Referer`. **Quedan** el `error_log` de nginx, el registro de Cloudflare y los informes CSP (§9). Revisar con el oficial de datos personales (Ley 1581) | E2 (parcial) |
+| R3 | **El texto buscado queda en el registro de acceso.** `docker/nginx/nginx.conf` registraba `$request` (con `?q=`) y `$http_referer` (el sitio pide sus recursos con la página `/buscar?q=…` como referer). Un ciudadano puede escribir un número de documento. | HECHO el formato · INFERENCIA el contenido | **Mitigado en E2** (§2.2): si la consulta trae `q` o `buscar`, el registro lleva sólo la ruta, en la petición y en el `Referer`. **Quedan** el `error_log` de nginx y el registro de Cloudflare (§9). Los informes CSP se trataron después (§2.2). Revisar con el oficial de datos personales (Ley 1581) | E2 (parcial) |
 | R4 | Cada pulsación es una petición: abuso o carga | INFERENCIA | `throttle:busqueda` en el servidor: **120 por minuto y por IP**, compartido por las dos operaciones, configurable con `BUSQUEDA_LIMITE_POR_MINUTO`; 429 con `Retry-After`. La pausa de 250 ms en el cliente es de la entrega 3 | E2 (servidor) · E3 (cliente) |
 | R5 | Las políticas indexan texto de ejemplo (`es_ejemplo`) | HECHO | La página enlazada muestra ese mismo texto con su aviso; al aprobarse el texto, el hook reindexa solo | — |
 | R6 | Relevancia subjetiva | HECHO (Guía §D-03) | Orden documentado y reproducible: la fórmula está en el código y el banco en el repositorio | E2 |
@@ -165,13 +167,19 @@ auditoría (§10).
   real requiere consultas de ciudadanos (R2). Un falso positivo está medido y aceptado
   («impuesto de renta», §2.1).
 - **El registro sin la consulta tiene bordes** (§2.2): el `error_log` de nginx copia la línea de
-  petición cuando una petición falla aguas arriba; Cloudflare conserva su propio registro con la
-  URL completa; y los informes de la política de contenido (`csp_informe`) traen la URL del
-  documento en su cuerpo. Los dos primeros dependen de la configuración de Cloudflare y del
-  servidor, no de este repositorio; hay que decidirlos con el oficial de datos personales.
+  petición cuando una petición falla aguas arriba (nginx no permite filtrarla), y Cloudflare
+  conserva su propio registro con la URL completa. El primero sólo aparece cuando algo falla; el
+  segundo depende de la configuración de Cloudflare (retención y campos de los registros), no de
+  este repositorio. Hay que decidirlos con el oficial de datos personales. Una alternativa de
+  diseño, que cambiaría el contrato, sería enviar la consulta por `POST`; no se adoptó porque
+  rompe el enlace compartible de una búsqueda y los resultados cacheables.
 - El límite de 120 peticiones por minuto y por IP es una estimación (INFERENCIA: una persona
   escribiendo genera una petición por pausa de 250 ms; una oficina que comparte salida suma). No
-  se midió con tráfico real. Se ajusta con `BUSQUEDA_LIMITE_POR_MINUTO` sin tocar código.
+  se midió con tráfico real. **Riesgo concreto:** si muchos ciudadanos comparten una IP pública
+  —la red móvil con NAT de operador, o el wifi de una oficina de atención—, el cupo se agota
+  para todos y reciben 429 sin haber hecho nada. HIPÓTESIS (no hay datos de la distribución de
+  IP de los visitantes). Para detectarlo: contar los 429 de `/buscar` en el registro de acceso
+  tras la salida a producción y subir `BUSQUEDA_LIMITE_POR_MINUTO` sin tocar código si hace falta.
 - El texto de búsqueda de una política se calcula al guardarla; las políticas sembradas son de
   ejemplo (R5).
 - Los sinónimos («carro» ↔ «vehículo», «cédula» ↔ «documento») no los resuelven los

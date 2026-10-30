@@ -15,7 +15,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
  * El servicio existe para que el controlador no decida nada: traduce una
  * petición ya validada en una consulta y convierte «no hay nada con ese slug» en
  * el error que el contrato declara. La regla de qué se publica no está aquí a
- * propósito, sino en el repositorio: dos sitios comprobando lo mismo acaban
+ * propósito, sino en el modelo (`Tramite::scopePublicados`), que usan el repositorio
+ * del catálogo y el de la búsqueda: dos sitios comprobando lo mismo acaban
  * discrepando.
  */
 interface TramiteServiceInterface

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\ArchivoController;
 use App\Http\Controllers\Api\V1\AuditoriaController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BusquedaController;
 use App\Http\Controllers\Api\V1\ConsentimientoController;
 use App\Http\Controllers\Api\V1\EntidadController;
 use App\Http\Controllers\Api\V1\IdentidadController;
@@ -58,6 +59,18 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // declara con `security: []`— y por eso no llevan middleware de sesión.
     Route::get('/tramites', [TramiteController::class, 'listar'])->name('tramites.listar');
     Route::get('/tramites/{slug}', [TramiteController::class, 'mostrar'])->name('tramites.mostrar');
+
+    // La búsqueda de la sede (T-22). Las dos operaciones son públicas y comparten un
+    // límite por IP: se llaman mientras el ciudadano escribe, así que son las más
+    // expuestas a un uso abusivo. Lo escrito no se registra en la aplicación.
+    Route::get('/busqueda/sugerencias', [BusquedaController::class, 'sugerir'])
+        ->name('busqueda.sugerir')
+        ->withoutMiddleware('auth:sanctum')
+        ->middleware('throttle:busqueda');
+    Route::get('/buscar', [BusquedaController::class, 'buscar'])
+        ->name('busqueda.buscar')
+        ->withoutMiddleware('auth:sanctum')
+        ->middleware('throttle:busqueda');
 
     // Panel — Auth (requiere autenticación Sanctum)
     Route::prefix('panel')->name('panel.')->group(function (): void {

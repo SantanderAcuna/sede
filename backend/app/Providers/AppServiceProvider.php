@@ -6,11 +6,13 @@ namespace App\Providers;
 
 use App\Contracts\Integraciones\FuenteFichaGovCoInterface;
 use App\Contracts\Repositories\AuthRepositoryInterface;
+use App\Contracts\Repositories\BusquedaRepositoryInterface;
 use App\Contracts\Repositories\EntidadRepositoryInterface;
 use App\Contracts\Repositories\IngestaTramiteRepositoryInterface;
 use App\Contracts\Repositories\MenuRepositoryInterface;
 use App\Contracts\Repositories\TramiteRepositoryInterface;
 use App\Contracts\Services\AuthServiceInterface;
+use App\Contracts\Services\BusquedaServiceInterface;
 use App\Contracts\Services\EntidadServiceInterface;
 use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Contracts\Services\IdentidadServiceInterface;
@@ -22,11 +24,13 @@ use App\Models\User;
 use App\Policies\ArchivoPolicy;
 use App\Policies\EntidadPolicy;
 use App\Repositories\Eloquent\AuthRepository;
+use App\Repositories\Eloquent\BusquedaRepository;
 use App\Repositories\Eloquent\EntidadRepository;
 use App\Repositories\Eloquent\IngestaTramiteRepository;
 use App\Repositories\Eloquent\MenuRepository;
 use App\Repositories\Eloquent\TramiteRepository;
 use App\Services\AuthService;
+use App\Services\BusquedaService;
 use App\Services\EntidadService;
 use App\Services\FilesMediaService;
 use App\Services\GovCo\FuenteFichaGovCo;
@@ -67,6 +71,10 @@ class AppServiceProvider extends ServiceProvider
         // Auth: login, logout y perfil
         $this->app->bind(AuthRepositoryInterface::class, AuthRepository::class);
         $this->app->bind(AuthServiceInterface::class, AuthService::class);
+
+        // Búsqueda de la sede (T-22)
+        $this->app->bind(BusquedaRepositoryInterface::class, BusquedaRepository::class);
+        $this->app->bind(BusquedaServiceInterface::class, BusquedaService::class);
 
         // FilesMedia: archivos subidos
         $this->app->bind(FilesMediaServiceInterface::class, FilesMediaService::class);
@@ -126,6 +134,17 @@ class AppServiceProvider extends ServiceProvider
         // a una oficina entera que comparte salida y frena el relleno de la tabla.
         RateLimiter::for('consentimientos', function (Request $peticion) {
             return Limit::perMinute(30)->by($peticion->ip());
+        });
+
+        // La búsqueda se llama mientras el ciudadano escribe (una petición por cada
+        // pausa), así que su límite es más holgado que el de las escrituras. El valor
+        // se lee dentro del cierre y no al registrarlo: así una prueba puede bajarlo
+        // con `config([...])` sin reiniciar la aplicación. Se cuenta por IP —la real
+        // del cliente, que nginx restituye desde Cloudflare— y compartido por las dos
+        // operaciones: el cupo de quien escribe es uno, no uno por endpoint.
+        RateLimiter::for('busqueda', function (Request $peticion) {
+            return Limit::perMinute((int) config('busqueda.limite_por_minuto'))
+                ->by('busqueda|'.$peticion->ip());
         });
 
         // La API entera cabe en sesenta peticiones por minuto. Se cuenta por

@@ -11,11 +11,12 @@ use Illuminate\Pagination\LengthAwarePaginator;
 /**
  * El acceso al catálogo de trámites.
  *
- * La publicación se decide aquí y en ningún otro sitio: este repositorio es la
- * única puerta por la que el ciudadano llega al catálogo, así que es el único
- * lugar donde puede comprobarse que nada sin ficha en GOV.CO salga a la luz. Si
- * la regla viviera repartida entre el controlador y el servicio, bastaría con
- * añadir una consulta nueva para saltársela sin que nada fallara.
+ * La publicación se decide en `Tramite::scopePublicados` y se aplica aquí y en el
+ * repositorio de la búsqueda, que son las dos puertas por las que el ciudadano
+ * llega al catálogo: son los únicos lugares donde puede comprobarse que nada sin
+ * ficha en GOV.CO salga a la luz. Si la regla viviera repartida entre el
+ * controlador y el servicio, bastaría con añadir una consulta nueva para saltársela
+ * sin que nada fallara.
  */
 interface TramiteRepositoryInterface
 {

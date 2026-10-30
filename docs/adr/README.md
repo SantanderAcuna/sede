@@ -566,7 +566,7 @@ experimental en la lengua de una comunidad sin hablantes que lo revisen.
 
 ## ADR-0017 — Búsqueda de la sede con PostgreSQL (`pg_trgm`)
 
-**Estado:** Propuesta (entrega 1 de T-22). Pasa a Aceptada cuando la entrega 2 calibre el umbral.
+**Estado:** Aceptada (entrega 2 de T-22, 2026-10-29): el umbral se calibró con un banco medido; ver `docs/busqueda.md` §2.1 y sus límites declarados.
 
 **Contexto.** La sede necesita sugerencias mientras se escribe, tolerancia a erratas y
 resultados por pertinencia (RF-B1-005/006, RF-B2-035/036). Hoy busca con
@@ -587,9 +587,12 @@ declarada `STABLE`, no `IMMUTABLE`, y no se indexa sin envolverla.
 
 **Consecuencias.** Una extensión más, de confianza: la crea el dueño de la base, sin
 superusuario. El texto buscable es un dato derivado que mantienen los modelos; cambiar la
-normalización exige reindexar. El umbral y la fórmula de orden viven en el código y se
-prueban con un banco de consultas versionado. Si el contenido crece órdenes de magnitud, la
+normalización exige reindexar (`busqueda:reindexar`). El umbral (0,45) y la cobertura por palabra
+(cada palabra de ≥ 4 letras de la consulta debe aparecer en el contenido) viven en
+`config/busqueda.php`, la fórmula de orden en el repositorio, y se prueban con bancos de
+consultas versionados: 30 con errata, 12 negativas y 10 de validación. Un falso positivo
+conocido queda documentado, no oculto. Si el contenido crece órdenes de magnitud, la
 decisión se revisa con el p95 medido (AC-22.6), no antes.
 
-**Evidencia.** `docs/busqueda.md` §2 (mediciones), `BancoDeErratasTest`,
-`IndicesDeBusquedaTest`.
+**Evidencia.** `docs/busqueda.md` §2 y §2.1 (mediciones y calibración), `BancoDeErratasTest`,
+`BusquedaApiTest`, `IndicesDeBusquedaTest`.

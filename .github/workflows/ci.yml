@@ -230,6 +230,77 @@ jobs:
             echo "script-src contiene unsafe-inline."; exit 1
           fi
           echo "CSP en modo informe: includes y directivas esenciales presentes."
+      - name: nginx no registra lo que el ciudadano busca
+        run: |
+          # T-22 (AC-22.7, R3). La consulta del buscador viaja en la URL y puede traer
+          # un documento de identidad. El registro de acceso debe llevar la ruta sin la
+          # cadena de consulta cuando ésta trae `q` o `buscar`, en la línea de petición
+          # y en el `Referer`. Guarda estática a propósito, como las anteriores: la
+          # prueba real es leer el registro de staging (TC-BUS-23). Además de comprobar
+          # que el formato usa las variables seguras, aplica las expresiones del propio
+          # archivo a URL de ejemplo, de modo que una regex rota no pase por presente.
+          python3 - <<'PY'
+          import re, sys
+          conf = open("docker/nginx/nginx.conf", encoding="utf-8").read()
+          errores = []
+
+          formato = re.search(r"log_format\s+principal\s+(.*?);", conf, re.S)
+          if not formato:
+              sys.exit("Falta log_format principal en docker/nginx/nginx.conf")
+          formato = formato.group(1)
+          if "$uri_registrable" not in formato:
+              errores.append("log_format principal no usa $uri_registrable.")
+          if "$referer_registrable" not in formato:
+              errores.append("log_format principal no usa $referer_registrable.")
+          if re.search(r"\$request\b(?!_)", formato):
+              errores.append("log_format principal vuelve a usar $request (trae la cadena de consulta).")
+          if "$request_uri" in formato:
+              errores.append("log_format principal usa $request_uri sin filtrar.")
+          if re.search(r"\$http_referer\b", formato):
+              errores.append("log_format principal usa $http_referer sin filtrar.")
+
+          def regla(variable):
+              m = re.search(r"map\s+\$\w+\s+\$" + variable + r"\s*\{(.*?)\}", conf, re.S)
+              if not m:
+                  errores.append("Falta el map de $" + variable)
+                  return None
+              r = re.search(r"~(\S+)\s+\$(\w+);", m.group(1))
+              if not r:
+                  errores.append("El map de $" + variable + " no tiene su regla ~regex.")
+                  return None
+              # nginx escribe los grupos con nombre como (?<n>…); Python, como (?P<n>…).
+              return re.compile(r.group(1).replace("(?<", "(?P<")), r.group(2)
+
+          for variable, casos in (
+              ("uri_registrable", [
+                  ("/buscar?q=1234567890", "/buscar"),
+                  ("/api/v1/busqueda/sugerencias?q=Juan%20Perez&limite=5", "/api/v1/busqueda/sugerencias"),
+                  ("/api/v1/buscar?tipo=tramite&q=cedula", "/api/v1/buscar"),
+                  ("//api/v1/buscar?q=doble", "//api/v1/buscar"),
+                  ("/api/v1/tramites?buscar=predial&page=2", "/api/v1/tramites"),
+              ]),
+              ("referer_registrable", [
+                  ("https://sede.example/buscar?q=1234567890", "https://sede.example/buscar"),
+                  ("https://sede.example/tramites?buscar=predial", "https://sede.example/tramites"),
+              ]),
+          ):
+              parte = regla(variable)
+              if not parte:
+                  continue
+              rx, grupo = parte
+              for entrada, esperado in casos:
+                  m = rx.match(entrada)
+                  if not m or m.group(grupo) != esperado:
+                      errores.append(variable + ": '" + entrada + "' debía quedar como '" + esperado + "'.")
+              for conservada in ("/api/v1/tramites?page=2&per_page=20", "/tramites?categoria=x&quest=1", "/buscar", "/api/v1/entidad"):
+                  if rx.match(conservada):
+                      errores.append(variable + ": '" + conservada + "' no debía recortarse.")
+
+          if errores:
+              print("\n".join(errores))
+              sys.exit(1)
+          print("nginx omite la consulta del buscador en la petición y en el Referer.")
+          PY
 
   # ---------------------------------------------------------------------------
   # Dependencias de terceros

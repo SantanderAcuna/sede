@@ -225,12 +225,17 @@ para **todos** los visitantes durante ≈ un minuto, y el tráfico normal de un 
 visitantes agota el cupo sin que nadie abuse. No es de T-22: afecta a toda página que consulte la API
 desde el servidor (catálogo, pie de página). T-22 lo hereda en la página `/buscar`.
 
-**Qué NO está medido:** qué limitador respondió (el de Laravel `throttle:api` es el candidato por la
-cifra de 60 y por el tiempo de recuperación, pero no leí el registro del servidor); si la IP vista era
-la del servidor (lo implica el diseño, pero no lo vi); ni el efecto sobre un segundo cliente desde otra
-IP. Para cerrarlo hace falta el registro del contenedor del sitio y de nginx en staging.
+**Con dos clientes (HECHO, 2026-10-30):** mientras una ráfaga mía de cargas de `/tramites` cruzaba el
+umbral, un segundo equipo en otra red, que sólo sondeaba, recibió el error en **el mismo segundo** que
+yo (primer error mío en la carga 10; primer error del otro equipo en el mismo segundo de reloj). Un
+visitante que no hizo nada anómalo perdió el contenido por culpa de otro: el cupo es compartido.
 
-**Opciones** (la decisión es del titular; ninguna se aplicó):
+**Qué NO está medido:** qué limitador respondió (el de Laravel `throttle:api` es el candidato por la
+cifra de 60 y por el tiempo de recuperación, pero no leí el registro del servidor) ni cuál era la IP
+vista. Para cerrarlo hace falta el registro del contenedor del sitio y de nginx en staging (lo tiene
+el titular).
+
+**Opciones** (para el registro; se aplicó la A):
 - **A. Canal interno de confianza:** el sitio llama a la API por la red interna con la IP del visitante
   en una cabecera que nginx sólo acepta desde esa red. Corrige la causa; toca nginx, compose y el
   sitio, y abre una frontera de confianza que hay que probar.
@@ -241,6 +246,28 @@ IP. Para cerrarlo hace falta el registro del contenedor del sitio y de nginx en 
   visitante.
 - **D. Resultados de `/buscar` pedidos por el navegador** (con la IP real): resuelve sólo la
   búsqueda y pierde el resultado sin JavaScript.
+
+**Decisión aplicada: opción A (canal interno de confianza), ADR-0018.** Recomendada por mí y aprobada por el titular («hazlo»); ver opciones arriba. El sitio
+reenvía las lecturas del render a un puerto interno de nginx con la IP del visitante.
+
+**Verificación antes de desplegar (HECHO, sin staging):**
+- nginx 1.24 real: con la cabecera, el cupo se separa por visitante (A pasa a 429 en la 4.ª petición,
+  B recibe 200 en el mismo instante); sin cabecera todos comparten un cupo; una cabecera inválida, vacía
+  o ausente conserva la dirección del servidor; en el puerto público la cabecera se ignora.
+- Receptor FastCGI de prueba (devuelve los parámetros que recibiría PHP): `REMOTE_ADDR` = IP del
+  visitante, `HTTP_HOST` = anfitrión público (sin duplicar), `X-Forwarded-Proto` = https y puerto 443.
+- Sitio compilado real contra una API falsa que registra cabeceras: portada, trámites, búsqueda, ficha y
+  pie llegan con la IP del visitante; una cabecera falsificada se sobrescribe; un valor basura queda
+  vacío; POST responde 405; una ruta fuera de `/api/v1` responde 503.
+- 285 pruebas unitarias del sitio (31 nuevas) pasan.
+
+**Límites de esa verificación.** No corrió PHP-FPM ni Laravel reales ni el contenedor de nginx del
+proyecto (usé el nginx del sistema con los mismos archivos de configuración); el `Host` y el esquema se
+comprobaron en los parámetros FastCGI, no en un enlace generado por la API. **Lo que cierra el hallazgo
+es repetir la medición de dos clientes en staging tras el despliegue** (tarea abierta).
+
+**Residual.** El `sitemap.xml` lo genera el sitio con un `$fetch` simple, sin visitante: comparte el
+cupo del servidor (poco tráfico). La IP exacta que ve la API sigue sin observarse en un registro real.
 
 ## 3. Decisiones
 

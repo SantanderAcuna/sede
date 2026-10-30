@@ -859,33 +859,40 @@ paths:
   # ══════════════════════════════════════════════════════════════════════════════
   # BÚSQUEDA GLOBAL
   # ══════════════════════════════════════════════════════════════════════════════
-  /buscar:
+  /busqueda/sugerencias:
     get:
       tags: [Buscar]
-      operationId: buscarGlobal
-      summary: Búsqueda global con autocompletado
-      description: Motor de búsqueda unificado con sugerencias. RF-01-009.
+      operationId: sugerirBusqueda
+      summary: Sugerencias mientras se escribe
+      description: |
+        Hasta 10 sugerencias para el buscador del encabezado (RF-B1-006, RF-B2-036).
+
+        Busca **sólo contenido de la sede** (hoy: trámites y políticas) y es tolerante
+        a tildes, mayúsculas y erratas: «licensia» sugiere «Licencia de …». Con menos
+        de 3 caracteres la respuesta es `422` y el cliente no debe consultar.
+
+        Es una operación **distinta** de `/buscar` a propósito: la respuesta de una
+        operación no puede cambiar de forma según un parámetro, porque el cliente
+        generado no podría tiparla. Aquí la forma es liviana y fija; allí, la completa.
+
+        El texto buscado es dato del ciudadano y puede contener datos personales
+        (un número de documento, por ejemplo): no se guarda ni se registra.
       x-status: pending
-      x-criterios: [RF-01-009, RNF-REND-01]
+      x-criterios: [RF-01-009, RF-B1-006, RF-B2-036, RNF-REND-01]
       parameters:
         - name: q
           in: query
           required: true
-          description: Término de búsqueda (mínimo 3 caracteres)
-          schema: { type: string, minLength: 3 }
-        - name: autocompletar
-          in: query
-          required: false
-          description: Modo autocompletar (máx 10 sugerencias)
-          schema: { type: boolean, default: false }
+          description: Texto escrito hasta ahora (de 3 a 120 caracteres)
+          schema: { type: string, minLength: 3, maxLength: 120 }
         - name: limite
           in: query
           required: false
-          description: Límite de resultados
-          schema: { type: integer, default: 10, maximum: 10 }
+          description: Máximo de sugerencias (por encima de 10 la respuesta es 422)
+          schema: { type: integer, minimum: 1, maximum: 10, default: 10 }
       responses:
         '200':
-          description: Sugerencias o resultados
+          description: Sugerencias, de la más a la menos pertinente (puede ser una lista vacía)
           content:
             application/json:
               schema:
@@ -896,9 +903,72 @@ paths:
                     properties:
                       data:
                         type: array
+                        maxItems: 10
                         items: { $ref: '#/components/schemas/SugerenciaBusquedaItem' }
-        '400':
+              examples:
+                con_errata:
+                  summary: «licensia» sugiere licencias
+                  value:
+                    success: true
+                    message: null
+                    data:
+                      - id: 35
+                        type: sugerencias-busqueda
+                        titulo: Licencia de intervención del espacio público
+                        categoria: Trámite
+                        tipo_recurso: tramite
+                        url: /tramites/licencia-de-intervencion-del-espacio-publico
+                        score: 0.56
+                    errors: null
+        '422':
           $ref: '#/components/responses/ValidacionInvalida'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
+  /buscar:
+    get:
+      tags: [Buscar]
+      operationId: buscarGlobal
+      summary: Resultados de la búsqueda, por pertinencia
+      description: |
+        Resultados completos de la búsqueda (RF-B1-005, RF-B2-035), ordenados por
+        pertinencia y paginados. Sólo contenido de la sede (hoy: trámites y
+        políticas); las secciones estáticas del sitio las lista el propio sitio.
+
+        Cada resultado lleva fecha, categoría, título y extracto. `autor` y
+        `miniatura` viajan siempre y son `null` mientras el contenido no los tenga:
+        ningún contenido de hoy los tiene y no se inventan.
+
+        Misma tolerancia que `/busqueda/sugerencias`. Ver `docs/busqueda.md`.
+      x-status: pending
+      x-criterios: [RF-01-009, RF-B1-005, RF-B2-035, RNF-REND-01]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Texto buscado (de 3 a 120 caracteres)
+          schema: { type: string, minLength: 3, maxLength: 120 }
+        - name: tipo
+          in: query
+          required: false
+          description: Acota la búsqueda a un tipo de contenido. Sin valor, busca en todos.
+          schema:
+            type: string
+            enum: [tramite, politica]
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+      responses:
+        '200':
+          description: Página de resultados (`data` vacío si nada alcanza el umbral de pertinencia)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoBusquedaCollection'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
       security: []
 
   /sitemap.xml:
@@ -2325,16 +2395,68 @@ components:
     # ─── Búsqueda ──────────────────────────────────────────────────────────
     SugerenciaBusquedaItem:
       type: object
-      required: [id, type, texto, url]
+      required: [id, type, titulo, categoria, tipo_recurso, url]
       properties:
-        id: { type: integer }
-        type: { type: string, const: sugerencia }
-        texto: { type: string }
-        url: { type: string, format: uri }
+        id:
+          type: integer
+          description: Identificador dentro de su `tipo_recurso`; la pareja (tipo_recurso, id) es única
+        type: { type: string, const: sugerencias-busqueda }
+        titulo: { type: string }
+        categoria:
+          type: string
+          description: Rótulo para el ciudadano («Trámite», «Política»)
         tipo_recurso:
           type: string
-          enum: [documento, noticia, tramite, servidor]
-        score: { type: number }
+          enum: [tramite, politica]
+          description: |
+            Se amplía cuando existan más contenidos (noticias: T-23). Añadir un valor
+            es un cambio del contrato: los clientes generados tienen que regenerarse.
+        url:
+          type: string
+          format: uri-reference
+          description: Ruta dentro del sitio, sin dominio
+        score:
+          type: number
+          minimum: 0
+          description: Pertinencia (mayor es más pertinente); sólo sirve para comparar dentro de una respuesta
+
+    ResultadoBusquedaItem:
+      type: object
+      required: [id, type, titulo, categoria, tipo_recurso, extracto, fecha, autor, miniatura, url]
+      properties:
+        id: { type: integer }
+        type: { type: string, const: resultados-busqueda }
+        titulo: { type: string }
+        categoria: { type: string }
+        tipo_recurso:
+          type: string
+          enum: [tramite, politica]
+        extracto:
+          type: [string, 'null']
+          description: Principio del texto del contenido, recortado sin partir palabras
+        fecha:
+          type: [string, 'null']
+          format: date
+          description: Publicación (trámite) o inicio de vigencia (política)
+        autor:
+          type: [string, 'null']
+          description: Siempre `null` hoy; ningún contenido registra autor
+        miniatura:
+          type: [string, 'null']
+          format: uri-reference
+          description: Siempre `null` hoy; ningún contenido tiene imagen propia
+        url: { type: string, format: uri-reference }
+        score: { type: number, minimum: 0 }
+
+    ResultadoBusquedaCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/ResultadoBusquedaItem' }
 
     BusquedaResult:
       allOf:

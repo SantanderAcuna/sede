@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Traits\HasUuids;
+use App\Support\Busqueda\TextoBuscable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -22,6 +23,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $acto_fecha
  * @property list<array{id: string, titulo: string, parrafos: list<string>}> $secciones
  * @property bool $es_ejemplo
+ * @property string $busqueda_titulo
+ * @property string $busqueda
  * @property Carbon $updated_at
  */
 final class Politica extends Model
@@ -86,6 +89,22 @@ final class Politica extends Model
         'slug', 'nombre', 'version', 'vigente_desde', 'acto_tipo', 'acto_numero',
         'acto_fecha', 'secciones', 'es_ejemplo',
     ];
+
+    /**
+     * El texto buscable se calcula solo, en cada escritura.
+     *
+     * `busqueda` y `busqueda_titulo` no son datos de la política sino un índice
+     * derivado de su nombre y su texto: si se rellenaran a mano, editar una
+     * política desde el panel dejaría la búsqueda mostrando el texto anterior.
+     * Por eso no están en `$fillable`.
+     */
+    protected static function booted(): void
+    {
+        self::saving(function (Politica $politica): void {
+            $politica->busqueda_titulo = TextoBuscable::normalizar($politica->nombre);
+            $politica->busqueda = TextoBuscable::dePolitica($politica->nombre, $politica->secciones);
+        });
+    }
 
     protected function casts(): array
     {

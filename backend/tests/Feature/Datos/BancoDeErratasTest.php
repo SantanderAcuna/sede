@@ -13,7 +13,7 @@ use stdClass;
 use Tests\TestCase;
 
 /**
- * La premisa de la búsqueda, medida sobre el catálogo real (AC-22.3, fase 1).
+ * La premisa de la búsqueda, medida sobre el catálogo real (AC-22.3, entrega 1).
  *
  * T-22 se apoya en una hipótesis: que `pg_trgm` basta, con el catálogo que hay, para
  * tolerar erratas sin añadir un servicio de búsqueda. Esta prueba la comprueba en
@@ -29,7 +29,7 @@ final class BancoDeErratasTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Pertinencia mínima para entrar en los resultados. Se calibra en la fase 2. */
+    /** Pertinencia mínima para entrar en los resultados. Se calibra en la entrega 2. */
     private const UMBRAL = 0.4;
 
     /** @var list<array{consulta: string, esperado: list<string>, errata: string}> */

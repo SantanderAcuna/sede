@@ -70,7 +70,9 @@ con el SQL del repositorio sobre PostgreSQL 16.) **Sin** cobertura por palabra, 
 acierta 30 pero deja pasar la negativa «licencia de conduccion» (0,600 con «licencia de
 exhumación»). Los aciertos más difíciles —«esterilisacion canina» y «estratificasion
 socioeconomica»— valen 0,500. Se eligió **0,45 / 0,45**: está en la meseta (umbral 0,45–0,50 con
-cobertura 0,40–0,50) y queda a un paso de cada borde, en lugar de al filo.
+cobertura 0,40–0,50) y queda a un paso de cada borde, en lugar de al filo. **Revisado en §2.3:** la
+medición sintética mostró que, dentro de esa misma meseta, 0,40 acierta más erratas reales; la
+cobertura vigente es **0,40**.
 
 **Validación con parámetros congelados** (`banco-validacion.php`, escrito después): **10 / 10**
 positivos; 5 de 6 negativos sin ruido. El sexto, «impuesto de renta» (impuesto nacional, sin
@@ -82,6 +84,54 @@ inadvertido.
 **Qué no demuestra esta calibración:** los bancos y la elección de parámetros son del mismo autor
 y con el catálogo a la vista (R2); la elección se hizo sobre el banco de calibración, no sobre el de
 validación; y los sinónimos y siglas («Sisbén») no los resuelven los trigramas (§9).
+
+## 2.3 Medición sintética: cuánto acierta de verdad (R2)
+
+**Problema.** Los tres bancos manuales los escribí con el catálogo a la vista; «30 de 30» no es la
+tasa de aciertos que cabe esperar con ciudadanos. Para tener una cifra que no dependa de lo que yo
+elija, se generó un banco **por reglas y con semilla fija** (`backend/tests/Support/banco-sintetico.php`,
+reglas en su cabecera): por cada trámite, tres fragmentos de 1 a 3 palabras de su nombre y UNA errata
+(sibilante s/c/z, b/v, h muda, letra omitida o duplicada, letras trocadas, tecla vecina); y 300
+consultas negativas de dos palabras corrientes del español que no están en el catálogo. Acierto =
+un trámite cuyo nombre contiene el fragmento original entre los tres primeros. HECHO, medido con
+el SQL del repositorio sobre PostgreSQL 16 local.
+
+**Dos errores míos, corregidos durante la medición.**
+1. La primera versión del generador no quitaba el «(s)» de los nombres («licencia(s)» → «licencia s»)
+   y producía fragmentos como «s de»; con ello medí 69,5 % y casi lo anuncié como el recall real.
+   Era un defecto de la prueba, no del buscador.
+2. Mi base de calibración tenía los 124 trámites de la fuente, pero el sembrador publica uno menos:
+   `T28661` no declara su término de obtención y se descarta. Se sacó de la base y **todas las cifras
+   de abajo se repitieron con el catálogo que de verdad se publica**. (Banco manual 30/30 y validación
+   10/10 se mantienen.)
+
+| Umbral / cobertura | Recall top-3 (semilla de elección) | Semillas ajenas (11 · 222 · 3333) | Ruido manual | Ruido sintético (2 conjuntos) |
+|---|---|---|---|---|
+| 0,45 / 0,45 (anterior) | 85,0 % | 81,5 · 83,0 · 84,8 % | 0 / 12 | 0 / 300 · 0 / 300 |
+| **0,45 / 0,40 (vigente)** | **91,1 %** | **88,8 · 90,1 · 90,1 %** | **0 / 12** | **0 / 300 · 0 / 300** |
+| 0,45 / 0,35 | 92,0 % | 91,5 · 91,6 · 91,3 % | 1 / 12 | 0 / 300 · 0 / 300 |
+| 0,40 / 0,40 | 93,9 % | 90,6 · 92,6 · 92,9 % | 2 / 12 | 4 / 300 · 1 / 300 |
+| 0,50 / 0,40 | 89,9 % | 87,9 · 89,8 · 89,5 % | 0 / 12 | 0 / 300 · 0 / 300 |
+
+La cobertura 0,40 gana unos 6 puntos de recall sin costo de ruido medido. 0,35 compra uno o dos
+puntos más a cambio de ruido ya visible en el banco manual, y bajar el umbral a 0,40 mete ruido
+también en el sintético; ambos se descartaron. **La elección se hizo con una semilla; las otras tres
+confirman la ganancia (+5 a +8 puntos).**
+
+**Lectura** (0,45 / 0,40; cuatro semillas sumadas, 1 303 consultas). Por tipo de errata:
+sibilantes, letras duplicadas, h muda y omisión de una letra aciertan ≈ 99–100 %; b/v ≈ 88 % y la
+tecla vecina ≈ 90 %; **dos letras trocadas, 161 de 247 (≈ 65 %)**, que para los trigramas es una
+errata doble. Por largo de la palabra con errata: **4–5 letras, 96 de 142 (≈ 68 %)**; 6–8 letras
+≈ 85 %; 9 o más ≈ 99 %. Por largo de la consulta: una sola palabra ≈ 80 %, dos o tres ≈ 93 %.
+La debilidad está en palabras cortas con la errata en medio, en letras trocadas y en consultas de
+una palabra; las palabras largas, que son las de la mayoría de los nombres de trámites, están bien
+cubiertas. Todo esto es de **una errata por consulta**: dos erratas, sinónimos, siglas y jerga no
+están medidos.
+
+**Qué no demuestra.** Mismo autor, mismo catálogo, errata simulada. La cifra de ciudadanos reales
+sigue pendiente de las consultas que aporte la Entidad. El archivo sintético es una **guarda de
+regresión congelada** (la prueba exige 85 % y a lo sumo 1 / 300 con ruido; hoy 88,8 % y 0); no es
+una validación independiente nueva, porque la elección de 0,40 salió de la misma familia de reglas.
 
 ## 2.2 Registro de acceso sin la consulta (R3, AC-22.7)
 
@@ -109,16 +159,16 @@ comprueba para éxito, validación fallida y 429.
 | D5 | `word_similarity` y umbral por transacción (`SET LOCAL` / `set_config(…, true)`) | Umbral global del servidor | Cambiar el global afectaría a toda consulta de la base. |
 | D6 | Desempate por `similarity()` de la cadena entera | Orden alfabético | HECHO: sin él, «Exención del impuesto predial…» ganaba a «Impuesto predial…» por orden alfabético. |
 | D7 | Umbral **0,45**, calibrado en la entrega 2 (§2.1) | 0,4 (ruido) · 0,5–0,55 (sin margen sobre el piso de 0,500) | HECHO: con la cobertura por palabra (D8), 0,45 está en una meseta de 0,45–0,50 con 30/30 aciertos y 0 ruido; queda a ≈ 0,05 de cada borde. |
-| D8 | **Cobertura por palabra:** cada palabra de la consulta con ≥ 4 letras (hasta 6) debe aparecer en el contenido con `word_similarity` ≥ 0,45 | Sólo el umbral global | HECHO: ningún umbral global separaba «licencia de conducción» (ruido, 0,600 con «licencia de exhumación») de los aciertos más difíciles (0,500). Es un cambio de diseño, no un ajuste de cifra. |
+| D8 | **Cobertura por palabra:** cada palabra de la consulta con ≥ 4 letras (hasta 6) debe aparecer en el contenido con `word_similarity` ≥ **0,40** (era 0,45; §2.3) | Sólo el umbral global | HECHO: ningún umbral global separaba «licencia de conducción» (ruido, 0,600 con «licencia de exhumación») de los aciertos más difíciles (0,500). Es un cambio de diseño, no un ajuste de cifra. |
 
 ## 4. Riesgos
 
 | # | Riesgo | Tipo | Mitigación | Cuándo |
 |---|---|---|---|---|
 | R1 | Un volumen mucho mayor que 124 filas degrada el p95 | HIPÓTESIS | AC-22.6 mide contra staging; el índice GIN ya existe | E3 |
-| R2 | Los bancos son optimistas (los escribí yo, con el catálogo a la vista) y los parámetros se eligieron con uno de ellos | HECHO | Ampliados a 30 + 12 negativos + 10 de validación con los parámetros ya congelados (§2.1). Sigue pendiente pedir a la Entidad consultas reales de atención | E2 (parcial) |
+| R2 | Los bancos son optimistas (los escribí yo, con el catálogo a la vista) y los parámetros se eligieron con uno de ellos | HECHO la cuantificación · PENDIENTE la cifra real | Ampliados a 30 + 12 negativos + 10 de validación (§2.1) y medido con un banco generado por reglas (§2.3): **≈ 90 %** entre los tres primeros con una errata por consulta, no 100 %. La cobertura pasó de 0,45 a 0,40. Sigue pendiente pedir a la Entidad consultas reales de atención | E2 (parcial) |
 | R3 | **El texto buscado queda en el registro de acceso.** `docker/nginx/nginx.conf` registraba `$request` (con `?q=`) y `$http_referer` (el sitio pide sus recursos con la página `/buscar?q=…` como referer). Un ciudadano puede escribir un número de documento. | HECHO el formato · INFERENCIA el contenido | **Mitigado en E2** (§2.2): si la consulta trae `q` o `buscar`, el registro lleva sólo la ruta, en la petición y en el `Referer`. **Quedan** el `error_log` de nginx y el registro de Cloudflare (§9). Los informes CSP se trataron después (§2.2). Revisar con el oficial de datos personales (Ley 1581) | E2 (parcial) |
-| R4 | Cada pulsación es una petición: abuso o carga | INFERENCIA | `throttle:busqueda` en el servidor: **120 por minuto y por IP**, compartido por las dos operaciones, configurable con `BUSQUEDA_LIMITE_POR_MINUTO`; 429 con `Retry-After`. La pausa de 250 ms en el cliente es de la entrega 3 | E2 (servidor) · E3 (cliente) |
+| R4 | Cada pulsación es una petición: abuso o carga | INFERENCIA | `throttle:busqueda` en el servidor: **120 por minuto y por IP**, compartido por las dos operaciones, configurable con `BUSQUEDA_LIMITE_POR_MINUTO`; 429 con `Retry-After`. **Corregido:** el grupo `api` traía además `throttle:api` (60 por minuto) y el tope real era 60 —medido en staging: 200 hasta la petición 60 y 429 desde la 61—; se quitó de las dos rutas (§9). La pausa de 250 ms en el cliente es de la entrega 3 | E2 (servidor) · E3 (cliente) |
 | R5 | Las políticas indexan texto de ejemplo (`es_ejemplo`) | HECHO | La página enlazada muestra ese mismo texto con su aviso; al aprobarse el texto, el hook reindexa solo | — |
 | R6 | Relevancia subjetiva | HECHO (Guía §D-03) | Orden documentado y reproducible: la fórmula está en el código y el banco en el repositorio | E2 |
 | R7 | Si `TextoBuscable::normalizar` cambia, lo guardado queda desfasado | INFERENCIA | Prueba que fija su salida; comando `php artisan busqueda:reindexar` (idempotente, `--simular` cuenta sin escribir) | E2 |
@@ -164,8 +214,11 @@ auditoría (§10).
 ## 9. Límites que quedan
 
 - La relevancia se calibra con bancos que escribió quien conoce el catálogo; la medida
-  real requiere consultas de ciudadanos (R2). Un falso positivo está medido y aceptado
-  («impuesto de renta», §2.1).
+  real requiere consultas de ciudadanos (R2). El banco generado por reglas (§2.3) da ≈ 90 %
+  entre los tres primeros con una errata por consulta; con dos erratas, sinónimos o siglas no
+  está medido. Un falso positivo está medido y aceptado («impuesto de renta», §2.1): es ruido de
+  trigramas sobre una palabra de 5 letras («renta» alcanza 0,5 contra texto sin relación) y
+  cualquier regla que lo excluya costaría aciertos legítimos; se queda fijado en una prueba.
 - **El registro sin la consulta tiene bordes** (§2.2): el `error_log` de nginx copia la línea de
   petición cuando una petición falla aguas arriba (nginx no permite filtrarla), y Cloudflare
   conserva su propio registro con la URL completa. El primero sólo aparece cuando algo falla; el
@@ -173,6 +226,12 @@ auditoría (§10).
   este repositorio. Hay que decidirlos con el oficial de datos personales. Una alternativa de
   diseño, que cambiaría el contrato, sería enviar la consulta por `POST`; no se adoptó porque
   rompe el enlace compartible de una búsqueda y los resultados cacheables.
+- **Un error mío en el límite, corregido:** `bootstrap/app.php` activa `throttle:api` (60 por minuto por
+  IP) en todo el grupo `api`; las rutas de búsqueda lo heredaban *además* de su `throttle:busqueda`, y
+  el más estricto manda. El tope real era 60, no los 120 documentados. HECHO: en staging, desde una
+  sola conexión, 60 respuestas 200 y 429 desde la 61; ahora `withoutMiddleware('throttle:api')` en
+  esas dos rutas y una prueba fija que 100 peticiones pasan y la 101 no. El resto de la API conserva
+  sus 60.
 - El límite de 120 peticiones por minuto y por IP es una estimación (INFERENCIA: una persona
   escribiendo genera una petición por pausa de 250 ms; una oficina que comparte salida suma). No
   se midió con tráfico real. **Riesgo concreto:** si muchos ciudadanos comparten una IP pública
@@ -180,6 +239,9 @@ auditoría (§10).
   para todos y reciben 429 sin haber hecho nada. HIPÓTESIS (no hay datos de la distribución de
   IP de los visitantes). Para detectarlo: contar los 429 de `/buscar` en el registro de acceso
   tras la salida a producción y subir `BUSQUEDA_LIMITE_POR_MINUTO` sin tocar código si hace falta.
+  **A verificar en la entrega 3:** si el sitio consulta a la API desde su propio servidor (render en
+  servidor de `/buscar?q=`), todas esas peticiones podrían llegar con la IP del servidor del sitio y
+  compartir un solo cupo. HIPÓTESIS: no se ha revisado qué IP ve la API en ese camino.
 - El texto de búsqueda de una política se calcula al guardarla; las políticas sembradas son de
   ejemplo (R5).
 - Los sinónimos («carro» ↔ «vehículo», «cédula» ↔ «documento») no los resuelven los

@@ -63,13 +63,18 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // La búsqueda de la sede (T-22). Las dos operaciones son públicas y comparten un
     // límite por IP: se llaman mientras el ciudadano escribe, así que son las más
     // expuestas a un uso abusivo. Lo escrito no se registra en la aplicación.
+    //
+    // `throttle:api` (60 por minuto) se quita de estas dos rutas: el grupo `api` lo trae
+    // y, sumado al límite propio, dejaba el tope real de la búsqueda en 60 y no en los 120
+    // documentados —se midió en staging: 200 hasta la petición 60 y 429 desde la 61—.
+    // Con dos limitadores, el más estricto manda y el configurable no sirve de nada.
     Route::get('/busqueda/sugerencias', [BusquedaController::class, 'sugerir'])
         ->name('busqueda.sugerir')
-        ->withoutMiddleware('auth:sanctum')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
         ->middleware('throttle:busqueda');
     Route::get('/buscar', [BusquedaController::class, 'buscar'])
         ->name('busqueda.buscar')
-        ->withoutMiddleware('auth:sanctum')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
         ->middleware('throttle:busqueda');
 
     // Panel — Auth (requiere autenticación Sanctum)

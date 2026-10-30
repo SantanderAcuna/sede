@@ -214,7 +214,19 @@ declaración de conformidad del acta de aceptación.
 
 ## ADR-0009 — CMS profesional con Filament 5 como superficie editorial
 
-**Estado:** Aceptada
+**Estado:** Descartada por el titular (2026-10-29). **No se usa Filament.**
+
+> **Nota de corrección.** Este ADR figuraba como «Aceptada», pero Filament nunca se
+> incorporó: no está en `backend/composer.json` ni hay código que lo use. El titular
+> confirma que no se va a usar. La superficie de administración es el panel Vue
+> (`panel/`) sobre la API REST, protegido con Sanctum y permisos de Spatie. El texto
+> original se conserva abajo como registro histórico de lo que se propuso.
+>
+> **Queda abierto (decisión del titular, no se asume aquí):** el ADR prometía flujo
+> editorial (borrador → revisión → publicado), versionado con restauración y
+> redirecciones 301. Sin Filament, esas capacidades —que alimentan T-24— hay que
+> construirlas en el panel o descartarlas. Los documentos de `docs/investigacion/`
+> que citan este ADR describen el expediente tal como se investigó y no se reescriben.
 
 **Contexto.** El requisito del proyecto es que la sede se administre con un
 **CMS profesional**, no con pantallas hechas a medida. La guía de casa (regla

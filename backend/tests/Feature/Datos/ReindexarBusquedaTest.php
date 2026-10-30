@@ -7,6 +7,7 @@ namespace Tests\Feature\Datos;
 use App\Models\Politica;
 use App\Models\Tramite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -30,9 +31,7 @@ final class ReindexarBusquedaTest extends TestCase
         DB::table('tramites')->where('id', $tramite->id)->update(['busqueda' => 'texto viejo', 'busqueda_titulo' => 'titulo viejo']);
         DB::table('politicas')->where('id', $politica->id)->update(['busqueda' => 'texto viejo', 'busqueda_titulo' => 'titulo viejo']);
 
-        $this->artisan('busqueda:reindexar')
-            ->expectsOutputToContain('trámites 1 de 1, políticas 1 de 1')
-            ->assertSuccessful();
+        $this->reindexar('busqueda:reindexar', 'trámites 1 de 1, políticas 1 de 1');
 
         $tramite->refresh();
         $politica->refresh();
@@ -49,8 +48,8 @@ final class ReindexarBusquedaTest extends TestCase
         $this->politica();
         DB::table('tramites')->where('id', $tramite->id)->update(['busqueda' => 'texto viejo']);
 
-        $this->artisan('busqueda:reindexar')->expectsOutputToContain('trámites 1 de 1')->assertSuccessful();
-        $this->artisan('busqueda:reindexar')->expectsOutputToContain('trámites 0 de 1, políticas 0 de 1')->assertSuccessful();
+        $this->reindexar('busqueda:reindexar', 'trámites 1 de 1');
+        $this->reindexar('busqueda:reindexar', 'trámites 0 de 1, políticas 0 de 1');
     }
 
     public function test_no_toca_las_otras_columnas_ni_la_fecha_de_actualizacion(): void
@@ -61,7 +60,7 @@ final class ReindexarBusquedaTest extends TestCase
             'updated_at' => '2020-01-01 00:00:00',
         ]);
 
-        $this->artisan('busqueda:reindexar')->assertSuccessful();
+        $this->reindexar('busqueda:reindexar');
 
         $despues = DB::table('tramites')->where('id', $tramite->id)->first();
 
@@ -76,18 +75,26 @@ final class ReindexarBusquedaTest extends TestCase
         $tramite = $this->tramite();
         DB::table('tramites')->where('id', $tramite->id)->update(['busqueda' => 'texto viejo']);
 
-        $this->artisan('busqueda:reindexar --simular')
-            ->expectsOutputToContain('trámites 1 de 1')
-            ->assertSuccessful();
+        $this->reindexar('busqueda:reindexar --simular', 'trámites 1 de 1');
 
         $this->assertSame('texto viejo', DB::table('tramites')->where('id', $tramite->id)->value('busqueda'));
     }
 
     public function test_un_catalogo_vacio_no_es_un_error(): void
     {
-        $this->artisan('busqueda:reindexar')
-            ->expectsOutputToContain('trámites 0 de 0, políticas 0 de 0')
-            ->assertSuccessful();
+        $this->reindexar('busqueda:reindexar', 'trámites 0 de 0, políticas 0 de 0');
+    }
+
+    /**
+     * Ejecuta el comando, exige que termine bien y, si se pide, que diga `$salida`.
+     */
+    private function reindexar(string $comando, ?string $salida = null): void
+    {
+        $this->assertSame(0, Artisan::call($comando), "{$comando} no terminó bien.");
+
+        if ($salida !== null) {
+            $this->assertStringContainsString($salida, Artisan::output());
+        }
     }
 
     private function tramite(): Tramite

@@ -597,3 +597,51 @@ decisión se revisa con el p95 medido (AC-22.6), no antes.
 
 **Evidencia.** `docs/busqueda.md` §2 y §2.1 (mediciones y calibración), `BancoDeErratasTest`,
 `BusquedaApiTest`, `IndicesDeBusquedaTest`.
+
+---
+
+## ADR-0018 — El render en servidor consulta la API por un canal interno, con la IP del visitante
+
+**Estado:** Propuesta aplicada en una rama (T-22, 2026-10-30). Verificada con nginx real, el
+sitio compilado y un receptor FastCGI de prueba; **falta** la medición en staging con dos clientes
+(`docs/busqueda.md` §2.5). Pasa a «Aceptada» cuando esa medición cierre el hallazgo.
+
+**Contexto.** El sitio renderiza en servidor y pide datos a la API. Se le dio la URL pública del
+dominio; la petición sale a Internet, vuelve por Cloudflare y la API ve la dirección del servidor del
+sitio, no la del visitante. **HECHO (staging, dos clientes):** el error de un cliente apareció en el
+mismo segundo en que el otro cruzaba el umbral de peticiones. Todos los visitantes comparten un solo
+cupo, y el tráfico normal basta para agotarlo.
+
+**Decisión.** El sitio ofrece su propia ruta `/api/v1` (`sitio/server/routes/api/v1/[...path].ts`),
+sólo para GET y HEAD, que reenvía a `http://nginx:8080` por la red de Docker añadiendo
+`X-Sede-Cliente-Ip` con la IP que nginx ya restauró para el visitante (`X-Real-IP`). nginx expone un
+segundo servidor en el 8080 (`conf.d/interno.conf`) que, sólo ahí, toma esa cabecera como dirección del
+cliente. La URL pública del sitio vuelve a ser relativa (`NUXT_PUBLIC_API_URL=/api/v1`) y la interna
+es otra variable (`NUXT_API_INTERNA`).
+
+**Alternativas.** (B) Exención por secreto compartido: un secreto más que rotar y un atajo al límite.
+(C) Caché `swr` en el sitio: no ayuda a búsquedas distintas por visitante. (D) Que el navegador pida
+los resultados: pierde el resultado sin JavaScript. Detalle en `docs/busqueda.md` §2.5.
+
+**Consecuencias.**
+- **Frontera de confianza nueva.** `interno.conf` acepta la cabecera de cualquier origen
+  (`set_real_ip_from 0.0.0.0/0`). Es seguro **sólo** mientras el 8080 no se publique. Una guarda de CI
+  («El canal interno del sitio no se publica») lee la pila ya resuelta y falla si algún servicio
+  publica el 8080, si la confianza amplia aparece fuera de `interno.conf`, o si el punto de entrada
+  público deja de vaciar la cabecera.
+- **Fallo seguro.** Si la cabecera falta o no es una IP, nginx conserva la del servidor del sitio:
+  se comparte cupo (el defecto anterior), nunca se falsea una identidad. El sitio valida la IP antes de
+  enviarla y sobrescribe siempre cualquier valor entrante.
+- **El anfitrión y el esquema.** El `fetch` de Node ignora un `Host` que se le pida cambiar (medido), así
+  que nginx lo reconstruye desde `X-Forwarded-Host` (con forma de nombre de anfitrión) y fija
+  `https`/443 para la aplicación (`$esquema_publico`, `$puerto_publico`). Sin esto la API habría
+  generado enlaces absolutos a `nginx:8080`.
+- **Quien no tiene visitante** (por ejemplo `sitemap.xml`, que pide con `$fetch` simple) llega sin
+  cabecera y comparte el cupo del servidor. Es poco tráfico y está documentado.
+- **El registro de nginx** del 8080 muestra ya la IP del visitante, con la misma regla de ocultar la
+  consulta de búsqueda que el resto (`$uri_registrable`).
+- Una dependencia de despliegue más: `NUXT_API_INTERNA`. Si falta, la ruta responde 503 y el sitio
+  muestra sus estados de error.
+
+**Evidencia.** `docs/busqueda.md` §2.5; `sitio/tests/canal-interno.test.ts` (31 casos);
+`docker/nginx/conf.d/interno.conf`; guarda en `.github/workflows/ci.yml`.

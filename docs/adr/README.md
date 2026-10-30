@@ -602,9 +602,10 @@ decisión se revisa con el p95 medido (AC-22.6), no antes.
 
 ## ADR-0018 — El render en servidor consulta la API por un canal interno, con la IP del visitante
 
-**Estado:** Propuesta aplicada en una rama (T-22, 2026-10-30). Verificada con nginx real, el
-sitio compilado y un receptor FastCGI de prueba; **falta** la medición en staging con dos clientes
-(`docs/busqueda.md` §2.5). Pasa a «Aceptada» cuando esa medición cierre el hallazgo.
+**Estado:** Aceptada con reservas (T-22, 2026-10-30). Medida en staging con dos clientes: el cupo es por
+visitante (`docs/busqueda.md` §2.5). Reservas: el primer despliegue falló (ver «Incidente» abajo; corregido
+en #404 y pendiente de redesplegar con el `compose.yaml` nuevo), una sola medición, y la IP que ve la API
+no se leyó en un registro del servidor.
 
 **Contexto.** El sitio renderiza en servidor y pide datos a la API. Se le dio la URL pública del
 dominio; la petición sale a Internet, vuelve por Cloudflare y la API ve la dirección del servidor del
@@ -642,6 +643,18 @@ los resultados: pierde el resultado sin JavaScript. Detalle en `docs/busqueda.md
   consulta de búsqueda que el resto (`$uri_registrable`).
 - Una dependencia de despliegue más: `NUXT_API_INTERNA`. Si falta, la ruta responde 503 y el sitio
   muestra sus estados de error.
+- **Incidente del primer despliegue (staging, 2026-10-30, HECHO).** Con `NUXT_API_INTERNA` puesto, el
+  despliegue dejó el dominio entero en 521. Causa: la comprobación de salud del sitio pedía `/`, que
+  consulta la API por `nginx:8080`; nginx espera a que el sitio esté sano y Compose recrea nginx ANTES de
+  arrancar el sitio, así que la API interna no existía, la conexión se colgó, la comprobación se agotó a
+  los 5 s y nginx no arrancó nunca. Pasaría en cada despliegue. Lo que lo ocultó: la prueba local con
+  una API falsa y con un nombre que no resuelve (falla rápido) no reproduce un contenedor «Created»
+  (cuelga). Corrección: la salud pide `/robots.txt` (no usa la API) con `-m 4`, y una guarda de CI la
+  exige. **Coste aceptado:** la salud ya no prueba que las páginas se rendericen; eso lo cubren las
+  pruebas de navegador del despliegue.
+- **El entorno no viaja con el despliegue de CI.** `deploy/plantilla.env` y `compose.yaml` los escribe en
+  el servidor `deploy/publicar-entorno.sh`, que se ejecuta a mano. Un cambio en cualquiera de los dos
+  no tiene efecto hasta volver a publicar el entorno (ver `deploy/README.md`).
 
 **Evidencia.** `docs/busqueda.md` §2.5; `sitio/tests/canal-interno.test.ts` (31 casos);
 `docker/nginx/conf.d/interno.conf`; guarda en `.github/workflows/ci.yml`.

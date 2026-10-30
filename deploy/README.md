@@ -42,6 +42,22 @@ scp deploy/droplet/certificado.sh ops@<servidor>:/tmp/ && ssh ops@<servidor> 'su
 #    entorno que ya existía hay que hacerlo una vez a mano (ver más abajo).
 ```
 
+## El entorno no viaja con el despliegue de CI
+
+La canalización sólo ejecuta `desplegar.sh <entorno> <versión>`: cambia las IMÁGENES. El `.env` y el
+`compose.yaml` del servidor los escribe `publicar-entorno.sh`, a mano. Por eso:
+
+- Un cambio en `deploy/plantilla.env` o en `compose.yaml` **no tiene efecto** hasta volver a ejecutar
+  `./deploy/publicar-entorno.sh <entorno>` desde tu máquina (con el repositorio actualizado: el script
+  renderiza TU copia local).
+- Publicar el entorno no reinicia nada. Los contenedores toman el `.env` y el `compose.yaml` nuevos en el
+  siguiente despliegue.
+- **Orden cuando un cambio toca la comprobación de salud o variables de un servicio:** primero publicar el
+  entorno, después desplegar. Al revés, la imagen nueva arranca con la configuración vieja.
+- Antes de ejecutarlo, `git pull` en la rama correcta. Si `git checkout` cambia a una rama que todavía
+  versiona un archivo que en tu rama actual está ignorado (como la auditoría local), git lo sobrescribe
+  sin avisar.
+
 ## La trampa: el guion vive en dos sitios
 
 `despliegue-remoto.sh` está en el repositorio **y** instalado como

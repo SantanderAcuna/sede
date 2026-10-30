@@ -165,8 +165,21 @@ services:
     cap_drop: [ALL]
     mem_limit: 512m
     pids_limit: 256
+    # La salud del sitio NO puede depender de la API (ADR-0018).
+    #
+    # Antes pedía `/`, que renderiza la portada y por tanto consulta la API a través
+    # de nginx. Pero nginx espera a que el sitio esté sano (`depends_on` de arriba), y
+    # Compose recrea nginx ANTES de arrancar el sitio: durante el arranque, la API
+    # interna (`nginx:8080`) no existe, la conexión se queda colgada, la comprobación
+    # se agota a los 5 s, el sitio queda «unhealthy» y nginx no arranca nunca. Se vio
+    # en staging: 521 en todo el dominio tras el primer despliegue con el canal interno.
+    #
+    # `/robots.txt` lo responde el propio proceso de Node con su configuración, sin
+    # tocar la API. Prueba que el servidor atiende; que las páginas se rendericen bien
+    # lo comprueban las pruebas de navegador del despliegue. `-m 4` acota la espera
+    # por debajo del `timeout` para que un cuelgue se vea como fallo y no como agotado.
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/ > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS -m 4 http://127.0.0.1:3000/robots.txt > /dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

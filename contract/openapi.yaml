@@ -875,9 +875,18 @@ paths:
         operación no puede cambiar de forma según un parámetro, porque el cliente
         generado no podría tiparla. Aquí la forma es liviana y fija; allí, la completa.
 
+        Un contenido es una sugerencia si su parecido con lo escrito alcanza el umbral
+        de pertinencia **y** cada palabra de cuatro letras o más de la consulta aparece
+        en él (con tolerancia a erratas): por eso «licencia de conducción» no sugiere
+        «licencia de exhumación». Ver `docs/busqueda.md`.
+
+        Público, con un límite de peticiones por IP compartido con `/buscar`; al
+        superarlo, `429` con `Retry-After`.
+
         El texto buscado es dato del ciudadano y puede contener datos personales
-        (un número de documento, por ejemplo): no se guarda ni se registra.
-      x-status: pending
+        (un número de documento, por ejemplo): no se guarda ni se registra en la
+        aplicación, y el registro de acceso del servidor web lo omite.
+      x-status: implemented
       x-criterios: [RF-01-009, RF-B1-006, RF-B2-036, RNF-REND-01]
       parameters:
         - name: q
@@ -940,8 +949,9 @@ paths:
         `miniatura` viajan siempre y son `null` mientras el contenido no los tenga:
         ningún contenido de hoy los tiene y no se inventan.
 
-        Misma tolerancia que `/busqueda/sugerencias`. Ver `docs/busqueda.md`.
-      x-status: pending
+        Misma tolerancia, mismo criterio de pertinencia, mismo límite de peticiones y
+        misma privacidad que `/busqueda/sugerencias`. Ver `docs/busqueda.md`.
+      x-status: implemented
       x-criterios: [RF-01-009, RF-B1-005, RF-B2-035, RNF-REND-01]
       parameters:
         - name: q

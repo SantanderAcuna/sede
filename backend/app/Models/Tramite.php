@@ -10,6 +10,7 @@ use App\Enums\ModalidadTramite;
 use App\Models\Traits\HasUuids;
 use App\Support\Busqueda\TextoBuscable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -198,6 +199,43 @@ final class Tramite extends Model
             // más que uno que aparece en el resumen (ver `docs/busqueda.md`).
             $tramite->busqueda_titulo = TextoBuscable::normalizar($tramite->nombre);
         });
+    }
+
+    /**
+     * Los trámites que el ciudadano puede ver.
+     *
+     * La regla es la del §5.1.3 de la Guía: **no se publica un trámite al que le
+     * falte uno de sus seis atributos obligatorios**. Vive en el modelo, y no repartida
+     * entre quienes consultan, porque por ella pasan las dos puertas del ciudadano al
+     * catálogo —el listado y la búsqueda—: si cada una escribiera su copia, bastaría
+     * con que una se olvidara de una condición para publicar un trámite incompleto sin
+     * que nada fallara.
+     *
+     * Las condiciones son la misma regla vista desde tres lados:
+     *
+     * - `publicado_en`: la Entidad lo ha dado de alta.
+     * - `url_ficha_gov_co`: tiene ficha en GOV.CO, que es el destino del clic en el
+     *   nombre según el Anexo 2.1. Un trámite sin ficha puede estar guardado mientras
+     *   la Entidad la consigue; mientras tanto no se ofrece.
+     * - los seis atributos: desde que la ingesta de la ficha oficial puede guardar un
+     *   trámite incompleto —para que la Entidad vea qué le falta en vez de perderlo—,
+     *   la comprobación dejó de ser implícita en el esquema y tiene que ser explícita.
+     *   Sin ella, un trámite al que la fuente no le declara la modalidad se publicaría
+     *   con la modalidad en nulo, que es justo lo que la Guía prohíbe.
+     *
+     * @param  Builder<Tramite>  $consulta
+     */
+    public function scopePublicados(Builder $consulta): void
+    {
+        $consulta
+            ->whereNotNull('publicado_en')
+            ->whereNotNull('url_ficha_gov_co')
+            ->whereNotNull('modalidad')
+            ->whereNotNull('tiene_costo')
+            ->whereNotNull('tiempo_solucion_dias')
+            ->whereNotNull('canal_inicio')
+            ->whereNotNull('consulta_estado')
+            ->whereNotNull('requisitos');
     }
 
     /**

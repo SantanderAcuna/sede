@@ -15,8 +15,8 @@ use Illuminate\Support\Str;
  * no se encuentra, y la diferencia más pequeña entre las dos rutas de
  * normalización produce justo ese fallo, que no se ve hasta que alguien busca.
  * Por eso la regla vive aquí, en un solo sitio, y la usan los modelos al guardar,
- * la migración al rellenar lo ya guardado y —en la fase siguiente— el servicio de
- * búsqueda al recibir el término.
+ * la migración al rellenar lo ya guardado, el comando `busqueda:reindexar` y el
+ * servicio de búsqueda al recibir el término.
  *
  * ## Por qué no `unaccent` de PostgreSQL
  *
@@ -32,7 +32,7 @@ use Illuminate\Support\Str;
  *
  * **Esta clase es parte del contrato de datos de la búsqueda:** si cambia lo que
  * hace `normalizar`, el texto ya guardado queda desfasado y hay que reindexar
- * (`busqueda:reindexar`, entrega 2). Por eso hay una prueba que fija su salida.
+ * (`php artisan busqueda:reindexar`). Por eso hay una prueba que fija su salida.
  */
 final class TextoBuscable
 {
@@ -48,6 +48,46 @@ final class TextoBuscable
     public static function normalizar(string $texto): string
     {
         return str_replace(['%', '_'], '', Str::lower(Str::ascii(trim($texto))));
+    }
+
+    /**
+     * Lo que el ciudadano escribió, listo para compararlo con lo guardado.
+     *
+     * Es `normalizar` más dos cosas que sólo importan de este lado: se quita la
+     * barra invertida —en un patrón `LIKE` escapa al carácter siguiente y, al final
+     * del término, hace que PostgreSQL rechace la consulta— y se reducen los
+     * espacios repetidos a uno, porque el ciudadano no escribe como la fuente.
+     * Lo que queda puede ser más corto que lo escrito («___» queda vacío): quien
+     * llame debe volver a comprobar el largo.
+     */
+    public static function paraConsulta(string $texto): string
+    {
+        $limpio = str_replace('\\', '', self::normalizar($texto));
+
+        return trim((string) preg_replace('/\s+/u', ' ', $limpio));
+    }
+
+    /**
+     * Las palabras que se exigen a un contenido para que sea un resultado.
+     *
+     * Sólo cuentan las de `$minimo` letras o más —«de», «y», «la» no distinguen
+     * un trámite de otro— y hasta `$maximo`, para que una consulta larguísima no
+     * produzca una consulta SQL larguísima. Se conserva el orden y se descartan
+     * las repetidas.
+     *
+     * @return list<string>
+     */
+    public static function palabras(string $consulta, int $minimo, int $maximo): array
+    {
+        $palabras = [];
+
+        foreach (explode(' ', $consulta) as $palabra) {
+            if (mb_strlen($palabra) >= $minimo && ! in_array($palabra, $palabras, true)) {
+                $palabras[] = $palabra;
+            }
+        }
+
+        return array_slice($palabras, 0, max(0, $maximo));
     }
 
     /** El texto de un trámite: su nombre y su resumen. */

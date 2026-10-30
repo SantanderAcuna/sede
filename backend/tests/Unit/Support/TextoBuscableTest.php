@@ -55,4 +55,24 @@ final class TextoBuscableTest extends TestCase
 
         $this->assertSame('uso de cookies duracion un ano. renovable. contacto', $texto);
     }
+
+    public function test_para_consulta_quita_barras_y_colapsa_espacios(): void
+    {
+        $this->assertSame('licencia de exhumacion', TextoBuscable::paraConsulta("  Licencia   de\tExhumación "));
+        // La barra invertida escapa al carácter siguiente en un patrón LIKE: se quita.
+        $this->assertSame('licencia', TextoBuscable::paraConsulta('licencia\\'));
+        $this->assertSame('', TextoBuscable::paraConsulta('___'));
+        $this->assertSame('', TextoBuscable::paraConsulta('%%%'));
+    }
+
+    public function test_las_palabras_exigidas_descartan_las_cortas_las_repetidas_y_el_exceso(): void
+    {
+        $this->assertSame(
+            ['licencia', 'exhumacion'],
+            TextoBuscable::palabras('licencia de exhumacion y licencia', 4, 6),
+        );
+        $this->assertSame(['uno1', 'dos2'], TextoBuscable::palabras('uno1 dos2 tres3 cuat4', 4, 2));
+        $this->assertSame([], TextoBuscable::palabras('de la y', 4, 6));
+        $this->assertSame([], TextoBuscable::palabras('licencia', 4, 0));
+    }
 }

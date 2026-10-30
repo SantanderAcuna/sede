@@ -13,27 +13,30 @@ use stdClass;
 use Tests\TestCase;
 
 /**
- * La premisa de la búsqueda, medida sobre el catálogo real (AC-22.3, entrega 1).
+ * La tolerancia a erratas de la búsqueda, medida a través de la API sobre el catálogo
+ * real (AC-22.3 y AC-22.8; TC-BUS-18, 20 y 24).
  *
  * T-22 se apoya en una hipótesis: que `pg_trgm` basta, con el catálogo que hay, para
- * tolerar erratas sin añadir un servicio de búsqueda. Esta prueba la comprueba en
- * el motor de CI —el mismo PostgreSQL que corre en despliegue— con los 124 trámites
- * sembrados desde la fuente oficial. **No prueba la API** (todavía no existe): prueba
- * la consulta que la API va a ejecutar. La fase siguiente la mueve a un repositorio
- * y añade las pruebas HTTP sobre el mismo banco.
+ * tolerar erratas sin añadir un servicio de búsqueda. En la primera entrega se midió la
+ * consulta; en la segunda se mide **el producto**: cada caso llama a
+ * `GET /api/v1/busqueda/sugerencias` y comprueba que el trámite esperado queda entre
+ * los tres primeros, con los 124 trámites sembrados desde la fuente oficial.
  *
- * El umbral de aciertos (8 de 10) es el de AC-22.3 y está marcado en la auditoría
- * como «se revisa tras medir».
+ * Tres bancos, con papeles distintos:
+ *  - `banco-erratas` (30): con él se calibraron los parámetros. Exige 27 de 30 (90 %).
+ *  - `banco-negativo` (12): consultas que no deben devolver nada. Exige 12 de 12.
+ *  - `banco-validacion` (10 + 5 + 1): escrito después y corrido con los parámetros ya
+ *    congelados; mide si la calibración generaliza. Exige 8 de 10.
+ *
+ * **Límite declarado:** los tres los escribió quien calibró, con el catálogo a la vista;
+ * miden lo que es técnicamente posible, no cómo escriben los ciudadanos.
  */
 final class BancoDeErratasTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Pertinencia mínima para entrar en los resultados. Se calibra en la entrega 2. */
-    private const UMBRAL = 0.4;
-
-    /** @var list<array{consulta: string, esperado: list<string>, errata: string}> */
-    private array $banco;
+    /** @var array<string, string> código SUIT => slug */
+    private array $slugs = [];
 
     protected function setUp(): void
     {
@@ -41,70 +44,139 @@ final class BancoDeErratasTest extends TestCase
 
         $this->seed(TramiteSeeder::class);
 
-        /** @var list<array{consulta: string, esperado: list<string>, errata: string}> $banco */
-        $banco = require __DIR__.'/../../Support/banco-erratas.php';
-        $this->banco = $banco;
+        // El banco recorre decenas de consultas seguidas desde una misma IP: el límite
+        // de producción (120 por minuto) no es lo que se está midiendo aquí.
+        config(['busqueda.limite_por_minuto' => 100000]);
+
+        /** @var array<string, string> $slugs */
+        $slugs = Tramite::query()->pluck('slug', 'codigo')->all();
+        $this->slugs = $slugs;
     }
 
-    public function test_el_banco_se_refiere_a_tramites_que_existen(): void
+    /**
+     * @return list<array{consulta: string, esperado: list<string>, errata: string}>
+     */
+    private function bancoDeErratas(): array
+    {
+        /** @var list<array{consulta: string, esperado: list<string>, errata: string}> $banco */
+        $banco = require __DIR__.'/../../Support/banco-erratas.php';
+
+        return $banco;
+    }
+
+    /**
+     * @return array{positivos: list<array{consulta: string, esperado: list<string>, errata: string}>, negativos: list<string>, limite_conocido: list<string>}
+     */
+    private function bancoDeValidacion(): array
+    {
+        /** @var array{positivos: list<array{consulta: string, esperado: list<string>, errata: string}>, negativos: list<string>, limite_conocido: list<string>} $banco */
+        $banco = require __DIR__.'/../../Support/banco-validacion.php';
+
+        return $banco;
+    }
+
+    public function test_los_bancos_se_refieren_a_tramites_que_existen(): void
     {
         // Si el sembrador descarta uno de los esperados, el banco mediría contra
         // la nada y el resultado sería un falso rojo (o un falso verde).
-        foreach ($this->banco as $caso) {
+        $casos = array_merge($this->bancoDeErratas(), $this->bancoDeValidacion()['positivos']);
+
+        foreach ($casos as $caso) {
             foreach ($caso['esperado'] as $codigo) {
-                $this->assertTrue(
-                    Tramite::query()->where('codigo', $codigo)->exists(),
-                    "El trámite {$codigo} del banco no está en el catálogo sembrado.",
-                );
+                $this->assertArrayHasKey($codigo, $this->slugs, "El trámite {$codigo} del banco no está en el catálogo sembrado.");
             }
         }
     }
 
+    public function test_los_bancos_tienen_el_tamano_que_prometen_los_criterios(): void
+    {
+        $this->assertCount(30, $this->bancoDeErratas(), 'AC-22.3 exige un banco de al menos 30 consultas.');
+        $this->assertCount(12, $this->bancoNegativo(), 'AC-22.8 exige el banco negativo completo.');
+        $this->assertCount(10, $this->bancoDeValidacion()['positivos']);
+    }
+
     public function test_la_busqueda_actual_con_like_no_tolera_ninguna_errata(): void
     {
-        // La línea base: lo que hace hoy `TramiteRepository` con `busqueda LIKE %q%`.
-        // Documenta POR QUÉ existe T-22; si alguna vez acierta, el banco ya no sirve.
-        $aciertos = 0;
+        // La línea base: lo que hace el filtro `buscar` del catálogo con `busqueda LIKE
+        // %q%`. Documenta POR QUÉ existe T-22; los casos de control (sin errata) sí
+        // acierta con LIKE, así que se excluyen: lo que se mide es la errata.
+        $aciertosConErrata = 0;
 
-        foreach ($this->banco as $caso) {
+        foreach ($this->bancoDeErratas() as $caso) {
+            if (str_contains($caso['errata'], 'control') || str_contains($caso['errata'], 'sin errata')) {
+                continue;
+            }
+
             $codigos = Tramite::query()
                 ->where('busqueda', 'like', '%'.TextoBuscable::normalizar($caso['consulta']).'%')
                 ->pluck('codigo')
                 ->all();
 
             if (array_intersect($codigos, $caso['esperado']) !== []) {
-                $aciertos++;
+                $aciertosConErrata++;
             }
         }
 
-        $this->assertSame(0, $aciertos, 'El LIKE ya acierta consultas con errata: revisar el banco.');
+        $this->assertSame(0, $aciertosConErrata, 'El LIKE ya acierta consultas con errata: revisar el banco.');
     }
 
-    public function test_los_trigramas_ponen_el_resultado_esperado_entre_los_tres_primeros_en_8_de_10(): void
+    public function test_el_banco_de_erratas_pone_el_resultado_esperado_entre_los_tres_primeros_en_27_de_30(): void
     {
-        $aciertos = 0;
-        $fallos = [];
+        [$aciertos, $fallos] = $this->medir($this->bancoDeErratas());
 
-        foreach ($this->banco as $caso) {
-            $codigos = $this->primerosTres(TextoBuscable::normalizar($caso['consulta']));
+        $this->assertGreaterThanOrEqual(
+            27,
+            $aciertos,
+            "Aciertos: {$aciertos}/30.\n".implode("\n", $fallos),
+        );
+    }
 
-            if (array_intersect($codigos, $caso['esperado']) !== []) {
-                $aciertos++;
-            } else {
-                $fallos[] = "{$caso['consulta']} → [".implode(', ', $codigos).'] esperaba ['.implode(', ', $caso['esperado']).']';
-            }
-        }
+    public function test_el_banco_de_validacion_generaliza_8_de_10(): void
+    {
+        [$aciertos, $fallos] = $this->medir($this->bancoDeValidacion()['positivos']);
 
         $this->assertGreaterThanOrEqual(
             8,
             $aciertos,
-            "Aciertos: {$aciertos}/10.\n".implode("\n", $fallos),
+            "Aciertos en validación: {$aciertos}/10.\n".implode("\n", $fallos),
         );
+    }
+
+    public function test_el_banco_negativo_no_devuelve_nada_por_ninguna_de_las_dos_operaciones(): void
+    {
+        $conRuido = [];
+
+        foreach ($this->bancoNegativo() as $consulta) {
+            if ($this->sugerencias($consulta) !== []) {
+                $conRuido[] = "sugerencias: {$consulta}";
+            }
+
+            if ($this->getJson('/api/v1/buscar?q='.rawurlencode($consulta))->json('meta.total') !== 0) {
+                $conRuido[] = "buscar: {$consulta}";
+            }
+        }
+
+        $this->assertSame([], $conRuido, "Consultas que no debían devolver nada:\n".implode("\n", $conRuido));
+    }
+
+    public function test_los_negativos_de_validacion_estan_limpios_y_el_falso_positivo_conocido_sigue_documentado(): void
+    {
+        $validacion = $this->bancoDeValidacion();
+
+        foreach ($validacion['negativos'] as $consulta) {
+            $this->assertSame([], $this->sugerencias($consulta), "«{$consulta}» no debía devolver nada.");
+        }
+
+        // El límite conocido se fija en las dos direcciones: si deja de ocurrir, la
+        // mejora tiene que quedar escrita en la documentación, no pasar desapercibida.
+        foreach ($validacion['limite_conocido'] as $consulta) {
+            $this->assertNotSame([], $this->sugerencias($consulta), "«{$consulta}» ya no devuelve el falso positivo conocido: actualice docs/busqueda.md.");
+        }
     }
 
     public function test_una_consulta_sin_sentido_no_devuelve_nada(): void
     {
-        $this->assertSame([], $this->primerosTres('xyzxyz'));
+        $this->assertSame([], $this->sugerencias('xyzxyz'));
     }
 
     public function test_el_operador_de_palabra_usa_el_indice_gin_con_un_umbral_por_transaccion(): void
@@ -129,30 +201,54 @@ final class BancoDeErratasTest extends TestCase
     }
 
     /**
-     * La consulta que la API ejecutará, en su primera forma: el mejor entre la
-     * similitud con el título y la del texto completo (éste pesa 0.6), con un
-     * pequeño premio a lo que empieza o contiene el término, y desempate por la
-     * similitud de la cadena entera —que favorece al título más corto.
+     * @return list<string>
+     */
+    private function bancoNegativo(): array
+    {
+        /** @var list<string> $banco */
+        $banco = require __DIR__.'/../../Support/banco-negativo.php';
+
+        return $banco;
+    }
+
+    /**
+     * Los slugs de las tres primeras sugerencias para una consulta.
      *
      * @return list<string>
      */
-    private function primerosTres(string $q): array
+    private function sugerencias(string $consulta): array
     {
-        $filas = DB::select(
-            'select codigo from tramites
-             where greatest(word_similarity(cast(:q as text), busqueda_titulo),
-                            0.6 * word_similarity(cast(:q as text), busqueda)) >= :umbral
-             order by greatest(word_similarity(cast(:q as text), busqueda_titulo),
-                               0.6 * word_similarity(cast(:q as text), busqueda))
-                      + case when busqueda_titulo like cast(:q as text) || \'%\' then 0.25
-                             when busqueda_titulo like \'%\' || cast(:q as text) || \'%\' then 0.15
-                             else 0 end desc,
-                      similarity(cast(:q as text), busqueda_titulo) desc,
-                      nombre
-             limit 3',
-            ['q' => $q, 'umbral' => self::UMBRAL],
-        );
+        /** @var list<array{url: string}> $datos */
+        $datos = $this->getJson('/api/v1/busqueda/sugerencias?q='.rawurlencode($consulta))
+            ->assertOk()
+            ->json('data');
 
-        return array_values(array_map(fn (stdClass $fila): string => (string) $fila->codigo, $filas));
+        return array_values(array_map(
+            fn (array $dato): string => basename($dato['url']),
+            $datos,
+        ));
+    }
+
+    /**
+     * @param  list<array{consulta: string, esperado: list<string>, errata: string}>  $banco
+     * @return array{0: int, 1: list<string>}
+     */
+    private function medir(array $banco): array
+    {
+        $aciertos = 0;
+        $fallos = [];
+
+        foreach ($banco as $caso) {
+            $primeros = array_slice($this->sugerencias($caso['consulta']), 0, 3);
+            $esperados = array_map(fn (string $codigo): string => $this->slugs[$codigo], $caso['esperado']);
+
+            if (array_intersect($primeros, $esperados) !== []) {
+                $aciertos++;
+            } else {
+                $fallos[] = "{$caso['consulta']} → [".implode(', ', $primeros).'] esperaba ['.implode(', ', $esperados).']';
+            }
+        }
+
+        return [$aciertos, $fallos];
     }
 }

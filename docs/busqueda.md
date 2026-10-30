@@ -213,6 +213,12 @@ auditoría (§10).
 
 ## 9. Límites que quedan
 
+- **Tiempos (AC-22.6), parcial.** HECHO, medido en staging desde la sesión de trabajo (100 consultas
+  secuenciales tras 10 de calentamiento): `/busqueda/sugerencias` p95 174 ms; `/buscar` p95 268 y
+  246 ms en dos corridas; la red sola (referencia) p95 145 ms. Cumple < 300 ms **en la API**, con
+  margen escaso en `/buscar`. No cubre la página ni el combobox (entrega 3), ni se midió desde el
+  servidor (TC-BUS-30), ni con más de 123 trámites (R1).
+
 - La relevancia se calibra con bancos que escribió quien conoce el catálogo; la medida
   real requiere consultas de ciudadanos (R2). El banco generado por reglas (§2.3) da ≈ 90 %
   entre los tres primeros con una errata por consulta; con dos erratas, sinónimos o siglas no

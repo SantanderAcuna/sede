@@ -296,10 +296,39 @@ jobs:
                   if rx.match(conservada):
                       errores.append(variable + ": '" + conservada + "' no debía recortarse.")
 
+          # Informes de la política de contenido: su cuerpo trae la URL del documento.
+          informe = re.search(r"log_format\s+csp_informe\s+(.*?);", conf, re.S)
+          if not informe:
+              errores.append("Falta log_format csp_informe.")
+          else:
+              if "$informe_registrable" not in informe.group(1):
+                  errores.append("log_format csp_informe no usa $informe_registrable.")
+              if "$request_body" in informe.group(1):
+                  errores.append("log_format csp_informe vuelve a usar $request_body sin filtrar.")
+          mapa = re.search(r"map\s+\$request_body\s+\$informe_registrable\s*\{(.*?)\}", conf, re.S)
+          regla_informe = re.search(r"~\*(\S+)\s+\"", mapa.group(1)) if mapa else None
+          if not regla_informe:
+              errores.append("Falta el map de $informe_registrable con su regla ~*regex.")
+          else:
+              rx = re.compile(regla_informe.group(1), re.I)
+              for cuerpo in (
+                  '{"csp-report":{"document-uri":"https://s.example/buscar?q=123"}}',
+                  '{"csp-report":{"document-uri":"https://s.example/tramites?page=2&buscar=Juan"}}',
+                  '{"csp-report":{"document-uri":"https://s.example/t?x=1\\u0026q=secreto"}}',
+              ):
+                  if not rx.search(cuerpo):
+                      errores.append("informe CSP con consulta no se omitiría: " + cuerpo)
+              for cuerpo in (
+                  '{"csp-report":{"document-uri":"https://s.example/tramites?page=2"}}',
+                  '{"csp-report":{"blocked-uri":"https://cdn.example/a.js?quest=1"}}',
+              ):
+                  if rx.search(cuerpo):
+                      errores.append("informe CSP sin consulta se omitiría de más: " + cuerpo)
+
           if errores:
               print("\n".join(errores))
               sys.exit(1)
-          print("nginx omite la consulta del buscador en la petición y en el Referer.")
+          print("nginx omite la consulta del buscador en la petición, en el Referer y en los informes CSP.")
           PY
 
   # ---------------------------------------------------------------------------

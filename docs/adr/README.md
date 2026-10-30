@@ -602,10 +602,10 @@ decisión se revisa con el p95 medido (AC-22.6), no antes.
 
 ## ADR-0018 — El render en servidor consulta la API por un canal interno, con la IP del visitante
 
-**Estado:** Aplicada (T-22, 2026-10-30), **sin cerrar**. Verificada con nginx real, el sitio compilado y
-un receptor FastCGI de prueba; el primer despliegue en staging falló (ver «Incidente» abajo) y falta
-la medición con dos clientes (`docs/busqueda.md` §2.5). Pasa a «Aceptada» cuando esa medición cierre el
-hallazgo.
+**Estado:** Aceptada con reservas (T-22, 2026-10-30). Medida en staging con dos clientes: el cupo es por
+visitante (`docs/busqueda.md` §2.5). Reservas: el primer despliegue falló (ver «Incidente» abajo; corregido
+en #404 y pendiente de redesplegar con el `compose.yaml` nuevo), una sola medición, y la IP que ve la API
+no se leyó en un registro del servidor.
 
 **Contexto.** El sitio renderiza en servidor y pide datos a la API. Se le dio la URL pública del
 dominio; la petición sale a Internet, vuelve por Cloudflare y la API ve la dirección del servidor del

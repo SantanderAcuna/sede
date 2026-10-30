@@ -20,14 +20,14 @@ use Tests\TestCase;
  * tolerar erratas sin añadir un servicio de búsqueda. En la primera entrega se midió la
  * consulta; en la segunda se mide **el producto**: cada caso llama a
  * `GET /api/v1/busqueda/sugerencias` y comprueba que el trámite esperado queda entre
- * los tres primeros, con los 124 trámites sembrados desde la fuente oficial.
+ * los tres primeros, con los trámites que siembra el sembrador desde la fuente oficial (124 en la fuente; `T28661` no se publica: no declara su término de obtención).
  *
  * Cuatro bancos, con papeles distintos:
  *  - `banco-erratas` (30): con él se calibraron los parámetros. Exige 27 de 30 (90 %).
  *  - `banco-negativo` (12): consultas que no deben devolver nada. Exige 12 de 12.
  *  - `banco-validacion` (10 + 5 + 1): escrito después y corrido con los parámetros ya
  *    congelados; mide si la calibración generaliza. Exige 8 de 10.
- *  - `banco-sintetico` (331 + 300): erratas generadas por reglas y semilla fija, sin elegir
+ *  - `banco-sintetico` (330 + 300): erratas generadas por reglas y semilla fija, sin elegir
  *    los casos. Es el que corrige el optimismo de los otros: aquí 30 de 30 se convierte en
  *    ≈ 90 %. Exige 85 % de aciertos y a lo sumo 1 de 300 consultas con ruido.
  *
@@ -89,11 +89,19 @@ final class BancoDeErratasTest extends TestCase
             $this->bancoSintetico()['positivos'],
         );
 
+        // Se reúnen TODOS los que faltan, no sólo el primero: arreglar uno por ejecución
+        // de CI es lo que hace perder una tarde.
+        $faltan = [];
+
         foreach ($casos as $caso) {
             foreach ($caso['esperado'] as $codigo) {
-                $this->assertArrayHasKey($codigo, $this->slugs, "El trámite {$codigo} del banco no está en el catálogo sembrado.");
+                if (! array_key_exists($codigo, $this->slugs)) {
+                    $faltan[$codigo] = $codigo;
+                }
             }
         }
+
+        $this->assertSame([], array_values($faltan), 'Trámites de los bancos que el sembrador no publica: '.implode(', ', $faltan));
     }
 
     public function test_los_bancos_tienen_el_tamano_que_prometen_los_criterios(): void

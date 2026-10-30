@@ -96,36 +96,42 @@ consultas negativas de dos palabras corrientes del español que no están en el 
 un trámite cuyo nombre contiene el fragmento original entre los tres primeros. HECHO, medido con
 el SQL del repositorio sobre PostgreSQL 16 local.
 
-**Un error mío, corregido a mitad de la medición.** La primera versión del generador no quitaba el
-«(s)» de los nombres («licencia(s)» → «licencia s») y producía fragmentos como «s de»; con ello
-medí 69,5 % y casi lo anuncié como el recall real. Era un defecto de la prueba, no del buscador. Con
-el generador corregido:
+**Dos errores míos, corregidos durante la medición.**
+1. La primera versión del generador no quitaba el «(s)» de los nombres («licencia(s)» → «licencia s»)
+   y producía fragmentos como «s de»; con ello medí 69,5 % y casi lo anuncié como el recall real.
+   Era un defecto de la prueba, no del buscador.
+2. Mi base de calibración tenía los 124 trámites de la fuente, pero el sembrador publica uno menos:
+   `T28661` no declara su término de obtención y se descarta. Se sacó de la base y **todas las cifras
+   de abajo se repitieron con el catálogo que de verdad se publica**. (Banco manual 30/30 y validación
+   10/10 se mantienen.)
 
-| Umbral / cobertura | Recall top-3 (semilla de calibración) | Semillas ajenas (11 · 222 · 3333) | Ruido manual | Ruido sintético |
+| Umbral / cobertura | Recall top-3 (semilla de elección) | Semillas ajenas (11 · 222 · 3333) | Ruido manual | Ruido sintético (2 conjuntos) |
 |---|---|---|---|---|
-| 0,45 / 0,45 (anterior) | 86,6 % | 81,6 · 82,0 · 83,8 % | 0 / 12 | 0 / 300 |
-| **0,45 / 0,40 (vigente)** | **91,8 %** | **89,7 · 88,2 · 90,0 %** | **0 / 12** | **0 / 300** |
-| 0,45 / 0,35 | 93,0 % | 92,1 · 90,1 · 90,7 % | 1 / 12 | 0 / 300 |
-| 0,40 / 0,40 | 95,1 % | 91,5 · 91,0 · 91,3 % | 2 / 12 | 1 / 300 |
+| 0,45 / 0,45 (anterior) | 85,0 % | 81,5 · 83,0 · 84,8 % | 0 / 12 | 0 / 300 · 0 / 300 |
+| **0,45 / 0,40 (vigente)** | **91,1 %** | **88,8 · 90,1 · 90,1 %** | **0 / 12** | **0 / 300 · 0 / 300** |
+| 0,45 / 0,35 | 92,0 % | 91,5 · 91,6 · 91,3 % | 1 / 12 | 0 / 300 · 0 / 300 |
+| 0,40 / 0,40 | 93,9 % | 90,6 · 92,6 · 92,9 % | 2 / 12 | 4 / 300 · 1 / 300 |
+| 0,50 / 0,40 | 89,9 % | 87,9 · 89,8 · 89,5 % | 0 / 12 | 0 / 300 · 0 / 300 |
 
-(Banco manual de 30 y validación de 10: 30/30 y 10/10 en las cuatro filas.) La cobertura 0,40 gana
-unos 7 puntos de recall sin costo de ruido medido; 0,35 y el umbral 0,40 compran 1–3 puntos más a
-cambio de ruido ya visible en el banco manual, y se descartaron. **La elección se hizo con una
-semilla; las otras tres confirman la ganancia (+6 a +8 puntos).**
+La cobertura 0,40 gana unos 6 puntos de recall sin costo de ruido medido. 0,35 compra uno o dos
+puntos más a cambio de ruido ya visible en el banco manual, y bajar el umbral a 0,40 mete ruido
+también en el sintético; ambos se descartaron. **La elección se hizo con una semilla; las otras tres
+confirman la ganancia (+5 a +8 puntos).**
 
-**Lectura** (0,45 / 0,40; cuatro semillas sumadas, ≈ 1 300 consultas). Por tipo de errata:
-sibilantes, letras duplicadas, h muda y omisión de una letra aciertan ≈ 98–100 %; b/v ≈ 91 % y la
-tecla vecina ≈ 90 %; **dos letras trocadas, 157 de 244 (≈ 64 %)**, que para los trigramas es una errata
-doble. Por largo de la palabra con errata: **4–5 letras, 86 de 131 (≈ 66 %)**; 6–8 letras ≈ 84 %;
-9 o más ≈ 99 %. Por largo de la consulta: una sola palabra ≈ 80 %, dos o tres ≈ 91–94 %. Es decir,
-la debilidad está en palabras cortas con la errata en medio y en consultas de una palabra; las
-palabras largas, que son las de la mayoría de los nombres de trámites, están bien cubiertas. Todo
-esto es de **una errata por consulta**: dos erratas, sinónimos, siglas y jerga no están medidos.
+**Lectura** (0,45 / 0,40; cuatro semillas sumadas, 1 303 consultas). Por tipo de errata:
+sibilantes, letras duplicadas, h muda y omisión de una letra aciertan ≈ 99–100 %; b/v ≈ 88 % y la
+tecla vecina ≈ 90 %; **dos letras trocadas, 161 de 247 (≈ 65 %)**, que para los trigramas es una
+errata doble. Por largo de la palabra con errata: **4–5 letras, 96 de 142 (≈ 68 %)**; 6–8 letras
+≈ 85 %; 9 o más ≈ 99 %. Por largo de la consulta: una sola palabra ≈ 80 %, dos o tres ≈ 93 %.
+La debilidad está en palabras cortas con la errata en medio, en letras trocadas y en consultas de
+una palabra; las palabras largas, que son las de la mayoría de los nombres de trámites, están bien
+cubiertas. Todo esto es de **una errata por consulta**: dos erratas, sinónimos, siglas y jerga no
+están medidos.
 
 **Qué no demuestra.** Mismo autor, mismo catálogo, errata simulada. La cifra de ciudadanos reales
 sigue pendiente de las consultas que aporte la Entidad. El archivo sintético es una **guarda de
-regresión congelada** (la prueba exige 85 % y a lo sumo 1 / 300 con ruido); no es una validación
-independiente nueva, porque la elección de 0,40 salió de la misma familia de reglas.
+regresión congelada** (la prueba exige 85 % y a lo sumo 1 / 300 con ruido; hoy 88,8 % y 0); no es
+una validación independiente nueva, porque la elección de 0,40 salió de la misma familia de reglas.
 
 ## 2.2 Registro de acceso sin la consulta (R3, AC-22.7)
 
@@ -162,7 +168,7 @@ comprueba para éxito, validación fallida y 429.
 | R1 | Un volumen mucho mayor que 124 filas degrada el p95 | HIPÓTESIS | AC-22.6 mide contra staging; el índice GIN ya existe | E3 |
 | R2 | Los bancos son optimistas (los escribí yo, con el catálogo a la vista) y los parámetros se eligieron con uno de ellos | HECHO la cuantificación · PENDIENTE la cifra real | Ampliados a 30 + 12 negativos + 10 de validación (§2.1) y medido con un banco generado por reglas (§2.3): **≈ 90 %** entre los tres primeros con una errata por consulta, no 100 %. La cobertura pasó de 0,45 a 0,40. Sigue pendiente pedir a la Entidad consultas reales de atención | E2 (parcial) |
 | R3 | **El texto buscado queda en el registro de acceso.** `docker/nginx/nginx.conf` registraba `$request` (con `?q=`) y `$http_referer` (el sitio pide sus recursos con la página `/buscar?q=…` como referer). Un ciudadano puede escribir un número de documento. | HECHO el formato · INFERENCIA el contenido | **Mitigado en E2** (§2.2): si la consulta trae `q` o `buscar`, el registro lleva sólo la ruta, en la petición y en el `Referer`. **Quedan** el `error_log` de nginx y el registro de Cloudflare (§9). Los informes CSP se trataron después (§2.2). Revisar con el oficial de datos personales (Ley 1581) | E2 (parcial) |
-| R4 | Cada pulsación es una petición: abuso o carga | INFERENCIA | `throttle:busqueda` en el servidor: **120 por minuto y por IP**, compartido por las dos operaciones, configurable con `BUSQUEDA_LIMITE_POR_MINUTO`; 429 con `Retry-After`. La pausa de 250 ms en el cliente es de la entrega 3 | E2 (servidor) · E3 (cliente) |
+| R4 | Cada pulsación es una petición: abuso o carga | INFERENCIA | `throttle:busqueda` en el servidor: **120 por minuto y por IP**, compartido por las dos operaciones, configurable con `BUSQUEDA_LIMITE_POR_MINUTO`; 429 con `Retry-After`. **Corregido:** el grupo `api` traía además `throttle:api` (60 por minuto) y el tope real era 60 —medido en staging: 200 hasta la petición 60 y 429 desde la 61—; se quitó de las dos rutas (§9). La pausa de 250 ms en el cliente es de la entrega 3 | E2 (servidor) · E3 (cliente) |
 | R5 | Las políticas indexan texto de ejemplo (`es_ejemplo`) | HECHO | La página enlazada muestra ese mismo texto con su aviso; al aprobarse el texto, el hook reindexa solo | — |
 | R6 | Relevancia subjetiva | HECHO (Guía §D-03) | Orden documentado y reproducible: la fórmula está en el código y el banco en el repositorio | E2 |
 | R7 | Si `TextoBuscable::normalizar` cambia, lo guardado queda desfasado | INFERENCIA | Prueba que fija su salida; comando `php artisan busqueda:reindexar` (idempotente, `--simular` cuenta sin escribir) | E2 |
@@ -220,6 +226,12 @@ auditoría (§10).
   este repositorio. Hay que decidirlos con el oficial de datos personales. Una alternativa de
   diseño, que cambiaría el contrato, sería enviar la consulta por `POST`; no se adoptó porque
   rompe el enlace compartible de una búsqueda y los resultados cacheables.
+- **Un error mío en el límite, corregido:** `bootstrap/app.php` activa `throttle:api` (60 por minuto por
+  IP) en todo el grupo `api`; las rutas de búsqueda lo heredaban *además* de su `throttle:busqueda`, y
+  el más estricto manda. El tope real era 60, no los 120 documentados. HECHO: en staging, desde una
+  sola conexión, 60 respuestas 200 y 429 desde la 61; ahora `withoutMiddleware('throttle:api')` en
+  esas dos rutas y una prueba fija que 100 peticiones pasan y la 101 no. El resto de la API conserva
+  sus 60.
 - El límite de 120 peticiones por minuto y por IP es una estimación (INFERENCIA: una persona
   escribiendo genera una petición por pausa de 250 ms; una oficina que comparte salida suma). No
   se midió con tráfico real. **Riesgo concreto:** si muchos ciudadanos comparten una IP pública
@@ -227,6 +239,9 @@ auditoría (§10).
   para todos y reciben 429 sin haber hecho nada. HIPÓTESIS (no hay datos de la distribución de
   IP de los visitantes). Para detectarlo: contar los 429 de `/buscar` en el registro de acceso
   tras la salida a producción y subir `BUSQUEDA_LIMITE_POR_MINUTO` sin tocar código si hace falta.
+  **A verificar en la entrega 3:** si el sitio consulta a la API desde su propio servidor (render en
+  servidor de `/buscar?q=`), todas esas peticiones podrían llegar con la IP del servidor del sitio y
+  compartir un solo cupo. HIPÓTESIS: no se ha revisado qué IP ve la API en ese camino.
 - El texto de búsqueda de una política se calcula al guardarla; las políticas sembradas son de
   ejemplo (R5).
 - Los sinónimos («carro» ↔ «vehículo», «cédula» ↔ «documento») no los resuelven los

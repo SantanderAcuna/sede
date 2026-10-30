@@ -591,7 +591,7 @@ normalización exige reindexar (`busqueda:reindexar`). El umbral (0,45) y la cob
 (0,40: cada palabra de ≥ 4 letras de la consulta debe aparecer en el contenido) viven en
 `config/busqueda.php`, la fórmula de orden en el repositorio, y se prueban con bancos de
 consultas versionados: 30 con errata, 12 negativas y 10 de validación, más un banco generado por
-reglas (331 + 300) que corrige el optimismo de los otros (≈ 90 % de acierto, no 100 %). Un falso positivo
+reglas (330 + 300) que corrige el optimismo de los otros (≈ 90 % de acierto, no 100 %). Un falso positivo
 conocido queda documentado, no oculto. Si el contenido crece órdenes de magnitud, la
 decisión se revisa con el p95 medido (AC-22.6), no antes.
 

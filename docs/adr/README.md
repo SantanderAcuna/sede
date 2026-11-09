@@ -602,10 +602,19 @@ decisión se revisa con el p95 medido (AC-22.6), no antes.
 
 ## ADR-0018 — El render en servidor consulta la API por un canal interno, con la IP del visitante
 
-**Estado:** Aceptada con reservas (T-22, 2026-10-30). Medida en staging con dos clientes: el cupo es por
-visitante (`docs/busqueda.md` §2.5). Reservas: el primer despliegue falló (ver «Incidente» abajo; corregido
-en #404 y pendiente de redesplegar con el `compose.yaml` nuevo), una sola medición, y la IP que ve la API
-no se leyó en un registro del servidor.
+**Estado:** Aceptada (T-22, 2026-10-30). Tres reservas que tuvo, todas cerradas el mismo día en
+staging: (1) el primer despliegue falló (ver «Incidente» abajo); quedó corregido en #404 y redesplegado
+en verde con el `compose.yaml` nuevo (#408). (2) La IP que recibe el render no se había leído en un
+registro del servidor: **HECHO**, tres cargas reales de `/tramites` desde un cliente externo, y en las
+tres la llamada de render a `/api/v1/tramites` quedó registrada por nginx con la misma IP que la página
+(3 de 3, ninguna interna). (3) La medición del cupo se había hecho una sola vez y antes de ese
+redespliegue: **HECHO**, repetida con el entorno ya renderizado en el servidor (`docs/busqueda.md`
+§2.5). Con la ráfaga de A (31 cargas correctas y el resto con el aviso de error del catálogo, hasta
+que la ventana del minuto se desplazó) B cargó 44 páginas correctas en la misma ventana, sin aviso de
+error, y una petición que falló al conectar (código 000) entre dos correctas. Como el límite lo aplica
+Laravel con un cubo por IP, que B quedara libre mientras A estaba limitado es lectura del lado de la API.
+**Límites que quedan:** son dos clientes y dos ejecuciones, no una prueba de carga; el cliente B sale
+por el proxy de mi entorno, cuya IP de salida no controlo.
 
 **Contexto.** El sitio renderiza en servidor y pide datos a la API. Se le dio la URL pública del
 dominio; la petición sale a Internet, vuelve por Cloudflare y la API ve la dirección del servidor del
@@ -652,9 +661,10 @@ los resultados: pierde el resultado sin JavaScript. Detalle en `docs/busqueda.md
   (cuelga). Corrección: la salud pide `/robots.txt` (no usa la API) con `-m 4`, y una guarda de CI la
   exige. **Coste aceptado:** la salud ya no prueba que las páginas se rendericen; eso lo cubren las
   pruebas de navegador del despliegue.
-- **El entorno no viaja con el despliegue de CI.** `deploy/plantilla.env` y `compose.yaml` los escribe en
-  el servidor `deploy/publicar-entorno.sh`, que se ejecuta a mano. Un cambio en cualquiera de los dos
-  no tiene efecto hasta volver a publicar el entorno (ver `deploy/README.md`).
+- **El entorno ya viaja con el despliegue de CI (ADR-0019).** Al desplegar este canal, `plantilla.env` y
+  `compose.yaml` se escribían a mano con `deploy/publicar-entorno.sh` y un cambio no tenía efecto hasta
+  repetirlo; así se perdió tiempo en el incidente. Desde ADR-0019 viajan dentro de la imagen y los
+  renderiza el servidor en cada despliegue.
 
 **Evidencia.** `docs/busqueda.md` §2.5; `sitio/tests/canal-interno.test.ts` (31 casos);
 `docker/nginx/conf.d/interno.conf`; guarda en `.github/workflows/ci.yml`.

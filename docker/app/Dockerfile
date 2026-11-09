@@ -184,6 +184,12 @@ RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/fra
 # `sede`, para que el volumen nuevo herede el dueño correcto: el contenedor corre sin
 # privilegios y un volumen que Docker crea vacío pertenece a `root`.
 RUN mkdir -p /copias && chown sede:sede /copias && chmod 700 /copias
+# `/copias` NO se declara en el `VOLUME` de más abajo, y no es un olvido. Declarar un VOLUME
+# hace que Docker cree un volumen ANÓNIMO en ese camino en cada contenedor que no lo monte
+# explícitamente: `app` y `horizon` lo recibían vacío y escribible, y cada recreación en un
+# despliegue dejaba otro volumen huérfano. Se vio en staging: `ls /copias` en `app` y
+# `horizon` no daba error. El montaje del volumen NOMBRADO en `scheduler` y `copia` funciona
+# igual sin la declaración, y la carpeta de la imagen sólo aporta el dueño correcto.
 
 # EL ENTORNO DEL DESPLIEGUE VIAJA CON LA VERSIÓN (ADR-0019).
 #
@@ -209,7 +215,7 @@ COPY deploy/plantilla.env deploy/valores-staging.env deploy/valores-produccion.e
 # Se declaran para que la pila sepa que ahí se escribe. Es lo que permite montar
 # volúmenes y, aun así, ejecutar el contenedor con el sistema de archivos de sólo
 # lectura.
-VOLUME ["/app/storage", "/app/bootstrap/cache", "/copias"]
+VOLUME ["/app/storage", "/app/bootstrap/cache"]
 
 USER sede
 

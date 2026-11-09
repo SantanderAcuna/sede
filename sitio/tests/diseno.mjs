@@ -20,6 +20,14 @@
  *
  *   npm run test:diseno                  (requiere `npm run build` antes)
  *   PUERTO_DISENO=3013 npm run test:diseno
+ *
+ * **Hermética.** Esta puerta no consulta ninguna API externa: levanta una API
+ * simulada local (`ayudas/api-simulada.mjs`) y el sitio la usa por su canal
+ * interno. Antes apuntaba al entorno de pruebas por Internet, y desde un ejecutor
+ * de GitHub Cloudflare desafiaba esa llamada (HTTP 403, `cf-mitigated`), con lo
+ * que la política de cookies respondía 503 y la comprobación `5xx` fallaba por un
+ * motivo ajeno al diseño. Lo que se mide aquí es la estructura de las páginas, no
+ * el contenido de la Entidad.
  */
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -46,6 +54,7 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync(RUTA_NAVEGADORES)) {
 
 // La importación va después de fijar la variable: Playwright resuelve la ruta de
 // sus navegadores al cargarse.
+import { iniciarApiSimulada } from './ayudas/api-simulada.mjs'
 import { lanzar } from './ayudas/motor.mjs'
 
 /** Lanza el motor elegido (`NAVEGADOR`, por defecto Chromium) con un mensaje útil si no hay navegadores instalados. */
@@ -120,6 +129,8 @@ async function esperarServidor(intentos = 60) {
   )
 }
 
+const simulada = await iniciarApiSimulada()
+
 const servidor = spawn('node', ['.output/server/index.mjs'], {
   cwd: raiz,
   env: {
@@ -129,6 +140,17 @@ const servidor = spawn('node', ['.output/server/index.mjs'], {
     PORT: String(puerto),
     NITRO_PORT: String(puerto),
     SEDE_DOMINIO: 'www.santamarta.gov.co',
+    /*
+     * La API, hermética. `NUXT_PUBLIC_API_URL` se fija a la ruta RELATIVA a
+     * propósito, y no se deja heredar: el CI la define con la URL del entorno de
+     * pruebas para otras suites, y heredarla haría que este servidor volviera a
+     * salir a Internet. Tampoco puede ir vacía (`''`): el sitio construiría URLs
+     * sin `/api/v1`, se llamaría a sí mismo en bucle y agotaría la memoria (pasó al
+     * preparar esto). `NUXT_API_INTERNA` es el canal por el que el servidor del
+     * sitio llega a la API simulada: el mismo mecanismo que usa en producción.
+     */
+    NUXT_PUBLIC_API_URL: '/api/v1',
+    NUXT_API_INTERNA: simulada.url,
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 })
@@ -932,6 +954,21 @@ try {
     }
   })
 
+  // ——— El simulador cubre todo lo que el sitio pidió ———
+  // Si una página empieza a necesitar un dato que el simulador no tiene, la
+  // respuesta 404 haría que degrade en silencio y la puerta midiera otra cosa
+  // sin avisar. Aquí se convierte en un fallo con la lista de lo que falta.
+  await comprobar('API-SIM', 'Todo lo que el sitio pidió a la API lo cubre la API simulada', async () => {
+    const desconocidas = simulada.rutasDesconocidas()
+    return {
+      ok: desconocidas.length === 0,
+      detalle:
+        desconocidas.length === 0
+          ? `${simulada.rutasAtendidas().length} rutas atendidas, ninguna desconocida`
+          : `rutas que el simulador no conoce: ${desconocidas.join(' · ')}`,
+    }
+  })
+
   // ——— Informe ———
   console.log('')
   console.log('Puerta de conformidad de diseño (CAG-01 a CAG-34)')
@@ -969,4 +1006,5 @@ try {
 } finally {
   await navegador?.close()
   servidor.kill('SIGTERM')
+  await simulada.cerrar()
 }

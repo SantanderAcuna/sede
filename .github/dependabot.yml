@@ -64,6 +64,14 @@ updates:
       # vue-router 5 es la rama actual
       - dependency-name: "vue-router"
         update-types: [version-update:semver-major]
+      # vue-tsc 3.3.12 y posteriores rompen `npm run build` del panel con errores de tipos
+      # en plantillas que antes pasaban (`EntidadView.vue`: «Cannot find name 'red'» /
+      # «'index'» dentro de un `v-for`, y «Property 'value' does not exist»). Se reprodujo
+      # aislando sólo ese paquete: con 3.3.11 hay 0 errores; con 3.3.12 y 3.3.13, 2; con
+      # 3.3.14, 4. El código de la vista no cambió. Quitar esta línea cuando una versión
+      # nueva de vue-tsc vuelva a pasar el build del panel sin tocar la vista.
+      - dependency-name: "vue-tsc"
+        versions: [">=3.3.12"]
 
   - package-ecosystem: npm
     target-branch: develop

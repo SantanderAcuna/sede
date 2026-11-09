@@ -131,6 +131,19 @@ final class CopiasDeSeguridadTest extends TestCase
         }
     }
 
+    public function test_sin_destinatario_la_aplicacion_arranca_igualmente(): void
+    {
+        // El paquete valida `mail.to` al arrancar aunque no haya canales de correo: con
+        // una cadena vacía la aplicación entera dejaba de arrancar y `composer install`
+        // fallaba en `package:discover`. Aquí `configuracion()` arranca el núcleo en otro
+        // proceso (`mustRun`): si el arranque lanzara, la prueba fallaría.
+        $para = $this->configuracion('backup.notifications.mail.to', ['BACKUP_NOTIFICACION_CORREO' => '']);
+
+        $this->assertIsString($para);
+        $this->assertNotFalse(filter_var($para, FILTER_VALIDATE_EMAIL), 'La dirección de relleno debe ser sintácticamente válida.');
+        $this->assertStringEndsWith('.invalid', $para, 'El relleno debe estar en un dominio reservado que nunca resuelve.');
+    }
+
     public function test_con_destinatario_solo_avisa_de_fallos_y_de_copia_no_sana(): void
     {
         $entorno = ['BACKUP_NOTIFICACION_CORREO' => 'ops@example.test'];

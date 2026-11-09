@@ -52,6 +52,16 @@ $disco = (string) env('BACKUP_DISK', 'copias');
 $correo = (string) env('BACKUP_NOTIFICACION_CORREO', '');
 $canales = $correo === '' ? [] : ['mail'];
 
+/*
+| El paquete valida `notifications.mail.to` AL ARRANCAR, haya o no canales de correo
+| encendidos: con una cadena vacía lanza «is not a valid email address» y la aplicación
+| entera deja de arrancar (`artisan` incluido). Se descubrió porque `composer install`
+| falló en CI al ejecutar `package:discover`. Por eso, sin destinatario, se pone una
+| dirección sintácticamente válida que no existe (el dominio `.invalid` está reservado
+| por la RFC 2606 y nunca resuelve). No recibe nada: los canales quedan vacíos arriba.
+*/
+$destinatario = $correo === '' ? 'sin-destinatario@example.invalid' : $correo;
+
 return [
 
     'backup' => [
@@ -138,7 +148,7 @@ return [
         'notifiable' => Notifiable::class,
 
         'mail' => [
-            'to' => $correo,
+            'to' => $destinatario,
 
             'from' => [
                 'address' => env('MAIL_FROM_ADDRESS', 'no-responder@example.com'),

@@ -71,6 +71,15 @@ else
   mal "faltan docker o jq: no pude comprobar quién monta /copias"
 fi
 
+# --- 2b. /copias no se declara como VOLUME en el Dockerfile --------------------------
+# Un `VOLUME /copias` crea un volumen anónimo, vacío y escribible, en CADA contenedor de la
+# imagen que no lo monte (app, horizon), y deja uno huérfano en cada despliegue.
+if grep -E '^VOLUME' "$RAIZ/docker/app/Dockerfile" | grep -q '/copias'; then
+  mal "el Dockerfile declara /copias en VOLUME: app y horizon recibirían un volumen anónimo escribible"
+else
+  ok "el Dockerfile no declara /copias como VOLUME (no hay volúmenes anónimos de copias)"
+fi
+
 # --- 3. la rotación no toca la frase de las copias por defecto ---------------------
 if python3 "$RAIZ/deploy/pruebas/prueba-rotar-secretos.py" >/dev/null 2>&1; then
   ok "rotar-secretos.py no rota la frase de las copias salvo con --frase-copias, y conserva la anterior"

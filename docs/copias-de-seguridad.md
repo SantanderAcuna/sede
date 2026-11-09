@@ -113,7 +113,7 @@ Criterio de éxito: la extracción lista un `.sql`, `psql` termina sin error (`O
 | B1.2 | La agenda hace limpiar → copiar → vigilar | `CopiasDeSeguridadTest` + `schedule:list` | CI / servidor |
 | B1.3 | La copia sale cifrada con la frase del despliegue | `CopiasDeSeguridadTest` + intento de abrir con frase equivocada | CI / servidor |
 | B1.4 | Copia y vigilancia miran el mismo disco | `CopiasDeSeguridadTest` | CI |
-| B1.5 | Sólo `scheduler` y `copia` montan `/copias` | `guarda-copias.sh` | CI |
+| B1.5 | Sólo `scheduler` y `copia` montan `/copias`, y no hay volúmenes anónimos de copias | `guarda-copias.sh` (CI) + en el servidor, por montajes y no con `ls` (la carpeta existe vacía en la imagen): `sudo docker inspect $(<compose> ps -q app) --format '{{range .Mounts}}{{.Name}} -> {{.Destination}}{{"\n"}}{{end}}'` no debe mostrar `/copias` | CI / servidor |
 | B1.6 | Rotar secretos no invalida las copias por descuido | `prueba-rotar-secretos.py` | CI |
 | B1.7 | Se hizo una copia real y se restauró en una base de prueba | §7 | servidor |
 | B1.8 | Los límites (§2) están escritos y no se presentan como resueltos | este documento | revisión |

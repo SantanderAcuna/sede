@@ -137,17 +137,11 @@ updates:
     open-pull-requests-limit: 5
     labels: [dependencias]
 
-  # --- GitHub Actions Security Updates ----------------------------------------
-  #
-  # Actualizaciones de seguridad de GitHub Actions se manejan por separado
-  # porque se revisan diariamente y se mergean rápido (no esperan al ciclo
-  # semanal).
-  - package-ecosystem: github-actions
-    target-branch: develop
-    directory: /
-    schedule:
-      interval: daily
-    open-pull-requests-limit: 3
-    labels: [seguridad]
-    # Solo security updates
-    open-security-pull-requests-limit: 5
+# NO añadir aquí una segunda entrada de `github-actions` para «actualizaciones de
+# seguridad»: Dependabot exige que cada combinación de ecosistema, directorio y
+# rama sea única, y una segunda entrada con `directory: /` y `target-branch: develop`
+# invalida TODO el archivo (error «overlapping directories»; así quedó el check
+# `.github/dependabot.yml` en rojo y Dependabot sin atender los comentarios). Las
+# actualizaciones de seguridad no se agendan desde este archivo: GitHub las genera
+# por evento a partir de las alertas, y su rama (la predeterminada, `main`) y su
+# activación se controlan en Settings → Advanced Security.

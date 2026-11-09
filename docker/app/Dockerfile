@@ -15,7 +15,7 @@
 # ---------------------------------------------------------------------------
 # Base común: PHP con las extensiones que la aplicación necesita
 # ---------------------------------------------------------------------------
-FROM php:8.5-fpm-alpine@sha256:fa01fb1645cd0fc566a5f146b099adace33b906571f972f71f2182a7c12d1cd7 AS base
+FROM php:8.5-fpm-alpine@sha256:64535609509e0fd5c8529359e6b599a68ce42089defd565f7881efdae7687cea AS base
 
 # Los paquetes de la imagen base se actualizan en la construcción.
 #
@@ -94,8 +94,23 @@ RUN faltan=""; \
 
 # Lo único que hace falta en ejecución. `fcgi` aporta el cliente con el que la
 # sonda de salud habla con PHP-FPM, que no entiende HTTP.
-RUN apk add --no-cache ca-certificates tzdata curl fcgi \
+#
+# `postgresql18-client` aporta `pg_dump`, que es lo que usa `backup:run` para volcar
+# la base. Hasta ahora la imagen sólo llevaba `libpq` (la biblioteca de conexión, que
+# es lo que necesita `pdo_pgsql`) y NO el binario: cualquier copia habría fallado con
+# «pg_dump: not found» la primera vez que alguien la ejecutara.
+#
+# La versión no es un detalle. `pg_dump` se niega a volcar un servidor MÁS NUEVO que
+# él («aborting because of server version mismatch»), y el servidor de la pila es
+# `postgres:18` (compose.yaml). Por eso el paquete es el 18 y no el genérico, y la
+# comprobación de abajo falla la construcción si algún día cambia el cliente sin
+# cambiar el servidor, o al revés.
+RUN apk add --no-cache ca-certificates tzdata curl fcgi postgresql18-client \
     && rm -rf /var/cache/apk/*
+
+RUN pg_dump --version | grep -q 'pg_dump (PostgreSQL) 18\.' \
+    || { echo "pg_dump no es de la serie 18: $(pg_dump --version 2>&1)"; \
+         echo "Debe coincidir con el servidor (postgres:18 en compose.yaml)."; exit 1; }
 
 # ---------------------------------------------------------------------------
 # Dependencias de PHP, resueltas sobre la misma base
@@ -160,6 +175,21 @@ RUN composer dump-autoload --optimize --classmap-authoritative --no-scripts \
 RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R sede:sede storage bootstrap/cache \
     && chmod -R a+rX /app
+
+# Destino de las copias de seguridad (disco `copias`, config/filesystems.php).
+#
+# Está FUERA de `/app/storage` a propósito: es otro volumen, con otro ciclo de vida.
+# Quien borre o recree el almacenamiento de la aplicación no debe llevarse con él las
+# copias que existen precisamente para recuperarse de eso. Se crea aquí, con el dueño
+# `sede`, para que el volumen nuevo herede el dueño correcto: el contenedor corre sin
+# privilegios y un volumen que Docker crea vacío pertenece a `root`.
+RUN mkdir -p /copias && chown sede:sede /copias && chmod 700 /copias
+# `/copias` NO se declara en el `VOLUME` de más abajo, y no es un olvido. Declarar un VOLUME
+# hace que Docker cree un volumen ANÓNIMO en ese camino en cada contenedor que no lo monte
+# explícitamente: `app` y `horizon` lo recibían vacío y escribible, y cada recreación en un
+# despliegue dejaba otro volumen huérfano. Se vio en staging: `ls /copias` en `app` y
+# `horizon` no daba error. El montaje del volumen NOMBRADO en `scheduler` y `copia` funciona
+# igual sin la declaración, y la carpeta de la imagen sólo aporta el dueño correcto.
 
 # EL ENTORNO DEL DESPLIEGUE VIAJA CON LA VERSIÓN (ADR-0019).
 #

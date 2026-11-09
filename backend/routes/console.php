@@ -23,8 +23,15 @@ Schedule::command('consentimientos:depurar')->daily();
 // America/Bogota no tiene horario de verano, así que no hay una hora que se repita o
 // desaparezca.
 //
+// LA HORA SE FIJA EN CADA TAREA porque la zona de la aplicación es UTC
+// (`config/app.php` tiene 'timezone' => 'UTC' fijo y NO lee APP_TIMEZONE). Sin esto la
+// copia «de la 01:30» corría a las 01:30 UTC, es decir, a las 20:30 de Bogotá: se vio en
+// staging porque `schedule:list` anunciaba «Next Due: en 8 horas» a las 12:12 locales.
+// Cambiar la zona de toda la aplicación no es opción aquí: movería cómo se leen todas
+// las marcas de tiempo ya guardadas.
+//
 // `withoutOverlapping` evita que una copia lenta se pise con la siguiente; `--only-db`
 // deja fuera los archivos hasta que T-12 decida dónde viven.
-Schedule::command('backup:clean')->dailyAt('01:00')->withoutOverlapping();
-Schedule::command('backup:run --only-db')->dailyAt('01:30')->withoutOverlapping();
-Schedule::command('backup:monitor')->dailyAt('06:00');
+Schedule::command('backup:clean')->dailyAt('01:00')->timezone('America/Bogota')->withoutOverlapping();
+Schedule::command('backup:run --only-db')->dailyAt('01:30')->timezone('America/Bogota')->withoutOverlapping();
+Schedule::command('backup:monitor')->dailyAt('06:00')->timezone('America/Bogota');

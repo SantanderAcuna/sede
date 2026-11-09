@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Operacion;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -159,6 +160,21 @@ final class CopiasDeSeguridadTest extends TestCase
         );
         foreach ($conCorreo as $canales) {
             $this->assertSame(['mail'], $canales);
+        }
+    }
+
+    public function test_la_agenda_de_copias_corre_en_hora_de_bogota_aunque_la_aplicacion_use_utc(): void
+    {
+        // La zona de la aplicación es UTC (config/app.php la fija y no lee APP_TIMEZONE).
+        // Sin fijar la zona en cada tarea, «01:30» era 01:30 UTC = 20:30 en Bogotá.
+        Artisan::call('schedule:list');
+
+        $copias = collect(app(Schedule::class)->events())
+            ->filter(static fn ($evento): bool => str_contains((string) $evento->command, 'backup:'));
+
+        $this->assertCount(3, $copias, 'Deben existir backup:clean, backup:run y backup:monitor.');
+        foreach ($copias as $evento) {
+            $this->assertSame('America/Bogota', $evento->timezone, "{$evento->command} debe fijar su zona horaria.");
         }
     }
 

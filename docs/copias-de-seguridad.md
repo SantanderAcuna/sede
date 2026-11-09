@@ -8,7 +8,7 @@ Dónde corre cada comando: **[SERVIDOR]** dentro de `ssh -t` al servidor de stag
 
 | Pieza | Dónde | Qué hace |
 |---|---|---|
-| Agenda | `backend/routes/console.php` | 01:00 `backup:clean`, 01:30 `backup:run --only-db`, 06:00 `backup:monitor` (hora de Bogotá) |
+| Agenda | `backend/routes/console.php` | 01:00 `backup:clean`, 01:30 `backup:run --only-db`, 06:00 `backup:monitor`, **hora de Bogotá fijada en cada tarea** (la zona de la aplicación es UTC) |
 | Configuración | `backend/config/backup.php` | Destino, cifrado, retención, vigilancia y avisos |
 | Disco `copias` | `backend/config/filesystems.php` | Carpeta privada, sin URL, que lanza excepción si no puede escribir |
 | Volumen `/copias` | `compose.yaml`, `docker/app/Dockerfile` | Volumen propio, separado del almacenamiento de la aplicación; sólo lo montan `scheduler` y `copia` |
@@ -17,6 +17,8 @@ Dónde corre cada comando: **[SERVIDOR]** dentro de `ssh -t` al servidor de stag
 | Vía manual | servicio `copia` (perfil `copias`) | `docker compose --profile copias run --rm copia` |
 
 El orden de la agenda es deliberado: se limpia **antes** de copiar para que la limpieza no borre la copia recién hecha por un límite de espacio, y se vigila **después**, cuando la de la noche ya debió terminar.
+
+Nota de zona horaria: `config/app.php` fija `'timezone' => 'UTC'` y no lee `APP_TIMEZONE`, aunque la plantilla de entorno la declare (`APP_TIMEZONE=America/Bogota` no tiene efecto). Por eso cada tarea de copia lleva `->timezone('America/Bogota')`. Se descubrió en la verificación de staging: `schedule:list` anunciaba la copia de las 01:30 «en 8 horas» a las 12:12 de Bogotá, es decir, a las 01:30 UTC.
 
 ## 2. Qué NO cubre (leer antes de confiar en esto)
 

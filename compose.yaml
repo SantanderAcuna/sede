@@ -125,6 +125,15 @@ services:
     command: ["php", "artisan", "schedule:work"]
     mem_limit: 256m
     pids_limit: 128
+    # Además de lo común, monta las copias de seguridad: ESTE es el proceso que
+    # ejecuta `backup:run` cada noche (backend/routes/console.php). `volumes` en un
+    # servicio que hereda por `<<` REEMPLAZA la lista, no la amplía; por eso se
+    # repiten los dos montajes de siempre. Los demás servicios NO montan `/copias`:
+    # lo que no necesita escribir las copias no debe poder alcanzarlas.
+    volumes:
+      - almacenamiento-app:/app/storage
+      - cache-app:/app/bootstrap/cache
+      - copias:/copias
     # La sonda se DESACTIVA, y no es un descuido: sin declararla, este servicio
     # hereda la de la IMAGEN, que habla FastCGI contra PHP-FPM —un proceso que
     # aquí no existe—, así que quedaba permanentemente «enfermo».
@@ -304,15 +313,26 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
-  # Copias de seguridad. Efímero: se levanta, copia y se va. No tiene puertos ni
-  # sonda porque no atiende peticiones.
+  # Copias de seguridad MANUALES. Efímero: se levanta, copia y se va. No tiene
+  # puertos ni sonda porque no atiende peticiones.
+  #
+  # Se usa así: `docker compose --profile copias run --rm copia`, por ejemplo justo
+  # antes de una migración delicada. La copia NOCTURNA no sale de aquí sino del
+  # servicio `scheduler`, que es el que lleva la agenda.
   # ---------------------------------------------------------------------------
   copia:
     <<: *comun-app
     profiles: ["copias"]
     command: ["php", "artisan", "backup:run", "--only-db"]
+    # `environment` en un servicio que hereda por `<<` reemplaza el del ancla: sin
+    # repetir APP_KEY aquí, este servicio la perdía.
     environment:
+      APP_KEY: ${APP_KEY:?La clave de la aplicación es obligatoria}
       BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:?La frase de paso de las copias es obligatoria}
+    volumes:
+      - almacenamiento-app:/app/storage
+      - cache-app:/app/bootstrap/cache
+      - copias:/copias
     restart: "no"
 
 networks:
@@ -341,5 +361,10 @@ volumes:
     name: ${APP_NAME:-sede}-almacenamiento-app
   cache-app:
     name: ${APP_NAME:-sede}-cache-app
+  # Copias de seguridad de la base. Volumen PROPIO, separado del almacenamiento de
+  # la aplicación. Sigue estando en el mismo servidor: protege de errores lógicos y
+  # borrados, no de perder la máquina (docs/copias-de-seguridad.md).
+  copias:
+    name: ${APP_NAME:-sede}-copias
   certbot-webroot:
     name: ${APP_NAME:-sede}-certbot-webroot

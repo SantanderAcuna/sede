@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Operacion;
 
+use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -163,14 +165,44 @@ final class CopiasDeSeguridadTest extends TestCase
         }
     }
 
+    /**
+     * Las tareas de copia de la agenda, por orden de definición.
+     *
+     * @return Collection<int, Event>
+     */
+    private function tareasDeCopia(): Collection
+    {
+        // `schedule:list` fuerza el arranque de las rutas de consola, donde está la agenda.
+        Artisan::call('schedule:list');
+
+        return collect(app(Schedule::class)->events())
+            ->filter(static fn ($evento): bool => str_contains((string) $evento->command, 'backup:'))
+            ->values();
+    }
+
+    public function test_la_agenda_limpia_copia_y_vigila_en_ese_orden_y_a_esas_horas(): void
+    {
+        // Se leen la expresión y la zona de cada tarea, NO la salida de `schedule:list`: esa
+        // salida convierte la hora a la zona de la aplicación (UTC), de modo que «01:30 de
+        // Bogotá» se imprime como «06:30» y una comprobación sobre el texto confunde las dos.
+        $horas = $this->tareasDeCopia()->mapWithKeys(
+            static fn ($evento): array => [(string) $evento->command => $evento->expression],
+        );
+
+        $comando = static fn (string $final): string => (string) $horas->keys()->first(
+            static fn (string $c): bool => str_ends_with($c, $final),
+        );
+
+        $this->assertSame('0 1 * * *', $horas[$comando('backup:clean')], 'backup:clean debe correr a la 01:00.');
+        $this->assertSame('30 1 * * *', $horas[$comando('backup:run --only-db')], 'backup:run --only-db debe correr a la 01:30.');
+        $this->assertSame('0 6 * * *', $horas[$comando('backup:monitor')], 'backup:monitor debe correr a las 06:00.');
+    }
+
     public function test_la_agenda_de_copias_corre_en_hora_de_bogota_aunque_la_aplicacion_use_utc(): void
     {
         // La zona de la aplicación es UTC (config/app.php la fija y no lee APP_TIMEZONE).
         // Sin fijar la zona en cada tarea, «01:30» era 01:30 UTC = 20:30 en Bogotá.
-        Artisan::call('schedule:list');
-
-        $copias = collect(app(Schedule::class)->events())
-            ->filter(static fn ($evento): bool => str_contains((string) $evento->command, 'backup:'));
+        $copias = $this->tareasDeCopia();
 
         $this->assertCount(3, $copias, 'Deben existir backup:clean, backup:run y backup:monitor.');
         foreach ($copias as $evento) {
@@ -178,15 +210,16 @@ final class CopiasDeSeguridadTest extends TestCase
         }
     }
 
-    public function test_la_agenda_limpia_copia_y_vigila_en_ese_orden(): void
+    public function test_la_agenda_no_deja_que_una_copia_lenta_se_pise_con_la_siguiente(): void
     {
-        // `schedule:list` alinea las columnas de la expresión cron con espacios de
-        // relleno («0  1 * * *»), así que los campos se separan con `\s+`.
-        Artisan::call('schedule:list');
-        $salida = Artisan::output();
+        $conBloqueo = $this->tareasDeCopia()->filter(
+            static fn ($evento): bool => str_contains((string) $evento->command, 'backup:run')
+                || str_contains((string) $evento->command, 'backup:clean'),
+        );
 
-        $this->assertMatchesRegularExpression('/^\s*0\s+1\s+\*\s+\*\s+\*\s+.*backup:clean/m', $salida, 'Falta backup:clean a la 01:00.');
-        $this->assertMatchesRegularExpression('/^\s*30\s+1\s+\*\s+\*\s+\*\s+.*backup:run --only-db/m', $salida, 'Falta backup:run --only-db a la 01:30.');
-        $this->assertMatchesRegularExpression('/^\s*0\s+6\s+\*\s+\*\s+\*\s+.*backup:monitor/m', $salida, 'Falta backup:monitor a las 06:00.');
+        $this->assertCount(2, $conBloqueo);
+        foreach ($conBloqueo as $evento) {
+            $this->assertTrue($evento->withoutOverlapping, "{$evento->command} debe usar withoutOverlapping.");
+        }
     }
 }

@@ -127,6 +127,13 @@ jobs:
       - name: Comprobar tipos y compilar
         working-directory: panel
         run: npm run build
+      # Las pruebas unitarias (Vitest) no corrían en ningún paso: el CI sólo comprobaba
+      # tipos y compilación, así que una subida de `jsdom` o de `vue` que rompiera las
+      # pruebas llegaba a `develop` en verde. `vitest run` ejecuta una vez y falla con
+      # cualquier prueba en rojo (el guion `test` abre el modo de vigilancia y no termina).
+      - name: Pruebas unitarias
+        working-directory: panel
+        run: npx vitest run
 
   # ---------------------------------------------------------------------------
   # Sitio
@@ -144,6 +151,12 @@ jobs:
       - name: Instalar
         working-directory: sitio
         run: npm ci --ignore-scripts
+      # Las reglas de `sitio/.stylelintrc.json` (anidación, id, especificidad) se
+      # documentaban como «se ejecutan en el CI» y ningún paso las ejecutaba. Falla ante
+      # cualquier error; `!important` sigue siendo aviso, como explica `sitio/STYLELINT.md`.
+      - name: Estilos (stylelint)
+        working-directory: sitio
+        run: npx stylelint "app/assets/css/*.css"
       - name: Generar los tipos desde el contrato
         working-directory: sitio
         run: npx openapi-typescript ../contract/openapi.yaml -o types/openapi.d.ts --read-write-markers
@@ -157,6 +170,11 @@ jobs:
       - name: Compilar
         working-directory: sitio
         run: npm run build
+      # Después de `typecheck` y `build`: ambos preparan `.nuxt`, que las pruebas necesitan
+      # (la instalación se hace con `--ignore-scripts`, así que `nuxt prepare` no corre sola).
+      - name: Pruebas unitarias
+        working-directory: sitio
+        run: npx vitest run
 
   # ---------------------------------------------------------------------------
   # Pila de contenedores

@@ -12,8 +12,16 @@ Nunca imprime un valor. Sólo longitudes y comprobaciones.
     ./rotar-secretos.py --comprobar            # no cambia nada
     ./rotar-secretos.py --aplicacion           # secretos de la aplicación
     ./rotar-secretos.py --aplicacion --github  # y los empuja a GitHub
+    ./rotar-secretos.py --aplicacion --frase-copias  # incluye la frase de las copias (ver abajo)
     ./rotar-secretos.py --ops                  # contraseña de ops en el servidor
     ./rotar-secretos.py --servidor             # datos del servidor en el registro
+
+LA FRASE DE LAS COPIAS NO SE ROTA POR DEFECTO. `BACKUP_PASSPHRASE` cifra cada copia
+de seguridad; al cambiarla, las copias ya hechas NO se pueden abrir con la nueva. Rotarla
+junto con las demás dejaba sin recuperación, sin aviso, todo lo copiado hasta ese día.
+Sólo se rota con `--frase-copias`, y entonces la anterior se conserva en
+`.accesos.local.env` como `BACKUP_PASSPHRASE_<ENTORNO>_ANTERIOR_<fecha>` para poder abrir
+las copias viejas mientras existan (docs/copias-de-seguridad.md).
 
 Necesita los dos archivos de registro:
     .accesos.local.env   forma clave=valor, para la máquina
@@ -23,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import datetime
 import re
 import secrets
 import string
@@ -274,15 +283,53 @@ def comprobar() -> None:
     print("  Comprueba que es el servidor correcto; si no, corrige con --servidor.")
 
 
-def rotar_aplicacion(hacia_github: bool) -> None:
+# Claves de APLICACION que NO se rotan salvo que se pida expresamente. Rotar la frase de
+# las copias invalida todas las copias anteriores (ver el docstring del módulo).
+SOLO_SI_SE_PIDE = {"BACKUP_PASSPHRASE"}
+
+
+def claves_a_rotar(incluir_frase_copias: bool) -> dict[str, tuple[str, str]]:
+    """Las claves de `APLICACION` que esta ejecución rota."""
+    return {
+        clave: destinos
+        for clave, destinos in APLICACION.items()
+        if incluir_frase_copias or clave not in SOLO_SI_SE_PIDE
+    }
+
+
+def guardar_anterior(env_lineas: list[str], clave_env: str) -> None:
+    """Conserva el valor vigente de `clave_env` bajo `<clave>_ANTERIOR_<fecha>`.
+
+    Se llama ANTES de sobrescribir. Si la clave no existe todavía no hay nada que guardar.
+    """
+    actual = next(
+        (l.split("=", 1)[1] for l in env_lineas if l.startswith(clave_env + "=")), ""
+    )
+    if actual:
+        marca = datetime.date.today().strftime("%Y%m%d")
+        fijar_env(env_lineas, f"{clave_env}_ANTERIOR_{marca}", actual)
+
+
+def rotar_aplicacion(hacia_github: bool, incluir_frase_copias: bool = False) -> None:
     exigir_no_rastreado()
     env_lineas = leer_env()
     pass_lineas = leer_pass()
     generados: list[tuple[str, str]] = []
 
-    for clave, (k_staging, k_produccion) in APLICACION.items():
+    if incluir_frase_copias:
+        print("AVISO: se rota la frase de las copias. La anterior queda guardada como")
+        print("       *_ANTERIOR_<fecha>: consérvala mientras existan copias hechas con ella.\n")
+    else:
+        print("La frase de las copias (BACKUP_PASSPHRASE) NO se rota: invalidaría las copias existentes.")
+        print("Si de verdad hace falta, repite con --frase-copias.\n")
+
+    for clave, (k_staging, k_produccion) in claves_a_rotar(incluir_frase_copias).items():
         valor_staging = generar_app_key() if clave == "APP_KEY" else generar_hex()
         valor_produccion = generar_app_key() if clave == "APP_KEY" else generar_hex()
+
+        if clave in SOLO_SI_SE_PIDE:
+            guardar_anterior(env_lineas, k_staging)
+            guardar_anterior(env_lineas, k_produccion)
 
         fijar_env(env_lineas, k_staging, valor_staging)
         fijar_env(env_lineas, k_produccion, valor_produccion)
@@ -412,7 +459,8 @@ def actualizar_servidor() -> None:
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--comprobar", action="store_true", help="no cambia nada")
-    p.add_argument("--aplicacion", action="store_true", help="rota APP_KEY, contraseñas y frase de copias")
+    p.add_argument("--aplicacion", action="store_true", help="rota APP_KEY y las contraseñas (NO la frase de copias)")
+    p.add_argument("--frase-copias", action="store_true", help="con --aplicacion: rota TAMBIÉN la frase de copias (invalida las copias existentes)")
     p.add_argument("--github", action="store_true", help="empuja también a los secretos de GitHub")
     p.add_argument("--empujar", action="store_true", help="empuja los valores ya registrados, sin regenerar")
     p.add_argument("--ops", action="store_true", help="rota la contraseña de ops en el servidor")
@@ -426,7 +474,7 @@ def main() -> None:
     if a.comprobar:
         comprobar()
     if a.aplicacion:
-        rotar_aplicacion(a.github)
+        rotar_aplicacion(a.github, a.frase_copias)
     if a.empujar:
         empujar_github()
     if a.ops:

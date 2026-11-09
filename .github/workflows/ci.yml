@@ -286,6 +286,14 @@ jobs:
           #                            CLAVE=valor.
           bash deploy/pruebas/guarda-entorno.sh
           bash deploy/pruebas/prueba-render-entorno.sh
+      - name: Las copias de seguridad encajan con la pila
+        run: |
+          # Tres desencajes que no fallan donde se introducen y sólo se descubren al
+          # intentar RESTAURAR: pg_dump de otra serie que el servidor, un servicio con
+          # petición pública montando el volumen de copias, y la rotación de secretos
+          # cambiando la frase que cifra todas las copias existentes. Detalle y motivos
+          # en el encabezado del propio guion.
+          bash deploy/pruebas/guarda-copias.sh
       - name: La salud del sitio no depende de la API (ADR-0018)
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=

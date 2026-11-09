@@ -49,6 +49,18 @@ return [
             'report' => false,
         ],
 
+        // Destino de las copias de seguridad (config/backup.php). En el contenedor es
+        // el volumen `/copias` (compose.yaml), fuera del almacenamiento de la
+        // aplicación; fuera de él, una carpeta local para desarrollo. Privado por
+        // construcción: no tiene URL ni se sirve.
+        'copias' => [
+            'driver' => 'local',
+            'root' => env('BACKUP_RUTA', storage_path('app/copias')),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

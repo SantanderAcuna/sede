@@ -94,8 +94,23 @@ RUN faltan=""; \
 
 # Lo único que hace falta en ejecución. `fcgi` aporta el cliente con el que la
 # sonda de salud habla con PHP-FPM, que no entiende HTTP.
-RUN apk add --no-cache ca-certificates tzdata curl fcgi \
+#
+# `postgresql18-client` aporta `pg_dump`, que es lo que usa `backup:run` para volcar
+# la base. Hasta ahora la imagen sólo llevaba `libpq` (la biblioteca de conexión, que
+# es lo que necesita `pdo_pgsql`) y NO el binario: cualquier copia habría fallado con
+# «pg_dump: not found» la primera vez que alguien la ejecutara.
+#
+# La versión no es un detalle. `pg_dump` se niega a volcar un servidor MÁS NUEVO que
+# él («aborting because of server version mismatch»), y el servidor de la pila es
+# `postgres:18` (compose.yaml). Por eso el paquete es el 18 y no el genérico, y la
+# comprobación de abajo falla la construcción si algún día cambia el cliente sin
+# cambiar el servidor, o al revés.
+RUN apk add --no-cache ca-certificates tzdata curl fcgi postgresql18-client \
     && rm -rf /var/cache/apk/*
+
+RUN pg_dump --version | grep -q 'pg_dump (PostgreSQL) 18\.' \
+    || { echo "pg_dump no es de la serie 18: $(pg_dump --version 2>&1)"; \
+         echo "Debe coincidir con el servidor (postgres:18 en compose.yaml)."; exit 1; }
 
 # ---------------------------------------------------------------------------
 # Dependencias de PHP, resueltas sobre la misma base
@@ -161,6 +176,15 @@ RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/fra
     && chown -R sede:sede storage bootstrap/cache \
     && chmod -R a+rX /app
 
+# Destino de las copias de seguridad (disco `copias`, config/filesystems.php).
+#
+# Está FUERA de `/app/storage` a propósito: es otro volumen, con otro ciclo de vida.
+# Quien borre o recree el almacenamiento de la aplicación no debe llevarse con él las
+# copias que existen precisamente para recuperarse de eso. Se crea aquí, con el dueño
+# `sede`, para que el volumen nuevo herede el dueño correcto: el contenedor corre sin
+# privilegios y un volumen que Docker crea vacío pertenece a `root`.
+RUN mkdir -p /copias && chown sede:sede /copias && chmod 700 /copias
+
 # EL ENTORNO DEL DESPLIEGUE VIAJA CON LA VERSIÓN (ADR-0019).
 #
 # Estos cuatro archivos no los usa la aplicación: los extrae `desplegar.sh` en el
@@ -185,7 +209,7 @@ COPY deploy/plantilla.env deploy/valores-staging.env deploy/valores-produccion.e
 # Se declaran para que la pila sepa que ahí se escribe. Es lo que permite montar
 # volúmenes y, aun así, ejecutar el contenedor con el sistema de archivos de sólo
 # lectura.
-VOLUME ["/app/storage", "/app/bootstrap/cache"]
+VOLUME ["/app/storage", "/app/bootstrap/cache", "/copias"]
 
 USER sede
 

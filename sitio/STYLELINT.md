@@ -42,11 +42,16 @@ Por eso la regla queda como **aviso y no como error**: el CI señala cada
 `!important` nuevo para que alguien decida si es un modo legítimo o un atajo, en
 vez de bloquear la construcción por algo que a veces es la respuesta correcta.
 
-## Lo que el CI puede verificar
+## Lo que el CI verifica
 
 ```bash
 npx stylelint "app/assets/css/*.css"
 ```
+
+Es el paso «Estilos (stylelint)» del trabajo `Sitio` en `.github/workflows/ci.yml`. Falla ante
+cualquier error; `declaration-no-important` es aviso y no bloquea (ver arriba). Hasta
+2026-11-09 este documento afirmaba que las reglas «se ejecutan en el CI» y ningún paso las
+ejecutaba: se comprobó con `grep` en los flujos.
 
 Y las métricas que quedan medidas hoy, para poder compararlas mañana:
 

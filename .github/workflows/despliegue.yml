@@ -306,6 +306,8 @@ jobs:
   #   - `tests/movil.mjs`  maquetación en teléfono, incluida la tabulación y los 44 px
   #   - `tests/kit-ui.mjs` componentes del Kit
   #   - `tests/diseno.mjs` conformidad de diseño (CAG-01 a CAG-34), con su propio servidor
+  #                        y una API simulada local: es la única que NO usa el entorno de
+  #                        pruebas, así que Cloudflare no puede afectarla
   #
   # `webkit` es el motor de Safari, no Safari; `msedge` usa el canal de Edge del
   # ejecutor. Ninguno sustituye una prueba en un dispositivo real.
@@ -390,9 +392,16 @@ jobs:
             codigo=$?
             if [ "$codigo" -eq 0 ]; then
               resultado="✅ pasa"
-            elif [ "$DESAFIADO" = "true" ] && [ "$nombre" != "humo funcional (escritorio y teléfono)" ]; then
+            elif [ "$DESAFIADO" = "true" ] \
+              && [ "$nombre" != "humo funcional (escritorio y teléfono)" ] \
+              && [ "$nombre" != "conformidad de diseño (CAG)" ]; then
               # Esta prueba hace peticiones fuera del navegador (curl, fetch del servidor) y
               # Cloudflare las desafía desde las IP de GitHub: el fallo no dice nada del sitio.
+              #
+              # La conformidad de diseño queda FUERA de esta excepción: levanta su propio
+              # servidor y una API simulada local (tests/ayudas/api-simulada.mjs), no sale a
+              # Internet, y por tanto Cloudflare no puede afectarla. Un fallo ahí es del sitio
+              # y debe verse como fallo, no esconderse como «no concluyente».
               resultado="⚠️ no concluyente: Cloudflare desafía al ejecutor (código $codigo)"
             else
               resultado="❌ falla (código $codigo)"; fallos=$((fallos + 1))

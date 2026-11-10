@@ -6,6 +6,7 @@ namespace Tests\Feature\Operacion;
 
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Process\Process;
@@ -194,8 +195,70 @@ final class CopiasDeSeguridadTest extends TestCase
         );
 
         $this->assertSame('0 1 * * *', $horas[$comando('backup:clean')], 'backup:clean debe correr a la 01:00.');
-        $this->assertSame('30 1 * * *', $horas[$comando('backup:run --only-db')], 'backup:run --only-db debe correr a la 01:30.');
+        $this->assertSame('30 1 * * *', $horas[$comando('backup:run')], 'backup:run debe correr a la 01:30.');
         $this->assertSame('0 6 * * *', $horas[$comando('backup:monitor')], 'backup:monitor debe correr a las 06:00.');
+    }
+
+    public function test_ninguna_tarea_de_copia_deja_fuera_los_archivos_subidos(): void
+    {
+        // `--only-db` hace una copia parcial y `backup:monitor` no la distingue de una
+        // completa (lo advierte la documentación del paquete): la agenda daría «sana» una
+        // copia sin los archivos. T-12: la copia es completa.
+        foreach ($this->tareasDeCopia() as $evento) {
+            $this->assertStringNotContainsString('--only-db', (string) $evento->command, 'La agenda no debe usar --only-db.');
+        }
+    }
+
+    public function test_la_copia_incluye_los_archivos_subidos_y_los_cifra(): void
+    {
+        // Prueba de punta a punta de la mitad «archivos» (`--only-files` no necesita
+        // `pg_dump`, que sólo existe en la imagen): un archivo en el disco `local` termina
+        // dentro del zip cifrado, y sólo se abre con la frase. La mitad «base» la cubre la
+        // verificación del servidor (docs/copias-de-seguridad.md §7).
+        $marca = 'prueba-copias-'.bin2hex(random_bytes(4));
+        $carpeta = storage_path('app/private/'.$marca);
+        $destino = sys_get_temp_dir().'/'.$marca;
+        $extraido = $destino.'-extraido';
+
+        mkdir($carpeta, 0775, true);
+        file_put_contents($carpeta.'/documento.pdf', 'contenido-de-prueba');
+
+        config([
+            'filesystems.disks.copias_prueba' => ['driver' => 'local', 'root' => $destino, 'throw' => true],
+            'backup.backup.destination.disks' => ['copias_prueba'],
+            'backup.backup.password' => 'frase-de-prueba',
+            'backup.backup.encryption' => 'default',
+        ]);
+
+        try {
+            $codigo = Artisan::call('backup:run', ['--only-files' => true, '--disable-notifications' => true]);
+            $this->assertSame(0, $codigo, Artisan::output());
+
+            $zips = glob($destino.'/*/*.zip') ?: [];
+            $this->assertCount(1, $zips, 'Debe haberse escrito una copia en el disco de destino.');
+
+            $zip = new \ZipArchive;
+            $this->assertTrue($zip->open($zips[0]) === true);
+            $zip->setPassword('frase-de-prueba');
+            $this->assertTrue($zip->extractTo($extraido), 'Con la frase correcta el zip debe abrirse.');
+
+            $this->assertSame(
+                'contenido-de-prueba',
+                file_get_contents($extraido.'/storage/app/private/'.$marca.'/documento.pdf'),
+                'El archivo subido debe estar dentro de la copia, con su contenido.',
+            );
+
+            $otro = new \ZipArchive;
+            $otro->open($zips[0]);
+            $otro->setPassword('frase-equivocada');
+            $this->assertFalse(@$otro->extractTo($extraido.'-mal'), 'Con otra frase el zip no debe abrirse.');
+        } finally {
+            (new Filesystem)->deleteDirectories($carpeta);
+            (new Filesystem)->deleteDirectory($carpeta);
+            (new Filesystem)->deleteDirectory($destino);
+            (new Filesystem)->deleteDirectory($extraido);
+            (new Filesystem)->deleteDirectory($extraido.'-mal');
+        }
     }
 
     public function test_la_agenda_de_copias_corre_en_hora_de_bogota_aunque_la_aplicacion_use_utc(): void

@@ -13,10 +13,34 @@
  */
 import { slugsAdoptados } from '../../app/config/politicas-contenido'
 import { POLITICAS, todasLasRutas } from '../../app/config/sitemap'
+import {
+  construirSitemapXml,
+  fechasDePoliticas,
+  leerTramites,
+  tramitesConCache,
+  type EntradaSitemap,
+} from '../utils/sitemap-xml'
 
-/** Escapa lo que va dentro de un nodo XML. */
-const escapar = (texto: string): string =>
-  texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+/**
+ * Las fichas de trámite viven en la API, no en la configuración de rutas. La API devuelve cada
+ * ficha completa, así que la lectura se guarda diez minutos: un rastreador no debe costarle al
+ * backend el catálogo entero en cada visita.
+ */
+const tramites = new Map<string, () => Promise<EntradaSitemap[]>>()
+const tramitesDe = (urlApi: string): (() => Promise<EntradaSitemap[]>) => {
+  let lector = tramites.get(urlApi)
+  if (!lector) {
+    lector = tramitesConCache(
+      () =>
+        leerTramites((pagina) =>
+          $fetch<unknown>(`${urlApi}/tramites`, { query: { per_page: 100, page: pagina }, timeout: 5000 }),
+        ),
+      { vigenciaMs: 10 * 60 * 1000 },
+    )
+    tramites.set(urlApi, lector)
+  }
+  return lector
+}
 
 export default defineEventHandler(async (evento): Promise<string> => {
   const config = useRuntimeConfig(evento)
@@ -40,31 +64,34 @@ export default defineEventHandler(async (evento): Promise<string> => {
    */
   const urlApi = String(config.public.apiUrl ?? '').replace(/\/+$/, '')
   let adoptadas: string[] = []
+  let fechasPoliticas = new Map<string, string>()
   try {
     const respuesta = await $fetch<unknown>(`${urlApi}/politicas`, { timeout: 3000 })
     adoptadas = slugsAdoptados(
       respuesta,
       POLITICAS.map((politica) => politica.slug),
     )
+    fechasPoliticas = fechasDePoliticas(respuesta)
   } catch {
     adoptadas = []
   }
 
-  const entradas = todasLasRutas()
+  const fijas: EntradaSitemap[] = todasLasRutas()
     .filter((ruta) => ruta.publicada || adoptadas.some((slug) => ruta.ruta === `/politicas/${slug}`))
-    .map(
-      (p) =>
-        `  <url>\n` +
-        `    <loc>${escapar(base + p.ruta)}</loc>\n` +
-        `    <changefreq>${p.frecuenciaSitemap ?? 'weekly'}</changefreq>\n` +
-        `    <priority>${(p.prioridadSitemap ?? 0.5).toFixed(1)}</priority>\n` +
-        `  </url>`,
-    )
-    .join('\n')
+    .map((ruta) => ({
+      ruta: ruta.ruta,
+      frecuencia: ruta.frecuenciaSitemap ?? 'weekly',
+      prioridad: ruta.prioridadSitemap ?? 0.5,
+      // Sólo las políticas tienen una fecha real de modificación; las páginas fijas no.
+      modificado: fechasPoliticas.get(ruta.ruta.replace(/^\/politicas\//, '')),
+    }))
+
+  // Las fichas de trámite se leen de la API. Si falla, el mapa sale con las rutas fijas.
+  const fichas = await tramitesDe(urlApi)()
 
   setHeader(evento, 'content-type', 'application/xml; charset=utf-8')
   // Una hora: el contenido de la sede no cambia al segundo.
   setHeader(evento, 'cache-control', 'public, max-age=3600')
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entradas}\n</urlset>\n`
+  return construirSitemapXml(base, [...fijas, ...fichas])
 })

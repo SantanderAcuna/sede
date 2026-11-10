@@ -1,6 +1,6 @@
-# Copias de seguridad de la base de datos
+# Copias de seguridad de la base de datos y de los archivos subidos
 
-Estado: implementadas en la rama de B1 (Módulo 01); **no hay copia hecha ni restaurada en staging hasta que se ejecute la verificación de §7**. Este documento dice qué existe, qué NO cubre y cómo se comprueba.
+Estado: implementadas en la rama de B1 (Módulo 01); **no hay copia hecha ni restaurada en staging hasta que se ejecute la verificación de §7**. La inclusión de los archivos subidos (T-12) se verificó de punta a punta en un entorno de desarrollo (copia completa real: volcado SQL y archivos dentro del zip cifrado, extraídos con la frase), **no** todavía en el servidor: ver §7, paso 1b. Este documento dice qué existe, qué NO cubre y cómo se comprueba.
 
 Dónde corre cada comando: **[SERVIDOR]** dentro de `ssh -t` al servidor de staging, como `ops`; **[PC]** tu terminal; **[CI]** GitHub Actions.
 
@@ -8,7 +8,7 @@ Dónde corre cada comando: **[SERVIDOR]** dentro de `ssh -t` al servidor de stag
 
 | Pieza | Dónde | Qué hace |
 |---|---|---|
-| Agenda | `backend/routes/console.php` | 01:00 `backup:clean`, 01:30 `backup:run --only-db`, 06:00 `backup:monitor`, **hora de Bogotá fijada en cada tarea** (la zona de la aplicación es UTC) |
+| Agenda | `backend/routes/console.php` | 01:00 `backup:clean`, 01:30 `backup:run` (completa: base y archivos), 06:00 `backup:monitor`, **hora de Bogotá fijada en cada tarea** (la zona de la aplicación es UTC) |
 | Configuración | `backend/config/backup.php` | Destino, cifrado, retención, vigilancia y avisos |
 | Disco `copias` | `backend/config/filesystems.php` | Carpeta privada, sin URL, que lanza excepción si no puede escribir |
 | Volumen `/copias` | `compose.yaml`, `docker/app/Dockerfile` | Volumen propio, separado del almacenamiento de la aplicación; sólo lo montan `scheduler` y `copia` |
@@ -23,10 +23,10 @@ Nota de zona horaria: `config/app.php` fija `'timezone' => 'UTC'` y no lee `APP_
 ## 2. Qué NO cubre (leer antes de confiar en esto)
 
 1. **Está en el mismo servidor.** El volumen `copias` protege contra errores lógicos, migraciones fallidas y borrados accidentales. **No** protege contra la pérdida del servidor. Una copia fuera del servidor (depósito de objetos u otro destino) sigue pendiente y debe existir **antes** de producción real. Cambiar el destino es una línea: `BACKUP_DISK=s3` en `deploy/valores-<entorno>.env` más las llaves del depósito (T-12).
-2. **Sólo la base.** Los archivos subidos (`FILESYSTEM_DISK=local`) no entran: la agenda usa `--only-db`. Quitar esa bandera los incluiría (`config/backup.php` ya declara las carpetas), pero la decisión es de T-12.
+2. **Qué archivos entran y cuáles no.** Entran los del volumen de almacenamiento de la aplicación: `storage/app/private` (disco `local`, el de `FILESYSTEM_DISK=local`) y `storage/app/public` (disco `public`). Si algún día los archivos pasan a un depósito de objetos (`FILESYSTEM_DISK=s3`), **dejan de entrar** y su respaldo es el del depósito (T-12). La agenda ya no usa `--only-db`: con esa bandera el paquete hace una copia parcial y `backup:monitor` no la distingue de una completa, así que la vigilancia diría «sana» sin los archivos. Una prueba de CI y la guarda `guarda-copias.sh` impiden volver a ponerla.
 3. **Sin aviso por correo hasta que haya destinatario.** `BACKUP_NOTIFICACION_CORREO` está vacío y `MAIL_MAILER=log`. Un fallo de copia queda sólo en los registros del servicio `scheduler`. Mientras tanto, alguien debe mirar `backup:list` (§6).
 4. **Retención de partida, no definitiva.** Son los valores por defecto del paquete (7 días completas, 16 diarias, 8 semanales, 4 mensuales, 2 anuales). El plazo que corresponde a la Entidad (tabla de retención documental) está pendiente.
-5. **El techo de 5000 MB es el valor por defecto del paquete, no un dato medido.** Hay que ajustarlo al tamaño real de la base. La limpieza borra las copias más antiguas al superarlo.
+5. **El techo de 5000 MB es el valor por defecto del paquete, no un dato medido.** Hay que ajustarlo al tamaño real de la base **más el de los archivos subidos** (cada copia diaria los lleva completos). La limpieza borra las copias más antiguas al superarlo.
 
 ## 3. La frase de cifrado
 
@@ -60,7 +60,7 @@ Lo que **ninguna** de esas pruebas demuestra, y se verifica en el servidor (§7)
 sudo docker compose -f /opt/sede/staging/compose.yaml --env-file /opt/sede/staging/.env exec scheduler php artisan backup:list
 
 # Hacer una copia ahora (por ejemplo antes de una migración delicada)
-sudo docker compose -f /opt/sede/staging/compose.yaml --env-file /opt/sede/staging/.env exec scheduler php artisan backup:run --only-db
+sudo docker compose -f /opt/sede/staging/compose.yaml --env-file /opt/sede/staging/.env exec scheduler php artisan backup:run
 
 # Comprobar la salud (antigüedad máxima 1 día)
 sudo docker compose -f /opt/sede/staging/compose.yaml --env-file /opt/sede/staging/.env exec scheduler php artisan backup:monitor
@@ -87,6 +87,18 @@ if (! $zip->extractTo("/app/storage/app/restauracion")) { fwrite(STDERR, "No se 
 for ($i = 0; $i < $zip->numFiles; $i++) { echo $zip->getNameIndex($i), "\n"; }'
 ```
 
+Paso 1b: comprobar que los archivos subidos vienen en la copia (la extracción del paso 1 ya los dejó en `/app/storage/app/restauracion/storage/app/...`). Compara el número de archivos de la copia con el de los vivos; pueden diferir en los subidos después de la copia:
+
+```bash
+$C sh -c '
+for d in private public; do
+  printf "%s: copia=" "$d"
+  find /app/storage/app/restauracion/storage/app/$d -type f 2>/dev/null | wc -l | tr -d "\n"
+  printf " vivos="
+  find /app/storage/app/$d -type f | wc -l
+done'
+```
+
 Paso 2: restaurar en una base de prueba, contar tablas y eliminarla:
 
 ```bash
@@ -103,7 +115,7 @@ psql -h "$DB_HOST" -U "$DB_USERNAME" -d postgres -qc "DROP DATABASE sede_restaur
 rm -rf /app/storage/app/restauracion'
 ```
 
-Criterio de éxito: la extracción lista un `.sql`, `psql` termina sin error (`ON_ERROR_STOP`), el conteo de tablas de `sede_restauracion` es mayor que cero y coincide con el de la base viva (el bucle imprime ambos), y la base de prueba queda eliminada.
+Criterio de éxito: la extracción lista un `.sql` **y las rutas `storage/app/private/…` y `storage/app/public/…`** (paso 1b: el conteo de la copia coincide con el de los vivos, salvo lo subido después), `psql` termina sin error (`ON_ERROR_STOP`), el conteo de tablas de `sede_restauracion` es mayor que cero y coincide con el de la base viva (el bucle imprime ambos), y la base de prueba queda eliminada.
 
 ## 8. Criterios de aceptación de B1
 
@@ -117,6 +129,7 @@ Criterio de éxito: la extracción lista un `.sql`, `psql` termina sin error (`O
 | B1.6 | Rotar secretos no invalida las copias por descuido | `prueba-rotar-secretos.py` | CI |
 | B1.7 | Se hizo una copia real y se restauró en una base de prueba | §7 | servidor |
 | B1.8 | Los límites (§2) están escritos y no se presentan como resueltos | este documento | revisión |
+| B1.9 | La copia incluye los archivos subidos y la agenda no usa `--only-db` | `CopiasDeSeguridadTest` (prueba de punta a punta de la parte de archivos y de la agenda) + `guarda-copias.sh` (CI) + §7 paso 1b | CI / servidor |
 
 ## Fuentes
 

@@ -36,9 +36,10 @@ use Spatie\Backup\Tasks\Monitor\HealthChecks\MaximumStorageInMegabytes;
 |     propio en el mismo servidor; cuando exista un depósito de objetos será `s3`.
 |     El cambio es una línea de deploy/valores-<entorno>.env, no código.
 |
-|  3. SÓLO LA BASE por defecto. La agenda (routes/console.php) invoca
-|     `backup:run --only-db`. Los archivos subidos se declaran abajo para que
-|     incluirlos sea quitar esa bandera, pero esa decisión pertenece a T-12.
+|  3. COPIA COMPLETA: base y archivos subidos. La agenda (routes/console.php) invoca
+|     `backup:run` sin `--only-db`, así que entran las carpetas de `source.files`
+|     (abajo). Con `--only-db` el paquete hace una copia parcial y `backup:monitor` no
+|     la distingue de una completa: por eso la agenda no lo usa y una prueba lo vigila.
 */
 
 $disco = (string) env('BACKUP_DISK', 'copias');
@@ -70,7 +71,8 @@ return [
 
         'source' => [
             'files' => [
-                // Sólo cuentan cuando se ejecuta SIN --only-db (ver arriba, punto 3).
+                // Los archivos subidos (`FILESYSTEM_DISK=local` → `storage/app/private`; el
+                // disco `public` → `storage/app/public`). No cuentan con --only-db (punto 3).
                 'include' => [
                     storage_path('app/private'),
                     storage_path('app/public'),

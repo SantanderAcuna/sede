@@ -184,19 +184,4 @@ const ID_PANEL = 'panel-accesibilidad'
     --fab-tamano: 2.75rem;
   }
 }
-
-/*
- * En modo alto contraste el botón tiene que seguir distinguiéndose. Las reglas
- * del sitio fuerzan fondo transparente y texto blanco a todo; el círculo
- * recupera fondo negro con borde blanco, que sobre el negro del modo se lee.
- */
-:global(.contraste-govco) .boton-accesibilidad {
-  background-color: #000 !important;
-  border-color: #fff !important;
-  color: #fff !important;
-}
-
-:global(.contraste-govco) .boton-accesibilidad:hover {
-  background-color: #333 !important;
-}
 </style>

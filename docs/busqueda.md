@@ -363,9 +363,10 @@ auditoría (§10).
    comando `busqueda:reindexar`, calibración (§2.1) con el banco ampliado y el negativo,
    registro de acceso sin consulta (§2.2), pruebas HTTP. Contrato → `implemented`.
 3. **Entrega 3:** sitio — `combobox` accesible en el encabezado, página `/buscar` con los
-   campos nuevos, pausa de 250 ms; axe; p95 contra staging. Antes de codificarla, la
+   campos nuevos, pausa de 350 ms; axe; p95 contra staging. Antes de codificarla, la
    especificación de interacción (AC-22.12) la aprueba el titular: está redactada en
-   [`busqueda-interaccion.md`](busqueda-interaccion.md), pendiente de sus nueve decisiones.
+   [`busqueda-interaccion.md`](busqueda-interaccion.md), **aprobada el 2026-11-10** (D-I1 a D-I10; la D-I4 ya
+   estaba resuelta con la opción A de §2.5).
 
 ## 9. Límites que quedan
 
@@ -395,7 +396,7 @@ auditoría (§10).
   esas dos rutas y una prueba fija que 100 peticiones pasan y la 101 no. El resto de la API conserva
   sus 60.
 - El límite de 120 peticiones por minuto y por IP es una estimación (INFERENCIA: una persona
-  escribiendo genera una petición por pausa de 250 ms; una oficina que comparte salida suma). No
+  escribiendo genera una petición por pausa de 350 ms (250 ms en el análisis inicial); una oficina que comparte salida suma). No
   se midió con tráfico real. **Riesgo concreto:** si muchos ciudadanos comparten una IP pública
   —la red móvil con NAT de operador, o el wifi de una oficina de atención—, el cupo se agota
   para todos y reciben 429 sin haber hecho nada. HIPÓTESIS (no hay datos de la distribución de

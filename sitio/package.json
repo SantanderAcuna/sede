@@ -17,6 +17,7 @@
     "test:cobertura": "vitest run --coverage",
     "test:diseno": "node tests/diseno.mjs",
     "test:vinculos": "node tests/vinculos.mjs",
+    "test:sitemap": "node tests/sitemap.mjs",
     "test:cookies": "node tests/cookies.mjs",
     "test:politicas": "node tests/politicas.mjs",
     "test:kit-ui": "node tests/kit-ui.mjs",

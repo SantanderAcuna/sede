@@ -49,7 +49,7 @@ preparar: ## Prepara la base de datos local con datos de ejemplo
 # ---------------------------------------------------------------------------
 
 .PHONY: comprobar
-comprobar: contrato formato-verificar analisis pruebas unidad cobertura tipos compilar accesibilidad imagenes respaldo ## Ejecuta TODAS las puertas
+comprobar: contrato formato-verificar analisis pruebas unidad cobertura tipos compilar accesibilidad busqueda imagenes respaldo ## Ejecuta TODAS las puertas
 	@echo
 	@echo "Todas las puertas en verde."
 
@@ -130,6 +130,10 @@ compilar: ## Verifica tipos y compila los dos frontends
 .PHONY: accesibilidad
 accesibilidad: ## Audita la accesibilidad con axe sobre las vistas públicas
 	cd $(SITIO) && npm run test:accesibilidad
+
+.PHONY: busqueda
+busqueda: ## Prueba en navegador la búsqueda: sugerencias y página /buscar (T-22, TC-BUS-26 a 28 y 32 a 36)
+	cd $(SITIO) && npm run test:busqueda
 
 .PHONY: diseno
 diseno: ## Comprueba con el navegador los criterios de diseño medibles (CAG-01 a CAG-34)

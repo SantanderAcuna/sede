@@ -28,12 +28,20 @@ interface Props {
   etiqueta?: string
   /** Apaga «Anterior» y «Siguiente» (por ejemplo, mientras se carga o si falló). */
   extremosApagados?: boolean
+  /**
+   * Dirección de cada página. Con ella los controles son **enlaces** y no botones:
+   * la paginación sigue funcionando sin JavaScript, que es lo que necesita una
+   * página de resultados que se comparte por su URL. Con JavaScript, el clic se
+   * intercepta y se emite `cambiar` igual que con los botones.
+   */
+  enlace?: (pagina: number) => string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   alrededor: 1,
   etiqueta: 'Paginación de los resultados',
   extremosApagados: false,
+  enlace: undefined,
 })
 const emit = defineEmits<{ (e: 'cambiar', pagina: number): void }>()
 
@@ -83,7 +91,16 @@ function ir(numero: number): void {
   <nav :aria-label="etiqueta">
     <ul class="pagination paginacion-govco mb-0">
       <li class="page-item" :class="{ disabled: !hayAnterior }">
-        <button type="button" class="page-link" :disabled="!hayAnterior" @click="ir(actual - 1)">
+        <a
+          v-if="enlace && hayAnterior"
+          class="page-link"
+          :href="enlace(actual - 1)"
+          @click.prevent="ir(actual - 1)"
+        >
+          Anterior
+        </a>
+        <span v-else-if="enlace" class="page-link" aria-disabled="true">Anterior</span>
+        <button v-else type="button" class="page-link" :disabled="!hayAnterior" @click="ir(actual - 1)">
           Anterior
         </button>
       </li>
@@ -93,19 +110,39 @@ function ir(numero: number): void {
         class="page-item"
         :class="{ active: hueco.tipo === 'pagina' && hueco.numero === actual }"
       >
-        <button
-          v-if="hueco.tipo === 'pagina'"
-          type="button"
-          class="page-link"
-          :aria-current="hueco.numero === actual ? 'page' : undefined"
-          @click="ir(hueco.numero)"
-        >
-          {{ hueco.numero }}
-        </button>
+        <template v-if="hueco.tipo === 'pagina'">
+          <a
+            v-if="enlace"
+            class="page-link"
+            :href="enlace(hueco.numero)"
+            :aria-current="hueco.numero === actual ? 'page' : undefined"
+            @click.prevent="ir(hueco.numero)"
+          >
+            {{ hueco.numero }}
+          </a>
+          <button
+            v-else
+            type="button"
+            class="page-link"
+            :aria-current="hueco.numero === actual ? 'page' : undefined"
+            @click="ir(hueco.numero)"
+          >
+            {{ hueco.numero }}
+          </button>
+        </template>
         <span v-else class="page-link" aria-hidden="true">…</span>
       </li>
       <li class="page-item" :class="{ disabled: !haySiguiente }">
-        <button type="button" class="page-link" :disabled="!haySiguiente" @click="ir(actual + 1)">
+        <a
+          v-if="enlace && haySiguiente"
+          class="page-link"
+          :href="enlace(actual + 1)"
+          @click.prevent="ir(actual + 1)"
+        >
+          Siguiente
+        </a>
+        <span v-else-if="enlace" class="page-link" aria-disabled="true">Siguiente</span>
+        <button v-else type="button" class="page-link" :disabled="!haySiguiente" @click="ir(actual + 1)">
           Siguiente
         </button>
       </li>

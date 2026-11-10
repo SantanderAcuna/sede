@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vitest/config'
 
@@ -20,6 +22,9 @@ export default defineConfig({
   // probar sus estados (T-28); sin él, sólo la lógica pura era probable.
   plugins: [vue()],
   define: { 'import.meta.client': 'true' },
+  // `~` es el alias de Nuxt para `app/`; los componentes lo usan para importar sus
+  // composables y, sin repetirlo aquí, no se podrían montar en las pruebas.
+  resolve: { alias: { '~': fileURLToPath(new URL('./app', import.meta.url)) } },
   test: {
     environment: 'jsdom',
     include: ['tests/**/*.test.ts'],
@@ -50,6 +55,7 @@ export default defineConfig({
       include: [
         'app/**/*.ts',
         'app/components/govco/AcordeonGovco.vue',
+        'app/components/govco/BuscadorGovco.vue',
         'app/components/govco/CargandoGovco.vue',
         'app/components/govco/ContenedorToastsGovco.vue',
         'app/components/govco/PaginacionGovco.vue',

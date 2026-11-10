@@ -46,7 +46,7 @@ return [
 
     /*
     | Peticiones por minuto y por IP, compartidas por las dos operaciones. Una
-    | persona que escribe con normalidad (una petición por cada pausa de 250 ms)
+    | persona que escribe con normalidad (una petición por cada pausa de 350 ms)
     | queda muy por debajo; una oficina entera que comparte salida también. La IP
     | que cuenta es la real del cliente: nginx la restituye desde Cloudflare.
     */

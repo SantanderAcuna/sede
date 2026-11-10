@@ -981,22 +981,9 @@ paths:
           $ref: '#/components/responses/DemasiadasSolicitudes'
       security: []
 
-  /sitemap.xml:
-    get:
-      tags: [Identidad]
-      operationId: obtenerSitemap
-      summary: Sitemap XML
-      description: Mapa del sitio para SEO. RF-01-010.
-      x-status: pending
-      x-criterios: [RF-01-010, RNF-ACES-01]
-      responses:
-        '200':
-          description: Sitemap XML
-          content:
-            application/xml:
-              schema:
-                type: string
-      security: []
+  # `/sitemap.xml` y `/robots.txt` NO son operaciones de esta API: los sirve el sitio (Nuxt) en la
+  # raíz del dominio, no bajo `/api/v1`. Se probaron fuera del contrato (RF-01-010:
+  # `sitio/tests/sitemap.mjs`, `sitio/tests/robots.mjs`). Ver ADR-0020.
 
   /consentimientos:
     post:

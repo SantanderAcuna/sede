@@ -363,6 +363,13 @@ useHead({
   .buscador-pagina {
     max-width: calc(100% - 3.5rem);
   }
+
+  /* El campo queda más estrecho y el marcador se cortaba a media letra: con puntos
+     suspensivos se lee que continúa. `text-overflow` va en el campo: en el
+     pseudoelemento `::placeholder` no se aplica. */
+  .buscador-pagina :deep(.input-search-basic-govco) {
+    text-overflow: ellipsis;
+  }
 }
 
 @media (min-width: 576px) and (max-width: 1279px) {

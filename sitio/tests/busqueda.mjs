@@ -929,7 +929,7 @@ try {
         contrasteTituloActiva: ratio(titulo(activa).color, sa.backgroundColor === 'rgba(0, 0, 0, 0)' ? ls.backgroundColor : sa.backgroundColor),
         contrasteCategoria: ratio(categoria(normal).color, sn.backgroundColor === 'rgba(0, 0, 0, 0)' ? ls.backgroundColor : sn.backgroundColor),
         altoFilas: o.map((x) => Math.round(x.getBoundingClientRect().height)),
-        desborde: Math.max(0, ...[...document.querySelectorAll('body *')].filter((e) => !e.closest('footer')).map((e) => Math.round(e.getBoundingClientRect().right) - document.documentElement.clientWidth)),
+        desborde: Math.max(0, ...[...document.querySelectorAll('body *')].filter(() => true).map((e) => Math.round(e.getBoundingClientRect().right) - document.documentElement.clientWidth)),
         desbordePie: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       }
     })
@@ -938,15 +938,30 @@ try {
     comprobar(parseFloat(m.anchoBorde) > 0 && m.bordeLista !== m.fondoLista, `${etiqueta}: la lista tiene borde propio (${m.anchoBorde} ${m.bordeLista})`, `${etiqueta}: la lista no tiene borde propio`)
     comprobar(m.contrasteTitulo >= 4.5 && m.contrasteTituloActiva >= 4.5 && m.contrasteCategoria >= 4.5, `${etiqueta}: contraste del texto de la lista: título ${m.contrasteTitulo.toFixed(1)}:1, activa ${m.contrasteTituloActiva.toFixed(1)}:1, categoría ${m.contrasteCategoria.toFixed(1)}:1`, `${etiqueta}: contraste insuficiente: título ${m.contrasteTitulo.toFixed(2)}, activa ${m.contrasteTituloActiva.toFixed(2)}, categoría ${m.contrasteCategoria.toFixed(2)}`)
     comprobar(m.altoFilas.every((h) => h >= 48), `${etiqueta}: las filas siguen midiendo ≥ 48 px`, `${etiqueta}: filas de menos de 48 px: ${m.altoFilas}`)
-    comprobar(m.desborde <= 1, `${etiqueta}: sin desplazamiento horizontal fuera del pie`, `${etiqueta}: se desborda ${m.desborde} px (fuera del pie)`)
-    if (m.desbordePie > 1) console.log(`  ℹ ${etiqueta}: los enlaces del pie (redes sociales) desbordan la página ${m.desbordePie} px; es del pie, no de la búsqueda`)
+    comprobar(m.desborde <= 1 && m.desbordePie <= 1, `${etiqueta}: sin desplazamiento horizontal`, `${etiqueta}: se desborda ${Math.max(m.desborde, m.desbordePie)} px`)
     if (prefs.contraste === 'alto') {
       comprobar(m.fondoLista === 'rgb(0, 0, 0)' && m.bordeLista === 'rgb(255, 255, 255)', `${etiqueta}: la lista es negra con borde blanco`, `${etiqueta}: la lista no es negra con borde blanco: ${m.fondoLista} / ${m.bordeLista}`)
       comprobar(m.activa.borde === 'rgb(255, 255, 0)', `${etiqueta}: la fila activa lleva borde amarillo`, `${etiqueta}: la fila activa no lleva borde amarillo: ${m.activa.borde}`)
+      // Iconos del campo (lupa y X): `axe` no mide íconos; aquí se mira el filtro que los lleva a blanco.
+      const iconos = await p.evaluate(() =>
+        [...document.querySelectorAll('form:has(input[role="combobox"]) .govco-svg')].map((e) => getComputedStyle(e).filter),
+      )
+      comprobar(iconos.length >= 2 && iconos.every((f) => f === 'brightness(0) invert(1)'), `${etiqueta}: la lupa y la X se dibujan en blanco sobre negro`, `${etiqueta}: iconos con filtro ${JSON.stringify(iconos)}`)
+      // Anillo de foco: del contenedor (con su radio), no del <input> rectangular.
+      await p.locator(CAMPO).press('Escape')
+      await p.locator('button[aria-label="Buscar"]').first().focus()
+      await p.keyboard.press('Shift+Tab')
+      await p.keyboard.press('Shift+Tab')
+      const anilloAlto = await p.evaluate(() => {
+        const campo = document.querySelector('input[role="combobox"]')
+        const cont = campo.closest('.container-govco')
+        const cc = getComputedStyle(cont)
+        return { enCampo: document.activeElement === campo, campo: getComputedStyle(campo).outlineStyle, contenedor: `${cc.outlineStyle} ${cc.outlineColor}`, ancho: parseFloat(cc.outlineWidth) }
+      })
+      comprobar(anilloAlto.enCampo && anilloAlto.campo === 'none' && anilloAlto.contenedor === 'solid rgb(255, 255, 0)' && anilloAlto.ancho >= 2, `${etiqueta}: el anillo de foco amarillo (≥ 2 px) rodea el campo entero`, `${etiqueta}: anillo de foco: ${JSON.stringify(anilloAlto)}`)
     }
     await captura(p, `contraste-${etiqueta.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`, ancho)
-    // Los enlaces del pie no tienen contraste suficiente en alto contraste (ya ocurre sin la búsqueda): se miden aparte.
-    await sinViolaciones(p, `${etiqueta}: axe con la lista abierta (sin el pie)`, { excluir: ['.end-links-container'] })
+    await sinViolaciones(p, `${etiqueta}: axe con la lista abierta`)
     await ctx.close()
   }
 } finally {

@@ -194,12 +194,9 @@ const foco = (p) =>
     return a ? `${a.tagName.toLowerCase()}${a.getAttribute('aria-label') ? `[${a.getAttribute('aria-label')}]` : ''}${a.id ? `#${a.id}` : ''}` : null
   })
 
-const sinViolaciones = async (p, etiqueta, { excluir = [] } = {}) => {
+const sinViolaciones = async (p, etiqueta) => {
   if (!(await p.evaluate(() => typeof window.axe !== 'undefined'))) await p.addScriptTag({ path: rutaAxe })
-  const r = await p.evaluate(
-    ([tags, fuera]) => window.axe.run(fuera.length ? { exclude: fuera.map((s) => [s]) } : document, { runOnly: { type: 'tag', values: tags } }),
-    [ETIQUETAS_AXE, excluir],
-  )
+  const r = await p.evaluate((tags) => window.axe.run(document, { runOnly: { type: 'tag', values: tags } }), ETIQUETAS_AXE)
   const graves = r.violations.filter((v) => BLOQUEANTES.has(v.impact))
   comprobar(
     graves.length === 0,

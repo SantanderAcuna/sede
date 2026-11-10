@@ -259,7 +259,7 @@ useHead({
     <!-- El mismo componente que la cabecera, sin lista; sin JavaScript envía por GET. -->
     <BuscadorGovco
       ref="buscador"
-      class="mb-3"
+      class="buscador-pagina mb-3"
       accion="/buscar"
       :valor-inicial="termino"
       @buscar="alBuscar"
@@ -351,6 +351,26 @@ useHead({
 </template>
 
 <style scoped>
+/*
+ * El botón de accesibilidad flota fijo, a media altura y pegado al borde derecho
+ * (D1). En un móvil de 390 px el campo de esta página cae justo a esa altura y el
+ * círculo tapaba la lupa por completo (a 360 px quedaba a 5 px). Se le deja al
+ * campo, a la derecha, el ancho del círculo más su margen y un respiro de 0,25 rem
+ * (`--acc-flotante-tamano` + `--acc-flotante-margen`; 2,75 rem de círculo a ≤575 px).
+ * Por encima de 1279 px el contenedor ya deja ese espacio a cada lado.
+ */
+@media (max-width: 575px) {
+  .buscador-pagina {
+    max-width: calc(100% - 3.5rem);
+  }
+}
+
+@media (min-width: 576px) and (max-width: 1279px) {
+  .buscador-pagina {
+    max-width: calc(100% - 3.75rem);
+  }
+}
+
 /* El foco que llega por código al encabezado no necesita contorno: no es un control. */
 .encabezado-resultados:focus {
   outline: none;

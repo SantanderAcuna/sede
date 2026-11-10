@@ -104,7 +104,7 @@ Enunciados en `docs/Sección 2 §2.4`.
 | **CAG-12** | **prueba** | `sitio/app/components/govco/PiePaginaGovco.vue:28` · `sitio/tests/ayudas/api-simulada.mjs:38` · `sitio/tests/diseno.mjs:535` · `contract/openapi-original-backup.yaml:66` · +1 |
 | **CAG-13** | **prueba** | `sitio/tests/diseno.mjs:567` · `panel/.vitest/json/output.json:1` · `panel/tests/componentes.test.ts:35` |
 | **CAG-14** | **prueba** | `sitio/tests/diseno.mjs:577` |
-| **CAG-15** | **prueba** | `sitio/app/components/govco/BuscadorGovco.vue:19` · `sitio/tests/diseno.mjs:592` |
+| **CAG-15** | **prueba** | `sitio/app/components/govco/BuscadorGovco.vue:23` · `sitio/tests/diseno.mjs:592` |
 | **CAG-16** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:715` · `sitio/tests/diseno.mjs:678` · `panel/.vitest/json/output.json:1` · `panel/tests/componentes.test.ts:87` |
 | **CAG-17** | **prueba** | `sitio/tests/diseno.mjs:700` |
 | **CAG-18** | desviación declarada | `sitio/tests/diseno.mjs:82` |
@@ -141,7 +141,7 @@ Enunciados en `docs/Sección 5 §5.3.1`.
 | **FUN-008** | desviación declarada | — |
 | **FUN-009** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:102` |
 | **FUN-010** | desviación declarada | — |
-| **FUN-011** | implementación | `sitio/app/layouts/default.vue:253` |
+| **FUN-011** | implementación | `sitio/app/layouts/default.vue:258` |
 | **FUN-012** | **prueba** | `sitio/.vitest/json/output.json:1` · `sitio/app/config/sitemap.ts:351` · `sitio/app/types/menu.ts:10` · `sitio/tests/sitemap.test.ts:58` |
 | **FUN-013** | implementación | `sitio/app/components/SeccionEnPreparacion.vue:5` · `sitio/app/pages/index.vue:10` · `sitio/app/pages/noticias.vue:5` · `sitio/app/pages/portales.vue:5` · +3 |
 | **FUN-014** | implementación | `sitio/app/components/govco/PiePaginaGovco.vue:174` · `contract/openapi-additional-paths.yaml:100` · `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:102` |

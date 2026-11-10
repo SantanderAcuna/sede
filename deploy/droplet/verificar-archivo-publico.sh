@@ -138,6 +138,8 @@ import json, sys
 valor = json.load(sys.stdin)["data"]
 for parte in sys.argv[1].split("."):
     valor = valor[parte]
+if valor is None:   # un null no es un valor: sin esto se enviaba la cadena «None»
+    sys.exit(3)
 print(valor)
 ' "$1"
 }
@@ -159,8 +161,10 @@ CODIGO="$(printf '{"email":"%s","password":"%s"}' "$CORREO" "$CLAVE" \
 XSRF="$(cookie XSRF-TOKEN)"   # la sesión se regenera al iniciar: el token cambia
 
 echo "== 2. Entidad a la que se adjunta"
-UUID_ENTIDAD="$(curl -sS "${CABECERAS[@]}" "$URL/api/v1/entidad" | campo uuid)"
-[ -n "$UUID_ENTIDAD" ] || { rojo "No se pudo leer el uuid de la entidad."; exit 1; }
+if ! UUID_ENTIDAD="$(curl -sS "${CABECERAS[@]}" "$URL/api/v1/entidad" | campo uuid)" || [ -z "$UUID_ENTIDAD" ]; then
+  rojo "GET /api/v1/entidad no entregó un uuid (¿la fila de la entidad tiene uuid nulo?)."
+  exit 1
+fi
 
 echo "== 3. Subida de un PNG de 1x1"
 printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' \

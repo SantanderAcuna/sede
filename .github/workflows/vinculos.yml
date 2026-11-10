@@ -1,0 +1,116 @@
+# Verificación semanal de vínculos (M01-2, RF-01-012).
+#
+# Recorre la sede como lo haría un visitante —parte del `sitemap.xml` y de la portada, y sigue el
+# menú, el pie, las migas de pan y el contenido— y comprueba que ningún vínculo INTERNO responda
+# ≥ 400. Los vínculos EXTERNOS se verifican y se reportan aparte: nunca hacen fallar el trabajo,
+# porque su disponibilidad no depende de la Sede.
+#
+# Cómo se avisa al administrador. El RF-01-012 original pensaba en un comando de Laravel
+# (`VinculoRoto:Verificar`) y una `notificacion` del sistema; no existe ni lo uno ni lo otro. Aquí
+# el aviso es una incidencia del repositorio (con la etiqueta `vinculos-rotos`) que llega a quien
+# vigila el repositorio, más el correo de GitHub por el trabajo fallido. Si la siguiente semana
+# está limpia, la incidencia se cierra sola con un comentario.
+#
+# Los trabajos programados sólo corren desde la rama por defecto (`main`) y GitHub los desactiva
+# tras 60 días sin actividad en el repositorio: si deja de llegar el informe semanal, ese es el
+# primer sitio donde mirar.
+
+name: Verificación de vínculos
+
+on:
+  schedule:
+    # Lunes 06:00 en Bogotá (UTC-5), antes de que empiece la jornada.
+    - cron: '0 11 * * 1'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Dirección de la sede a verificar'
+        required: false
+        default: 'https://staging.santamarta.gov.co'
+      rutas_extra:
+        description: 'Rutas que se suman a las de partida, separadas por coma (opcional)'
+        required: false
+        default: ''
+
+concurrency:
+  group: vinculos
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  NODE_VERSION: '24'
+  ETIQUETA: vinculos-rotos
+
+jobs:
+  vinculos:
+    name: Vínculos
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Verificar vínculos
+        id: verificar
+        # El resultado se evalúa después: primero hay que dejar el informe y avisar.
+        continue-on-error: true
+        working-directory: sitio
+        env:
+          BASE_URL: ${{ inputs.base_url || 'https://staging.santamarta.gov.co' }}
+          RUTAS_EXTRA: ${{ inputs.rutas_extra }}
+          EXTERNOS: '1'
+          INFORME: ${{ runner.temp }}/informe-vinculos.md
+        run: node tests/vinculos.mjs
+
+      - name: Publicar el informe en el resumen del trabajo
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/informe-vinculos.md" ]; then
+            cat "$RUNNER_TEMP/informe-vinculos.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "El verificador no llegó a escribir el informe." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Avisar al administrador (incidencia)
+        if: steps.verificar.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create "$ETIQUETA" --color B60205 \
+            --description "Vínculos internos rotos detectados por la verificación semanal" 2>/dev/null || true
+          if [ -f "$RUNNER_TEMP/informe-vinculos.md" ]; then
+            cp "$RUNNER_TEMP/informe-vinculos.md" "$RUNNER_TEMP/cuerpo.md"
+          else
+            echo "El verificador falló antes de escribir el informe. Ver la ejecución." > "$RUNNER_TEMP/cuerpo.md"
+          fi
+          printf '\nEjecución: %s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$RUNNER_TEMP/cuerpo.md"
+          abierta=$(gh issue list --label "$ETIQUETA" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$abierta" ]; then
+            gh issue comment "$abierta" --body-file "$RUNNER_TEMP/cuerpo.md"
+          else
+            gh issue create --label "$ETIQUETA" \
+              --title "Vínculos rotos en la sede (verificación semanal)" \
+              --body-file "$RUNNER_TEMP/cuerpo.md"
+          fi
+
+      - name: Cerrar la incidencia si ya no hay rotos
+        if: steps.verificar.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for numero in $(gh issue list --label "$ETIQUETA" --state open --json number --jq '.[].number'); do
+            gh issue close "$numero" --comment "La verificación de $GITHUB_RUN_ID no encontró vínculos internos rotos. Se cierra sola."
+          done
+
+      - name: Fallar si hay vínculos internos rotos
+        if: steps.verificar.outcome == 'failure'
+        run: |
+          echo "Hay vínculos internos rotos. Ver el resumen del trabajo y la incidencia."
+          exit 1

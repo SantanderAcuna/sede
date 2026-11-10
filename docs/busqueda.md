@@ -15,7 +15,7 @@ escribe, tolerancia a erratas y resultados por pertinencia.
 | Entra | No entra | Por qué |
 |---|---|---|
 | Trámites y políticas (API) | Noticias, documentos de transparencia, directorio | No existen como contenido (T-23, T-24…). El enum `tipo_recurso` crece cuando existan. |
-| Secciones estáticas del sitio | — | Las lista el sitio en el cliente (`config/sitemap.ts`); no se mezclan con el ranking del servidor. Se muestran como grupo aparte, como hoy. |
+| Secciones estáticas **publicadas** del sitio | Las páginas «en preparación» | Las lista el sitio en el cliente (`config/sitemap.ts`); no se mezclan con el ranking del servidor. En `/buscar`, como grupo aparte; en el desplegable, delante de lo que contesta la API (M01-3, ADR-0021). |
 | `autor` y `miniatura` en el contrato | Valores reales | **HECHO:** ningún contenido los registra. Viajan siempre y valen `null`; no se inventan. |
 
 **Cambio de contrato (reversible, sin consumidores):** `/buscar` tenía dos formas de
@@ -366,7 +366,7 @@ auditoría (§10).
    campos nuevos, pausa de 350 ms; axe; p95 contra staging. Antes de codificarla, la
    especificación de interacción (AC-22.12) la aprueba el titular: está redactada en
    [`busqueda-interaccion.md`](busqueda-interaccion.md), **aprobada el 2026-11-10** (D-I1 a D-I10; la D-I4 ya
-   estaba resuelta con la opción A de §2.5).
+   estaba resuelta con la opción A de §2.5; la D-I10 se enmendó en M01-3, ADR-0021).
 
 ## 9. Límites que quedan
 

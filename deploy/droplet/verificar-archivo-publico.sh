@@ -15,7 +15,9 @@
 #   3. Sube un PNG de 1×1 a la entidad por `POST /api/v1/panel/entidad/{uuid}/archivos`.
 #   4. Hace `curl -sI <url devuelta>` SIN cookies (lo que vería cualquiera con el enlace).
 #   5. Comprueba tres cosas y dice APRUEBA o FALLA para cada una.
-#   6. Borra el archivo (disco y registro) y el usuario de prueba, pase lo que pase.
+#   6. AC-12.4: sube un archivo de 21 MiB (debe dar 422 con mensaje, no un 413 opaco)
+#      y otro de 26 MiB (lo corta nginx con 413 en JSON).
+#   7. Borra los archivos de prueba (disco y registro) y el usuario, pase lo que pase.
 #
 # Se ejecuta en el servidor con `sudo`, desde la cuenta de administración (NO la de
 # despliegue), junto a `usuario-prueba.sh` en la misma carpeta:
@@ -72,27 +74,33 @@ limpiar() {
   local codigo=$?
   set +e
   if [ -z "$SOLO_HTTP" ]; then
-    if [ -n "$UUID_ARCHIVO" ]; then
-      # Sin permiso `archivos.eliminar` el usuario de prueba no puede borrarlo por la
-      # API (a propósito), así que se borra con el modelo: disco y registro.
-      $COMPOSE run --rm -T -e "PRUEBA_UUID=$UUID_ARCHIVO" app php >/dev/null 2>&1 <<'PHP'
+    # Se borra por colección (solo la usan estas pruebas) y no por uuid: si una subida
+    # que debía rechazarse llegara a aceptarse, también se limpia. Sin permiso
+    # `archivos.eliminar` el usuario de prueba no puede borrarlos por la API (a
+    # propósito), así que se borran con el modelo: disco y registro.
+    $COMPOSE run --rm -T -e "PRUEBA_COLECCION=$COLECCION" app php >"$TMP/limpieza.out" 2>&1 <<'PHP'
 <?php
 require '/app/vendor/autoload.php';
 $app = require '/app/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 try {
-    App\Models\FileMedia::where('uuid', getenv('PRUEBA_UUID'))->first()?->deleteFully();
+    $n = 0;
+    foreach (App\Models\FileMedia::where('collection', getenv('PRUEBA_COLECCION'))->get() as $f) {
+        $f->deleteFully();
+        $n++;
+    }
+    echo $n, "\n";
 } catch (Throwable $e) {
     fwrite(STDERR, get_class($e).': '.$e->getMessage()."\n");
     exit(1);
 }
 PHP
-      estado=$?
-      if [ "$estado" -eq 0 ]; then
-        echo "Archivo de prueba borrado ($UUID_ARCHIVO)."
-      else
-        rojo "No se pudo borrar el archivo de prueba ($UUID_ARCHIVO): bórralo a mano."
-      fi
+    estado=$?
+    if [ "$estado" -eq 0 ]; then
+      echo "Archivos de prueba borrados: $(tail -n 1 "$TMP/limpieza.out")."
+    else
+      rojo "No se pudieron borrar los archivos de la colección «$COLECCION»: bórralos a mano."
+      cat "$TMP/limpieza.out" >&2
     fi
     "$DIR/usuario-prueba.sh" borrar || rojo "No se pudo borrar el usuario de prueba: ejecuta «usuario-prueba.sh borrar»."
   fi
@@ -202,7 +210,42 @@ comprobar "X-Content-Type-Options" "${NOSNIFF,,}" "nosniff"
 
 if [ "$FALLOS" -eq 0 ]; then
   verde "AC-12.5: APRUEBA (3 de 3)."
+  FALLOS_125=0
 else
   rojo "AC-12.5: FALLA ($FALLOS de 3)."
-  exit 1
+  FALLOS_125=$FALLOS
 fi
+
+echo "== 6. Límites de tamaño (AC-12.4)"
+FALLOS=0
+sobredimensionado() { # MiB, destino: un PNG válido seguido de ceros
+  { cat "$TMP/prueba.png"; head -c "$(( $1 * 1024 * 1024 ))" /dev/zero; } > "$2"
+}
+subir_grande() { # archivo, nombre de la respuesta
+  curl -sS --max-time 180 -o "$TMP/$2.json" -w '%{http_code}' -b "$JAR" "${CABECERAS[@]}" \
+    -H "X-XSRF-TOKEN: $XSRF" -F "archivo=@$1;type=image/png" -F "collection=$COLECCION" \
+    "$URL/api/v1/panel/entidad/$UUID_ENTIDAD/archivos" || echo "000"
+}
+
+sobredimensionado 21 "$TMP/21m.png"
+CODIGO="$(subir_grande "$TMP/21m.png" r21)"
+comprobar "21 MiB: estado HTTP" "$CODIGO" "422"
+comprobar "21 MiB: el mensaje nombra el límite de 20 MB" "$(grep -c '20 MB' "$TMP/r21.json" || true)" "1"
+rm -f "$TMP/21m.png"
+
+if [ -n "$SOLO_HTTP" ]; then
+  echo "   (26 MiB omitido en el ensayo local: no hay nginx delante que lo corte con 413)"
+else
+  sobredimensionado 26 "$TMP/26m.png"
+  CODIGO="$(subir_grande "$TMP/26m.png" r26)"
+  comprobar "26 MiB: estado HTTP" "$CODIGO" "413"
+  comprobar "26 MiB: respuesta JSON de la API" "$(grep -c '"success":false' "$TMP/r26.json" || true)" "1"
+  rm -f "$TMP/26m.png"
+fi
+
+if [ "$FALLOS" -eq 0 ]; then
+  verde "AC-12.4: APRUEBA."
+else
+  rojo "AC-12.4: FALLA ($FALLOS comprobaciones)."
+fi
+[ "$FALLOS_125" -eq 0 ] && [ "$FALLOS" -eq 0 ] || exit 1

@@ -29,19 +29,30 @@ import {
   construirInforme,
   esRoto,
   extraerEnlaces,
+  pistaDeRespuesta,
   verificarExternos,
 } from '../scripts/lib/vinculos.mjs'
 
 const BASE = (process.env.BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 const LIMITE = Number(process.env.LIMITE_PAGINAS ?? 400)
 const VERIFICAR_EXTERNOS = process.env.EXTERNOS === '1'
+// El verificador se identifica: quien administre el borde puede reconocerlo y permitirlo.
+const AGENTE = 'SedeVerificadorVinculos/1.0 (+https://github.com/SantanderAcuna/sede)'
 const PAUSA_MS = Number(process.env.PAUSA_MS ?? 250)
 const RUTAS_EXTRA = (process.env.RUTAS_EXTRA ?? '').split(',').map((r) => r.trim()).filter(Boolean)
 
 async function pedir(ruta) {
   try {
-    const respuesta = await fetch(BASE + ruta, { redirect: 'follow', headers: { Accept: 'text/html' } })
-    return { estado: respuesta.status, cuerpo: respuesta.ok ? await respuesta.text() : '' }
+    const respuesta = await fetch(BASE + ruta, {
+      redirect: 'follow',
+      headers: { Accept: 'text/html', 'User-Agent': AGENTE },
+    })
+    const cuerpo = await respuesta.text()
+    return {
+      estado: respuesta.status,
+      cuerpo: respuesta.ok ? cuerpo : '',
+      pista: respuesta.ok ? '' : pistaDeRespuesta(respuesta.headers, cuerpo),
+    }
   } catch (error) {
     return { estado: 0, cuerpo: '', error: String(error) }
   }
@@ -57,14 +68,16 @@ const vistos = new Map()
 const origen = new Map() // dirección → primera página que la enlaza
 const externos = new Set()
 const rotos = []
+let inicio // si la portada falla, no se pudo iniciar: no es un vínculo roto de la Sede
 while (pendientes.length && vistos.size < LIMITE) {
   const ruta = pendientes.shift()
   if (vistos.has(ruta)) continue
-  const { estado, cuerpo, error } = await comprobarConReintentos(() => pedir(ruta))
+  const { estado, cuerpo, error, pista } = await comprobarConReintentos(() => pedir(ruta))
   vistos.set(ruta, estado)
   await new Promise((resolver) => setTimeout(resolver, PAUSA_MS))
   if (esRoto(estado)) {
-    rotos.push({ ruta, estado, error, origen: origen.get(ruta) })
+    rotos.push({ ruta, estado, error: error ?? (pista || undefined), origen: origen.get(ruta) })
+    if (ruta === '/') inicio = { ruta, estado, pista }
     continue
   }
   // Cada nivel de la ruta es un destino posible de la miga de pan.
@@ -86,7 +99,12 @@ if (VERIFICAR_EXTERNOS) {
       const controlador = new AbortController()
       const plazo = setTimeout(() => controlador.abort(), 15_000)
       try {
-        const respuesta = await fetch(url, { method: metodo, redirect: 'follow', signal: controlador.signal })
+        const respuesta = await fetch(url, {
+          method: metodo,
+          redirect: 'follow',
+          headers: { 'User-Agent': AGENTE },
+          signal: controlador.signal,
+        })
         return respuesta.status
       } finally {
         clearTimeout(plazo)
@@ -96,7 +114,7 @@ if (VERIFICAR_EXTERNOS) {
   resultadoExternos = { comprobados: urls.length, problemas }
 }
 
-const informe = construirInforme({ base: BASE, paginas: vistos.size, internosRotos: rotos, externos: resultadoExternos })
+const informe = construirInforme({ base: BASE, paginas: vistos.size, internosRotos: rotos, externos: resultadoExternos, inicio })
 console.log(informe)
 if (process.env.INFORME) writeFileSync(process.env.INFORME, informe, 'utf-8')
 

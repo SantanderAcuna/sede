@@ -150,15 +150,53 @@ export function codigoDeSalida(internosRotos) {
 }
 
 /**
+ * Pista de por qué una respuesta falló: lo que el borde declara en sus cabeceras
+ * (`cf-mitigated`, `server`) y el título de la página de error, recortado. Sirve para distinguir
+ * un vínculo roto de un bloqueo del borde contra el verificador. Texto vacío si no hay pistas.
+ *
+ * @param {{ get: (nombre: string) => string | null }} encabezados
+ * @param {string} cuerpo
+ */
+export function pistaDeRespuesta(encabezados, cuerpo) {
+  const partes = []
+  for (const nombre of ['cf-mitigated', 'server', 'cf-ray']) {
+    const valor = encabezados.get(nombre)
+    if (valor) partes.push(`${nombre}=${valor}`)
+  }
+  const titulo = /<title[^>]*>([^<]*)<\/title>/i.exec(cuerpo)?.[1]?.trim()
+  if (titulo) partes.push(`título «${titulo}»`)
+  return partes.join('; ').slice(0, 200)
+}
+
+/**
  * Informe en Markdown, el mismo para la consola, el resumen del trabajo y el aviso al
  * administrador.
  *
+ * Si la portada (`inicio`) no respondió bien, el informe dice que NO se pudo iniciar la
+ * verificación en lugar de presentarlo como un vínculo roto de la Sede (AC-2.9).
+ *
  * @param {{ base: string, paginas: number,
+ *           inicio?: { ruta: string, estado: number, pista?: string },
  *           internosRotos: Array<{ ruta: string, estado: number, error?: string, origen?: string }>,
  *           externos?: { comprobados: number, problemas: Array<{ url: string, estado: number, error?: string }> } }} datos
  */
-export function construirInforme({ base, paginas, internosRotos, externos }) {
+export function construirInforme({ base, paginas, internosRotos, externos, inicio }) {
   const lineas = [`# Verificación de vínculos — ${base}`, '']
+
+  if (inicio) {
+    lineas.push(
+      `**No se pudo iniciar la verificación.** La portada (\`${inicio.ruta}\`) respondió ` +
+        `\`${inicio.estado || 'sin respuesta'}\` y de ahí parte el rastreo.`,
+    )
+    if (inicio.pista) lineas.push('', `Pista: ${inicio.pista}`)
+    lineas.push(
+      '',
+      'Esto NO indica un vínculo roto en la Sede: es un bloqueo o una caída que impide comprobar. ' +
+        'Si el estado es 403, lo probable es que el borde (Cloudflare) esté bloqueando al verificador.',
+    )
+    return `${lineas.join('\n')}\n`
+  }
+
   lineas.push(`Se comprobaron ${paginas} páginas internas.`, '')
 
   const n = internosRotos.length

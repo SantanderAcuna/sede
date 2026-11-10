@@ -18,7 +18,7 @@
  * nada por ellos, ni un hueco. Lo escrito en el campo no se guarda en el
  * navegador, no va a la analítica y no se escribe en la consola (§6).
  */
-import { todasLasRutas } from '~/config/sitemap'
+import { buscarSecciones, indiceDelSitio, seccionesPrincipales } from '~/composables/seccionesBusqueda'
 import {
   analizarResultados,
   estadoDelTermino,
@@ -57,8 +57,8 @@ const TEXTOS = {
   limitado: (n: number) =>
     `Hizo muchas búsquedas seguidas. Espere ${n} ${n === 1 ? 'segundo' : 'segundos'} e intente de nuevo.`,
   sinResultadosTitulo: (q: string) => `No encontramos resultados para «${q}».`,
-  sinResultadosAyuda: 'Revise la ortografía o pruebe con otras palabras. También puede',
-  verTramites: 'ver todos los trámites',
+  sinResultadosAyuda: 'Revise la ortografía o pruebe con otras palabras. También puede ir a una de estas secciones:',
+  seccionesPrincipales: 'Secciones principales de la sede',
 }
 
 const FILTROS: { valor: FiltroTipo; etiqueta: string }[] = [
@@ -125,30 +125,21 @@ const { data: resultado, status, refresh } = await useAsyncData<Resultado | null
 const buscando = computed(() => status.value === 'pending')
 
 /**
- * Índice de las secciones que publican contenido: las de la configuración de
- * rutas, que alimenta el menú, el mapa del sitio y el `sitemap.xml`. Una sección
- * que pasa a publicada entra sola.
+ * Secciones de la sede que calzan con el término: las **publicadas** de la
+ * configuración de rutas (la que alimenta el menú, el mapa del sitio y el
+ * `sitemap.xml`), con tolerancia de una letra y sin tildes (`seccionesBusqueda.ts`).
+ * Una sección que pasa a publicada entra sola. Es la misma regla que usa el
+ * desplegable de sugerencias: la página y el desplegable no pueden discrepar.
  */
-function normalizar(texto: string): string {
-  return texto
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-}
+const indiceSecciones = indiceDelSitio()
 
-const secciones = todasLasRutas()
-  .filter((rutaPublica) => rutaPublica.publicada && rutaPublica.ruta !== '/buscar')
-  .map((rutaPublica) => ({
-    etiqueta: rutaPublica.etiqueta,
-    ruta: rutaPublica.ruta,
-    comparable: normalizar(`${rutaPublica.etiqueta} ${rutaPublica.ruta}`),
-  }))
+/** Enlaces de «sin resultados»: las secciones principales que hoy publican contenido. */
+const principales = seccionesPrincipales()
 
 /** Sólo con «Todo»: con un filtro de tipo no aparecen ni cuentan. */
 const seccionesEncontradas = computed(() => {
   if (estadoTermino.value !== 'valida' || filtro.value !== '') return []
-  const buscado = normalizar(termino.value)
-  return secciones.filter((seccion) => seccion.comparable.includes(buscado))
+  return buscarSecciones(indiceSecciones, termino.value)
 })
 
 /** El grupo se enseña sólo en la primera página; el recuento no cambia al paginar. */
@@ -287,7 +278,7 @@ useHead({
       </nav>
 
       <!-- El recuento se anuncia sin robar el foco. -->
-      <p class="resultado-resumen" role="status">{{ resumen }}</p>
+      <p class="resultado-resumen" :class="{ 'resultado-resumen--vacio': sinResultados }" role="status">{{ resumen }}</p>
 
       <!-- 429 y 422 se explican; no son «sin resultados». -->
       <p v-if="resultado?.tipo === 'limitado'" class="aviso-busqueda" role="alert">
@@ -328,13 +319,20 @@ useHead({
           </li>
         </ul>
 
-        <!-- Sin ni un resultado: el eco del término es texto, nunca HTML. -->
-        <div v-if="sinResultados" class="mt-4">
-          <h2 class="h4">{{ TEXTOS.sinResultadosTitulo(termino) }}</h2>
-          <p class="mb-0">
-            {{ TEXTOS.sinResultadosAyuda }}
-            <NuxtLink to="/tramites">{{ TEXTOS.verTramites }}</NuxtLink>.
-          </p>
+        <!--
+          Sin ni un resultado: el mensaje se dice UNA vez, en el aviso de estado de
+          arriba (que ya es visible y se anuncia), y aquí sólo se ayuda a seguir. El
+          eco del término es texto, nunca HTML.
+        -->
+        <div v-if="sinResultados" class="mt-3">
+          <p class="mb-2">{{ TEXTOS.sinResultadosAyuda }}</p>
+          <nav :aria-label="TEXTOS.seccionesPrincipales">
+            <ul class="lista-resultados">
+              <li v-for="seccion in principales" :key="seccion.ruta">
+                <NuxtLink :to="seccion.ruta" class="resultado-enlace">{{ seccion.etiqueta }}</NuxtLink>
+              </li>
+            </ul>
+          </nav>
         </div>
 
         <PaginacionGovco
@@ -390,6 +388,13 @@ useHead({
 .resultado-resumen {
   min-height: 1.5rem;
   color: var(--govcolor-matterhorn, #4c4c4c);
+}
+
+.resultado-resumen--vacio {
+  margin-top: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
 .aviso-busqueda {

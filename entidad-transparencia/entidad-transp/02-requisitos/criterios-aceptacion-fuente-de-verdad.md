@@ -67,18 +67,19 @@ Scenario: Teclado en submenús
 Scenario: Sugerencias con tolerancia ortográfica
   Given el usuario escribe "prespuesto" y pasan 350 ms sin teclas
   Then hay como máximo 10 sugerencias
-  And cada sugerencia pertenece a un conjunto de contenido interno (trámites, políticas, páginas de la sede)
+  And cada sugerencia pertenece a un conjunto de contenido interno (trámites, políticas, páginas PUBLICADAS de la sede)
   And ninguna tiene URL de otro dominio
 Scenario: Cobertura del índice
-  Given existen la página "/transparencia" y la política "uso-de-cookies"
+  Given existen la página PUBLICADA "/transparencia" y la política "uso-de-cookies"
   When el usuario escribe "transparencia" y "cookies"
   Then cada consulta devuelve la página o política homónima como primer resultado
+  And una página "en preparación" no se ofrece
 Scenario: Sin resultados
   Given el usuario escribe una cadena sin coincidencias
   When ejecuta la búsqueda
   Then se muestra UNA vez «No encontramos resultados para «…»» y enlaces a las secciones principales
 ```
-*Cambios:* debounce 350 (decisión D-I1), el índice debe incluir las páginas de la sede (hoy `transparenci` → 0 sugerencias y `transparencia` → «licencia de tránsito»), se elimina la lista arbitraria de dominios y las «5 búsquedas relacionadas» (no están en el RF). [PENDIENTE-índice de páginas de la sede]
+*Cambios:* debounce 350 (decisión D-I1), el índice debe incluir las páginas de la sede (hoy `transparenci` → 0 sugerencias y `transparencia` → «licencia de tránsito»), se elimina la lista arbitraria de dominios y las «5 búsquedas relacionadas» (no están en el RF). [M01-3, ADR-0021: HECHO en el sitio (desplegable y /buscar, solo páginas publicadas); `/transparencia` entrará cuando se publique. Falso positivo de la API «transparencia» → «licencia de tránsito»: pendiente, no se corrige aquí]
 
 ### CA-01-015 — 404 personalizado
 ```gherkin

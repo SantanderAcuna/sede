@@ -166,3 +166,18 @@ que permite que el despliegue sea reproducible.
   el despliegue a producción sólo puede lanzarse a mano desde `staging`.
 - **`SEDE_DOMINIO`** no está definida, así que el enlace del entorno en GitHub
   sale como `https://`.
+- **La indexación en producción no se puede activar hoy (verificado el 2026-11-10).** Nada en el
+  despliegue declara `SEDE_INDEXABLE` (ni `plantilla.env`, ni `valores-*.env`, ni los flujos, ni
+  `docker/sitio/Dockerfile`), y por defecto es falsa. La leen dos mecanismos que **no coinciden en
+  cuándo**: `robots.txt` la lee **en ejecución** (`NUXT_PUBLIC_INDEXABLE`), pero la cabecera
+  `X-Robots-Tag` sale de `routeRules` en `nuxt.config.ts`, que Nitro **fija en la compilación**. La
+  imagen se compila sin la variable, así que lleva `X-Robots-Tag: noindex, nofollow` para todos los
+  entornos. Comprobado con una compilación por defecto y `NUXT_PUBLIC_INDEXABLE=true` en ejecución:
+  `robots.txt` permite el rastreo y declara el mapa, pero la cabecera sigue en `noindex, nofollow`.
+  Efecto probable: la sede de producción no se indexaría aunque se activara la variable en el
+  servidor. **Antes del primer despliegue a producción:** decidir la cabecera en ejecución (por
+  ejemplo, un manejador de Nitro que lea `runtimeConfig.public.indexable`) o compilar una imagen
+  distinta, y declarar la variable en `valores-produccion.env`. La prueba que lo detecta ya existe:
+  `BASE_URL=https://<dominio> INDEXABLE=1 npm run test:robots` falla si la cabecera sigue en `noindex`.
+  (`SEDE_DOMINIO`, en cambio, sí está protegido: `plantilla.env` lo toma de `DOMINIO` y un
+  despliegue a producción se detiene sin él.)

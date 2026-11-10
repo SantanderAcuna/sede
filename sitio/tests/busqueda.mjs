@@ -16,6 +16,8 @@
  *   TC-BUS-34  Alto contraste y letra grande: la lista y la fila activa se distinguen.
  *   TC-BUS-35  Tras varias búsquedas, `localStorage`, `sessionStorage`, cookies e
  *              IndexedDB no cambian; la consulta no sale a ningún otro sitio ni a la consola.
+ *   TC-BUS-37  Secciones de la sede (M01-3): en el desplegable y en `/buscar`, sólo las
+ *              publicadas, con tolerancia de una letra; «sin resultados» una sola vez.
  *   TC-BUS-36  Escritura lenta (500 ms entre teclas, 20 caracteres): el número de
  *              peticiones coincide con el modelo y ninguna respuesta vieja se muestra.
  *
@@ -703,21 +705,35 @@ try {
     const secTramites = await leer(await abrir(ctx, '/buscar?q=normativa&tipo=tramite'))
     igual(secTramites.secciones, [], 'con «Trámites» el grupo no aparece')
 
-    // Sin resultados.
+    // Sin resultados (M01-3, CA-01-009): el mensaje se dice UNA vez y se ofrecen las secciones principales.
     const pSin = await abrir(ctx, '/buscar?q=zzzz')
-    const sin = await pSin.evaluate(() => ({
-      h2: document.querySelector('h2.h4')?.textContent.trim(),
-      ayuda: document.querySelector('h2.h4 + p')?.textContent.replace(/\s+/g, ' ').trim(),
-      enlace: document.querySelector('h2.h4 + p a')?.getAttribute('href'),
-      estado: document.querySelector('p[role="status"]')?.textContent.trim(),
-    }))
-    igual(sin.h2, 'No encontramos resultados para «zzzz».', 'sin resultados: título (h2)')
-    igual(sin.ayuda, 'Revise la ortografía o pruebe con otras palabras. También puede ver todos los trámites.', 'sin resultados: ayuda (p)')
-    igual(sin.enlace, '/tramites', 'sin resultados: «ver todos los trámites» enlaza al catálogo')
-    comprobar(/No encontramos resultados/.test(sin.estado ?? ''), 'sin resultados: también se anuncia por role=status', `role=status dice: «${sin.estado}»`)
+    const sin = await pSin.evaluate(() => {
+      const estado = document.querySelector('p[role="status"]')
+      const caja = estado?.getBoundingClientRect()
+      const nav = document.querySelector('nav[aria-label="Secciones principales de la sede"]')
+      return {
+        estado: estado?.textContent.trim(),
+        visible: !!caja && caja.width > 0 && caja.height > 0 && getComputedStyle(estado).visibility !== 'hidden',
+        veces: (document.body.innerText.match(/No encontramos resultados/g) ?? []).length,
+        h2Repetido: [...document.querySelectorAll('h2')].some((h) => /No encontramos/.test(h.textContent)),
+        ayuda: nav?.previousElementSibling?.textContent.replace(/\s+/g, ' ').trim(),
+        enlaces: [...(nav?.querySelectorAll('a') ?? [])].map((a) => ({ t: a.textContent.trim(), href: a.getAttribute('href') })),
+      }
+    })
+    igual(sin.estado, 'No encontramos resultados para «zzzz».', 'sin resultados: el mensaje (role=status)')
+    comprobar(sin.visible, 'sin resultados: el mensaje es visible y no sólo para lectores de pantalla', 'sin resultados: el aviso de estado no se ve')
+    igual(sin.veces, 1, 'sin resultados: «No encontramos resultados» aparece UNA vez en la página')
+    igual(sin.h2Repetido, false, 'sin resultados: ya no se repite en un h2')
+    igual(sin.ayuda, 'Revise la ortografía o pruebe con otras palabras. También puede ir a una de estas secciones:', 'sin resultados: ayuda')
+    comprobar(sin.enlaces.length >= 3 && sin.enlaces.every((e) => e.t !== '' && e.href?.startsWith('/') && !e.href.startsWith('//')), `sin resultados: ${sin.enlaces.length} enlaces a secciones principales (${sin.enlaces.map((e) => e.href).join(', ')})`, `sin resultados: enlaces a secciones: ${JSON.stringify(sin.enlaces)}`)
+    comprobar(['/tramites', '/pqrsd', '/normativa'].every((h) => sin.enlaces.some((e) => e.href === h)), 'sin resultados: incluye trámites, PQRSD y normativa, que hoy publican contenido', `sin resultados: faltan secciones en ${JSON.stringify(sin.enlaces.map((e) => e.href))}`)
+    for (const enlace of sin.enlaces) {
+      const r = await ctx.request.get(`${BASE}${enlace.href}`)
+      comprobar(r.status() === 200, `sin resultados: ${enlace.href} responde 200`, `sin resultados: ${enlace.href} responde ${r.status()}`)
+    }
     // El eco del término es texto, no HTML.
     const pHtml = await abrir(ctx, `/buscar?q=${encodeURIComponent('<b>negrita</b>zz')}`)
-    igual(await pHtml.locator('h2.h4 b').count(), 0, 'el eco de lo buscado se escapa (no se interpreta como HTML)')
+    igual(await pHtml.locator('p[role="status"] b').count(), 0, 'el eco de lo buscado se escapa (no se interpreta como HTML)')
 
     // Foco: al cambiar de filtro o de página pasa al h1.
     const pf = await abrir(ctx, '/buscar?q=prueba')
@@ -746,6 +762,68 @@ try {
     await Promise.all([sj.waitForURL(/\/buscar\?q=politica$/), sj.locator('form[action="/buscar"] button[type="submit"]').last().click()])
     igual(await sj.locator('p[role="status"]').textContent(), '2 resultados para «politica».', 'sin JavaScript: el formulario envía por GET y la página responde')
     await ctxSinJs.close()
+    await ctx.close()
+  }
+
+  // ── TC-BUS-37 · secciones de la sede en las sugerencias y en /buscar (M01-3) ──
+  console.log('\nTC-BUS-37 · secciones de la sede en el desplegable y en /buscar (M01-3, CA-01-009)')
+  {
+    const ctx = await contexto(1280, 900)
+    const p = await abrir(ctx, '/')
+    const peticiones = contarPeticiones(p)
+    const sugeridas = () => peticiones.filter((x) => x.tipo === 'sugerencias').length
+    const filas = () => opciones(p).evaluateAll((os) => os.map((o) => o.textContent.replace(/\s+/g, ' ').trim()))
+
+    // Una página publicada sale con su nombre y la categoría «Sección», aunque la API no halle nada.
+    await escribir(p, 'normativa')
+    await esperarOpciones(p, 1)
+    const exacta = await filas()
+    comprobar(/^Normativa,? Sección$/.test(exacta[0] ?? ''), '«normativa»: la sección sale con su nombre y la categoría escrita «Sección»', `«normativa»: ${JSON.stringify(exacta)}`)
+    igual(sugeridas(), 1, '«normativa»: una sola petición a la API (las secciones no cuestan peticiones)')
+    igual(await textoEstado(p), '1 sugerencia disponible.', '«normativa»: se anuncia una sugerencia')
+
+    // Con una letra de más o de menos, y con la palabra a medias.
+    const campo = p.locator(CAMPO)
+    for (const escrito of ['normatva', 'normativ', 'NORMATIVA']) {
+      await campo.fill('')
+      await p.keyboard.type(escrito, { delay: 20 })
+      await esperarOpciones(p, 1)
+      comprobar(/^Normativa/.test((await filas())[0] ?? ''), `«${escrito}» también encuentra «Normativa»`, `«${escrito}»: ${JSON.stringify(await filas())}`)
+    }
+
+    // Una página que aún no publica contenido no se ofrece (decisión de José, 2026-11-10).
+    await campo.fill('')
+    await p.keyboard.type('transparencia', { delay: 20 })
+    await esperarMensaje(p)
+    igual(await opciones(p).count(), 0, '«transparencia» (en preparación): no se ofrece como sugerencia')
+
+    // Con trámites y secciones a la vez, las secciones van primero y el total no pasa de 6.
+    await campo.fill('')
+    await p.keyboard.type('prueba', { delay: 20 })
+    await esperarOpciones(p, 6)
+    comprobar(!(await filas()).some((f) => /Sección/.test(f)), '«prueba»: sin sección que calce, la lista es la de la API (6)', `«prueba»: ${JSON.stringify(await filas())}`)
+
+    // Elegir una sección con el teclado lleva a su página.
+    await campo.fill('')
+    await p.keyboard.type('pqrsd', { delay: 20 })
+    await esperarOpciones(p, 1)
+    await p.keyboard.press('ArrowDown')
+    await Promise.all([p.waitForURL(/\/pqrsd$/), p.keyboard.press('Enter')])
+    ok('↓ e Intro sobre «PQRSD» llevan a /pqrsd')
+
+    // La página de resultados usa la misma regla: tolera una letra.
+    const pr = await abrir(ctx, '/buscar?q=normatva')
+    const grupo = await pr.evaluate(() => ({
+      titulo: document.querySelector('#titulo-secciones')?.textContent.trim(),
+      enlaces: [...document.querySelectorAll('#titulo-secciones ~ ul a')].map((a) => ({ t: a.textContent.trim(), href: a.getAttribute('href') })),
+      resumen: document.querySelector('p[role="status"]')?.textContent.trim(),
+    }))
+    igual(grupo.titulo, 'Secciones de la sede', '/buscar?q=normatva: grupo «Secciones de la sede»')
+    igual(grupo.enlaces, [{ t: 'Normativa', href: '/normativa' }], '/buscar?q=normatva: encuentra «Normativa» (una letra de diferencia)')
+    igual(grupo.resumen, '1 resultado para «normatva».', '/buscar?q=normatva: el recuento cuenta la sección')
+
+    const prT = await abrir(ctx, '/buscar?q=transparencia')
+    igual(await prT.locator('#titulo-secciones').count(), 0, '/buscar?q=transparencia: la página en preparación no se ofrece')
     await ctx.close()
   }
 
@@ -780,14 +858,14 @@ try {
     const casos = [
       ['corta', '/buscar?q=ab', 'alert', 'Escriba al menos 3 caracteres para buscar.'],
       ['larga', `/buscar?q=${'a'.repeat(121)}`, 'alert', 'Use menos de 120 caracteres.'],
-      ['sin-resultados', '/buscar?q=zzzz', 'h2', 'No encontramos resultados para «zzzz».'],
+      ['sin-resultados', '/buscar?q=zzzz', 'estado', 'No encontramos resultados para «zzzz».'],
       ['error', '/buscar?q=error-servidor', 'alert', 'No pudimos realizar la búsqueda en este momento. Intente de nuevo en unos minutos.'],
       ['limite', '/buscar?q=limite-peticiones', 'alert', 'Hizo muchas búsquedas seguidas. Espere 7 segundos e intente de nuevo.'],
     ]
     for (const [nombre, ruta, tipo, texto] of casos) {
       p = await abrir(ctx, ruta)
-      const visto = await p.evaluate((t) => (t === 'alert' ? [...document.querySelectorAll('[role="alert"]')].map((e) => e.textContent.replace(/\s+/g, ' ').trim()) : [...document.querySelectorAll('h2')].map((e) => e.textContent.trim())), tipo)
-      comprobar(visto.some((v) => v.includes(texto)), `${ancho}: estado «${nombre}»: «${texto}»${tipo === 'alert' ? ' (role=alert)' : ''}`, `${ancho}: estado «${nombre}»: esperaba «${texto}» y hay ${JSON.stringify(visto)}`)
+      const visto = await p.evaluate((t) => (t === 'alert' ? [...document.querySelectorAll('[role="alert"]')] : [...document.querySelectorAll('p[role="status"]')]).map((e) => e.textContent.replace(/\s+/g, ' ').trim()), tipo)
+      comprobar(visto.some((v) => v.includes(texto)), `${ancho}: estado «${nombre}»: «${texto}» (${tipo === 'alert' ? 'role=alert' : 'role=status'})`, `${ancho}: estado «${nombre}»: esperaba «${texto}» y hay ${JSON.stringify(visto)}`)
       await captura(p, `pagina-${nombre}`, ancho)
       if (nombre === 'error') {
         const reintentar = await caja(p.getByRole('button', { name: 'Reintentar' }))

@@ -1,6 +1,6 @@
 # Copias de seguridad de la base de datos y de los archivos subidos
 
-Estado: implementadas en la rama de B1 (Módulo 01); **no hay copia hecha ni restaurada en staging hasta que se ejecute la verificación de §7**. La inclusión de los archivos subidos (T-12) se verificó de punta a punta en un entorno de desarrollo (copia completa real: volcado SQL y archivos dentro del zip cifrado, extraídos con la frase), **no** todavía en el servidor: ver §7, paso 1b. Este documento dice qué existe, qué NO cubre y cómo se comprueba.
+Estado: implementadas y **verificadas en staging**. 2026-11-09 (B1): copia real cifrada, `backup:monitor` sano y restauración en base de prueba. 2026-11-10 (T-12): copia completa con archivos hecha en el servidor (161,8 KB; el archivo marcador subido a `storage/app/private` vino en la copia con el mismo contenido) y restauración de la base con 23 tablas, igual que la base viva (§7, pasos 1, 1b y 2). **Pendiente de ver:** la primera ejecución nocturna desatendida con la copia completa (01:30 de Bogotá del 2026-11-11); la del 2026-11-10 corrió antes de #474 y era solo base. Este documento dice qué existe, qué NO cubre y cómo se comprueba.
 
 Dónde corre cada comando: **[SERVIDOR]** dentro de `ssh -t` al servidor de staging, como `ops`; **[PC]** tu terminal; **[CI]** GitHub Actions.
 

@@ -9,9 +9,11 @@ export function verificarExternos(
   },
 ): Promise<Array<{ url: string; estado: number; error?: string }>>
 export function codigoDeSalida(internosRotos: Array<{ ruta: string; estado: number }>): 0 | 1
+export function pistaDeRespuesta(encabezados: { get: (nombre: string) => string | null }, cuerpo: string): string
 export function construirInforme(datos: {
   base: string
   paginas: number
+  inicio?: { ruta: string; estado: number; pista?: string }
   internosRotos: Array<{ ruta: string; estado: number; error?: string; origen?: string }>
   externos?: { comprobados: number; problemas: Array<{ url: string; estado: number; error?: string }> }
 }): string
@@ -20,3 +22,4 @@ export function comprobarConReintentos<R extends { estado: number }>(
   pedir: () => Promise<R>,
   opciones?: { esperasMs?: number[] },
 ): Promise<R>
+export function encabezadosDeVerificador(agente: string, token: string | null | undefined): Record<string, string>

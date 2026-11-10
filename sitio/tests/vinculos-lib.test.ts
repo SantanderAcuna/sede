@@ -20,6 +20,14 @@
  *            contesta, y un rastreo seguido desde una IP agota el límite de 60 peticiones por
  *            minuto de la API; sin esta regla el verificador reportaría vínculos «rotos» que
  *            funcionan.
+ *  - AC-2.9  Si la PORTADA (el punto de partida) no responde bien, el informe NO dice «0 rotos» ni
+ *            culpa a un vínculo: dice que no se pudo iniciar la verificación, con el estado y una
+ *            pista del bloqueo (p. ej. `cf-mitigated`). Medido: desde los ejecutores de GitHub el
+ *            borde respondió 403 a la portada y el informe lo presentó como «1 vínculo roto».
+ *  - AC-2.10 El verificador se identifica con un User-Agent propio y, SI hay un token configurado,
+ *            lo envía en la cabecera `X-Verificador-Vinculos`, para que quien administre el borde
+ *            pueda permitirlo con una regla. Sin token (o con uno vacío, que es lo que llega
+ *            cuando el secreto no existe) esa cabecera NO se envía.
  *  - AC-2.7  La extracción de enlaces separa internos de externos, ignora `mailto:`, `tel:`,
  *            `javascript:`, anclas, comentarios HTML y `/cdn-cgi/` (lo inyecta Cloudflare).
  */
@@ -29,9 +37,11 @@ import {
   codigoDeSalida,
   comprobarConReintentos,
   construirInforme,
+  encabezadosDeVerificador,
   esRoto,
   esTransitorio,
   extraerEnlaces,
+  pistaDeRespuesta,
   verificarExternos,
 } from '../scripts/lib/vinculos.mjs'
 
@@ -239,5 +249,63 @@ describe('esTransitorio y comprobarConReintentos (AC-2.8)', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('pistaDeRespuesta (AC-2.9)', () => {
+  const encabezados = (mapa: Record<string, string>) => ({ get: (n: string) => mapa[n.toLowerCase()] ?? null })
+
+  it('recoge el motivo del borde cuando lo declara', () => {
+    const pista = pistaDeRespuesta(
+      encabezados({ 'cf-mitigated': 'challenge', server: 'cloudflare', 'cf-ray': 'abc123-MIA' }),
+      '<html><title>Just a moment...</title></html>',
+    )
+    expect(pista).toContain('cf-mitigated=challenge')
+    expect(pista).toContain('server=cloudflare')
+    expect(pista).toContain('Just a moment...')
+  })
+
+  it('sin pistas devuelve texto vacío', () => {
+    expect(pistaDeRespuesta(encabezados({}), '')).toBe('')
+  })
+
+  it('recorta el cuerpo: no vuelca una página entera en el informe', () => {
+    const pista = pistaDeRespuesta(encabezados({}), `<p>${'x'.repeat(5000)}</p>`)
+    expect(pista.length).toBeLessThanOrEqual(200)
+  })
+})
+
+describe('construirInforme con la portada caída (AC-2.9)', () => {
+  const texto = construirInforme({
+    base: BASE,
+    paginas: 1,
+    internosRotos: [{ ruta: '/', estado: 403 }],
+    externos: undefined,
+    inicio: { ruta: '/', estado: 403, pista: 'cf-mitigated=challenge; server=cloudflare' },
+  })
+
+  it('dice que no se pudo iniciar y no habla de vínculos rotos de la Sede', () => {
+    expect(texto).toMatch(/No se pudo iniciar la verificación/)
+    expect(texto).toContain('403')
+    expect(texto).toContain('cf-mitigated=challenge')
+    expect(texto).not.toMatch(/\d+ vínculos? internos? rotos?/)
+  })
+})
+
+describe('encabezadosDeVerificador (AC-2.10)', () => {
+  it('sin token solo identifica al verificador', () => {
+    const h = encabezadosDeVerificador('Agente/1.0', undefined)
+    expect(h).toEqual({ 'User-Agent': 'Agente/1.0' })
+  })
+
+  it.each([[''], ['   ']])('un token vacío (%j) no se envía', (token) => {
+    expect(encabezadosDeVerificador('Agente/1.0', token)).toEqual({ 'User-Agent': 'Agente/1.0' })
+  })
+
+  it('con token lo envía en X-Verificador-Vinculos, recortado', () => {
+    expect(encabezadosDeVerificador('Agente/1.0', '  s3creto  ')).toEqual({
+      'User-Agent': 'Agente/1.0',
+      'X-Verificador-Vinculos': 's3creto',
+    })
   })
 })

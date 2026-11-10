@@ -65,6 +65,9 @@ jobs:
           RUTAS_EXTRA: ${{ inputs.rutas_extra }}
           EXTERNOS: '1'
           INFORME: ${{ runner.temp }}/informe-vinculos.md
+          # Opcional. Si el borde (Cloudflare) desafía a los ejecutores de GitHub, una regla puede
+          # permitir la cabecera X-Verificador-Vinculos con este valor. Ver deploy/README.md.
+          VERIFICADOR_TOKEN: ${{ secrets.VERIFICADOR_VINCULOS_TOKEN }}
         run: node tests/vinculos.mjs
 
       - name: Publicar el informe en el resumen del trabajo

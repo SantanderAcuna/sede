@@ -152,3 +152,66 @@ describe('axe', () => {
     )
   })
 })
+
+describe('modo enlaces (páginas de resultados que se comparten por su URL)', () => {
+  const enlace = (n: number) => `/buscar?q=salud&page=${n}`
+
+  it('los controles son enlaces con la dirección de cada página, y no botones', () => {
+    const p = montar({ paginaActual: 2, totalPaginas: 4, enlace })
+    expect(p.findAll('button')).toHaveLength(0)
+    const href = (texto: string) => p.findAll('a').find((a) => a.text() === texto)?.attributes('href')
+    expect(href('Anterior')).toBe('/buscar?q=salud&page=1')
+    expect(href('1')).toBe('/buscar?q=salud&page=1')
+    expect(href('3')).toBe('/buscar?q=salud&page=3')
+    expect(href('Siguiente')).toBe('/buscar?q=salud&page=3')
+  })
+
+  it('la página actual lleva aria-current="page" y sólo ella', () => {
+    const p = montar({ paginaActual: 3, totalPaginas: 5, enlace })
+    const actuales = p.findAll('[aria-current]')
+    expect(actuales).toHaveLength(1)
+    expect(actuales[0]?.text()).toBe('3')
+    expect(actuales[0]?.attributes('aria-current')).toBe('page')
+  })
+
+  it('con JavaScript el clic se intercepta y se emite `cambiar`, sin seguir el enlace', async () => {
+    const p = montar({ paginaActual: 1, totalPaginas: 3, enlace })
+    const evento = new MouseEvent('click', { cancelable: true, bubbles: true })
+    p.findAll('a').find((a) => a.text() === '2')?.element.dispatchEvent(evento)
+    expect(evento.defaultPrevented).toBe(true)
+    expect(p.emitted('cambiar')).toEqual([[2]])
+    await p.findAll('a').find((a) => a.text() === 'Siguiente')?.trigger('click')
+    expect(p.emitted('cambiar')).toEqual([[2], [2]])
+  })
+
+  it('«Anterior» en la primera y «Siguiente» en la última no son enlaces: quedan apagados', async () => {
+    const primera = montar({ paginaActual: 1, totalPaginas: 3, enlace })
+    const anterior = primera.findAll('li')[0]
+    expect(anterior?.classes()).toContain('disabled')
+    expect(anterior?.find('a').exists()).toBe(false)
+    expect(anterior?.get('span').attributes('aria-disabled')).toBe('true')
+    primera.unmount()
+
+    const ultima = montar({ paginaActual: 3, totalPaginas: 3, enlace })
+    const siguiente = ultima.findAll('li').at(-1)
+    expect(siguiente?.find('a').exists()).toBe(false)
+    expect(siguiente?.get('span').attributes('aria-disabled')).toBe('true')
+    await siguiente?.get('span').trigger('click')
+    expect(ultima.emitted('cambiar')).toBeUndefined()
+  })
+
+  it('la elipsis sigue siendo decorativa y no es un enlace', () => {
+    const p = montar({ paginaActual: 5, totalPaginas: 20, enlace })
+    const elipsis = p.findAll('li').filter((li) => li.text() === '…')
+    expect(elipsis.length).toBeGreaterThan(0)
+    for (const li of elipsis) {
+      expect(li.find('a').exists()).toBe(false)
+      expect(li.get('.page-link').attributes('aria-hidden')).toBe('true')
+    }
+  })
+
+  it('sin axe de por medio: no hay violaciones en modo enlaces', async () => {
+    const p = montar({ paginaActual: 2, totalPaginas: 5, enlace })
+    expect(await violacionesAxe(p.element)).toEqual([])
+  })
+})

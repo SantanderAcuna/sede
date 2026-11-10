@@ -57,6 +57,12 @@ interface PropsBuscador {
    * catálogo filtra su propia lista y no debe llevar a otra página.
    */
   conSugerencias?: boolean
+  /**
+   * Dirección a la que envía el formulario si el JavaScript no llega, con el campo
+   * llamado `q` y el máximo de 120 caracteres. `conSugerencias` ya implica
+   * `/buscar`; esto es para la página de resultados, que lleva el campo sin lista.
+   */
+  accion?: string
   /** Sólo para las pruebas: sustituye la petición real a la API. */
   pedirSugerencias?: PedirSugerencias
 }
@@ -68,6 +74,7 @@ const props = withDefaults(defineProps<PropsBuscador>(), {
   textoLimpiar: 'Limpiar la búsqueda',
   valorInicial: '',
   conSugerencias: false,
+  accion: undefined,
   pedirSugerencias: undefined,
 })
 
@@ -108,6 +115,18 @@ const idAyuda = `${idCampo}-ayuda`
 const idOpcion = (indice: number): string => `${idCampo}-op-${indice}`
 
 const hayTexto = computed(() => termino.value !== '')
+
+// La página de resultados lo alimenta con el término de la URL: si cambia desde fuera
+// (la búsqueda de la cabecera, el botón «atrás»), el campo tiene que acompañarlo.
+watch(
+  () => props.valorInicial,
+  (nuevo) => {
+    termino.value = nuevo
+  },
+)
+
+/** A dónde envía el formulario sin JavaScript; `undefined` es «a ninguna parte». */
+const accionFormulario = computed(() => props.accion ?? (props.conSugerencias ? '/buscar' : undefined))
 
 // ---------------------------------------------------------------------------
 // Sugerencias (§4)
@@ -367,6 +386,13 @@ function alSalirFoco(evento: FocusEvent): void {
   indiceActivo.value = -1
 }
 
+/** Lleva el foco al campo: la página de resultados lo pide cuando no hay término. */
+function enfocar(): void {
+  campo.value?.focus()
+}
+
+defineExpose({ enfocar })
+
 function alApretarLista(): void {
   punteroEnLista.value = true
 }
@@ -385,8 +411,8 @@ function alSoltarLista(): void {
     :class="{ 'con-sugerencias': conSugerencias }"
     role="search"
     :aria-label="etiqueta"
-    :action="conSugerencias ? '/buscar' : undefined"
-    :method="conSugerencias ? 'get' : undefined"
+    :action="accionFormulario"
+    :method="accionFormulario ? 'get' : undefined"
     @submit.prevent="buscar"
   >
     <div
@@ -404,9 +430,9 @@ function alSoltarLista(): void {
         type="text"
         autocomplete="off"
         :value="termino"
-        :name="conSugerencias ? 'q' : undefined"
-        :maxlength="conSugerencias ? MAXIMO_CARACTERES : undefined"
-        :enterkeyhint="conSugerencias ? 'search' : undefined"
+        :name="accionFormulario ? 'q' : undefined"
+        :maxlength="accionFormulario ? MAXIMO_CARACTERES : undefined"
+        :enterkeyhint="accionFormulario ? 'search' : undefined"
         :role="conSugerencias ? 'combobox' : undefined"
         :aria-autocomplete="conSugerencias ? 'list' : undefined"
         :aria-expanded="conSugerencias ? abierta : undefined"

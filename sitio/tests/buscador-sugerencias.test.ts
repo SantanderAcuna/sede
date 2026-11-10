@@ -715,3 +715,35 @@ describe('accesibilidad automática (TC-BUS-26, en jsdom)', () => {
     expect(await violacionesAxe(buscador.element)).toEqual([])
   })
 })
+
+describe('formulario por GET sin lista (la página de resultados)', () => {
+  it('`accion` da al formulario su dirección, el campo «q» y el máximo, sin volverlo combobox', () => {
+    const { buscador } = montar({ conSugerencias: false, accion: '/buscar' })
+    expect(buscador.get('form').attributes('action')).toBe('/buscar')
+    expect(buscador.get('form').attributes('method')).toBe('get')
+    const campo = campoDe(buscador)
+    expect(campo.attributes('name')).toBe('q')
+    expect(campo.attributes('maxlength')).toBe('120')
+    expect(campo.attributes('role')).toBeUndefined()
+    expect(buscador.find('[role="listbox"]').exists()).toBe(false)
+  })
+
+  it('sin `accion` ni sugerencias, el formulario no apunta a ninguna parte', () => {
+    const { buscador } = montar({ conSugerencias: false })
+    expect(buscador.get('form').attributes('action')).toBeUndefined()
+    expect(campoDe(buscador).attributes('name')).toBeUndefined()
+  })
+
+  it('si el término de fuera cambia (otra búsqueda, el botón «atrás»), el campo lo sigue', async () => {
+    const { buscador } = montar({ conSugerencias: false, accion: '/buscar', valorInicial: 'salud' })
+    expect(campoDe(buscador).element.value).toBe('salud')
+    await buscador.setProps({ valorInicial: 'licencia' })
+    expect(campoDe(buscador).element.value).toBe('licencia')
+  })
+
+  it('`enfocar()` lleva el foco al campo', () => {
+    const { buscador } = montar({ conSugerencias: false, accion: '/buscar' })
+    ;(buscador.vm as unknown as { enfocar: () => void }).enfocar()
+    expect(document.activeElement).toBe(campoDe(buscador).element)
+  })
+})

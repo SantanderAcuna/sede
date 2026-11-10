@@ -747,3 +747,30 @@ describe('formulario por GET sin lista (la página de resultados)', () => {
     expect(document.activeElement).toBe(campoDe(buscador).element)
   })
 })
+
+describe('secciones de la sede en la lista (M01-3 · RF-01-009)', () => {
+  /** Escribe, deja pasar la pausa y contesta la API con la lista cruda que se le dé. */
+  async function conRespuesta(texto: string, datos: ReturnType<typeof opcion>[]) {
+    const { buscador, llamadas } = montar()
+    await escribir(buscador, texto)
+    await avanzar(350)
+    llamadas[0]?.resolver({ status: 200, headers: { get: () => null }, cuerpo: { success: true, data: datos } })
+    await avanzar(0)
+    return buscador
+  }
+
+  it('una sección sale con su nombre y la categoría escrita «Sección»', async () => {
+    const buscador = await conRespuesta('pqrsd', [])
+    const filas = opcionesDe(buscador)
+    expect(filas).toHaveLength(1)
+    expect(filas[0]?.text()).toContain('Peticiones, quejas, reclamos, sugerencias y denuncias')
+    expect(filas[0]?.text()).toContain('Sección')
+  })
+
+  it('elegir una sección lleva a su ruta con Intro', async () => {
+    const buscador = await conRespuesta('pqrsd', [])
+    await tecla(buscador, 'ArrowDown')
+    await tecla(buscador, 'Enter')
+    expect(buscador.emitted('seleccionar')).toEqual([['/pqrsd']])
+  })
+})

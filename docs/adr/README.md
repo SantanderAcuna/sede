@@ -801,3 +801,37 @@ O, ACC), así que su trazabilidad vive ahora en las pruebas nombradas arriba y e
 operación); tipos regenerados con `make tipos` sin la operación; matriz de trazabilidad regenerada
 (37 operaciones, antes 38); la prueba de deriva se ejecuta en CI. Contexto de la decisión: benchmark de Bogotá,
 Medellín y Cali (Project «sede», `claude/sitemap-benchmark-3-ciudades-y-contrato-2026-11-10.md`).
+
+---
+
+## ADR-0021 — Las secciones publicadas del sitio también salen en el desplegable del buscador
+
+**Estado:** Aceptada (decisión del titular, 2026-11-10: «Desplegable y /buscar»). Enmienda la D-I10 de
+`docs/busqueda-interaccion.md`.
+
+**Contexto.** La D-I10 dejaba las secciones de la sede (PQRSD, Normativa…) solo en `/buscar`. El criterio
+corregido CA-01-009 pide que «transparencia» devuelva la página homónima y que la tolerancia ortográfica
+valga al escribir; la API solo indexa trámites y políticas, y por similitud de trigramas «transparencia»
+devolvía «Duplicado licencia de tránsito…» (HECHO, medido en staging). Además, el mensaje de «sin
+resultados» aparecía dos veces. Una revisión de Bogotá, Medellín y Montería (2026-11-10) no halló
+sugerencias ni tolerancia a erratas en ninguna, con limitaciones: la búsqueda de Montería quedó tras una
+comprobación anti-bots que no se resuelve; la decisión se apoya en RF-01-009, no en lo que hacen los pares.
+
+**Decisión.** (1) Las secciones salen del propio sitio (`config/sitemap.ts`, fuente única), calzadas en el
+cliente por `seccionesBusqueda.ts`: palabras completas, a medias o a una letra de distancia. (2) Van delante
+de lo de la API en el desplegable (hasta 3; total 6) y como grupo en `/buscar`. (3) **Solo las páginas que
+publican contenido**; las «en preparación» no se ofrecen (mismo criterio que el `sitemap.xml`). (4) «Sin
+resultados» dice una vez el mensaje y ofrece enlaces a las secciones principales publicadas.
+
+**Alternativas descartadas.** Indexar las páginas en la API (más peso en el servidor y en el límite de 120/min,
+para páginas que cambian con el código y no con los datos); ofrecer también las páginas «en preparación»
+(llevan a una página sin contenido); bajar el umbral de trigramas de la API (afectaría los bancos de
+calibración).
+
+**Consecuencias.** Sin peticiones nuevas. Cuando `PUBLICADAS.transparencia` pase a `true`, `/transparencia`
+entra sola al buscador; mientras tanto **no** aparece (CA-01-009, escenario «Cobertura del índice», queda
+cubierto por la prueba con un índice de juguete y por la invariante sobre la configuración real). Queda
+vigente el falso positivo de la API «transparencia» → «licencia de tránsito», que no se corrige aquí.
+
+**Evidencia.** `sitio/tests/secciones-busqueda.test.ts` (25), `sitio/tests/sugerencias-secciones.test.ts`
+(18) y `sitio/tests/buscador-sugerencias.test.ts`; aceptación en navegador `sitio/tests/busqueda.mjs` (TC-BUS-37).

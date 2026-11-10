@@ -196,6 +196,31 @@
   text-decoration: underline !important;
 }
 
+/* ----------------------------------------------------------------------------
+   La lista de sugerencias del buscador dentro del modo de alto contraste
+   ----------------------------------------------------------------------------
+
+   Aquí y no en el componente: dentro de un `<style scoped>`, el compilador de Vue
+   descarta la parte que sigue a `:global(.contraste-govco)` y deja la regla como
+   `.contraste-govco { … }`, que pinta de amarillo la página entera. Pasó, y la
+   captura de la vista de alto contraste fue lo que lo detectó.
+
+   La lista flota sobre la página: con el fondo forzado a transparente se leería
+   lo que hay debajo. Y la fila activa necesita algo más que color, que aquí no
+   existe: un borde grueso a la izquierda y un contorno.
+   ---------------------------------------------------------------------------- */
+
+.contraste-govco .sugerencias-busqueda-govco {
+  background-color: #000 !important;
+  border: 0.125rem solid #fff !important;
+}
+
+.contraste-govco .opcion-sugerencia-govco.activa {
+  border-inline-start: 0.5rem solid #ff0 !important;
+  outline: 0.1875rem solid #ff0 !important;
+  outline-offset: -0.1875rem;
+}
+
 /* ============================================================================
    Los logos del pie, asociados y alineados a la izquierda
    ============================================================================

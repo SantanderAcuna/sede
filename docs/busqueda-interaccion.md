@@ -158,7 +158,7 @@ Móvil (360 px), lista abierta; el círculo de accesibilidad queda **debajo** de
 |---|---|---|
 | Escribir | Tras 350 ms de pausa y ≥ 3 caracteres, pide sugerencias | Igual; la opción activa se borra |
 | ↓ | Con ≥ 3 caracteres: abre la lista (pide ya, sin esperar la pausa) | Pasa a la siguiente opción; desde la última vuelve al campo (sin activa) |
-| ↑ | — | Pasa a la anterior; desde la primera vuelve al campo |
+| ↑ | Con el cursor en el campo y la lista abierta: salta a la **última** opción (ver nota); con la lista cerrada, nada | Pasa a la anterior; desde la primera vuelve al campo |
 | Alt+↓ | Abre la lista sin activar nada | — |
 | Intro | Envía el formulario → `/buscar?q=` | Con opción activa: **va a su URL** (D-I3). Sin activa: envía el formulario |
 | Esc | Con texto: lo borra (comportamiento actual). Sin texto: nada | **Cierra la lista** y deja el texto; un segundo Esc borra |
@@ -166,7 +166,11 @@ Móvil (360 px), lista abierta; el círculo de accesibilidad queda **debajo** de
 | ←, →, Inicio, Fin | Mueven el cursor | Mueven el cursor y borran la opción activa |
 
 El recorrido ↓/↑ que pasa por el campo entre la última y la primera opción es una **DECISIÓN** mía; la
-prueba de teclado (TC-BUS-27) la fija y el ejemplo de la APG se usa como referencia cruzada.
+prueba de teclado (TC-BUS-27) la fija y el ejemplo de la APG se usa como referencia cruzada. **↑ desde el campo** con la lista abierta salta a la última opción: es lo que hace el ejemplo
+«Editable Combobox With List Autocomplete» de la APG (con el cuadro de texto no vacío y la lista
+visible, mueve el foco visual a la última sugerencia; el foco del DOM sigue en el cuadro). **Diferencia
+deliberada:** la APG, con la lista cerrada, la abre y va a la última; aquí ↑ con la lista cerrada no
+hace nada (abrir es cosa de ↓ y de Alt+↓). TC-BUS-27 fija las dos cosas.
 
 ### 4.4 Estados y textos
 
@@ -242,7 +246,7 @@ Secciones de la sede   (solo con «Todo» y en la página 1; D-I10)
 │ Publicado el 14 de marzo de 2026            │
 └─────────────────────────────────────────────┘
 … (10 por página)
-‹ Anterior   1  2  3 …  Siguiente ›              ← PaginacionGovco existente
+‹ Anterior   1  2  3 …  Siguiente ›              ← PaginacionGovco, en modo enlace
 ```
 
 - **URL:** `/buscar?q=…&tipo=tramite|politica&page=N`. Es la URL que se comparte.
@@ -260,6 +264,11 @@ Secciones de la sede   (solo con «Todo» y en la página 1; D-I10)
   tipo: **«Publicado el …»** para trámites (la fecha en que la sede lo publicó, no la de la ficha de
   GOV.CO) y **«Vigente desde …»** para políticas. `autor` y `miniatura` valen `null` hoy: **no se
   dibuja nada**, ni un hueco.
+- **Paginación como enlaces.** `PaginacionGovco` gana un modo **enlace**: con la propiedad opcional
+  `enlace(pagina)` dibuja `<a href>` (el actual con `aria-current="page"`; «Anterior» y «Siguiente»
+  deshabilitados como `<span aria-disabled>`) en lugar de botones. Sin esa propiedad se comporta como
+  siempre (botones), de modo que los usos existentes no cambian. Es lo que permite paginar sin JavaScript
+  y compartir la URL de una página.
 - **Foco al cambiar de página o de filtro:** pasa al `<h1>` (`tabindex="-1"`) y el resumen de
   resultados se anuncia por `role="status"`. Se apoya en el anunciador de rutas de Nuxt.
 - **Filtro por tipo:** tres enlaces en un `<nav aria-label="Filtrar por tipo">`; el actual lleva
@@ -272,7 +281,7 @@ Secciones de la sede   (solo con «Todo» y en la página 1; D-I10)
 | **Sin término** (`/buscar` a secas) | «Escriba lo que busca: un trámite, una política o un servicio.» y el campo enfocado | `<p>` |
 | **Cargando** (cambio de página o filtro en el navegador) | «Buscando…» con el contenido anterior atenuado y `aria-busy="true"` | región de resultados |
 | **Con resultados** | «N resultados para «q».» («1 resultado para «q».») | `role="status"` |
-| **Sin resultados** | «No encontramos resultados para «q».» + «Revise la ortografía o pruebe con otras palabras. También puede [ver todos los trámites].» | `<h2>` + `<p>` |
+| **Sin resultados** | «No encontramos resultados para «q».» + «Revise la ortografía o pruebe con otras palabras. También puede [ver todos los trámites].» | `<h2>` + `<p>`; el resumen `role="status"` también dice «No encontramos resultados para «q».», para que se anuncie |
 | **Consulta demasiado corta** (422) | «Escriba al menos 3 caracteres para buscar.» | `role="alert"` |
 | **Consulta demasiado larga** (422) | «Use menos de 120 caracteres.» | `role="alert"` |
 | **Error del servidor / red** | «No pudimos realizar la búsqueda en este momento. Intente de nuevo en unos minutos.» + botón «Reintentar». Si hay secciones encontradas, se muestran igualmente y el aviso aclara que el catálogo no respondió (no se afirma que no existan trámites) | `role="alert"` |
@@ -373,7 +382,7 @@ La redacción en lenguaje claro **no la ha revisado nadie de la Entidad**.
    del sitio (empieza con `/`, no con `//`) antes de navegar.
 4. **E3-3.** Página `/buscar` contra `GET /buscar`: filtro por tipo, paginación de 10, foco al `<h1>`,
    estados (§5) y grupo de secciones (D-I10).
-5. **E3-4.** Pruebas de navegador y capturas a 360 y 1280 px (TC-BUS-26 a 28 y 32 a 36), contra la API
+5. **E3-4 (hecho: `sitio/tests/busqueda.mjs`, `npm run test:busqueda`, `make busqueda`).** Pruebas de navegador y capturas a 360 y 1280 px (TC-BUS-26 a 28 y 32 a 36), contra la API
    simulada local de `sitio/tests/ayudas/api-simulada.mjs`, ampliada con las dos operaciones de búsqueda: staging
    queda detrás de Cloudflare, que desafía a los ejecutores de GitHub, y las pruebas de respuestas fuera de
    orden y de `429` necesitan controlar cada respuesta. El p95 de la página (AC-22.6) y TC-BUS-29 (lector de

@@ -7,6 +7,8 @@
 #   usuario-prueba.sh crear archivos  con archivos.ver/.crear    → AC-12.5
 #   usuario-prueba.sh borrar
 #
+# AC-12.5 completo (subir, `curl -sI`, limpiar) lo hace `verificar-archivo-publico.sh`.
+#
 # Se ejecuta en el servidor con una cuenta que pueda usar Docker (administración,
 # NO la cuenta de despliegue: su llave sólo puede ejecutar `desplegar.sh`).
 #
@@ -89,9 +91,9 @@ $usuario = User::create([
 ]);
 
 if (getenv('PRUEBA_ARCHIVOS') === 'archivos') {
-    // `PermissionSeeder` NO siembra `archivos.*` (las rutas de archivos los exigen
-    // con `can:`), así que se crean aquí si faltan. Sólo se conceden al usuario de
-    // prueba; ningún rol los recibe.
+    // `PermissionSeeder` siembra `archivos.*` (desde #337); `findOrCreate` sólo cubre
+    // un servidor al que aún no se le haya corrido el seeder. Los permisos se conceden
+    // directamente al usuario de prueba: ningún rol del panel los recibe.
     $usuario->givePermissionTo(
         Permission::findOrCreate('archivos.ver', 'web'),
         Permission::findOrCreate('archivos.crear', 'web'),

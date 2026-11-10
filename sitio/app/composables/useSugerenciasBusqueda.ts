@@ -206,7 +206,11 @@ interface EntradaDeMemoria {
 }
 
 export function useSugerenciasBusqueda(opciones: OpcionesSugerencias = {}) {
-  const pedir: PedirSugerencias = opciones.pedir ?? pedirPorDefecto()
+  // La petición real se crea al primer uso, no al montar: un buscador que no
+  // enseña sugerencias (el del catálogo) no debe tocar `$fetch` ni la configuración.
+  let pedirReal: PedirSugerencias | undefined
+  const pedir: PedirSugerencias =
+    opciones.pedir ?? ((consulta, limite, senal) => (pedirReal ??= pedirPorDefecto())(consulta, limite, senal))
 
   const sugerencias = ref<Sugerencia[]>([])
   const estado = ref<EstadoSugerencias>('inactivo')

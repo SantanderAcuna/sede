@@ -80,6 +80,15 @@ else
   ok "el Dockerfile no declara /copias como VOLUME (no hay volúmenes anónimos de copias)"
 fi
 
+# --- 2c. la copia es COMPLETA: nadie vuelve a poner --only-db -----------------------
+# `backup:run --only-db` deja fuera los archivos subidos y `backup:monitor` no distingue una
+# copia parcial de una completa: la vigilancia daría «sana» una copia sin archivos.
+if grep -nE "backup:run.*--only-db|--only-db" "$RAIZ/compose.yaml" "$RAIZ/backend/routes/console.php" | grep -vE '^[^:]+:[0-9]+:\s*(#|//)' >/dev/null; then
+  mal "compose.yaml o routes/console.php usan --only-db: la copia dejaría fuera los archivos subidos"
+else
+  ok "ni la agenda ni el servicio 'copia' usan --only-db (la copia incluye los archivos subidos)"
+fi
+
 # --- 3. la rotación no toca la frase de las copias por defecto ---------------------
 if python3 "$RAIZ/deploy/pruebas/prueba-rotar-secretos.py" >/dev/null 2>&1; then
   ok "rotar-secretos.py no rota la frase de las copias salvo con --frase-copias, y conserva la anterior"

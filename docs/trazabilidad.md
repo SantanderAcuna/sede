@@ -59,7 +59,6 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/transparencia/calendario-tributario` | RF-02-016 | pending |
 | GET | `/busqueda/sugerencias` | RF-01-009, RF-B1-006, RF-B2-036, RNF-REND-01 | implemented |
 | GET | `/buscar` | RF-01-009, RF-B1-005, RF-B2-035, RNF-REND-01 | implemented |
-| GET | `/sitemap.xml` | RF-01-010, RNF-ACES-01 | pending |
 | POST | `/consentimientos` | RF-B1-008, RF-01-D01, RN-01-D01 | implemented |
 | GET | `/politicas` | RF-B1-009, RF-B3-058, RF-B2-008, RF-B2-009, RF-B2-010 | implemented |
 | GET | `/politicas/{slug}` | RF-B1-009, RF-B3-058, RF-B2-008, RF-B2-009, RF-B2-010 | implemented |
@@ -82,7 +81,7 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/panel/ita/tablero` | RF-02-029 | pending |
 | GET | `/panel/auditoria` | — | pending |
 
-El contrato declara **38 operaciones**, de las cuales **30** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
+El contrato declara **37 operaciones**, de las cuales **29** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
 
 ## CAG — Diseño
 

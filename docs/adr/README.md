@@ -766,3 +766,38 @@ extraído del guion del servidor, incluida la equivalencia con la sustitución a
 fijar un secreto, contrato desconocido, registro distinto, variable sin proveedor, línea que no es
 `CLAVE=valor`, pila que no resuelve, imagen sin entorno, producción sin dominio), con el `.env`
 anterior intacto en todos.
+
+
+---
+
+## ADR-0020 — `/sitemap.xml` y `/robots.txt` quedan fuera del contrato de la API
+
+**Estado:** Aceptada (decisión del titular, 2026-11-10: opción A)
+
+**Contexto.** `contract/openapi.yaml` declara `servers: /api/v1`, y `DerivaDelContratoTest` exige una
+ruta Laravel para toda operación marcada `x-status: implemented`. El mapa del sitio lo sirve Nuxt en la
+raíz del dominio (`/sitemap.xml`), no Laravel bajo `/api/v1`. Mientras la operación figuró como
+`pending` el contrato afirmaba que algo ya construido estaba pendiente; marcarla `implemented` habría
+roto la puerta de deriva por una ruta que, por diseño, no existe en la API.
+
+**Decisión.** `/sitemap.xml` sale del contrato de la API. El protocolo sitemaps.org y el `robots.txt`
+(RFC 9309) son especificaciones de rastreo, no parte de la API REST, y OpenAPI describe la API.
+RF-01-010 se traza y se verifica por sus propias pruebas: `sitio/tests/sitemap-xml.test.ts` y
+`sitio/tests/sitemap.mjs` (mapa), `sitio/tests/robots-txt.test.ts` y `sitio/tests/robots.mjs`
+(declaración en `robots.txt`).
+
+**Alternativas descartadas.** (B) *Un estado nuevo `served-by-site`*: no exigía cambios de código
+(el test de deriva solo trata `implemented` de forma especial y el generador copia el valor), pero
+mantiene en el contrato de la API algo que no es de la API. (C) *Dejarlo `pending`*: el contrato
+seguiría diciendo algo falso.
+
+**Consecuencias.** Los tipos generados (`sitio/types/openapi.d.ts`, `panel/src/types/openapi.d.ts`;
+no se versionan, se generan en CI y con `make tipos`) ya no incluyen `obtenerSitemap`. La fila `/sitemap.xml` desaparece de la tabla de operaciones de
+`docs/trazabilidad.md`; RF-01-010 no pertenece a las familias que esa matriz mide (CAG, FUN, SEG, RT,
+O, ACC), así que su trazabilidad vive ahora en las pruebas nombradas arriba y en
+`entidad-transparencia/entidad-transp/02-requisitos/criterios-aceptacion-fuente-de-verdad.md`.
+
+**Evidencia.** `redocly lint` del contrato: 0 errores y 24 avisos (eran 25 antes de retirar la
+operación); tipos regenerados con `make tipos` sin la operación; matriz de trazabilidad regenerada
+(37 operaciones, antes 38); la prueba de deriva se ejecuta en CI. Contexto de la decisión: benchmark de Bogotá,
+Medellín y Cali (Project «sede», `claude/sitemap-benchmark-3-ciudades-y-contrato-2026-11-10.md`).

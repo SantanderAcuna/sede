@@ -162,6 +162,31 @@
 }
 
 /* ----------------------------------------------------------------------------
+   El botón flotante de accesibilidad dentro del modo de alto contraste
+   ----------------------------------------------------------------------------
+
+   El botón tiene que seguir distinguiéndose: las reglas de arriba fuerzan fondo
+   transparente y texto blanco a todo, y el círculo recupera fondo negro con borde
+   blanco, que sobre el negro del modo se lee.
+
+   Estas reglas estaban en el `<style scoped>` del componente con
+   `:global(.contraste-govco) .boton-accesibilidad`. Vue descarta el selector que
+   sigue a `:global(...)` y las dejaba como `.contraste-govco { … }`: no
+   alcanzaban al botón y, peor, el segundo bloque pintaba el fondo de **toda la
+   página** de `#333`. Se detectó al ver lo mismo en la lista de sugerencias.
+   ---------------------------------------------------------------------------- */
+
+.contraste-govco .boton-accesibilidad {
+  background-color: #000 !important;
+  border-color: #fff !important;
+  color: #fff !important;
+}
+
+.contraste-govco .boton-accesibilidad:hover {
+  background-color: #333 !important;
+}
+
+/* ----------------------------------------------------------------------------
    El panel de accesibilidad dentro del modo de alto contraste
    ----------------------------------------------------------------------------
 
@@ -194,6 +219,91 @@
    grosor no es color, así que sigue distinguiendo la opción activa. */
 .contraste-govco .panel-radio-campo:checked ~ .panel-radio-texto {
   text-decoration: underline !important;
+}
+
+/* ----------------------------------------------------------------------------
+   La lista de sugerencias del buscador dentro del modo de alto contraste
+   ----------------------------------------------------------------------------
+
+   Aquí y no en el componente: dentro de un `<style scoped>`, el compilador de Vue
+   descarta la parte que sigue a `:global(.contraste-govco)` y deja la regla como
+   `.contraste-govco { … }`, que pinta de amarillo la página entera. Pasó, y la
+   captura de la vista de alto contraste fue lo que lo detectó.
+
+   La lista flota sobre la página: con el fondo forzado a transparente se leería
+   lo que hay debajo. Y la fila activa necesita algo más que color, que aquí no
+   existe: un borde grueso a la izquierda y un contorno.
+   ---------------------------------------------------------------------------- */
+
+.contraste-govco .sugerencias-busqueda-govco {
+  background-color: #000 !important;
+  border: 0.125rem solid #fff !important;
+}
+
+.contraste-govco .opcion-sugerencia-govco.activa {
+  border-inline-start: 0.5rem solid #ff0 !important;
+  outline: 0.1875rem solid #ff0 !important;
+  outline-offset: -0.1875rem;
+}
+
+/* ----------------------------------------------------------------------------
+   Los iconos del Kit, el anillo de foco del buscador y el pie dentro del modo de
+   alto contraste
+   ----------------------------------------------------------------------------
+
+   Los iconos del Kit (`.govco-svg`) son SVG negros que cada componente tiñe con un
+   `filter` propio: la lupa y la X del buscador, el cobalto; los del pie, otro azul.
+   Sobre el negro del modo quedaban en azul oscuro (≈ 2,4:1, por debajo del 3:1 de
+   WCAG 1.4.11) y `axe` no lo ve porque no son texto. `brightness(0) invert(1)` los
+   lleva a blanco (21:1) sea cual sea el filtro de origen. Son elementos sin
+   descendientes, así que el filtro no crea el bloque contenedor que daba problemas
+   con `position: fixed` (`tests/verificar-modos-contraste.mjs`).
+
+   El anillo de foco del campo: el contorno amarillo de `:focus-visible` caía sobre
+   el `<input>`, que es un rectángulo dentro de una píldora, y se veía a medias (un
+   trazo recto arriba y otro a la derecha). Se pasa al contenedor, que tiene el
+   mismo radio que la píldora.
+
+   El pie: la primera sección va sobre blanco en el diseño normal, con enlaces en
+   azul noche `!important` (`.pie-pagina-govco .first-section a`); al volverse negro
+   el fondo, ese azul daba 2,2:1. Aquí se gana esa regla con más especificidad.
+   ---------------------------------------------------------------------------- */
+
+.contraste-govco .govco-svg {
+  filter: brightness(0) invert(1) !important;
+}
+
+.contraste-govco .govco-search-basic .input-search-basic-govco:focus-visible {
+  outline: none !important;
+}
+
+.contraste-govco .govco-search-basic .container-govco:has(.input-search-basic-govco:focus-visible) {
+  outline: 0.1875rem solid #ff0 !important;
+  outline-offset: 0.125rem !important;
+}
+
+.contraste-govco .pie-pagina-govco .first-section a,
+.contraste-govco .pie-pagina-govco .first-section a * {
+  color: #ff0 !important;
+}
+
+/* ----------------------------------------------------------------------------
+   Reflujo del pie con la letra ampliada
+   ----------------------------------------------------------------------------
+
+   Con la letra al 150 % en 360 px el contenedor mide 240 px de CSS y el nombre de
+   usuario de una red social («AlcaldíadeSantaMartaDTCH») no cabe en una línea: el
+   enlace desbordaba la página 62 px. Pasa a poder partirse; en pantallas anchas no
+   cambia nada porque ahí cabe entero.
+   ---------------------------------------------------------------------------- */
+
+.pie-pagina-govco .links-container a {
+  max-width: 100%;
+}
+
+.pie-pagina-govco .links-container a span:not(.govco-svg) {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ============================================================================

@@ -114,6 +114,11 @@ function alBuscar(termino: string): void {
   enrutador.push({ path: '/buscar', query: { q: termino } })
 }
 
+/** Una sugerencia elegida lleva directo a su página (D-I3); la ruta ya viene comprobada como interna. */
+function alElegirSugerencia(url: string): void {
+  enrutador.push(url)
+}
+
 /** Todos los destinos del menú, en un solo nivel, para poder buscarlos. */
 const destinosDelMenu = menu.flatMap((item) => [
   ...(item.ruta ? [{ ruta: item.ruta, etiqueta: item.etiqueta }] : []),
@@ -259,7 +264,7 @@ const aplicacionesGaleria = [
       -->
       <CabeceraGovco>
         <template #buscador>
-          <BuscadorGovco @buscar="alBuscar" />
+          <BuscadorGovco con-sugerencias @buscar="alBuscar" @seleccionar="alElegirSugerencia" />
         </template>
 
         <template #acciones>

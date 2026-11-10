@@ -21,6 +21,7 @@
     "test:politicas": "node tests/politicas.mjs",
     "test:kit-ui": "node tests/kit-ui.mjs",
     "test:movil": "node tests/movil.mjs",
+    "test:busqueda": "node tests/busqueda.mjs",
     "test:braces": "node ../scripts/audit-deps.sh",
     "test:node-forge": "node ../scripts/validate-node-forge.mjs"
   },

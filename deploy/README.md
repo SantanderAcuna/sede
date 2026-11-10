@@ -156,6 +156,30 @@ php artisan tramites:ingerir --detalle
 El sembrador, en cambio, lee la copia congelada de SUIT y no toca la red: es lo
 que permite que el despliegue sea reproducible.
 
+## La verificación semanal de vínculos y el borde (Cloudflare)
+
+`.github/workflows/vinculos.yml` rastrea la sede desde los ejecutores de GitHub. **Medido el
+2026-11-10:** Cloudflare responde `403` con `cf-mitigated=challenge` («Just a moment...») a esos
+ejecutores, así que el verificador no pasa de la portada y lo dice («No se pudo iniciar la
+verificación»), sin culpar a un vínculo. Rayos de ejemplo: `a58886575b4df0b9-DFW`,
+`a58884677f0deae8-ORD` (este último, desde otra red, sí pasó). Hasta que el borde lo permita, la
+ejecución semanal fallará con ese mensaje.
+
+Lo que hay que hacer en Cloudflare (decisión del titular; no se hace desde el repositorio):
+
+1. **Saber qué regla desafía.** Seguridad → Eventos, buscando el rayo de arriba. Dice si es una
+   regla WAF propia, el nivel de seguridad o el *Bot Fight Mode*.
+2. **Si es una regla WAF o el nivel de seguridad:** crear una regla personalizada con la acción
+   *Omitir* (reglas personalizadas restantes y desafío administrado) cuando
+   `http.request.headers["x-verificador-vinculos"][0] eq "<token>"`, y guardar el mismo `<token>`
+   en GitHub → Settings → Secrets and variables → Actions → secreto `VERIFICADOR_VINCULOS_TOKEN`.
+   El flujo ya envía la cabecera si el secreto existe, y **solo a la sede**, nunca a sitios externos.
+3. **Si es el *Bot Fight Mode* (plan gratuito):** una regla personalizada no lo omite. Hay que
+   decidir entre desactivarlo, subir de plan o correr el verificador desde el servidor.
+
+Después de cualquiera de las dos, se vuelve a lanzar el flujo a mano (Actions → Verificación de
+vínculos → Run workflow) y debe informar `0 vínculos internos rotos` con más de una página.
+
 ## Lo que está pendiente
 
 - **El dominio de producción.** `publicar-entorno.sh produccion` no publica sin

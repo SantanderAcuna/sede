@@ -5,6 +5,7 @@
  *   BASE_URL=... EXTERNOS=1 node tests/vinculos.mjs            # además, verifica los externos
  *   BASE_URL=... INFORME=informe.md node tests/vinculos.mjs     # escribe el informe en Markdown
  *   BASE_URL=... RUTAS_EXTRA=/a,/b node tests/vinculos.mjs      # rutas que se suman a las de partida
+ *   BASE_URL=... VERIFICADOR_TOKEN=... node tests/vinculos.mjs   # token para la regla del borde (solo a la Sede)
  *   BASE_URL=... PAUSA_MS=250 node tests/vinculos.mjs           # pausa entre páginas (por defecto 250)
  *
  * Parte del `sitemap.xml` y de la portada, y sigue los enlaces internos de cada página
@@ -27,6 +28,7 @@ import {
   codigoDeSalida,
   comprobarConReintentos,
   construirInforme,
+  encabezadosDeVerificador,
   esRoto,
   extraerEnlaces,
   pistaDeRespuesta,
@@ -38,6 +40,8 @@ const LIMITE = Number(process.env.LIMITE_PAGINAS ?? 400)
 const VERIFICAR_EXTERNOS = process.env.EXTERNOS === '1'
 // El verificador se identifica: quien administre el borde puede reconocerlo y permitirlo.
 const AGENTE = 'SedeVerificadorVinculos/1.0 (+https://github.com/SantanderAcuna/sede)'
+// Token opcional para que el borde permita al verificador (regla en Cloudflare). SOLO va a la Sede.
+const TOKEN = process.env.VERIFICADOR_TOKEN
 const PAUSA_MS = Number(process.env.PAUSA_MS ?? 250)
 const RUTAS_EXTRA = (process.env.RUTAS_EXTRA ?? '').split(',').map((r) => r.trim()).filter(Boolean)
 
@@ -45,7 +49,7 @@ async function pedir(ruta) {
   try {
     const respuesta = await fetch(BASE + ruta, {
       redirect: 'follow',
-      headers: { Accept: 'text/html', 'User-Agent': AGENTE },
+      headers: { Accept: 'text/html', ...encabezadosDeVerificador(AGENTE, TOKEN) },
     })
     const cuerpo = await respuesta.text()
     return {
@@ -102,7 +106,8 @@ if (VERIFICAR_EXTERNOS) {
         const respuesta = await fetch(url, {
           method: metodo,
           redirect: 'follow',
-          headers: { 'User-Agent': AGENTE },
+          // Sin token: un sitio externo nunca debe recibir el secreto de la Sede.
+          headers: encabezadosDeVerificador(AGENTE, undefined),
           signal: controlador.signal,
         })
         return respuesta.status

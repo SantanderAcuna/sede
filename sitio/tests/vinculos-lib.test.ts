@@ -24,6 +24,10 @@
  *            culpa a un vínculo: dice que no se pudo iniciar la verificación, con el estado y una
  *            pista del bloqueo (p. ej. `cf-mitigated`). Medido: desde los ejecutores de GitHub el
  *            borde respondió 403 a la portada y el informe lo presentó como «1 vínculo roto».
+ *  - AC-2.10 El verificador se identifica con un User-Agent propio y, SI hay un token configurado,
+ *            lo envía en la cabecera `X-Verificador-Vinculos`, para que quien administre el borde
+ *            pueda permitirlo con una regla. Sin token (o con uno vacío, que es lo que llega
+ *            cuando el secreto no existe) esa cabecera NO se envía.
  *  - AC-2.7  La extracción de enlaces separa internos de externos, ignora `mailto:`, `tel:`,
  *            `javascript:`, anclas, comentarios HTML y `/cdn-cgi/` (lo inyecta Cloudflare).
  */
@@ -33,6 +37,7 @@ import {
   codigoDeSalida,
   comprobarConReintentos,
   construirInforme,
+  encabezadosDeVerificador,
   esRoto,
   esTransitorio,
   extraerEnlaces,
@@ -284,5 +289,23 @@ describe('construirInforme con la portada caída (AC-2.9)', () => {
     expect(texto).toContain('403')
     expect(texto).toContain('cf-mitigated=challenge')
     expect(texto).not.toMatch(/\d+ vínculos? internos? rotos?/)
+  })
+})
+
+describe('encabezadosDeVerificador (AC-2.10)', () => {
+  it('sin token solo identifica al verificador', () => {
+    const h = encabezadosDeVerificador('Agente/1.0', undefined)
+    expect(h).toEqual({ 'User-Agent': 'Agente/1.0' })
+  })
+
+  it.each([[''], ['   ']])('un token vacío (%j) no se envía', (token) => {
+    expect(encabezadosDeVerificador('Agente/1.0', token)).toEqual({ 'User-Agent': 'Agente/1.0' })
+  })
+
+  it('con token lo envía en X-Verificador-Vinculos, recortado', () => {
+    expect(encabezadosDeVerificador('Agente/1.0', '  s3creto  ')).toEqual({
+      'User-Agent': 'Agente/1.0',
+      'X-Verificador-Vinculos': 's3creto',
+    })
   })
 })

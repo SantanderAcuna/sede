@@ -22,3 +22,4 @@ export function comprobarConReintentos<R extends { estado: number }>(
   pedir: () => Promise<R>,
   opciones?: { esperasMs?: number[] },
 ): Promise<R>
+export function encabezadosDeVerificador(agente: string, token: string | null | undefined): Record<string, string>

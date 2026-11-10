@@ -150,6 +150,22 @@ export function codigoDeSalida(internosRotos) {
 }
 
 /**
+ * Cabeceras con las que el verificador se presenta: su `User-Agent` y, si hay un token
+ * configurado, `X-Verificador-Vinculos`. Un token vacío (lo que llega cuando el secreto no
+ * existe) no se envía. **El token solo debe ir a la Sede, nunca a un sitio externo.**
+ *
+ * @param {string} agente
+ * @param {string | null | undefined} token
+ * @returns {Record<string, string>}
+ */
+export function encabezadosDeVerificador(agente, token) {
+  const encabezados = { 'User-Agent': agente }
+  const limpio = String(token ?? '').trim()
+  if (limpio) encabezados['X-Verificador-Vinculos'] = limpio
+  return encabezados
+}
+
+/**
  * Pista de por qué una respuesta falló: lo que el borde declara en sus cabeceras
  * (`cf-mitigated`, `server`) y el título de la página de error, recortado. Sirve para distinguir
  * un vínculo roto de un bloqueo del borde contra el verificador. Texto vacío si no hay pistas.

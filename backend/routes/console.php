@@ -30,8 +30,10 @@ Schedule::command('consentimientos:depurar')->daily();
 // Cambiar la zona de toda la aplicación no es opción aquí: movería cómo se leen todas
 // las marcas de tiempo ya guardadas.
 //
-// `withoutOverlapping` evita que una copia lenta se pise con la siguiente; `--only-db`
-// deja fuera los archivos hasta que T-12 decida dónde viven.
+// `withoutOverlapping` evita que una copia lenta se pise con la siguiente. La copia es
+// COMPLETA (base y archivos subidos, T-12): sin `--only-db`, que dejaba los archivos fuera
+// y hacía que `backup:monitor` diera por «sana» una copia parcial (el paquete no distingue
+// copias parciales de completas).
 Schedule::command('backup:clean')->dailyAt('01:00')->timezone('America/Bogota')->withoutOverlapping();
-Schedule::command('backup:run --only-db')->dailyAt('01:30')->timezone('America/Bogota')->withoutOverlapping();
+Schedule::command('backup:run')->dailyAt('01:30')->timezone('America/Bogota')->withoutOverlapping();
 Schedule::command('backup:monitor')->dailyAt('06:00')->timezone('America/Bogota');

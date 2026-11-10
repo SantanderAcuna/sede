@@ -323,7 +323,7 @@ services:
   copia:
     <<: *comun-app
     profiles: ["copias"]
-    command: ["php", "artisan", "backup:run", "--only-db"]
+    command: ["php", "artisan", "backup:run"]
     # `environment` en un servicio que hereda por `<<` reemplaza el del ancla: sin
     # repetir APP_KEY aquí, este servicio la perdía.
     environment:

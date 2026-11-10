@@ -62,6 +62,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // y los endpoints protegidos con auth:sanctum siguen funcionando.
         $middleware->statefulApi();
 
+        // Un invitado en una ruta protegida no se redirige a ninguna parte: la API
+        // responde 401 con su sobre (ver `AuthenticationException` más abajo). Sin
+        // esto, `auth:sanctum` pide `route('login')` para una petición que no declara
+        // `Accept: application/json` —un `curl` sin cabeceras, una sonda, un HEAD—, la
+        // aplicación no tiene esa ruta y la respuesta era un 500 en vez de un 401.
+        $middleware->redirectGuestsTo(static fn (): ?string => null);
+
         // Middleware aliases para Spatie Permission. Permite usar 'role:admin',
         // 'permission:users.create' y 'role_or_permission:admin|users.create' en
         // las definiciones de rutas.

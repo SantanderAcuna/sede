@@ -17,8 +17,12 @@
 #   5. Comprueba tres cosas y dice APRUEBA o FALLA para cada una.
 #   6. Borra el archivo (disco y registro) y el usuario de prueba, pase lo que pase.
 #
-# Se ejecuta en el servidor con una cuenta que pueda usar Docker (administración,
-# NO la cuenta de despliegue). La contraseña del usuario de prueba no se escribe en
+# Se ejecuta en el servidor con `sudo`, desde la cuenta de administración (NO la de
+# despliegue), junto a `usuario-prueba.sh` en la misma carpeta:
+#
+#   ssh -t ops@<servidor> 'sudo bash ~/verificar-archivo-publico.sh'
+#
+# La contraseña del usuario de prueba no se escribe en
 # ningún archivo, ni en la línea de comandos de ningún proceso (no sale en `ps`), ni
 # en la salida de este script.
 #
@@ -47,8 +51,14 @@ done
 
 if [ -z "$SOLO_HTTP" ]; then
   command -v docker >/dev/null || { rojo "Falta «docker» en este equipo."; exit 1; }
-  [ -f "$BASE/.env" ] && [ -f "$BASE/compose.yaml" ] \
-    || { rojo "Faltan $BASE/.env o $BASE/compose.yaml. ¿Es el servidor de staging?"; exit 1; }
+  if ! { [ -f "$BASE/.env" ] && [ -f "$BASE/compose.yaml" ]; }; then
+    if [ "$(id -u)" -ne 0 ]; then
+      rojo "Con esta cuenta no veo $BASE/.env ni compose.yaml (en el servidor sólo root entra a esa carpeta). Ejecuta con sudo."
+    else
+      rojo "Faltan $BASE/.env o $BASE/compose.yaml. ¿Es el servidor de staging?"
+    fi
+    exit 1
+  fi
   COMPOSE="docker compose -f $BASE/compose.yaml --env-file $BASE/.env"
 fi
 
@@ -65,14 +75,24 @@ limpiar() {
     if [ -n "$UUID_ARCHIVO" ]; then
       # Sin permiso `archivos.eliminar` el usuario de prueba no puede borrarlo por la
       # API (a propósito), así que se borra con el modelo: disco y registro.
-      $COMPOSE run --rm -T -e "PRUEBA_UUID=$UUID_ARCHIVO" app php >/dev/null <<'PHP'
+      $COMPOSE run --rm -T -e "PRUEBA_UUID=$UUID_ARCHIVO" app php >/dev/null 2>&1 <<'PHP'
 <?php
 require '/app/vendor/autoload.php';
 $app = require '/app/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-App\Models\FileMedia::where('uuid', getenv('PRUEBA_UUID'))->first()?->deleteFully();
+try {
+    App\Models\FileMedia::where('uuid', getenv('PRUEBA_UUID'))->first()?->deleteFully();
+} catch (Throwable $e) {
+    fwrite(STDERR, get_class($e).': '.$e->getMessage()."\n");
+    exit(1);
+}
 PHP
-      echo "Archivo de prueba borrado ($UUID_ARCHIVO)."
+      estado=$?
+      if [ "$estado" -eq 0 ]; then
+        echo "Archivo de prueba borrado ($UUID_ARCHIVO)."
+      else
+        rojo "No se pudo borrar el archivo de prueba ($UUID_ARCHIVO): bórralo a mano."
+      fi
     fi
     "$DIR/usuario-prueba.sh" borrar || rojo "No se pudo borrar el usuario de prueba: ejecuta «usuario-prueba.sh borrar»."
   fi
@@ -82,9 +102,16 @@ PHP
 trap limpiar EXIT
 
 if [ -z "$SOLO_HTTP" ]; then
-  SALIDA="$("$DIR/usuario-prueba.sh" crear archivos)"
-  CLAVE="$(printf '%s\n' "$SALIDA" | sed -n 's/^Contraseña (se muestra solo ahora): //p')"
-  [ -n "$CLAVE" ] || { rojo "No se pudo leer la contraseña del usuario de prueba."; exit 1; }
+  # La salida se guarda en archivos, pero si el alta falla se muestra la causa: antes
+  # un fallo aquí terminaba el guion sin decir nada.
+  if ! SALIDA="$("$DIR/usuario-prueba.sh" crear archivos 2>"$TMP/crear.err")"; then
+    rojo "No se pudo crear el usuario de prueba:"
+    cat "$TMP/crear.err" >&2
+    printf '%s\n' "$SALIDA" | sed 's/^Contraseña.*/(contraseña omitida)/' >&2
+    exit 1
+  fi
+  CLAVE="$(printf '%s\n' "$SALIDA" | sed -n 's/^.*Contraseña (se muestra solo ahora): \([A-Za-z0-9]*\).*$/\1/p')"
+  [ "${#CLAVE}" -eq 24 ] || { rojo "No se pudo leer la contraseña del usuario de prueba."; exit 1; }
 else
   CORREO="${PRUEBA_CORREO:?con AC125_SOLO_HTTP hace falta PRUEBA_CORREO}"
   CLAVE="${PRUEBA_CLAVE:?con AC125_SOLO_HTTP hace falta PRUEBA_CLAVE}"

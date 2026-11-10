@@ -25,6 +25,12 @@
  *  7. **Nada de lo escrito sale de la petición:** no se registra en consola, no
  *     viaja a ningún otro sitio y los errores se tragan sin su texto.
  *
+ * **Las secciones de la sede** (M01-3, enmienda de D-I10): Transparencia, PQRSD,
+ * Normativa… las conoce el propio sitio, no la API. Se calzan en el cliente con
+ * `seccionesBusqueda.ts` y se mezclan **delante** de lo que contesta la API (hasta 3,
+ * y en total las 6 de D-I2). No cuestan peticiones y no dependen de la API: si ésta
+ * falla o limita, las secciones que calzan se ofrecen igual.
+ *
  * **Sólo en el cliente.** Todo el trabajo nace de un gesto de la persona (escribir,
  * pulsar una tecla), y los gestos no existen en el servidor; por eso nada aquí
  * arranca un temporizador ni una petición al renderizar. El estado es de cada
@@ -33,6 +39,8 @@
 import { getCurrentScope, onScopeDispose, readonly, ref } from 'vue'
 
 import type { components } from '~~/types/openapi'
+
+import { buscarSecciones, indiceDelSitio, type SeccionBuscable } from './seccionesBusqueda'
 
 /** Sugerencia tal como la devuelve el contrato (`SugerenciaBusquedaItem`). */
 type SugerenciaApi = components['schemas']['SugerenciaBusquedaItem']
@@ -76,6 +84,8 @@ export type PedirSugerencias = (
 
 export interface OpcionesSugerencias {
   pedir?: PedirSugerencias
+  /** Sólo para las pruebas: las secciones buscables. Por omisión, las del sitio. */
+  secciones?: readonly SeccionBuscable[]
 }
 
 /** Pausa desde la última tecla (D-I1). La auditoría decía 250; se aprobó 350. */
@@ -85,6 +95,11 @@ export const MINIMO_CARACTERES = 3
 export const MAXIMO_CARACTERES = 120
 /** Cuántas sugerencias se piden y se enseñan (D-I2). La API admite hasta 10. */
 export const LIMITE_SUGERENCIAS = 6
+/** Cuántas secciones de la sede caben, como máximo, delante de las de la API. */
+export const MAXIMO_SECCIONES = 3
+/** La categoría se escribe en texto, como la de trámites y políticas (D-I5). */
+export const CATEGORIA_SECCION = 'Sección'
+const TIPO_SECCION = 'seccion'
 /** Tras este tiempo sin respuesta aparece el indicador de carga (§4.4). */
 export const INDICADOR_CARGA_MS = 200
 export const CACHE_VIGENCIA_MS = 60_000
@@ -220,12 +235,20 @@ export function useSugerenciasBusqueda(opciones: OpcionesSugerencias = {}) {
 
   const memoria = new Map<string, EntradaDeMemoria>()
 
+  // El índice se arma al primer uso, no al montar: un buscador sin sugerencias (el
+  // del catálogo) no tiene por qué tocar la configuración de rutas.
+  let indiceSecciones: readonly SeccionBuscable[] | undefined
+  const secciones = (): readonly SeccionBuscable[] => (indiceSecciones ??= opciones.secciones ?? indiceDelSitio())
+
   let textoActual = ''
   let enComposicion = false
   let numeroPeticion = 0
   let consultaEnVuelo: string | null = null
   let controlador: AbortController | null = null
   let bloqueadoHasta = 0
+  let motivoDelBloqueo: 'limitado' | 'error' | null = null
+  /** Los segundos que anunció el 429; no se recalculan con cada tecla (sin cuenta atrás). */
+  let segundosDelLimite = 0
   let temporizadorPausa: ReturnType<typeof setTimeout> | undefined
   let temporizadorCarga: ReturnType<typeof setTimeout> | undefined
   let temporizadorEspera: ReturnType<typeof setTimeout> | undefined
@@ -268,24 +291,59 @@ export function useSugerenciasBusqueda(opciones: OpcionesSugerencias = {}) {
     return entrada.sugerencias
   }
 
-  function aplicar(lista: Sugerencia[]): void {
-    sugerencias.value = lista
-    estado.value = lista.length > 0 ? 'listo' : 'sin-resultados'
-    esperaSegundos.value = 0
+  /**
+   * Las secciones de la sede que calzan con la consulta. Sólo rutas internas: lo que
+   * se navega con un Intro merece la misma segunda comprobación que lo de la API.
+   */
+  function seccionesPara(consulta: string): Sugerencia[] {
+    return buscarSecciones(secciones(), consulta, MAXIMO_SECCIONES)
+      .filter((seccion) => esRutaInterna(seccion.ruta))
+      .map((seccion, posicion) => ({
+        // Negativo: no choca con las identificaciones de la API, que son positivas.
+        id: -(posicion + 1),
+        titulo: seccion.etiqueta,
+        categoria: CATEGORIA_SECCION,
+        tipoRecurso: TIPO_SECCION,
+        url: seccion.ruta,
+      }))
   }
 
-  function fallar(): void {
+  /** La respuesta de la API ya vale: las secciones van delante y el total no pasa de 6. */
+  function aplicar(lista: Sugerencia[], consulta: string): void {
+    const mezcla = [...seccionesPara(consulta), ...lista].slice(0, LIMITE_SUGERENCIAS)
+    sugerencias.value = mezcla
+    estado.value = mezcla.length > 0 ? 'listo' : 'sin-resultados'
+    esperaSegundos.value = 0
+    motivoDelBloqueo = null
+  }
+
+  /**
+   * La API falló o limitó. Si hay secciones que calzan se ofrecen igual (son locales);
+   * si no, el aviso de siempre (`error` o `limitado`).
+   */
+  function mostrarSoloSecciones(consulta: string): boolean {
+    const locales = seccionesPara(consulta)
+    if (locales.length === 0) return false
+    sugerencias.value = locales
+    estado.value = 'listo'
+    esperaSegundos.value = 0
+    return true
+  }
+
+  function fallar(consulta: string): void {
+    bloqueadoHasta = Date.now() + ESPERA_TRAS_FALLO_MS
+    motivoDelBloqueo = 'error'
+    if (mostrarSoloSecciones(consulta)) return
+    sugerencias.value = []
     estado.value = 'error'
     esperaSegundos.value = 0
-    bloqueadoHasta = Date.now() + ESPERA_TRAS_FALLO_MS
   }
 
-  function limitar(cabeceraReintento: string | null): void {
+  function limitar(cabeceraReintento: string | null, consulta: string): void {
     const segundos = segundosDeEspera(cabeceraReintento)
-    sugerencias.value = []
-    estado.value = 'limitado'
-    esperaSegundos.value = segundos
     bloqueadoHasta = Date.now() + segundos * 1000
+    motivoDelBloqueo = 'limitado'
+    segundosDelLimite = segundos
     // Cuando pasa la espera el aviso deja de ser cierto: se retira solo. No se
     // vuelve a preguntar por su cuenta; la siguiente tecla lo hará (regla 6).
     clearTimeout(temporizadorEspera)
@@ -296,6 +354,25 @@ export function useSugerenciasBusqueda(opciones: OpcionesSugerencias = {}) {
       }
       temporizadorEspera = undefined
     }, segundos * 1000)
+    if (mostrarSoloSecciones(consulta)) return
+    sugerencias.value = []
+    estado.value = 'limitado'
+    esperaSegundos.value = segundos
+  }
+
+  /**
+   * Durante la pausa de un fallo o de un 429 no se pregunta a la API, pero la lista
+   * local sigue al texto: si ya no hay secciones que calcen, vuelve el aviso.
+   */
+  function seguirElTextoEnPausa(consulta: string): void {
+    if (mostrarSoloSecciones(consulta)) return
+    sugerencias.value = []
+    if (motivoDelBloqueo === 'limitado') {
+      estado.value = 'limitado'
+      esperaSegundos.value = segundosDelLimite
+    } else if (motivoDelBloqueo === 'error') {
+      estado.value = 'error'
+    }
   }
 
   async function lanzar(consulta: string): Promise<void> {
@@ -303,12 +380,15 @@ export function useSugerenciasBusqueda(opciones: OpcionesSugerencias = {}) {
     // Un espacio de más al final no es otra consulta: no se cancela y repite.
     if (consulta === consultaEnVuelo) return
     // Pausa de 429 o de fallo: no se agrava el problema (D-I7).
-    if (Date.now() < bloqueadoHasta) return
+    if (Date.now() < bloqueadoHasta) {
+      seguirElTextoEnPausa(consulta)
+      return
+    }
 
     const guardada = leerDeMemoria(consulta)
     if (guardada) {
       soltarPeticion()
-      aplicar(guardada)
+      aplicar(guardada, consulta)
       return
     }
 
@@ -330,7 +410,7 @@ export function useSugerenciasBusqueda(opciones: OpcionesSugerencias = {}) {
       // intento puede contar un fallo; el texto nunca se registra.
       if (numero === numeroPeticion) {
         soltarPeticion()
-        fallar()
+        fallar(consulta)
       }
       return
     }
@@ -339,22 +419,22 @@ export function useSugerenciasBusqueda(opciones: OpcionesSugerencias = {}) {
     soltarPeticion()
 
     if (respuesta.status === 429) {
-      limitar(respuesta.headers.get('Retry-After'))
+      limitar(respuesta.headers.get('Retry-After'), consulta)
       return
     }
     // El cliente no manda menos de 3 ni más de 120, así que un 422 no debería
     // ocurrir; si ocurre se trata como «sin resultados», no como un fallo.
     if (respuesta.status === 422) {
-      aplicar([])
+      aplicar([], consulta)
       return
     }
     const lista = respuesta.status === 200 ? analizarSugerencias(respuesta.cuerpo) : null
     if (lista === null) {
-      fallar()
+      fallar(consulta)
       return
     }
     guardarEnMemoria(consulta, lista)
-    aplicar(lista)
+    aplicar(lista, consulta)
   }
 
   /** El texto del campo cambió. Pregunta a la API tras la pausa. */

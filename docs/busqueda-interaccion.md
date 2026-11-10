@@ -33,7 +33,7 @@ La D-I1 y la D-I4 alteraban algo que ya estaba escrito en la auditoría; las dem
 | **D-I7** | Si la API responde 429, **las sugerencias se pausan** durante `Retry-After` y se avisa **una vez** | Sí | Evita que el cliente agrave el bloqueo y evita anunciar un contador cada segundo. | — |
 | **D-I8** | **El límite se queda en 120 por minuto** con el criterio de revisión del §6 | Sí | Subirlo a ciegas debilita la defensa sin dato; el criterio dice cuándo subirlo. | — |
 | **D-I9** | El campo de `/buscar` usa un **borde de 4,54:1** (`#767676`), no el `#ced4da` de `DESIGN.md` §3.3 | Sí | `#ced4da` sobre blanco da **1,49:1**; WCAG 1.4.11 pide 3:1 para el borde de un campo. HECHO (calculado). `DESIGN.md` §3.3 lo define así para los formularios en general; no lo toco aquí. | El campo de `/buscar` no cumple 1.4.11 salvo que otro indicador lo identifique. |
-| **D-I10** *(añadida al revisar el código, 2026-11-10)* | **Las secciones del sitio siguen en `/buscar`**, como grupo aparte «Secciones de la sede» sobre los resultados de la API. Solo en la página, no en el desplegable de sugerencias. Aparecen con el filtro «Todo» y en la primera página; se ocultan con «Trámites» o «Políticas». Detalle en §5.1. | **Sí** | HECHO: la página actual ya lista las secciones publicadas (mapa del sitio, atención, PQRSD…) a partir de `config/sitemap.ts`, y el contrato de `/buscar` dice que *«las secciones estáticas del sitio las lista el propio sitio»*. La primera redacción de esta especificación solo contemplaba trámites y políticas, así que buscar «atención» habría dejado de devolver resultados: una regresión. | Las secciones dejan de ser localizables desde el buscador. |
+| **D-I10** *(añadida al revisar el código, 2026-11-10; **enmendada el mismo día en M01-3**, ver ADR-0021)* | **Las secciones publicadas del sitio salen en `/buscar` y también en el desplegable.** En `/buscar` siguen como grupo aparte «Secciones de la sede» sobre los resultados de la API (con «Todo» y en la página 1; se ocultan con «Trámites» o «Políticas»). En el desplegable van **antes** de los trámites y políticas (hasta 3; en total, las 6 de D-I2), con la categoría «Sección». **Solo las páginas que publican contenido** (`publicada` en `config/sitemap.ts`); las «en preparación» no se ofrecen. Calce por palabras con tolerancia de una letra (Levenshtein ≤ 1, desde 5 letras) y con la palabra escrita a medias. Detalle en §5.1. | **Sí** (la redacción original, «solo en la página», fue sustituida por decisión del titular tras el criterio CA-01-009) | HECHO: el criterio corregido CA-01-009 exige que «transparencia» devuelva la página homónima y que la tolerancia valga al escribir; con la regla original, el desplegable no podía hacerlo. HECHO: Bogotá, Medellín y Montería no ofrecen sugerencias ni tolerancia a erratas (revisión del 2026-11-10, con las limitaciones anotadas en el Project «sede»), así que la decisión se apoya en RF-01-009, no en lo que hacen otras alcaldías. | Las secciones dejan de ser localizables desde el buscador, o aparecen páginas vacías «en preparación». |
 
 ---
 
@@ -71,7 +71,7 @@ APG; si el Kit exige otro marcado, hay que decidirlo.
 
 **Entra:** (1) sugerencias mientras se escribe en el buscador del encabezado, que ya existe
 (`BuscadorGovco.vue`) y hoy solo recoge el término; (2) la página `/buscar` con resultados reales,
-filtro por tipo y paginación, más las secciones del sitio como grupo aparte (D-I10).
+filtro por tipo y paginación, más las secciones publicadas del sitio como grupo aparte y en el desplegable (D-I10, enmendada).
 
 **No entra:** búsqueda por voz; resaltado de la coincidencia dentro del título (con tolerancia a
 erratas no hay una coincidencia literal que resaltar); filtros por fecha; contadores por tipo (exigirían
@@ -237,7 +237,7 @@ Inicio › Buscar
 Filtrar por:  Todo · Trámites · Políticas             ← enlaces; el actual con aria-current
 ─────────────────────────────────────────────
 12 resultados para «licencia de construccion»         ← role="status"
-Secciones de la sede   (solo con «Todo» y en la página 1; D-I10)
+Secciones de la sede   (solo publicadas; con «Todo» y en la página 1; D-I10)
   · Mapa del sitio                                    ← enlaces a rutas publicadas de `config/sitemap.ts`
 ┌─────────────────────────────────────────────┐
 │ Trámite                                     │
@@ -254,12 +254,24 @@ Secciones de la sede   (solo con «Todo» y en la página 1; D-I10)
   títulos existente. **`noindex`** (una búsqueda no es contenido que indexar).
 - **Sin JavaScript** el formulario envía por GET y la página se genera completa. (D-I4 resuelta con la
   opción A: el servidor del sitio consulta la API, de modo que esto se cumple.)
-- **Secciones del sitio (D-I10).** Mismo criterio que la página actual: una sección publicada entra si
-  su nombre o su ruta, sin tildes ni mayúsculas, contiene el término. Se muestran como un grupo
-  «Secciones de la sede» **antes** de los resultados de la API, **solo** con el filtro «Todo» y **solo** en
-  la primera página (en las siguientes no se repiten). Con «Trámites» o «Políticas» no aparecen. El recuento
-  del resumen es el total de la API más las secciones encontradas y no cambia al paginar. Con menos de 3
-  caracteres no se busca nada (estado «corta», §5.2).
+- **Secciones del sitio (D-I10, enmendada; ADR-0021).** Entra una sección **solo si publica contenido**
+  (`publicada` en `config/sitemap.ts`; la propia `/buscar` no). Calza si **todas** las palabras de la
+  consulta que cuentan (≥ 4 letras; si no hay, las de ≥ 3) coinciden con alguna palabra de su nombre, de su
+  rótulo corto del menú («PQRSD») o de su dirección, sin tildes ni mayúsculas: la misma palabra, una que
+  empieza igual («transparenci») o una a **una letra** de distancia (Levenshtein ≤ 1, solo desde 5 letras:
+  «noma» no encuentra «norma»). Dos erratas no calzan. Se muestran como un grupo «Secciones de la sede»
+  **antes** de los resultados de la API, **solo** con el filtro «Todo» y **solo** en la primera página (en las
+  siguientes no se repiten). Con «Trámites» o «Políticas» no aparecen. El recuento del resumen es el total de
+  la API más las secciones encontradas y no cambia al paginar. Con menos de 3 caracteres no se busca nada
+  (estado «corta», §5.2).
+- **Secciones en el desplegable (D-I10, enmendada).** Las mismas reglas de calce, calculadas en el cliente
+  (cero peticiones nuevas). Van **delante** de lo que contesta la API: hasta 3 secciones y, en total, las 6 de
+  D-I2; categoría en texto «Sección». Si la API no contesta algo útil (sin resultados, error o 429) las
+  secciones que calzan se ofrecen igual; si no calza ninguna, el aviso de siempre. Durante la pausa de un 429
+  la lista local sigue al texto, pero el aviso repite los mismos segundos (sin cuenta atrás).
+- **«Sin resultados» (CA-01-009).** El mensaje «No encontramos resultados para «…»» sale **una sola vez**, y
+  debajo una línea de ayuda y enlaces a las **secciones principales publicadas** del menú (salen de
+  `config/sitemap.ts`, así que una sección nueva aparece al publicarse).
 - **Resultado:** categoría en texto; título como enlace a `url`; extracto; fecha con etiqueta según el
   tipo: **«Publicado el …»** para trámites (la fecha en que la sede lo publicó, no la de la ficha de
   GOV.CO) y **«Vigente desde …»** para políticas. `autor` y `miniatura` valen `null` hoy: **no se
@@ -341,7 +353,8 @@ La redacción en lenguaje claro **no la ha revisado nadie de la Entidad**.
 | TC-BUS-26 | axe-core sobre `/buscar` y el encabezado con la lista **abierta, cerrada, sin resultados y con error**: 0 violaciones críticas o serias | §4.2, §4.6 | Auto. |
 | TC-BUS-27 | Atributos ARIA exactos de §4.2; teclado de §4.3 (↑ ↓ Alt+↓ Intro Esc Tab, el recorrido por el campo); el foco visible no se pierde | §4.2, §4.3 | Navegador |
 | TC-BUS-28 | Los siete estados de §4.4 y los ocho de §5.2 con su texto; **objetivos ≥ 44 px medidos por su caja**; capturas a **360 y 1280 px**; el círculo flotante **no tapa** la lista (comprobar que el elemento bajo el centro de cada fila es la fila) | §4.4, §4.6, §5.2 | Navegador + capturas |
-| TC-BUS-32 | `/buscar?q=`: campos, enlaces, paginación, filtro por tipo, texto de «sin resultados», grupo «Secciones de la sede» (solo con «Todo» y en la página 1, D-I10), **resultados también sin JavaScript** (D-I4 = A lo permite) | §5 | Auto. |
+| TC-BUS-32 | `/buscar?q=`: campos, enlaces, paginación, filtro por tipo, texto de «sin resultados», grupo «Secciones de la sede» (solo publicadas, con «Todo» y en la página 1, D-I10), **resultados también sin JavaScript** (D-I4 = A lo permite) | §5 | Auto. |
+| **TC-BUS-37** *(nuevo, M01-3)* | Secciones en el desplegable y en `/buscar`: «normativa» → «Normativa · Sección» con 1 sola petición; «normatva», «normativ» y «NORMATIVA» también; «transparencia» (aún sin publicar) no ofrece página; «prueba» no mezcla secciones; «pqrsd» + ↓ + Intro navega a `/pqrsd`; `/buscar?q=normatva` muestra el grupo y `/buscar?q=transparencia` no; «sin resultados» una vez y con ≥ 3 enlaces que responden 200 | §4, §5 | Navegador |
 | **TC-BUS-33** *(nuevo)* | Reflujo a 320 px y zoom al 200 %: sin desplazamiento horizontal ni texto cortado | §4.6 | Navegador |
 | **TC-BUS-34** *(nuevo)* | Alto contraste del sitio y tamaño «A+»: la lista y la fila activa se distinguen; contrastes ≥ los de §2 | §4.6 | Navegador |
 | **TC-BUS-35** *(nuevo)* | Tras varias búsquedas, `localStorage`, `sessionStorage`, cookies e IndexedDB **no cambian**; ninguna petición de analítica lleva la consulta | §4.5, §6 | Navegador |

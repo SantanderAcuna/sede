@@ -162,6 +162,31 @@
 }
 
 /* ----------------------------------------------------------------------------
+   El botón flotante de accesibilidad dentro del modo de alto contraste
+   ----------------------------------------------------------------------------
+
+   El botón tiene que seguir distinguiéndose: las reglas de arriba fuerzan fondo
+   transparente y texto blanco a todo, y el círculo recupera fondo negro con borde
+   blanco, que sobre el negro del modo se lee.
+
+   Estas reglas estaban en el `<style scoped>` del componente con
+   `:global(.contraste-govco) .boton-accesibilidad`. Vue descarta el selector que
+   sigue a `:global(...)` y las dejaba como `.contraste-govco { … }`: no
+   alcanzaban al botón y, peor, el segundo bloque pintaba el fondo de **toda la
+   página** de `#333`. Se detectó al ver lo mismo en la lista de sugerencias.
+   ---------------------------------------------------------------------------- */
+
+.contraste-govco .boton-accesibilidad {
+  background-color: #000 !important;
+  border-color: #fff !important;
+  color: #fff !important;
+}
+
+.contraste-govco .boton-accesibilidad:hover {
+  background-color: #333 !important;
+}
+
+/* ----------------------------------------------------------------------------
    El panel de accesibilidad dentro del modo de alto contraste
    ----------------------------------------------------------------------------
 

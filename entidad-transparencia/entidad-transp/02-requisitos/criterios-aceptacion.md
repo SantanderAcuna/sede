@@ -1,3 +1,5 @@
+> **⚠ Superado en parte.** La versión vigente y corregida de estos criterios es [`criterios-aceptacion-fuente-de-verdad.md`](criterios-aceptacion-fuente-de-verdad.md) (misma carpeta). Si difieren, manda aquella. Este archivo se conserva sin otros cambios.
+
 # Criterios de Aceptación Gherkin — Flujos Críticos
 
 > **Propósito:** consolidar en Given/When/Then los criterios de aceptación de los flujos críticos de los módulos 01 y 02, listos para automatizar con Pest (PHP) y Playwright (TypeScript).

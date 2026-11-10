@@ -1,8 +1,8 @@
 # T-22 · Especificación de interacción del buscador (AC-22.12)
 
-**Estado: BORRADOR para aprobación del titular. No hay código de la entrega 3.**
+**Estado: APROBADA por el titular el 2026-11-10** (D-I1 a D-I10, ver §1). La entrega 3 se codifica
+contra este documento, en PR separados (§10).
 Elaborada el 2026-10-30. Cubre el combobox de sugerencias del encabezado y la página `/buscar`.
-La entrega 3 no se codifica hasta que respondas a las decisiones del §1.
 
 Documentos hermanos: [`busqueda.md`](busqueda.md) (diseño, mediciones, límites) ·
 [`casos-de-prueba-t22-busqueda.md`](../sede-electronica-doc/01-estructura-identidad/casos-de-prueba-t22-busqueda.md)
@@ -16,20 +16,24 @@ tú puedes cambiar.
 
 ## 1. Decisiones que necesito de ti
 
-Respóndelas con «sí», «no» o «cambia a …». Mi recomendación va primero. La D-I1 y la D-I4 alteran
-algo que ya estaba escrito en la auditoría; las demás son nuevas.
+**Respuesta del titular (2026-11-10): «sí a todo».** Se aprueban D-I1 a D-I9 como están redactadas
+(la D-I4 con la aclaración de abajo) y la D-I10, añadida al revisar el código para la entrega 3. La
+tabla conserva la redacción original con la recomendación y el motivo de cada decisión.
+
+La D-I1 y la D-I4 alteraban algo que ya estaba escrito en la auditoría; las demás eran nuevas.
 
 | # | Decisión | Recomendación | Por qué | Si dices que no |
 |---|---|---|---|---|
 | **D-I1** | **Pausa del cliente: 350 ms** (la auditoría y AC-22.2 dicen 250 ms) | **Sí** | Con 250 ms, una persona en móvil dispara 9–11 peticiones por consulta; con 350 ms, 5–9 (`busqueda.md` §2.4, INFERENCIA con datos publicados). Con 350 ms, el límite de 120 por minuto protege a ≈ 10 personas detrás de una IP; con 250 ms, a ≈ 5. | Se mantiene 250 ms y hay que subir `BUSQUEDA_LIMITE_POR_MINUTO` a 240 desde el día 1. AC-22.2 se prueba con 250. |
 | **D-I2** | **Máximo 6 sugerencias visibles** (la API devuelve hasta 10; el cliente pide `limite=6`) | Sí | 6 filas de 48 px son 288 px: caben en un móvil con el teclado abierto, que deja ≈ 300–340 px (estimación mía, no medida en dispositivos). Más filas obligan a desplazarse dentro de la lista. | Se pide `limite=10` y la lista se desplaza por dentro. |
 | **D-I3** | **Intro con una sugerencia activa va al contenido** (no rellena el campo); **sin sugerencia activa, busca** en `/buscar?q=` | Sí | En un buscador del sitio, elegir «Licencia de construcción» y quedarse en el campo obliga a un paso más. Se aparta del ejemplo de la APG (que rellena el campo) y lo digo. | Intro rellena el campo y hace falta una segunda pulsación. |
-| **D-I4** | **De dónde salen los resultados de `/buscar`:** decidir A, B, C o D de `busqueda.md` §2.5 **antes** de codificar la página | **A** (canal interno de confianza) si aceptas tocar nginx y compose; si no, **D** (navegador) como mal menor | Medido en staging: las llamadas del servidor del sitio comparten un solo cupo; una ráfaga de 50 cargas de `/tramites` vació el catálogo para quien lo pidió ≈ 80 s. Este comportamiento afecta a todo el sitio, no solo a la búsqueda. | Sin decisión, la página `/buscar` hereda el defecto. |
+| **D-I4** | **De dónde salen los resultados de `/buscar`:** decidir A, B, C o D de `busqueda.md` §2.5 **antes** de codificar la página. **RESUELTA: opción A**, aplicada y medida en staging el 2026-10-30 (ADR-0018, `busqueda.md` §2.5). No queda nada por decidir; la página `/buscar` consulta la API desde el servidor del sitio por el canal interno, con la IP del visitante. | **A** (canal interno de confianza) si aceptas tocar nginx y compose; si no, **D** (navegador) como mal menor | Medido en staging: las llamadas del servidor del sitio comparten un solo cupo; una ráfaga de 50 cargas de `/tramites` vació el catálogo para quien lo pidió ≈ 80 s. Este comportamiento afecta a todo el sitio, no solo a la búsqueda. | Sin decisión, la página `/buscar` hereda el defecto. |
 | **D-I5** | La **categoría** de cada sugerencia («Trámite», «Política») se muestra como **texto**, no solo con icono o color | Sí | WCAG 1.4.1 (uso del color) y lectores de pantalla. | — |
 | **D-I6** | **No hay búsquedas recientes ni historial propio** | Sí | Guardar lo que escribe el ciudadano contradice AC-22.7 y la Ley 1581. La URL `?q=` en el historial del navegador es del ciudadano, no nuestra. | Habría que llevarlo al Oficial de Protección de Datos. |
 | **D-I7** | Si la API responde 429, **las sugerencias se pausan** durante `Retry-After` y se avisa **una vez** | Sí | Evita que el cliente agrave el bloqueo y evita anunciar un contador cada segundo. | — |
 | **D-I8** | **El límite se queda en 120 por minuto** con el criterio de revisión del §6 | Sí | Subirlo a ciegas debilita la defensa sin dato; el criterio dice cuándo subirlo. | — |
 | **D-I9** | El campo de `/buscar` usa un **borde de 4,54:1** (`#767676`), no el `#ced4da` de `DESIGN.md` §3.3 | Sí | `#ced4da` sobre blanco da **1,49:1**; WCAG 1.4.11 pide 3:1 para el borde de un campo. HECHO (calculado). `DESIGN.md` §3.3 lo define así para los formularios en general; no lo toco aquí. | El campo de `/buscar` no cumple 1.4.11 salvo que otro indicador lo identifique. |
+| **D-I10** *(añadida al revisar el código, 2026-11-10)* | **Las secciones del sitio siguen en `/buscar`**, como grupo aparte «Secciones de la sede» sobre los resultados de la API. Solo en la página, no en el desplegable de sugerencias. Aparecen con el filtro «Todo» y en la primera página; se ocultan con «Trámites» o «Políticas». Detalle en §5.1. | **Sí** | HECHO: la página actual ya lista las secciones publicadas (mapa del sitio, atención, PQRSD…) a partir de `config/sitemap.ts`, y el contrato de `/buscar` dice que *«las secciones estáticas del sitio las lista el propio sitio»*. La primera redacción de esta especificación solo contemplaba trámites y políticas, así que buscar «atención» habría dejado de devolver resultados: una regresión. | Las secciones dejan de ser localizables desde el buscador. |
 
 ---
 
@@ -67,7 +71,7 @@ APG; si el Kit exige otro marcado, hay que decidirlo.
 
 **Entra:** (1) sugerencias mientras se escribe en el buscador del encabezado, que ya existe
 (`BuscadorGovco.vue`) y hoy solo recoge el término; (2) la página `/buscar` con resultados reales,
-filtro por tipo y paginación.
+filtro por tipo y paginación, más las secciones del sitio como grupo aparte (D-I10).
 
 **No entra:** búsqueda por voz; resaltado de la coincidencia dentro del título (con tolerancia a
 erratas no hay una coincidencia literal que resaltar); filtros por fecha; contadores por tipo (exigirían
@@ -229,6 +233,8 @@ Inicio › Buscar
 Filtrar por:  Todo · Trámites · Políticas             ← enlaces; el actual con aria-current
 ─────────────────────────────────────────────
 12 resultados para «licencia de construccion»         ← role="status"
+Secciones de la sede   (solo con «Todo» y en la página 1; D-I10)
+  · Mapa del sitio                                    ← enlaces a rutas publicadas de `config/sitemap.ts`
 ┌─────────────────────────────────────────────┐
 │ Trámite                                     │
 │ Licencia de construcción        (enlace)    │
@@ -242,7 +248,14 @@ Filtrar por:  Todo · Trámites · Políticas             ← enlaces; el actual
 - **URL:** `/buscar?q=…&tipo=tramite|politica&page=N`. Es la URL que se comparte.
 - **Título de la pestaña:** «Resultados para «{q}» · {nombre actual del sitio}» según el patrón de
   títulos existente. **`noindex`** (una búsqueda no es contenido que indexar).
-- **Sin JavaScript** el formulario envía por GET y la página se genera completa. (Depende de D-I4.)
+- **Sin JavaScript** el formulario envía por GET y la página se genera completa. (D-I4 resuelta con la
+  opción A: el servidor del sitio consulta la API, de modo que esto se cumple.)
+- **Secciones del sitio (D-I10).** Mismo criterio que la página actual: una sección publicada entra si
+  su nombre o su ruta, sin tildes ni mayúsculas, contiene el término. Se muestran como un grupo
+  «Secciones de la sede» **antes** de los resultados de la API, **solo** con el filtro «Todo» y **solo** en
+  la primera página (en las siguientes no se repiten). Con «Trámites» o «Políticas» no aparecen. El recuento
+  del resumen es el total de la API más las secciones encontradas y no cambia al paginar. Con menos de 3
+  caracteres no se busca nada (estado «corta», §5.2).
 - **Resultado:** categoría en texto; título como enlace a `url`; extracto; fecha con etiqueta según el
   tipo: **«Publicado el …»** para trámites (la fecha en que la sede lo publicó, no la de la ficha de
   GOV.CO) y **«Vigente desde …»** para políticas. `autor` y `miniatura` valen `null` hoy: **no se
@@ -262,7 +275,7 @@ Filtrar por:  Todo · Trámites · Políticas             ← enlaces; el actual
 | **Sin resultados** | «No encontramos resultados para «q».» + «Revise la ortografía o pruebe con otras palabras. También puede [ver todos los trámites].» | `<h2>` + `<p>` |
 | **Consulta demasiado corta** (422) | «Escriba al menos 3 caracteres para buscar.» | `role="alert"` |
 | **Consulta demasiado larga** (422) | «Use menos de 120 caracteres.» | `role="alert"` |
-| **Error del servidor / red** | «No pudimos realizar la búsqueda en este momento. Intente de nuevo en unos minutos.» + botón «Reintentar» | `role="alert"` |
+| **Error del servidor / red** | «No pudimos realizar la búsqueda en este momento. Intente de nuevo en unos minutos.» + botón «Reintentar». Si hay secciones encontradas, se muestran igualmente y el aviso aclara que el catálogo no respondió (no se afirma que no existan trámites) | `role="alert"` |
 | **429** | «Hizo muchas búsquedas seguidas. Espere N segundos e intente de nuevo.» N de `Retry-After` | `role="alert"` |
 
 El eco de lo buscado en «No encontramos resultados para «q»» se renderiza como **texto** (Vue lo
@@ -319,7 +332,7 @@ La redacción en lenguaje claro **no la ha revisado nadie de la Entidad**.
 | TC-BUS-26 | axe-core sobre `/buscar` y el encabezado con la lista **abierta, cerrada, sin resultados y con error**: 0 violaciones críticas o serias | §4.2, §4.6 | Auto. |
 | TC-BUS-27 | Atributos ARIA exactos de §4.2; teclado de §4.3 (↑ ↓ Alt+↓ Intro Esc Tab, el recorrido por el campo); el foco visible no se pierde | §4.2, §4.3 | Navegador |
 | TC-BUS-28 | Los siete estados de §4.4 y los ocho de §5.2 con su texto; **objetivos ≥ 44 px medidos por su caja**; capturas a **360 y 1280 px**; el círculo flotante **no tapa** la lista (comprobar que el elemento bajo el centro de cada fila es la fila) | §4.4, §4.6, §5.2 | Navegador + capturas |
-| TC-BUS-32 | `/buscar?q=`: campos, enlaces, paginación, filtro por tipo, texto de «sin resultados», **sin resultado si no hay JavaScript** (si D-I4 lo permite) | §5 | Auto. |
+| TC-BUS-32 | `/buscar?q=`: campos, enlaces, paginación, filtro por tipo, texto de «sin resultados», grupo «Secciones de la sede» (solo con «Todo» y en la página 1, D-I10), **resultados también sin JavaScript** (D-I4 = A lo permite) | §5 | Auto. |
 | **TC-BUS-33** *(nuevo)* | Reflujo a 320 px y zoom al 200 %: sin desplazamiento horizontal ni texto cortado | §4.6 | Navegador |
 | **TC-BUS-34** *(nuevo)* | Alto contraste del sitio y tamaño «A+»: la lista y la fila activa se distinguen; contrastes ≥ los de §2 | §4.6 | Navegador |
 | **TC-BUS-35** *(nuevo)* | Tras varias búsquedas, `localStorage`, `sessionStorage`, cookies e IndexedDB **no cambian**; ninguna petición de analítica lleva la consulta | §4.5, §6 | Navegador |
@@ -339,18 +352,29 @@ La redacción en lenguaje claro **no la ha revisado nadie de la Entidad**.
    medidas en dispositivos reales.
 4. **No comparé con el Kit GOV.CO predictivo** (no está en el repositorio).
 5. **Los textos no los revisó la Entidad.**
-6. **D-I4 puede cambiar la implementación de la página**, no su comportamiento: si se elige D
-   (resultados pedidos por el navegador), «sin JavaScript» deja de funcionar y TC-BUS-32 se ajusta.
+6. **D-I4 quedó resuelta con la opción A** (canal interno, ADR-0018). Un detalle sin cerrar de esa
+   medición, declarado en `busqueda.md` §2.5: la IP que lee la propia API se infiere de que nginx se la
+   pasa a PHP como `REMOTE_ADDR`; su efecto sí se observó, pero no se leyó en un registro.
 7. **Los contrastes de la opción activa (`#E6EDFA`) son un color nuevo** que no está en `DESIGN.md`;
    si prefieres uno de la paleta, hay que recalcularlo.
 
 ---
 
-## 10. Qué pasa cuando respondas
+## 10. Plan de la entrega 3 (decisiones respondidas el 2026-11-10)
 
-1. Con tus respuestas a D-I1…D-I9, ajusto este documento y lo dejo en **«Aprobada»** con la fecha.
-2. Ajusto AC-22.2 y la tabla «Parámetros fijados» de la auditoría si D-I1 cambia la pausa.
-3. Recién entonces empieza la entrega 3, en PR separados: componente, página, pruebas de navegador,
-   capturas, medición del p95 de la página.
-4. Si D-I4 elige A, B o C, ese cambio va en **su propio PR** y antes que la página, porque toca el
-   sitio entero.
+1. **Hecho en el PR que aprueba este documento:** estado «Aprobada», D-I4 marcada como resuelta, D-I10
+   añadida, y la pausa de 350 ms (D-I1) llevada a AC-22.2, TC-BUS-25, `busqueda.md` y el comentario de
+   `backend/config/busqueda.php`. La **auditoría** del Módulo 01 (AC-22.2 y la tabla «Parámetros fijados»)
+   es un archivo local que no está en el repositorio: su actualización **queda pendiente** y la hace el titular.
+2. **E3-1.** Lógica de sugerencias (composable): pausa de 350 ms, mínimo de 3 caracteres, descarte de
+   respuestas viejas, memoria breve, composición, 429 y errores (§4.5). Con pruebas de temporizadores simulados.
+3. **E3-2.** Combobox accesible en `BuscadorGovco`: marcado, teclado, estados, textos (§4, §7), objetivos
+   de 44 px y formulario que funciona sin JavaScript. La `url` de una sugerencia se valida como ruta relativa
+   del sitio (empieza con `/`, no con `//`) antes de navegar.
+4. **E3-3.** Página `/buscar` contra `GET /buscar`: filtro por tipo, paginación de 10, foco al `<h1>`,
+   estados (§5) y grupo de secciones (D-I10).
+5. **E3-4.** Pruebas de navegador y capturas a 360 y 1280 px (TC-BUS-26 a 28 y 32 a 36), contra la API
+   simulada local de `sitio/tests/ayudas/api-simulada.mjs`, ampliada con las dos operaciones de búsqueda: staging
+   queda detrás de Cloudflare, que desafía a los ejecutores de GitHub, y las pruebas de respuestas fuera de
+   orden y de `429` necesitan controlar cada respuesta. El p95 de la página (AC-22.6) y TC-BUS-29 (lector de
+   pantalla real) siguen siendo pruebas que se ejecutan aparte.

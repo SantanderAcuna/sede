@@ -2,7 +2,7 @@
 
 > **Documento generado.** No se edita a mano: se produce con `make trazabilidad`
 > (`npm run trazabilidad` desde `sitio/`), que lee el expediente, el contrato OpenAPI y el
-> código, y escribe lo que encuentra. Última generación: **2026-10-30**.
+> código, y escribe lo que encuentra. Última generación: **2026-11-10**.
 
 ## Qué mide esta matriz, y qué no
 
@@ -91,38 +91,38 @@ Enunciados en `docs/Sección 2 §2.4`.
 | Criterio | Estado | Evidencia (fichero:línea) |
 |---|---|---|
 | **CAG-01** | desviación declarada | `sitio/app/components/govco/CarruselGovco.vue:25` · `sitio/tests/diseno.mjs:2` |
-| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:211` |
-| **CAG-03** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:29` · `sitio/tests/diseno.mjs:250` |
-| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/tests/diseno.mjs:211` |
-| **CAG-05** | **prueba** | `sitio/tests/diseno.mjs:287` |
-| **CAG-06** | desviación declarada | `sitio/app/components/govco/BarraSuperior.vue:19` · `sitio/scripts/trazabilidad.mjs:251` · `sitio/tests/diseno.mjs:72` |
-| **CAG-07** | **prueba** | `sitio/app/components/govco/BotonAccesibilidad.vue:51` · `sitio/app/components/govco/PanelAccesibilidad.vue:38` · `sitio/tests/diseno.mjs:297` · `sitio/tests/movil.mjs:15` |
-| **CAG-08** | **prueba** | `sitio/app/layouts/default.vue:9` · `sitio/tests/diseno.mjs:462` |
-| **CAG-09** | **prueba** | `sitio/.vitest/json/output.json:1` · `sitio/app/components/govco/MenuNavegacionGovco.vue:91` · `sitio/app/config/sitemap.ts:8` · `sitio/tests/diseno.mjs:479` · +1 |
+| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` |
+| **CAG-03** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:29` · `sitio/tests/diseno.mjs:272` |
+| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/tests/diseno.mjs:233` |
+| **CAG-05** | **prueba** | `sitio/tests/ayudas/api-simulada.mjs:38` · `sitio/tests/diseno.mjs:309` |
+| **CAG-06** | desviación declarada | `sitio/app/components/govco/BarraSuperior.vue:19` · `sitio/scripts/trazabilidad.mjs:251` · `sitio/tests/diseno.mjs:81` |
+| **CAG-07** | **prueba** | `sitio/app/components/govco/BotonAccesibilidad.vue:51` · `sitio/app/components/govco/PanelAccesibilidad.vue:38` · `sitio/tests/diseno.mjs:319` · `sitio/tests/movil.mjs:15` |
+| **CAG-08** | **prueba** | `sitio/app/layouts/default.vue:9` · `sitio/tests/diseno.mjs:484` |
+| **CAG-09** | **prueba** | `sitio/.vitest/json/output.json:1` · `sitio/app/components/govco/MenuNavegacionGovco.vue:91` · `sitio/app/config/sitemap.ts:8` · `sitio/tests/diseno.mjs:501` · +1 |
 | **CAG-10** | implementación | `sitio/app/components/govco/MenuNavegacionGovco.vue:98` |
-| **CAG-11** | **prueba** | `sitio/app/components/govco/MigaDePanGovco.vue:5` · `sitio/app/layouts/default.vue:106` · `sitio/tests/diseno.mjs:498` |
-| **CAG-12** | **prueba** | `sitio/app/components/govco/PiePaginaGovco.vue:28` · `sitio/tests/diseno.mjs:513` · `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:102` |
-| **CAG-13** | **prueba** | `sitio/tests/diseno.mjs:545` · `panel/.vitest/json/output.json:1` · `panel/tests/componentes.test.ts:35` |
-| **CAG-14** | **prueba** | `sitio/tests/diseno.mjs:555` |
-| **CAG-15** | **prueba** | `sitio/app/components/govco/BuscadorGovco.vue:19` · `sitio/tests/diseno.mjs:570` |
-| **CAG-16** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:715` · `sitio/tests/diseno.mjs:656` · `panel/.vitest/json/output.json:1` · `panel/tests/componentes.test.ts:87` |
-| **CAG-17** | **prueba** | `sitio/tests/diseno.mjs:678` |
-| **CAG-18** | desviación declarada | `sitio/tests/diseno.mjs:73` |
-| **CAG-19** | desviación declarada | `sitio/tests/diseno.mjs:74` |
-| **CAG-20** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:435` · `sitio/tests/diseno.mjs:806` · `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:351` |
-| **CAG-21** | desviación declarada | `sitio/app/components/ModalAvisoSalida.vue:9` · `sitio/app/composables/useAvisoSalida.ts:152` · `sitio/tests/diseno.mjs:609` · `panel/.vitest/json/output.json:1` · +1 |
-| **CAG-22** | desviación declarada | `sitio/tests/diseno.mjs:75` |
+| **CAG-11** | **prueba** | `sitio/app/components/govco/MigaDePanGovco.vue:5` · `sitio/app/layouts/default.vue:106` · `sitio/tests/diseno.mjs:520` |
+| **CAG-12** | **prueba** | `sitio/app/components/govco/PiePaginaGovco.vue:28` · `sitio/tests/ayudas/api-simulada.mjs:38` · `sitio/tests/diseno.mjs:535` · `contract/openapi-original-backup.yaml:66` · +1 |
+| **CAG-13** | **prueba** | `sitio/tests/diseno.mjs:567` · `panel/.vitest/json/output.json:1` · `panel/tests/componentes.test.ts:35` |
+| **CAG-14** | **prueba** | `sitio/tests/diseno.mjs:577` |
+| **CAG-15** | **prueba** | `sitio/app/components/govco/BuscadorGovco.vue:19` · `sitio/tests/diseno.mjs:592` |
+| **CAG-16** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:715` · `sitio/tests/diseno.mjs:678` · `panel/.vitest/json/output.json:1` · `panel/tests/componentes.test.ts:87` |
+| **CAG-17** | **prueba** | `sitio/tests/diseno.mjs:700` |
+| **CAG-18** | desviación declarada | `sitio/tests/diseno.mjs:82` |
+| **CAG-19** | desviación declarada | `sitio/tests/diseno.mjs:83` |
+| **CAG-20** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:435` · `sitio/tests/diseno.mjs:828` · `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:351` |
+| **CAG-21** | desviación declarada | `sitio/app/components/ModalAvisoSalida.vue:9` · `sitio/app/composables/useAvisoSalida.ts:152` · `sitio/tests/diseno.mjs:631` · `panel/.vitest/json/output.json:1` · +1 |
+| **CAG-22** | desviación declarada | `sitio/tests/diseno.mjs:84` |
 | **CAG-23** | implementación | `sitio/app/pages/realizar-una-peticion.vue:1623` · `sitio/app/pages/tramites/index.vue:749` |
 | **CAG-24** | desviación declarada | — |
-| **CAG-25** | desviación declarada | `sitio/tests/diseno.mjs:76` |
-| **CAG-26** | **prueba** | `sitio/app/components/govco/TarjetaInformacionGovco.vue:10` · `sitio/app/pages/index.vue:190` · `sitio/tests/diseno.mjs:738` |
-| **CAG-27** | **prueba** | `sitio/tests/diseno.mjs:764` |
-| **CAG-28** | **prueba** | `sitio/tests/accesibilidad.mjs:2` · `sitio/tests/diseno.mjs:955` |
-| **CAG-29** | **prueba** | `sitio/app/components/govco/CargandoGovco.vue:3` · `sitio/app/pages/tramites/index.vue:297` · `sitio/tests/diseno.mjs:951` · `sitio/tests/kit-cargando.test.ts:2` |
-| **CAG-30** | **prueba** | `sitio/tests/diseno.mjs:786` |
-| **CAG-31** | **prueba** | `sitio/app/components/govco/GaleriaAplicacionesGovco.vue:14` · `sitio/tests/diseno.mjs:77` |
+| **CAG-25** | desviación declarada | `sitio/tests/diseno.mjs:85` |
+| **CAG-26** | **prueba** | `sitio/app/components/govco/TarjetaInformacionGovco.vue:10` · `sitio/app/pages/index.vue:190` · `sitio/tests/diseno.mjs:760` |
+| **CAG-27** | **prueba** | `sitio/tests/diseno.mjs:786` |
+| **CAG-28** | **prueba** | `sitio/tests/accesibilidad.mjs:2` · `sitio/tests/diseno.mjs:992` |
+| **CAG-29** | **prueba** | `sitio/app/components/govco/CargandoGovco.vue:3` · `sitio/app/pages/tramites/index.vue:297` · `sitio/tests/diseno.mjs:988` · `sitio/tests/kit-cargando.test.ts:2` |
+| **CAG-30** | **prueba** | `sitio/tests/diseno.mjs:808` |
+| **CAG-31** | **prueba** | `sitio/app/components/govco/GaleriaAplicacionesGovco.vue:14` · `sitio/tests/diseno.mjs:86` |
 | **CAG-32** | **prueba** | `sitio/tests/accesibilidad.mjs:2` · `sitio/tests/diseno.mjs:13` |
-| **CAG-33** | desviación declarada | `sitio/nuxt.config.ts:69` · `sitio/tests/diseno.mjs:913` |
+| **CAG-33** | desviación declarada | `sitio/nuxt.config.ts:69` · `sitio/tests/diseno.mjs:935` |
 | **CAG-34** | desviación declarada | `sitio/tests/diseno.mjs:2` |
 
 ## FUN — Funcionalidad

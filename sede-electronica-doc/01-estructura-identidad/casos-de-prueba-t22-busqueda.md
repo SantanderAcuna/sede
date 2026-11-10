@@ -21,7 +21,7 @@
 | AC | En una línea | Entrega |
 |---|---|---|
 | AC-22.1 | `GET /busqueda/sugerencias?q=`: ≤ 10 sugerencias con título, categoría, tipo y URL; entradas inválidas → 422; contrato `implemented` | E2 |
-| AC-22.2 | Componente: con < 3 caracteres no consulta; con ≥ 3 consulta tras 250 ms | E3 |
+| AC-22.2 | Componente: con < 3 caracteres no consulta; con ≥ 3 consulta tras 350 ms (la auditoría decía 250 ms; el titular aprobó 350 ms el 2026-11-10, D-I1) | E3 |
 | AC-22.3 | Banco de erratas: ≥ 8 de 10 con el resultado esperado entre los 3 primeros (en E2, ≥ 30 consultas y por la API) | E1 consulta · E2 API |
 | AC-22.4 | `GET /buscar?q=`: sólo contenido de la sede; fecha, categoría, título, extracto; `autor` y `miniatura` en `null`; filtro `tipo`; paginación | E2 API · E3 página |
 | AC-22.5 | axe sin violaciones críticas/serias; patrón `combobox` accesible con teclado | E3 |
@@ -89,18 +89,18 @@ Construida y ejecutada en el PR #386 (2026-10-29). Lo que dice ✅ lo respalda C
 
 ## 5. Entrega 3 · sitio, accesibilidad y rendimiento
 
-Todos **sin ejecutar** (⬜). TC-BUS-25 a 28 y 32 requieren antes la especificación de interacción aprobada (AC-22.12).
+Todos **sin ejecutar** (⬜). La especificación de interacción (AC-22.12) quedó **aprobada el 2026-11-10**; TC-BUS-25 a 28 y 32 se ejecutan contra ella.
 
 | TC | Verifica | Pasos y esperado | Tipo | Resultado |
 |---|---|---|---|---|
-| TC-BUS-25 | AC-22.2, 22.12 | Componente: con < 3 caracteres no consulta; con ≥ 3 consulta una sola vez tras la pausa (**250 ms según AC-22.2; la especificación propone 350 ms, pendiente de D-I1**); una respuesta de una consulta anterior no reemplaza a la última (se cancela o se ignora). | Auto. | ⬜ |
+| TC-BUS-25 | AC-22.2, 22.12 | Componente: con < 3 caracteres no consulta; con ≥ 3 consulta una sola vez tras la pausa (**350 ms: D-I1 aprobada el 2026-11-10; la auditoría decía 250 ms**); una respuesta de una consulta anterior no reemplaza a la última (se cancela o se ignora). | Auto. | ⬜ |
 | TC-BUS-26 | AC-22.5 | axe-core sobre `/buscar` y sobre el encabezado con el combobox abierto y cerrado: 0 violaciones críticas o serias. | Auto. | ⬜ |
 | TC-BUS-27 | AC-22.5, 22.12 | Navegador: roles y atributos del combobox (`aria-expanded`, `aria-controls`, `listbox`, `aria-activedescendant`); teclado ↑ ↓ Enter Esc Tab; el foco visible no se pierde. | Auto. | ⬜ |
 | TC-BUS-28 | AC-22.12 | Estados vacío, cargando, con resultados, sin resultados, error de red y `429` con sus textos en español; objetivos táctiles ≥ 44 px; capturas a 360 y 1280 px, incluida la convivencia con el círculo flotante de accesibilidad. | Auto. + capturas | ⬜ |
 | TC-BUS-29 | AC-22.5 | Recorrido con un lector de pantalla real (NVDA o VoiceOver). | Manual | ⬜ **Requiere una persona con lector de pantalla.** Hoy es un límite declarado: no se ha probado con lector ni con dispositivos reales. |
 | TC-BUS-30 | AC-22.6 | **Desde el servidor:** el script de carga de la entrega 3 lanza 100 consultas secuenciales (banco de erratas y términos del catálogo) tras 10 de calentamiento descartadas, contra la API del propio servidor; p95 < 300 ms. Aísla el tiempo de la aplicación. | Manual | ⬜ |
 | TC-BUS-31 | AC-22.6 | **Desde la sesión de trabajo:** el mismo método contra `<sede>`; se anota también la latencia de una petición de referencia a un endpoint sin lógica. Cumple si p95 < 300 ms; si sólo esta medición lo supera, se informa la diferencia con la referencia y se decide con el titular. | Auto. | 🟡 **Parcial: la API, no la página.** 2026-10-29/30, staging, 10 peticiones de calentamiento descartadas y 100 secuenciales por conexión reutilizada, a ≈ 2 por segundo (bajo el límite). Consultas: bancos manuales y sintético mezclados. **`/busqueda/sugerencias`: p50 158 ms · p95 174 ms · p99 217 ms. `/buscar`: p95 268 ms y 246 ms (dos corridas; p50 201–210 ms).** Referencia (respuesta 404 del mismo host, que mide red + TLS + Cloudflare, no un endpoint de la aplicación): p50 122 ms · p95 145 ms. Cumple p95 < 300 ms **en la API**, con margen escaso en `/buscar` (≈ 30–55 ms) y con 123 trámites. Quedan: la página `/buscar` y el combobox (entrega 3), TC-BUS-30 desde el servidor, y repetir con tráfico real. |
-| TC-BUS-32 | AC-22.4 | Página `/buscar` del sitio: a partir de `?q=` muestra cada resultado con fecha, categoría, título y extracto (y `autor` y `miniatura` sólo cuando existan), enlaza a la URL devuelta, pagina con `page`/`per_page` y muestra un texto propio cuando no hay resultados. | Auto. | ⬜ |
+| TC-BUS-32 | AC-22.4 | Página `/buscar` del sitio: a partir de `?q=` muestra cada resultado con fecha, categoría, título y extracto (y `autor` y `miniatura` sólo cuando existan), enlaza a la URL devuelta, pagina con `page`/`per_page` y muestra un texto propio cuando no hay resultados; con el filtro «Todo» y en la página 1 lista además las secciones del sitio que coinciden (D-I10). | Auto. | ⬜ |
 | TC-BUS-33 | AC-22.5, 22.12 | **Propuesto en `docs/busqueda-interaccion.md` §8.** Reflujo a 320 px y zoom al 200 %: sin desplazamiento horizontal ni texto cortado, con la lista abierta. | Auto. | ⬜ |
 | TC-BUS-34 | AC-22.5, 22.12 | **Propuesto.** Alto contraste del sitio y tamaño de letra «A+»: la lista y la fila activa se distinguen; contrastes de la especificación. | Auto. | ⬜ |
 | TC-BUS-35 | AC-22.7, 22.12 | **Propuesto.** Tras varias búsquedas, `localStorage`, `sessionStorage`, cookies e IndexedDB no cambian y ninguna petición de analítica lleva la consulta. | Auto. | ⬜ |

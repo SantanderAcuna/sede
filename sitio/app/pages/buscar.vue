@@ -394,7 +394,7 @@ useHead({
   margin-top: 1rem;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-texto-fuerte);
 }
 
 .aviso-busqueda {

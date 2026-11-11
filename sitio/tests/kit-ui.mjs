@@ -28,6 +28,7 @@ if (!BASE) {
 }
 
 import { lanzar } from './ayudas/motor.mjs'
+import { opcionesAgente } from './ayudas/agente-usuario.mjs'
 
 let fallos = 0
 let sinComprobar = 0
@@ -43,9 +44,11 @@ const omite = (m) => {
 const MIN = 44
 
 const navegador = await lanzar()
+/** Agente de usuario sin la marca `Headless` (ver ayudas/agente-usuario.mjs). */
+const AGENTE = await opcionesAgente(navegador)
 
 async function abrir(ruta, ancho = 1300) {
-  const pagina = await navegador.newPage({ viewport: { width: ancho, height: 900 } })
+  const pagina = await navegador.newPage({ viewport: { width: ancho, height: 900 }, ...AGENTE })
   await pagina.goto(`${BASE}${ruta}`, { waitUntil: 'networkidle' })
   // Elegir en el banner dispara el aviso emergente; se cierra para que no tape nada.
   const rechazar = pagina.getByRole('button', { name: /rechazar/i }).first()
@@ -150,7 +153,7 @@ console.log('Ficha de un trámite · acordeón de pasos')
 // 4. Aviso emergente ------------------------------------------------------------
 console.log('Aviso emergente tras elegir en el banner de cookies')
 {
-  const p = await navegador.newPage({ viewport: { width: 1300, height: 900 } })
+  const p = await navegador.newPage({ viewport: { width: 1300, height: 900 }, ...AGENTE })
   await p.goto(`${BASE}/`, { waitUntil: 'networkidle' })
   const rechazar = p.getByRole('button', { name: /rechazar/i }).first()
   if ((await rechazar.count()) === 0) {

@@ -193,9 +193,19 @@ y la sede no tenía nada que ver: no llevaba el id del plugin `analitica.client.
 Según la documentación de Cloudflare, una respuesta así no se modifica en el borde y no recibe la baliza.
 Sólo el HTML: la API y los activos conservan sus cabeceras.
 
-**Efectos colaterales esperados (la documentación de Cloudflare sólo nombra expresamente la compresión; el resto es HIPÓTESIS hasta medirlo en staging):**
-- No se transforma el contenido en el borde: p. ej. la ofuscación de correos (`email-decode.min.js`) deja de actuar.
-- No se recomprime el cuerpo: se sirve con la compresión del origen (gzip de nginx) y no con la del borde (zstd/brotli).
+**Resultado (HECHO, medido en staging tras el despliegue):** `tests/cookies.mjs` pasó de 4 comprobaciones en rojo
+a todo en orden (también en firefox y webkit desde el ejecutor de GitHub). Ya no hay `beacon.min.js` ni la cookie `__cf_ob`.
+
+**Efectos colaterales (HECHO, medidos en staging; la lista que Cloudflare documenta es más corta):**
+- Desaparecen TODOS los scripts que el borde inyectaba en el HTML, no sólo la baliza: `email-decode.min.js`
+  (los correos del pie salen en claro, como `mailto:`, sin ofuscación contra rastreadores), `rum` y
+  `challenge-platform/.../main.js` (las «detecciones de JavaScript» de los productos de bots; con ellas
+  ausentes, `cf_clearance` ya no se establece). **No evaluado:** si alguna regla de bots/WAF de la cuenta
+  dependía de esas detecciones; hay que revisarlo en Cloudflare → Seguridad.
+- No se recomprime el cuerpo: la portada sale con la compresión del origen (gzip, ~28,5 KB transferidos) en
+  vez de la del borde (zstd). No se midió la diferencia de tamaño.
+- Sigue activo `cdn-cgi/speculation` (reglas de especulación del borde): no es analítica.
+- El desafío a los ejecutores de GitHub (M01-2) sigue: `curl` desde GitHub recibe 403 `cf-mitigated: challenge`.
 
 **Verificación:**
 - `bash deploy/pruebas/prueba-sin-transformar.sh` (corre en el CI): nginx real con los archivos reales y un origen simulado.

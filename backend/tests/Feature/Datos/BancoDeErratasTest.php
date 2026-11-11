@@ -239,6 +239,25 @@ final class BancoDeErratasTest extends TestCase
         );
     }
 
+    public function test_las_regresiones_conocidas_siguen_sin_devolver_nada_por_ninguna_de_las_dos_operaciones(): void
+    {
+        /** @var array<string, string> $regresiones */
+        $regresiones = require __DIR__.'/../../Support/banco-regresiones.php';
+        $conRuido = [];
+
+        foreach ($regresiones as $consulta => $origen) {
+            if ($this->sugerencias($consulta) !== []) {
+                $conRuido[] = "sugerencias: {$consulta} ({$origen})";
+            }
+
+            if ($this->getJson('/api/v1/buscar?q='.rawurlencode($consulta))->json('meta.total') !== 0) {
+                $conRuido[] = "buscar: {$consulta} ({$origen})";
+            }
+        }
+
+        $this->assertSame([], $conRuido, "Hallazgos que volvieron:\n".implode("\n", $conRuido));
+    }
+
     public function test_una_consulta_sin_sentido_no_devuelve_nada(): void
     {
         $this->assertSame([], $this->sugerencias('xyzxyz'));

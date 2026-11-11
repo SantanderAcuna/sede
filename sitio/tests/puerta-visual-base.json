@@ -1,20 +1,5 @@
 {
-  "_nota": "Línea base del diseño APROBADO por José (2026-11-10). No es un permiso para empeorar: la puerta visual deja que estas rutas se queden como están o mejoren, y rechaza cualquier valor mayor y cualquier ruta nueva con control pequeño o CLS > 0,1. Subir un número aquí equivale a cambiar el diseño: requiere autorización explícita de José en el chat. Se regenera con `npm run test:puerta-visual -- --escribir-base` (sólo para registrar, nunca para relajar).",
-  "objetivosPequenos": {
-    "/": 6,
-    "/atencion": 2,
-    "/tramites": 2,
-    "/pqrsd": 2,
-    "/realizar-una-peticion": 4,
-    "/normativa": 9,
-    "/mapa-del-sitio": 2,
-    "/accesibilidad": 2,
-    "/participa": 2,
-    "/buscar?q=salud": 2,
-    "/buscar?q=zzzz": 2,
-    "/ruta-que-no-existe": 2
-  },
-  "cls": {
-    "/": 0.21
-  }
+  "_nota": "Línea base del diseño APROBADO por José (2026-11-10). No es un permiso para empeorar: la puerta visual deja que estas rutas se queden como están o mejoren, y rechaza cualquier valor mayor y cualquier ruta nueva con control pequeño o CLS > 0,1. Subir un número aquí equivale a cambiar el diseño: requiere autorización explícita de José en el chat. Se regenera con `npm run test:puerta-visual -- --escribir-base` (sólo para registrar, nunca para relajar). 2026-11-10: con la regla 2.5.8 fiel (excepciones de espaciado/equivalente/en línea) y el carrusel sin salto, el diseño aprobado no admite excepciones: la línea base quedó vacía.",
+  "objetivosPequenos": {},
+  "cls": {}
 }

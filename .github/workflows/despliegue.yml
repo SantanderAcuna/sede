@@ -413,6 +413,8 @@ jobs:
           correr "maquetación en teléfono" node tests/movil.mjs
           correr "componentes del Kit" node tests/kit-ui.mjs
           correr "conformidad de diseño (CAG)" node tests/diseno.mjs
+          # M01-4: sin consentimiento no hay cookies ni peticiones a analítica (incluida la baliza del borde).
+          correr "cookies y consentimiento" node tests/cookies.mjs
           # El resumen del paso se guarda como archivo para poder descargarlo (AC-29.2).
           cp "$GITHUB_STEP_SUMMARY" "resumen-${NAVEGADOR}.md"
           exit "$fallos"

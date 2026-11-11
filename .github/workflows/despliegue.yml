@@ -411,9 +411,11 @@ jobs:
           proyectos="--project=${NAVEGADOR} --project=${NAVEGADOR}-movil"
           correr "humo funcional (escritorio y teléfono)" npx playwright test $proyectos
           # M01-4: sin consentimiento no hay cookies ni peticiones a analítica (incluida la baliza del borde).
-          # Va justo después del humo: desde las IP de GitHub, chromium y msedge acaban desafiados por
-          # Cloudflare tras varios pasos (los `page.goto` de después expiran, también antes de este paso),
-          # y la prueba da «no concluyente» si corre tarde.
+          # Con chromium y msedge del ejecutor el banner no aparece (HECHO: falló igual con el paso justo
+          # después del humo, así que el orden no era la causa). HIPÓTESIS: estas pruebas usan el
+          # User-Agent por defecto («HeadlessChrome») y Cloudflare las desafía desde las IP de GitHub,
+          # mientras que los specs de Playwright usan el de «Desktop Chrome». El diagnóstico que imprime
+          # tests/cookies.mjs (título de la página y User-Agent) lo confirmará en la próxima ejecución.
           correr "cookies y consentimiento" node tests/cookies.mjs
           correr "maquetación en teléfono" node tests/movil.mjs
           correr "componentes del Kit" node tests/kit-ui.mjs

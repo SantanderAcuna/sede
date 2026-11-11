@@ -28,7 +28,7 @@ final class PoliticaSeeder extends Seeder
      * las consultas y el 15 para los reclamos. La migración que completa las filas ya
      * sembradas usa el mismo texto (ver `completar_requisitos_de_politicas`).
      */
-    public const PLAZOS_LEY_1581 = 'Los reclamos se atienden en un máximo de quince (15) días hábiles contados desde el día siguiente a su recibo; si no es posible, se informa al titular el motivo de la demora y la fecha de respuesta, que no superará ocho (8) días hábiles más (Ley 1581 de 2012, art. 15). Las consultas se atienden en un máximo de diez (10) días hábiles, prorrogables por cinco (5) más (art. 14).';
+    public const PLAZOS_LEY_1581 = 'Los reclamos se atienden en un máximo de quince (15) días hábiles contados desde el día siguiente a su recibo; si no es posible, se informa al titular el motivo de la demora y la fecha de respuesta, que no superará ocho (8) días hábiles más (Ley 1581 de 2012, art. 15). Las consultas se atienden en un máximo de diez (10) días hábiles, prorrogables por cinco (5) días hábiles más (art. 14).';
 
     public function run(): void
     {

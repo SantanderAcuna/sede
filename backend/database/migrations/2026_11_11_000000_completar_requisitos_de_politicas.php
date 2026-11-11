@@ -36,7 +36,7 @@ return new class extends Migration
     private const JURISDICCION = 'Estos términos se rigen por las leyes de la República de Colombia. Las controversias que surjan de su aplicación se resolverán ante la autoridad competente [por definir: autoridad y mecanismo para resolver controversias, definidos por la Entidad].';
 
     // Ley 1581 de 2012: art. 15 (reclamos: 15 días hábiles, prórroga hasta 8) y art. 14 (consultas: 10, prórroga 5).
-    private const PLAZOS = 'Los reclamos se atienden en un máximo de quince (15) días hábiles contados desde el día siguiente a su recibo; si no es posible, se informa al titular el motivo de la demora y la fecha de respuesta, que no superará ocho (8) días hábiles más (Ley 1581 de 2012, art. 15). Las consultas se atienden en un máximo de diez (10) días hábiles, prorrogables por cinco (5) más (art. 14).';
+    private const PLAZOS = 'Los reclamos se atienden en un máximo de quince (15) días hábiles contados desde el día siguiente a su recibo; si no es posible, se informa al titular el motivo de la demora y la fecha de respuesta, que no superará ocho (8) días hábiles más (Ley 1581 de 2012, art. 15). Las consultas se atienden en un máximo de diez (10) días hábiles, prorrogables por cinco (5) días hábiles más (art. 14).';
 
     private const PLAZO_YA_PRESENTE = '/(?<![\d.,])(?:quince|15)\s*(?:\(\s*15\s*\)\s*)?d[ií]as\s+h[aá]biles/iu';
 

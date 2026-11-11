@@ -29,10 +29,17 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1')->name('v1.')->group(function (): void {
+    // Las lecturas públicas —entidad, políticas, identidad y trámites— no usan
+    // `throttle:api` (60 por minuto) sino `throttle:lecturas-publicas`: el sitio pide
+    // dos o tres por cada página que sirve, así que 60 eran 20 a 30 páginas por minuto
+    // para todos los que salen por una misma IP. Se quita el general de cada una porque,
+    // con dos limitadores, manda el más estricto (ver `config/lecturas.php`).
+
     // Datos institucionales — pública (sin autenticación)
     Route::get('/entidad', [EntidadController::class, 'mostrar'])
         ->name('entidad.mostrar')
-        ->withoutMiddleware('auth:sanctum');
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:lecturas-publicas');
 
     // Registro del consentimiento de cookies — público (lo llama el navegador del
     // ciudadano) y con límite propio por IP: no guarda nada identificable, pero
@@ -45,20 +52,37 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Políticas de la sede — públicas. El texto vive en base de datos y se edita desde el panel.
     Route::get('/politicas', [PoliticaController::class, 'index'])
         ->name('politicas.index')
-        ->withoutMiddleware('auth:sanctum');
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:lecturas-publicas');
     Route::get('/politicas/{slug}', [PoliticaController::class, 'show'])
         ->name('politicas.show')
-        ->withoutMiddleware('auth:sanctum');
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:lecturas-publicas');
 
     // Identidad: top-bar, footer y menú — públicos
-    Route::get('/identidad/top-bar', [IdentidadController::class, 'topBar'])->name('identidad.top-bar');
-    Route::get('/identidad/footer', [IdentidadController::class, 'footer'])->name('identidad.footer');
-    Route::get('/identidad/menu', [IdentidadController::class, 'menu'])->name('identidad.menu');
+    Route::get('/identidad/top-bar', [IdentidadController::class, 'topBar'])
+        ->name('identidad.top-bar')
+        ->withoutMiddleware('throttle:api')
+        ->middleware('throttle:lecturas-publicas');
+    Route::get('/identidad/footer', [IdentidadController::class, 'footer'])
+        ->name('identidad.footer')
+        ->withoutMiddleware('throttle:api')
+        ->middleware('throttle:lecturas-publicas');
+    Route::get('/identidad/menu', [IdentidadController::class, 'menu'])
+        ->name('identidad.menu')
+        ->withoutMiddleware('throttle:api')
+        ->middleware('throttle:lecturas-publicas');
 
     // El catálogo de trámites. Las dos operaciones son públicas —el contrato las
     // declara con `security: []`— y por eso no llevan middleware de sesión.
-    Route::get('/tramites', [TramiteController::class, 'listar'])->name('tramites.listar');
-    Route::get('/tramites/{slug}', [TramiteController::class, 'mostrar'])->name('tramites.mostrar');
+    Route::get('/tramites', [TramiteController::class, 'listar'])
+        ->name('tramites.listar')
+        ->withoutMiddleware('throttle:api')
+        ->middleware('throttle:lecturas-publicas');
+    Route::get('/tramites/{slug}', [TramiteController::class, 'mostrar'])
+        ->name('tramites.mostrar')
+        ->withoutMiddleware('throttle:api')
+        ->middleware('throttle:lecturas-publicas');
 
     // La búsqueda de la sede (T-22). Las dos operaciones son públicas y comparten un
     // límite por IP: se llaman mientras el ciudadano escribe, así que son las más

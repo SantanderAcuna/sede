@@ -50,7 +50,7 @@ if (!BASE) {
 
 import { lanzar, opcionesMovil } from './ayudas/motor.mjs'
 import { opcionesAgente } from './ayudas/agente-usuario.mjs'
-import { esperarCupoApi } from './ayudas/cupo-api.mjs'
+import { describirApi, esperarCupoApi } from './ayudas/cupo-api.mjs'
 
 let fallos = 0
 const ok = (m) => console.log(`  ✓ ${m}`)
@@ -324,7 +324,7 @@ console.log('Áreas táctiles (390 px)')
   // Las 19 rutas × 5 anchos de arriba agotan el cupo de la API (60/min por IP); sin esta espera la
   // página sale con «No se pudo cargar el catálogo». Ver ayudas/cupo-api.mjs.
   const cupo = await esperarCupoApi(ctx, BASE)
-  if (!cupo.listo) console.log(`  · aviso: el cupo de la API no se recuperó tras ${cupo.consultas} consultas`)
+  console.log(`  · cupo de la API antes de /tramites: ${cupo.restantes ?? 'sin dato'} (${cupo.consultas} consulta(s)${cupo.listo ? '' : ', NO se recuperó'})`)
   const p = await abrirResuelta(ctx, '/tramites')
   const enlaces = p.locator('main .enlace-ficha-tramite')
   // `count()` no espera: es una foto del instante. Se aguarda a que aparezca el primer enlace
@@ -332,10 +332,11 @@ console.log('Áreas táctiles (390 px)')
   // puede ser catálogo sin publicar, fallo de la API o carga sin terminar, y no es lo mismo.
   await enlaces.first().waitFor({ state: 'attached' }).catch(() => {})
   const n = await enlaces.count()
+  const apiAhora = n === 0 ? await describirApi(ctx, BASE) : ''
   const estadoPagina = n === 0 ? (await p.locator('main .estado-vacio-titulo').first().textContent().catch(() => null))?.trim() ?? 'sin ningún estado visible' : ''
   let corto = 0
   for (let i = 0; i < n; i++) if ((await enlaces.nth(i).boundingBox()).height < MIN - 0.5) corto += 1
-  comprobar(n > 0 && corto === 0, `«Ver la ficha completa»: ${n} enlaces de ≥ 44 px`, n === 0 ? `no hay enlaces de ficha; la página muestra: «${estadoPagina}»` : `«Ver la ficha completa»: ${corto} de ${n} bajo 44 px`)
+  comprobar(n > 0 && corto === 0, `«Ver la ficha completa»: ${n} enlaces de ≥ 44 px`, n === 0 ? `no hay enlaces de ficha; la página muestra: «${estadoPagina}»; la API responde ahora: ${apiAhora}` : `«Ver la ficha completa»: ${corto} de ${n} bajo 44 px`)
 
   // 6. Miga de pan
   const miga = await p.locator('.breadcrumb-govco .breadcrumb-item-govco').first().boundingBox()

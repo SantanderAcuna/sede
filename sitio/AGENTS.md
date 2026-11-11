@@ -59,6 +59,7 @@ producción.
 
 | Regla | Por qué |
 |---|---|
+| **El diseño lo aprueba José (TIC, Alcaldía). Ningún archivo de diseño se modifica sin su autorización explícita en el chat** | El diseño actual está aprobado. «Archivo de diseño» es todo lo que cambia lo que el ciudadano ve: CSS y tokens (`app/assets`), plantillas y componentes (`app/components`, `app/layouts`, `app/pages`, `app.vue`), imágenes y fuentes (`public/`), `public/govco/`. Arreglar un hallazgo de una prueba **no** es autorización: se informa y se espera. Cambiar pruebas, scripts de prueba o el CI **no** es cambiar el diseño |
 | **Un color no se escribe en crudo fuera de `tokens.css`** | Se declara una vez y se consume por `var()`. Escribirlo dos veces es cómo se llega a tener el mismo azul en dos formas |
 | **Nunca editar las hojas de `public/govco/`** | Ver §2 |
 | **Un componente consume tokens de nivel 3, o del 2 si no hay 3. Nunca del 1** | Un componente acoplado al valor no se puede re-tematizar; acoplado al papel, sí |
@@ -218,6 +219,39 @@ como histórico, no como puerta.
 > **Sólo la captura visual lo vio.** Por eso `selector-not-notation` está
 > desactivada: **una regla de estilo no puede ganarle a una de corrección.**
 
+### La puerta visual automática (`tests/puerta-visual.mjs`)
+
+Corre sola en el CI en **cada PR hacia `develop`** (job «Puerta visual»); nadie tiene que
+pedirla ni aprobarla, y alcanza también a las páginas nuevas porque **descubre las rutas
+desde `/sitemap.xml`** (que sale de `config/sitemap.ts`): una página que se publica entra
+sin tocar ninguna lista. Más tres estados fijos (`/buscar?q=salud`, `/buscar?q=zzzz` y la 404).
+
+Cada ruta se mide a 1300, 768, 390 y 320 px. **Bloquea** (PV-01…09): estado HTTP, estructura
+(un `h1`, `main`, cabecera, pie, `lang` `es`/`es-XX`, título), reflujo horizontal, imágenes
+rotas o sin `alt`, fuentes que no cargan, salto de maquetación (CLS > 0,1), controles menores
+de 24×24 px, errores de consola o recursos GET fallidos, cabecera y pie iguales en todas las
+páginas; y **axe** (WCAG 2.1 A/AA, crítico y serio). **Informa, sin bloquear:** qué vistas
+cambiaron de aspecto frente a `develop` y qué archivos de diseño toca el PR. Si el cambio de
+aspecto es deseado lo decide quien aprueba el diseño; ninguna propiedad medible lo decide.
+
+```bash
+cd sitio && npm run build
+npm run test:puerta-visual                          # el veredicto
+npm run test:puerta-visual -- --contra=origin/develop   # + qué cambió de aspecto
+npm run test:puerta-visual -- --autoprueba          # inyecta un defecto por regla y exige verlo
+```
+
+- **Línea base** (`tests/puerta-visual-base.json`): el diseño aprobado ya incumple PV-06 (CLS de
+  la portada, 0,21) y PV-07 (radios de 20 px, enlaces-botón de 20 px de alto, indicadores de
+  16 px) —WCAG 2.2, no 2.1—. No se arregla (ver la primera regla de §3), pero **no puede
+  empeorar** y una ruta nueva se juzga con el límite estricto. **Subir un número de la línea
+  base equivale a cambiar el diseño**: requiere autorización explícita de José.
+- **Hermética:** sitio compilado + API simulada local, sin Internet. Las escrituras (POST) del
+  simulador responden 405 por diseño y no cuentan como fallo.
+- **La autoprueba corre antes que el veredicto en el CI**: si la puerta no ve un defecto
+  conocido, su veredicto no vale.
+- Las capturas de cada ruta y ancho quedan como artefacto `puerta-visual` (7 días).
+
 ---
 
 ## 7. Lo que **no** se hace
@@ -259,6 +293,7 @@ npm run build                         # sin errores
 npx stylelint "app/assets/css/*.css"  # limpio
 # con el build servido:
 node scripts/captura-visual.mjs --contra=origin/develop   # sólo los cambios que buscabas
+npm run test:puerta-visual                                # el mismo veredicto que dará el CI en tu PR
 ```
 
 **Y arranca el servidor con un puerto libre y mátalo al terminar.** Esta máquina

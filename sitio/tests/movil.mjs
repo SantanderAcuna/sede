@@ -50,6 +50,7 @@ if (!BASE) {
 
 import { lanzar, opcionesMovil } from './ayudas/motor.mjs'
 import { opcionesAgente } from './ayudas/agente-usuario.mjs'
+import { esperarCupoApi } from './ayudas/cupo-api.mjs'
 
 let fallos = 0
 const ok = (m) => console.log(`  ✓ ${m}`)
@@ -320,6 +321,10 @@ console.log('Áreas táctiles (390 px)')
 }
 {
   const ctx = await contexto(390, 844)
+  // Las 19 rutas × 5 anchos de arriba agotan el cupo de la API (60/min por IP); sin esta espera la
+  // página sale con «No se pudo cargar el catálogo». Ver ayudas/cupo-api.mjs.
+  const cupo = await esperarCupoApi(ctx, BASE)
+  if (!cupo.listo) console.log(`  · aviso: el cupo de la API no se recuperó tras ${cupo.consultas} consultas`)
   const p = await abrirResuelta(ctx, '/tramites')
   const enlaces = p.locator('main .enlace-ficha-tramite')
   // `count()` no espera: es una foto del instante. Se aguarda a que aparezca el primer enlace

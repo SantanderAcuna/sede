@@ -16,6 +16,7 @@
     "trazabilidad": "node scripts/trazabilidad.mjs",
     "test:cobertura": "vitest run --coverage",
     "test:diseno": "node tests/diseno.mjs",
+    "test:visual": "node scripts/captura-visual.mjs --contra=origin/develop",
     "test:vinculos": "node tests/vinculos.mjs",
     "test:sitemap": "node tests/sitemap.mjs",
     "test:robots": "node tests/robots.mjs",

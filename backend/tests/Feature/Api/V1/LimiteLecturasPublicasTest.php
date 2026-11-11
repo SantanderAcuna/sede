@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Api\V1;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Route as RutaRegistrada;
 use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -126,19 +127,16 @@ final class LimiteLecturasPublicasTest extends TestCase
                 continue;
             }
 
-            $intermedios = $ruta->gatherMiddleware();
+            $limites = $this->limitesDe($ruta);
 
-            if (in_array('throttle:lecturas-publicas', $intermedios, true)) {
+            if (in_array('lecturas-publicas', $limites, true)) {
                 $conLecturas[] = $nombre;
-                $this->assertNotContains(
-                    'throttle:api',
-                    $intermedios,
-                    "{$nombre} lleva los dos límites: mandaría el más estricto.",
-                );
+                // Con dos límites mandaría el más estricto: tiene que ser el único.
+                $this->assertSame(['lecturas-publicas'], $limites, "{$nombre} lleva más de un límite.");
                 $this->assertSame(['GET', 'HEAD'], $ruta->methods(), "{$nombre} no es una lectura.");
             } elseif (str_starts_with($nombre, 'v1.panel.')) {
                 // El panel conserva el límite general: el cupo holgado es sólo de lo público.
-                $this->assertContains('throttle:api', $intermedios, "{$nombre} perdió el límite general.");
+                $this->assertContains('api', $limites, "{$nombre} perdió el límite general.");
             }
         }
 
@@ -147,5 +145,25 @@ final class LimiteLecturasPublicasTest extends TestCase
         sort($esperadas);
 
         $this->assertSame($esperadas, $conLecturas);
+    }
+
+    /**
+     * Los limitadores que la ruta lleva de verdad, ya resuelto el grupo `api` y
+     * quitados los que la ruta excluye: `throttle:api` → `api`.
+     *
+     * @return list<string>
+     */
+    private function limitesDe(RutaRegistrada $ruta): array
+    {
+        $limites = [];
+
+        foreach (Route::gatherRouteMiddleware($ruta) as $intermedio) {
+            if (is_string($intermedio)
+                && preg_match('/(?:^throttle|ThrottleRequests(?:WithRedis)?):([^,]+)/', $intermedio, $partes) === 1) {
+                $limites[] = $partes[1];
+            }
+        }
+
+        return $limites;
     }
 }

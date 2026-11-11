@@ -1,7 +1,8 @@
 /**
  * Espera a que la API tenga cupo antes de medir algo que depende de ella.
  *
- * `/api/v1/*` limita a 60 peticiones por minuto y por IP (`throttle:api`, con
+ * `/api/v1/*` limita las peticiones por minuto y por IP (las lecturas públicas con
+ * `throttle:lecturas-publicas`, 300 por defecto; antes `throttle:api`, 60; con
  * `X-RateLimit-Remaining` en cada respuesta y `Retry-After` en el 429). El
  * servidor del sitio consulta la API con la IP del visitante (`conf.d/interno.conf`),
  * y cada página servida gasta 2–3 peticiones. Un script que recorre muchas rutas

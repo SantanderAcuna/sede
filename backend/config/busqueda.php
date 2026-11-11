@@ -21,8 +21,12 @@ return [
     | entre en los resultados. Se fija por transacción: el valor global de la base
     | (0,6) no encontraría «licensia» (0,556) y cambiarlo afectaría a todo lo demás.
     | Meseta medida: de 0,45 a 0,50 con la cobertura de abajo (docs/busqueda.md §2.1).
+    |
+    | 0,49 desde M01-3 (docs/busqueda.md §2.6): «transparencia» alcanzaba a «Duplicado
+    | licencia(s) de tránsito…» con 0,474, y entre 0,475 y 0,50 los bancos dan lo mismo;
+    | 0,51 ya pierde 15 aciertos. Se queda a mitad de esa franja, no al filo.
     */
-    'umbral' => 0.45,
+    'umbral' => 0.49,
 
     /*
     | Cada palabra de la consulta (de `palabra_minima` letras o más) tiene que

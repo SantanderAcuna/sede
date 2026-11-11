@@ -20,6 +20,7 @@ import {
   archivosDeDiseno,
   juzgarCromo,
   juzgarMedidas,
+  objetivosIncumplidos,
   rutasDelSitemap,
 } from '../scripts/lib/puerta-visual.mjs'
 
@@ -266,5 +267,101 @@ describe('archivosDeDiseno: qué cambio de un PR puede alterar el aspecto', () =
 describe('ANCHOS', () => {
   it('cubre escritorio, tableta y los dos teléfonos de la revisión móvil (320 y 390)', () => {
     expect(ANCHOS).toEqual(expect.arrayContaining([1300, 768, 390, 320]))
+  })
+})
+
+/**
+ * WCAG 2.2, 2.5.8 «Tamaño del objetivo (mínimo)»: 24×24 px CSS, salvo (a) Espaciado: el círculo de 24 px
+ * centrado en el objetivo pequeño no corta a otro objetivo ni al círculo de otro objetivo pequeño;
+ * (b) Equivalente: la misma función está en otro control que sí mide 24×24 (aquí: la etiqueta de una
+ * casilla/radio, interpretación declarada); (c) En línea: enlace dentro de una frase.
+ * Texto normativo consultado en la página «Understanding» del W3C el 2026-11-10; el círculo se centra en la
+ * CAJA que envuelve al objetivo. Antes la puerta contaba todo lo menor de 24 como falla: eso era un exceso.
+ */
+describe('objetivosIncumplidos · 2.5.8 con sus excepciones', () => {
+  const obj = (selector: string, x: number, y: number, w: number, h: number, extra: Record<string, unknown> = {}) => ({
+    selector,
+    x,
+    y,
+    w,
+    h,
+    ...extra,
+  })
+
+  it('un control de 24×24 o más no es problema', () => {
+    expect(objetivosIncumplidos([obj('button.a', 0, 0, 24, 24)])).toEqual([])
+  })
+
+  it('un control pequeño y solo (nada a 24 px a la redonda) cumple por Espaciado', () => {
+    expect(objetivosIncumplidos([obj('button.a', 100, 100, 16, 16), obj('a.lejos', 300, 300, 100, 30)])).toEqual([])
+  })
+
+  it('dos controles pequeños con los centros a ≥ 24 px cumplen (indicadores del carrusel: 27,2 px)', () => {
+    const lista = [0, 1, 2, 3].map((i) => obj(`button.i${i}`, 380.7 + i * 27.2, 926.5, 16, 16))
+    expect(objetivosIncumplidos(lista)).toEqual([])
+  })
+
+  it('dos controles pequeños con los centros a < 24 px fallan los dos', () => {
+    const r = objetivosIncumplidos([obj('button.a', 0, 0, 16, 16), obj('button.b', 20, 0, 16, 16)])
+    expect(r.map((x: { selector: string }) => x.selector)).toEqual(['button.a', 'button.b'])
+  })
+
+  it('un control pequeño cuyo círculo corta a otro objetivo (aunque grande) falla', () => {
+    const r = objetivosIncumplidos([obj('button.a', 0, 0, 16, 16), obj('a.vecino', 18, 0, 200, 40)])
+    expect(r.map((x: { selector: string }) => x.selector)).toEqual(['button.a'])
+  })
+
+  it('el círculo es de 24 px de DIÁMETRO: tocar el borde justo no corta, entrar 0,5 px sí', () => {
+    // Círculo de a: centro (8,8), radio 12 → llega a x=20. Un vecino que empieza en x=20 sólo lo toca.
+    expect(objetivosIncumplidos([obj('button.a', 0, 0, 16, 16), obj('a.v', 20, 0, 50, 50)])).toEqual([])
+    expect(objetivosIncumplidos([obj('button.a', 0, 0, 16, 16), obj('a.v', 19.5, 0, 50, 50)]).length).toBe(1)
+  })
+
+  it('un enlace de 20 px de alto muy ancho cumple si el siguiente queda fuera de su círculo (pie de página)', () => {
+    // Medidas reales de la portada a 1300 px: dos correos apilados, centros a 139 px en horizontal.
+    const r = objetivosIncumplidos([obj('a.uno', 279, 2186.2, 313, 20), obj('a.dos', 388, 2208.7, 373, 20)])
+    expect(r).toEqual([])
+  })
+
+  it('el mismo par de enlaces, pero a 1 px de distancia vertical, falla', () => {
+    const r = objetivosIncumplidos([obj('a.uno', 279, 2186.2, 313, 20), obj('a.dos', 388, 2207.2, 373, 20)])
+    expect(r.length).toBeGreaterThan(0)
+  })
+
+  it('una casilla con su etiqueta: la etiqueta propia no cuenta como vecino que corta', () => {
+    const r = objetivosIncumplidos([obj('input', 873, 1073.8, 20, 20, { etiqueta: { x: 895, y: 1071, w: 150, h: 22 } })])
+    expect(r).toEqual([])
+  })
+
+  it('una casilla pegada a OTRA etiqueta falla si su círculo la corta y no hay equivalente', () => {
+    const r = objetivosIncumplidos([
+      obj('input.a', 0, 0, 20, 20, { etiqueta: { x: 40, y: 0, w: 80, h: 22 } }),
+      obj('label.otra', 8, 20, 100, 22),
+    ])
+    expect(r.map((x: { selector: string }) => x.selector)).toContain('input.a')
+  })
+
+  it('Equivalente: la etiqueta de 24×24 o más salva a la casilla que no cumple por espaciado', () => {
+    const r = objetivosIncumplidos([
+      obj('input.a', 0, 0, 20, 20, { etiqueta: { x: 22, y: 0, w: 300, h: 24 } }),
+      obj('a.pegado', 0, 22, 100, 30),
+    ])
+    expect(r).toEqual([])
+  })
+
+  it('Equivalente no se aplica a un botón sin etiqueta', () => {
+    const r = objetivosIncumplidos([obj('button.a', 0, 0, 16, 16), obj('a.pegado', 0, 18, 100, 30)])
+    expect(r.length).toBe(1)
+  })
+
+  it('un enlace en línea dentro de una frase está exento', () => {
+    expect(objetivosIncumplidos([obj('a.frase', 0, 0, 60, 18, { enLinea: true }), obj('a.otro', 0, 20, 60, 18)]).length).toBe(1)
+    // sólo el otro (no en línea) queda; el primero se exime
+  })
+
+  it('el mensaje trae el tamaño medido y el motivo, para que se pueda actuar', () => {
+    const [f] = objetivosIncumplidos([obj('button.a', 0, 0, 16, 16), obj('button.b', 20, 0, 16, 16)])
+    expect(f).toMatchObject({ selector: 'button.a', ancho: 16, alto: 16 })
+    expect(f.motivo).toMatch(/espaci|círculo/i)
   })
 })

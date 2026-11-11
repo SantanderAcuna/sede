@@ -241,11 +241,20 @@ npm run test:puerta-visual -- --contra=origin/develop   # + qué cambió de aspe
 npm run test:puerta-visual -- --autoprueba          # inyecta un defecto por regla y exige verlo
 ```
 
-- **Línea base** (`tests/puerta-visual-base.json`): el diseño aprobado ya incumple PV-06 (CLS de
-  la portada, 0,21) y PV-07 (radios de 20 px, enlaces-botón de 20 px de alto, indicadores de
-  16 px) —WCAG 2.2, no 2.1—. No se arregla (ver la primera regla de §3), pero **no puede
-  empeorar** (el CLS admite +0,05 de tolerancia entre máquinas: medido 0,204 en un portátil y 0,215 en el CI) y una ruta nueva se juzga con el límite estricto. **Subir un número de la línea
-  base equivale a cambiar el diseño**: requiere autorización explícita de José.
+- **PV-07 aplica WCAG 2.2 · 2.5.8 con sus excepciones** (`objetivosIncumplidos`, con pruebas): un
+  control menor de 24×24 px cumple si su círculo de 24 px no corta a otro objetivo ni al círculo
+  de otro control pequeño (Espaciado), si es un enlace dentro de una frase (En línea) o si es
+  una casilla/radio con etiqueta de 24×24 o más (Equivalente; interpretación declarada). El
+  área que recibe el clic se sondea con `elementFromPoint`, así que cuenta un pseudoelemento que
+  la amplíe. Antes contaba todo lo menor de 24 px como falla y eso era un exceso. Ojo: los
+  correos del pie cumplen por 0,5 px de margen; moverlos exige volver a medir.
+- **Línea base** (`tests/puerta-visual-base.json`): hoy **vacía**. El diseño aprobado cumple PV-06 y
+  PV-07 (el CLS de la portada se arregló con una *container query* en `CarruselGovco.vue`; la
+  prueba `npm run test:carrusel` exige que la portada con JS y sin JS sea idéntica). Se
+  conserva el mecanismo: una línea base **no puede empeorar** (el CLS admite +0,05 de tolerancia
+  entre máquinas: medido 0,204 en un portátil y 0,215 en el CI) y una ruta nueva se juzga con el
+  límite estricto. **Subir un número de la línea base equivale a cambiar el diseño**: requiere
+  autorización explícita de José.
 - **Hermética:** sitio compilado + API simulada local, sin Internet. Las escrituras (POST) del
   simulador responden 405 por diseño y no cuentan como fallo.
 - **La autoprueba corre antes que el veredicto en el CI**: si la puerta no ve un defecto

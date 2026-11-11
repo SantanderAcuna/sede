@@ -147,7 +147,16 @@ class AppServiceProvider extends ServiceProvider
                 ->by('busqueda|'.$peticion->ip());
         });
 
-        // La API entera cabe en sesenta peticiones por minuto. Se cuenta por
+        // Las lecturas públicas las pide el sitio al servir cada página (dos o tres por
+        // página), en nombre del visitante y con su IP. Comparten un cupo propio, más
+        // holgado que el general, y el valor se lee dentro del cierre por la misma razón
+        // que en la búsqueda: una prueba lo cambia con `config([...])`.
+        RateLimiter::for('lecturas-publicas', function (Request $peticion) {
+            return Limit::perMinute((int) config('lecturas.limite_por_minuto'))
+                ->by('lecturas|'.$peticion->ip());
+        });
+
+        // El resto de la API —el panel— cabe en sesenta peticiones por minuto. Se cuenta por
         // usuario cuando hay sesión y por IP cuando no, para que un cliente
         // autenticado no consuma el cupo de la oficina entera que comparte salida.
         RateLimiter::for('api', function (Request $peticion) {

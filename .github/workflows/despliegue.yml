@@ -363,12 +363,21 @@ jobs:
           done
       - name: Instalar el navegador
         working-directory: sitio
+        # Despliegue 43056371253: el DNS de azure.archive.ubuntu.com llevaba horas caído y
+        # `install --with-deps` (descarga del navegador + librerías por apt) se quedó
+        # reintentando hasta agotar los 30 min del trabajo; los reintentos puestos aquí en #533
+        # lo empeoraron (4 × ~8 min). Se separa: el navegador es obligatorio; las librerías de
+        # apt se intentan una vez, con tope de 3 min, y si apt no responde se sigue con aviso.
+        # La comprobación final lanza el navegador de verdad y falla si no arranca.
         run: |
           if [ "$NAVEGADOR" = "msedge" ]; then
-            bash ../scripts/reintentar.sh 4 npx playwright install msedge
+            bash ../scripts/reintentar.sh 3 npx playwright install msedge
           else
-            bash ../scripts/reintentar.sh 4 npx playwright install --with-deps "$NAVEGADOR"
+            bash ../scripts/reintentar.sh 3 npx playwright install "$NAVEGADOR"
+            timeout 180 npx playwright install-deps "$NAVEGADOR" \
+              || echo "::warning::apt no respondió en 3 min: se sigue con las librerías que trae la imagen (las fuentes pueden diferir)"
           fi
+          node --input-type=module -e "import { lanzar } from './tests/ayudas/motor.mjs'; const b = await lanzar(); console.log('el navegador arranca:', b.version()); await b.close()"
       - name: Compilar (la prueba de diseño arranca su propio servidor)
         working-directory: sitio
         run: |

@@ -10,10 +10,20 @@
  *
  * Uso
  * ---
- *     node scripts/captura-visual.mjs --guardar     # fija la referencia
- *     node scripts/captura-visual.mjs               # compara contra ella
+ *     node scripts/captura-visual.mjs --contra=origin/develop   # RECOMENDADO
+ *     node scripts/captura-visual.mjs --guardar                 # fija la referencia (PNG)
+ *     node scripts/captura-visual.mjs                           # compara contra ella
  *
- * Sale con código 1 si alguna captura cambió, para que sirva de puerta.
+ * Sale con código 1 si alguna captura cambió, para que sirva de puerta (2 si no había
+ * nada que comparar).
+ *
+ * **`--contra=<rama>` compara dos renders de la MISMA máquina**: compila esa rama en un
+ * árbol de trabajo temporal, la sirve en otro puerto, captura las mismas vistas y las
+ * compara con el build actual (el que ya sirves en `BASE`). Es el modo fiable, porque el
+ * hash de una captura es determinista dentro de una máquina y NO entre máquinas: medido el
+ * 2026-11-10, la referencia PNG fijada el 2026-10-02 no se reproduce en otra máquina ni
+ * compilando el código de aquel mismo día (ver `tests/captura-ab.test.ts`). El modo de
+ * los PNG guardados sólo sirve en la máquina que los fijó.
  *
  * Las capturas viven en `tests/visual/referencia/`. Se versionan a propósito:
  * una referencia que sólo existe en la máquina de quien la creó no protege a
@@ -22,14 +32,21 @@
 import { createRequire } from 'node:module'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { createHash } from 'node:crypto'
 import path from 'node:path'
+import { execFileSync, spawn } from 'node:child_process'
+import { mkdtemp, rm, symlink } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+
+import { compararJuegos, huella as huellaDe, resumirComparacion } from './lib/captura-ab.mjs'
 
 const requerir = createRequire('/home/sacunapolo/Documentos/sede/panel/')
 const { chromium } = requerir('playwright')
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:4300'
 const GUARDAR = process.argv.includes('--guardar')
+const CONTRA = process.argv.find((a) => a.startsWith('--contra='))?.slice('--contra='.length)
+/** Dónde se sirve el build de la rama base cuando se usa `--contra`. */
+const BASE_RAMA = process.env.BASE_RAMA ?? 'http://127.0.0.1:4301'
 const RAIZ = path.resolve('tests/visual/referencia')
 
 /**
@@ -77,7 +94,7 @@ async function cerrarCookies(pagina) {
   }
 }
 
-async function capturar(navegador, vista) {
+async function capturar(navegador, vista, origen = BASE) {
   const pagina = await navegador.newPage({
     viewport: { width: vista.ancho, height: vista.alto },
     // Escala 1 y sin animaciones: una captura con transiciones a medias cambia
@@ -86,7 +103,7 @@ async function capturar(navegador, vista) {
     reducedMotion: 'reduce',
   })
 
-  await pagina.goto(BASE + vista.ruta, { waitUntil: 'networkidle' })
+  await pagina.goto(origen + vista.ruta, { waitUntil: 'networkidle' })
   await cerrarCookies(pagina)
 
   if (vista.menu) {
@@ -150,9 +167,87 @@ async function capturar(navegador, vista) {
   return buffer
 }
 
-const huella = (buffer) => createHash('sha256').update(buffer).digest('hex').slice(0, 16)
+const huella = huellaDe
+
+/** Espera a que un servidor responda; falla con un mensaje claro si no lo hace. */
+async function esperarServidor(origen, intentos = 40) {
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const r = await fetch(origen + '/', { signal: AbortSignal.timeout(3000) })
+      if (r.status < 500) return
+    } catch {
+      /* todavía no */
+    }
+    await esperar(500)
+  }
+  throw new Error(`No responde ${origen}. ¿Está servido el build? (PORT=… node .output/server/index.mjs)`)
+}
+
+async function capturarTodas(navegador, origen) {
+  const juego = new Map()
+  for (const vista of VISTAS) juego.set(vista.nombre, await capturar(navegador, vista, origen))
+  return juego
+}
+
+/**
+ * `--contra=<rama>`: compila la rama en un árbol temporal, la captura y la compara con el
+ * build actual. Todo ocurre en esta máquina, que es lo que hace comparable el hash.
+ */
+async function contraLaRama(ref) {
+  const raiz = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim()
+  const arbol = await mkdtemp(path.join(tmpdir(), 'captura-base-'))
+  const sitioBase = path.join(arbol, 'sitio')
+  let servidor = null
+  let navegador = null
+
+  try {
+    console.log(`  Rama base: ${ref} (árbol temporal ${arbol})\n`)
+    execFileSync('git', ['worktree', 'add', '--detach', '-q', arbol, ref], { cwd: raiz, stdio: 'inherit' })
+    await symlink(path.resolve('node_modules'), path.join(sitioBase, 'node_modules'))
+
+    console.log('  Compilando la rama base…')
+    execFileSync('npx', ['nuxt', 'build'], { cwd: sitioBase, stdio: 'ignore' })
+
+    const puerto = new URL(BASE_RAMA).port
+    servidor = spawn('node', ['.output/server/index.mjs'], {
+      cwd: sitioBase,
+      env: { ...process.env, PORT: puerto },
+      stdio: 'ignore',
+    })
+    await esperarServidor(BASE_RAMA)
+    await esperarServidor(BASE)
+
+    navegador = await chromium.launch()
+    console.log('  Capturando la rama base y el build actual…\n')
+    const base = await capturarTodas(navegador, BASE_RAMA)
+    const actual = await capturarTodas(navegador, BASE)
+
+    const vistas = compararJuegos(base, actual)
+    for (const v of vistas) {
+      const alturas = `${v.alturaBase ?? '—'} → ${v.alturaActual ?? '—'} px`
+      console.log(`  ${v.estado === 'igual' ? 'IGUAL    ' : 'CAMBIADA '} ${v.nombre.padEnd(28)} ${alturas}`)
+    }
+
+    const { iguales, distintas, codigoDeSalida } = resumirComparacion(vistas)
+    if (codigoDeSalida === 2) console.log('\n  No se capturó ninguna vista: no hay nada que comparar.')
+    else if (distintas > 0) console.log(`\n  ${distintas} de ${vistas.length} vista(s) difieren de ${ref}. ¿Es lo que buscabas?`)
+    else console.log(`\n  Las ${iguales} vistas son idénticas a ${ref}.`)
+    return codigoDeSalida
+  } finally {
+    if (navegador) await navegador.close().catch(() => {})
+    if (servidor) servidor.kill()
+    try {
+      execFileSync('git', ['worktree', 'remove', '--force', arbol], { cwd: raiz, stdio: 'ignore' })
+    } catch {
+      /* si git ya no lo conoce, basta con borrar la carpeta */
+    }
+    await rm(arbol, { recursive: true, force: true }).catch(() => {})
+  }
+}
 
 async function main() {
+  if (CONTRA) return contraLaRama(CONTRA)
+
   if (GUARDAR) await mkdir(RAIZ, { recursive: true })
 
   const navegador = await chromium.launch()

@@ -49,3 +49,45 @@ export async function esperarCupoApi(
   }
   return { listo: false, consultas, restantes }
 }
+
+/**
+ * Una línea que describe lo que responde la API ahora: código y cupo, o cuánto
+ * esperar. Sirve para que un «No se pudo cargar el catálogo» diga POR QUÉ en lugar
+ * de obligar a adivinar (cupo agotado, error del servidor o sin respuesta).
+ */
+export async function describirApi(contexto, base) {
+  try {
+    const respuesta = await contexto.request.get(`${base}/api/v1/tramites?per_page=1`, { failOnStatusCode: false })
+    const cabeceras = respuesta.headers()
+    const codigo = respuesta.status()
+    if (codigo === 429) return `HTTP 429, reintentar en ${cabeceras['retry-after'] ?? '?'} s`
+    const restante = cabeceras['x-ratelimit-remaining']
+    return restante === undefined ? `HTTP ${codigo}` : `HTTP ${codigo}, cupo ${restante}/${cabeceras['x-ratelimit-limit'] ?? '?'}`
+  } catch (error) {
+    return `sin respuesta (${error.message})`
+  }
+}
+
+/**
+ * Adaptador: hace las consultas de `esperarCupoApi` y `describirApi` con el `fetch` de
+ * una página ya abierta en el sitio, en lugar del cliente HTTP de Playwright.
+ *
+ * Medido en el despliegue 43068782240: el cliente HTTP de Playwright recibe de
+ * Cloudflare un 403 SIN cabeceras de cupo (no es un navegador), y la espera lo
+ * confundía con «no hay API» y seguía sin esperar. El `fetch` de una página del
+ * sitio viaja con la identidad del navegador, igual que las peticiones del propio
+ * sitio. Debe ser una página del mismo origen (cualquier ruta; `/robots.txt` basta).
+ */
+export function sondaDesdePagina(pagina) {
+  return {
+    request: {
+      get: async (url) => {
+        const r = await pagina.evaluate(async (u) => {
+          const respuesta = await fetch(u, { cache: 'no-store' })
+          return { status: respuesta.status, headers: Object.fromEntries(respuesta.headers) }
+        }, url)
+        return { status: () => r.status, headers: () => r.headers }
+      },
+    },
+  }
+}

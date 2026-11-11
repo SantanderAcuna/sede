@@ -8,7 +8,7 @@
  * política. También se prueba la revocación, que es la mitad de RF-B1-008 y la
  * que no se ve en una captura de pantalla.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   analiticaPermitida,
@@ -147,9 +147,30 @@ describe('ramas de consentimientoVigente', () => {
     expect(consentimientoVigente(leerConsentimiento()!)).toBe(true)
   })
 
-  it('consentimiento de exactamente 365 días sigue vigente', () => {
-    guardarCrudo({ fecha: haceDias(365), version: VERSION_POLITICA, aceptadas: [] })
-    expect(consentimientoVigente(leerConsentimiento()!)).toBe(true)
+  // El borde de 365 días es inclusivo (`dias <= 365`), así que sólo se puede comprobar con el
+  // reloj quieto: con el reloj real, `haceDias(365)` se calcula en un instante y
+  // `consentimientoVigente` lee `Date.now()` en otro, y basta un milisegundo de diferencia para
+  // que «exactamente 365 días» pase a ser 365,00000001 y dé falso. Falló así en el CI de #540
+  // (Sitio, sin relación con ese cambio).
+  describe('con el reloj quieto', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-11-11T12:00:00.000Z'))
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('consentimiento de exactamente 365 días sigue vigente', () => {
+      guardarCrudo({ fecha: haceDias(365), version: VERSION_POLITICA, aceptadas: [] })
+      expect(consentimientoVigente(leerConsentimiento()!)).toBe(true)
+    })
+
+    it('un milisegundo más de 365 días ya no es vigente (el borde es exacto)', () => {
+      guardarCrudo({ fecha: haceDias(365), version: VERSION_POLITICA, aceptadas: [] })
+      vi.advanceTimersByTime(1)
+      expect(consentimientoVigente(leerConsentimiento()!)).toBe(false)
+    })
   })
 
   it('consentimiento de 366 días ya no es vigente', () => {

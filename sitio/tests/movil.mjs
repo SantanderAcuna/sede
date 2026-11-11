@@ -49,6 +49,7 @@ if (!BASE) {
 }
 
 import { lanzar, opcionesMovil } from './ayudas/motor.mjs'
+import { opcionesAgente } from './ayudas/agente-usuario.mjs'
 
 let fallos = 0
 const ok = (m) => console.log(`  ✓ ${m}`)
@@ -60,12 +61,15 @@ const comprobar = (condicion, bien, mal) => (condicion ? ok(bien) : falla(mal))
 const MIN = 44
 
 const navegador = await lanzar()
+/** Agente de usuario sin la marca `Headless` (ver ayudas/agente-usuario.mjs). */
+const AGENTE = await opcionesAgente(navegador)
 
 async function contexto(ancho, alto, movil = true) {
   return navegador.newContext({
     viewport: { width: ancho, height: alto },
     ...opcionesMovil(movil),
     deviceScaleFactor: 1,
+    ...AGENTE,
   })
 }
 

@@ -424,6 +424,8 @@ jobs:
             || { echo "Faltan includes de sin-transformar.conf en los locations del sitio y del panel."; exit 1; }
           grep -q 'snippets/mapa-sin-transformar.conf' docker/nginx/nginx.conf \
             || { echo "nginx.conf ya no incluye mapa-sin-transformar.conf."; exit 1; }
+          grep -q 'snippets/compresion.conf' docker/nginx/nginx.conf \
+            || { echo "nginx.conf ya no incluye compresion.conf (sin él, el HTML se comprime a nivel 1)."; exit 1; }
           sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends nginx-light > /dev/null
           bash deploy/pruebas/prueba-sin-transformar.sh
       - name: nginx no registra lo que el ciudadano busca

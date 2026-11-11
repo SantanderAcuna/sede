@@ -12,6 +12,7 @@ set -u
 RAIZ="$(cd "$(dirname "$0")/../.." && pwd)"
 MAPA="$RAIZ/docker/nginx/snippets/mapa-sin-transformar.conf"
 SNIPPET="$RAIZ/docker/nginx/snippets/sin-transformar.conf"
+COMPRESION="$RAIZ/docker/nginx/snippets/compresion.conf"
 T="$(mktemp -d)"
 PUERTO_NGINX="${PUERTO_NGINX:-18081}"
 PUERTO_ORIGEN="${PUERTO_ORIGEN:-18082}"
@@ -22,6 +23,7 @@ trap limpiar EXIT
 command -v nginx >/dev/null || { echo "Falta nginx."; exit 2; }
 [ -f "$MAPA" ] || { echo "  ✗ no existe $MAPA"; fallos=$((fallos+1)); }
 [ -f "$SNIPPET" ] || { echo "  ✗ no existe $SNIPPET"; fallos=$((fallos+1)); }
+[ -f "$COMPRESION" ] || { echo "  ✗ no existe $COMPRESION"; fallos=$((fallos+1)); }
 [ "$fallos" -eq 0 ] || { echo "sin-transformar: $fallos fallo(s)"; exit 1; }
 
 # Origen simulado: HTML (como Nitro, sin Cache-Control), JSON y un activo con su propio Cache-Control.
@@ -33,6 +35,12 @@ class H(http.server.BaseHTTPRequestHandler):
             tipo, cuerpo, extra = 'application/json', b'{"ok":true}', {}
         elif self.path.startswith('/_nuxt'):
             tipo, cuerpo, extra = 'application/javascript', b'1', {'Cache-Control': 'public, max-age=31536000, immutable'}
+        elif self.path.startswith('/grande'):
+            import random
+            r = random.Random(7)
+            pal = ['tramite','servicio','ciudadano','alcaldia','distrito','normativa','peticion','queja','radicado','secretaria','vigencia','formulario','requisito','atencion','horario','consulta']
+            cuerpo = ('<html><body>' + ''.join('<p class="c%d"><a href="/t/%d">%s %s %s</a></p>' % (r.randint(0,40), r.randint(0,99999), r.choice(pal), r.choice(pal), r.choice(pal)) for _ in range(1800)) + '</body></html>').encode()
+            tipo, extra = 'text/html;charset=utf-8', {}
         else:
             tipo, cuerpo, extra = 'text/html;charset=utf-8', b'<html><body>x</body></html>', {}
         self.send_response(200); self.send_header('Content-Type', tipo)
@@ -58,6 +66,7 @@ http {
     access_log off;
     client_body_temp_path $T/tmp/a; proxy_temp_path $T/tmp/b; fastcgi_temp_path $T/tmp/c; uwsgi_temp_path $T/tmp/d; scgi_temp_path $T/tmp/e;
     include $MAPA;
+    include $COMPRESION;
     server {
         listen 127.0.0.1:$PUERTO_NGINX;
         location / {
@@ -93,5 +102,21 @@ comprobar "el HTML del panel sale con Cache-Control: no-transform"        "200|n
 comprobar "el JSON de la API no lleva Cache-Control añadido"              "200|" "$(cc /api/v1/x)"
 comprobar "el activo conserva SU Cache-Control, sin duplicados"           "200|public, max-age=31536000, immutable" "$(cc /_nuxt/a.js)"
 comprobar "un activo estático del panel no lleva Cache-Control añadido"   "200|" "$(cc /admin/app.js)"
+
+# Compresión: con no-transform el borde ya no recomprime, así que manda la del origen. El nivel por
+# defecto de nginx (1) deja el HTML ~15 % más grande que el nivel 5 (medido con la portada real:
+# 15,1 KB frente a 12,9 KB; zstd -3 del borde: 14,0 KB). El cuerpo de prueba es sintético (semilla fija).
+curl -s -H 'Accept-Encoding: gzip' -o "$T/grande.gz" -w '%{http_code}|%{size_download}' "http://127.0.0.1:$PUERTO_NGINX/grande" > "$T/grande.txt"
+curl -s -H 'Accept-Encoding: identity' -o "$T/grande.html" "http://127.0.0.1:$PUERTO_NGINX/grande"
+read -r nivel1 nivel5 < <(python3 -c "
+import zlib,sys
+d=open('$T/grande.html','rb').read()
+print(len(zlib.compress(d,1)), len(zlib.compress(d,5)))")
+real="$(cut -d'|' -f2 "$T/grande.txt")"
+if [ "$(cut -d'|' -f1 "$T/grande.txt")" = 200 ] && [ "$real" -le $(( nivel5 * 102 / 100 )) ]; then
+  echo "  ✓ el HTML grande sale comprimido a nivel ≥ 5 ($real B; nivel 1: $nivel1 B, nivel 5: $nivel5 B)"
+else
+  echo "  ✗ el HTML grande no sale comprimido a nivel ≥ 5 (real: $real B; nivel 1: $nivel1 B, nivel 5: $nivel5 B)"; fallos=$((fallos+1))
+fi
 
 if [ "$fallos" -eq 0 ]; then echo "sin-transformar: todo en orden."; else echo "sin-transformar: $fallos fallo(s)."; exit 1; fi

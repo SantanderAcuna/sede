@@ -8,6 +8,7 @@ use App\Models\Politica;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\PoliticaSeeder;
+use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -56,6 +57,22 @@ final class PoliticasRequisitosTest extends TestCase
     }
 
     /**
+     * Un apartado por su id; la prueba falla con un mensaje claro si no existe.
+     *
+     * @return array{id: string, titulo: string, parrafos: list<string>}
+     */
+    private function seccion(string $slug, string $id): array
+    {
+        foreach ($this->secciones($slug) as $seccion) {
+            if ($seccion['id'] === $id) {
+                return $seccion;
+            }
+        }
+
+        $this->fail("La política {$slug} no tiene el apartado {$id}.");
+    }
+
+    /**
      * @param  list<array{id: string, titulo: string, parrafos: list<string>}>  $secciones
      * @return list<array{id: string, titulo: string, parrafos: list<string>}>
      */
@@ -98,9 +115,7 @@ final class PoliticasRequisitosTest extends TestCase
 
     public function test_los_terminos_sembrados_traen_la_jurisdiccion_sin_inventar_la_autoridad(): void
     {
-        $jurisdiccion = collect($this->secciones(self::TERMINOS))->firstWhere('id', 'jurisdiccion');
-
-        $this->assertNotNull($jurisdiccion, 'Los términos sembrados no traen el apartado de jurisdicción.');
+        $jurisdiccion = $this->seccion(self::TERMINOS, 'jurisdiccion');
         $texto = implode(' ', $jurisdiccion['parrafos']);
         $this->assertNotSame('', trim($texto));
         // Qué autoridad resuelve las controversias lo decide la Entidad: queda como marcador.
@@ -157,8 +172,7 @@ final class PoliticasRequisitosTest extends TestCase
 
     public function test_la_politica_de_datos_sembrada_fija_el_plazo_de_reclamos_y_cita_la_ley(): void
     {
-        $reclamos = collect($this->secciones(self::DATOS))->firstWhere('id', 'reclamos');
-        $texto = implode(' ', $reclamos['parrafos']);
+        $texto = implode(' ', $this->seccion(self::DATOS, 'reclamos')['parrafos']);
 
         // Ley 1581 de 2012, art. 15: 15 días hábiles, prorrogables hasta 8 más. Art. 14: consultas, 10 y 5.
         $this->assertMatchesRegularExpression('/quince \(15\) días hábiles/u', $texto);
@@ -252,12 +266,17 @@ final class PoliticasRequisitosTest extends TestCase
 
     // ----------------------------------- Las filas que ya existen en staging
 
-    private function migracion(): object
+    /** Corre la migración que completa las filas ya sembradas. */
+    private function correrMigracion(): void
     {
         $archivos = glob(database_path('migrations/*_completar_requisitos_de_politicas.php')) ?: [];
         $this->assertCount(1, $archivos, 'Falta la migración que completa las políticas ya sembradas.');
 
-        return require $archivos[0];
+        $migracion = require $archivos[0];
+        $this->assertInstanceOf(Migration::class, $migracion);
+        $this->assertTrue(method_exists($migracion, 'up'));
+
+        $migracion->up();
     }
 
     /** Deja las filas como las dejó el sembrador antes de este cambio. */
@@ -280,7 +299,7 @@ final class PoliticasRequisitosTest extends TestCase
         $this->assertNotSame([], Politica::query()->where('slug', self::TERMINOS)->firstOrFail()->problemas());
         $this->assertNotSame([], Politica::query()->where('slug', self::DATOS)->firstOrFail()->problemas());
 
-        $this->migracion()->up();
+        $this->correrMigracion();
 
         foreach ([self::TERMINOS, self::DATOS] as $slug) {
             $politica = Politica::query()->where('slug', $slug)->firstOrFail();
@@ -288,7 +307,7 @@ final class PoliticasRequisitosTest extends TestCase
             $this->assertTrue($politica->es_ejemplo, $slug.' sigue siendo un ejemplo.');
         }
 
-        $reclamos = implode(' ', collect($this->secciones(self::DATOS))->firstWhere('id', 'reclamos')['parrafos']);
+        $reclamos = implode(' ', $this->seccion(self::DATOS, 'reclamos')['parrafos']);
         // Lo que ya había se conserva, incluido el marcador del canal.
         $this->assertStringContainsString('[por definir: canal y formulario oficiales]', $reclamos);
         $this->assertStringContainsString('quince (15) días hábiles', $reclamos);
@@ -299,7 +318,7 @@ final class PoliticasRequisitosTest extends TestCase
         $this->comoAntes();
         $this->assertStringNotContainsString('jurisdiccion', (string) Politica::query()->where('slug', self::TERMINOS)->value('busqueda'));
 
-        $this->migracion()->up();
+        $this->correrMigracion();
 
         $this->assertStringContainsString('jurisdiccion', (string) Politica::query()->where('slug', self::TERMINOS)->value('busqueda'));
     }
@@ -308,9 +327,9 @@ final class PoliticasRequisitosTest extends TestCase
     {
         $this->comoAntes();
 
-        $this->migracion()->up();
+        $this->correrMigracion();
         $una = Politica::query()->orderBy('id')->get()->map->secciones->toJson();
-        $this->migracion()->up();
+        $this->correrMigracion();
 
         $this->assertSame($una, Politica::query()->orderBy('id')->get()->map->secciones->toJson());
         $this->assertCount(1, array_filter($this->secciones(self::TERMINOS), static fn (array $s): bool => $s['id'] === 'jurisdiccion'));
@@ -322,7 +341,7 @@ final class PoliticasRequisitosTest extends TestCase
         Politica::query()->where('slug', self::TERMINOS)->update(['es_ejemplo' => false]);
         $antes = Politica::query()->where('slug', self::TERMINOS)->firstOrFail()->secciones;
 
-        $this->migracion()->up();
+        $this->correrMigracion();
 
         $this->assertSame($antes, Politica::query()->where('slug', self::TERMINOS)->firstOrFail()->secciones);
     }
@@ -335,9 +354,8 @@ final class PoliticasRequisitosTest extends TestCase
         $datos->secciones = $this->con($datos->secciones, 'reclamos', [$propio]);
         $datos->save();
 
-        $this->migracion()->up();
+        $this->correrMigracion();
 
-        $reclamos = collect($this->secciones(self::DATOS))->firstWhere('id', 'reclamos');
-        $this->assertSame([$propio], $reclamos['parrafos']);
+        $this->assertSame([$propio], $this->seccion(self::DATOS, 'reclamos')['parrafos']);
     }
 }

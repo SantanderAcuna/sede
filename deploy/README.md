@@ -180,6 +180,31 @@ Lo que hay que hacer en Cloudflare (decisión del titular; no se hace desde el r
 Después de cualquiera de las dos, se vuelve a lanzar el flujo a mano (Actions → Verificación de
 vínculos → Run workflow) y debe informar `0 vínculos internos rotos` con más de una página.
 
+## La baliza de Cloudflare Web Analytics y el consentimiento (M01-4)
+
+**Qué pasaba (HECHO, medido en staging el 2026-11-10):** el borde de Cloudflare inyectaba al final del
+`<body>` su `beacon.min.js` (inyección automática de Web Analytics) antes de cualquier consentimiento,
+y la sede no tenía nada que ver: no llevaba el id del plugin `analitica.client.ts` y la sede no define
+`SEDE_ANALITICA_TOKEN`. Incumplía CA-01-017 («no se hace ninguna petición a dominios de analítica»).
+`npm run test:cookies` lo detectaba (4 comprobaciones en rojo).
+
+**Qué se hizo (decisión de José, 2026-11-10):** el HTML de la sede y del panel sale con
+`Cache-Control: no-transform` (`docker/nginx/snippets/mapa-sin-transformar.conf` y `sin-transformar.conf`).
+Según la documentación de Cloudflare, una respuesta así no se modifica en el borde y no recibe la baliza.
+Sólo el HTML: la API y los activos conservan sus cabeceras.
+
+**Efectos colaterales esperados (la documentación de Cloudflare sólo nombra expresamente la compresión; el resto es HIPÓTESIS hasta medirlo en staging):**
+- No se transforma el contenido en el borde: p. ej. la ofuscación de correos (`email-decode.min.js`) deja de actuar.
+- No se recomprime el cuerpo: se sirve con la compresión del origen (gzip de nginx) y no con la del borde (zstd/brotli).
+
+**Verificación:**
+- `bash deploy/pruebas/prueba-sin-transformar.sh` (corre en el CI): nginx real con los archivos reales y un origen simulado.
+  NO prueba que Cloudflare respete la cabecera: eso lo mide, tras cada despliegue, `tests/cookies.mjs` contra staging
+  (paso «cookies y consentimiento» de los navegadores del flujo de despliegue).
+- Si la baliza vuelve a aparecer (cambio de nameservers, de plan, de regla), la alternativa sin código es
+  Cloudflare → Web Analytics → Manage site → Disable. Si algún día se activa la analítica, se hace con
+  `SEDE_ANALITICA_TOKEN` y la compuerta de consentimiento del sitio, y se retira el `no-transform` sólo si hace falta.
+
 ## Lo que está pendiente
 
 - **El dominio de producción.** `publicar-entorno.sh produccion` no publica sin

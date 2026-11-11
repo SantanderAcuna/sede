@@ -11,6 +11,14 @@ export const ANCHOS = [1300, 768, 390, 320]
 
 /** «Bueno» según Core Web Vitals. */
 const CLS_MAXIMO = 0.1
+/**
+ * El CLS no es idéntico entre máquinas: la misma portada a 320 px dio 0,204 en un portátil y
+ * 0,215 en el CI (HECHO, 2026-11-10). Sin margen, la línea base falla por ruido. 0,05 es una
+ * ESTIMACIÓN con dos máquinas como muestra: holgada para ese ruido y aún muy por debajo de
+ * lo que produce una regresión real (un bloque sin reservar suele sumar 0,1 o más). Si el
+ * CI vuelve a fallar por ruido, se amplía con la medición a la vista, no a ojo.
+ */
+const TOLERANCIA_CLS = 0.05
 
 /** Prefijos cuyas páginas son fichas dinámicas: se toma una muestra, no todas. */
 const PREFIJOS_DE_FICHAS = ['/tramites/', '/politicas/']
@@ -89,9 +97,10 @@ export function juzgarMedidas(m, base = {}) {
 
   // La línea base recoge el diseño ya aprobado: no se arregla (no se toca el diseño sin
   // autorización), pero tampoco puede empeorar, y una ruta nueva se juzga sin concesiones.
-  const techoCls = Math.max(CLS_MAXIMO, base.cls?.[m.ruta] ?? 0)
+  const admitidoCls = base.cls?.[m.ruta]
+  const techoCls = admitidoCls === undefined ? CLS_MAXIMO : Math.max(CLS_MAXIMO, admitidoCls + TOLERANCIA_CLS)
   if (m.cls > techoCls) {
-    const origen = techoCls > CLS_MAXIMO ? `línea base de esta ruta ${techoCls}` : `máximo ${CLS_MAXIMO}`
+    const origen = techoCls > CLS_MAXIMO ? `línea base de esta ruta ${admitidoCls} + tolerancia ${TOLERANCIA_CLS}` : `máximo ${CLS_MAXIMO}`
     v('PV-06', `salto de maquetación (CLS) ${m.cls.toFixed(3)} > ${origen}`)
   }
 

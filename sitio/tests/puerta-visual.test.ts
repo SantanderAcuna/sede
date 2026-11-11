@@ -174,9 +174,12 @@ describe('juzgarMedidas: propiedades objetivas de una página a un ancho', () =>
       expect(reglas(m, { objetivosPequenos: { '/pqrsd': 5 } })).toContain('PV-07')
     })
 
-    it('PV-06 · el CLS puede llegar al de la línea base de esa ruta, no más', () => {
+    it('PV-06 · el CLS puede llegar al de la línea base de esa ruta más la tolerancia entre máquinas, no más', () => {
       expect(reglas(sana({ cls: 0.2 }), { cls: { '/pqrsd': 0.21 } })).not.toContain('PV-06')
-      expect(reglas(sana({ cls: 0.22 }), { cls: { '/pqrsd': 0.21 } })).toContain('PV-06')
+      // Medido: 0,204 en un portátil y 0,215 en el CI para la misma portada a 320 px.
+      expect(reglas(sana({ cls: 0.215 }), { cls: { '/pqrsd': 0.21 } })).not.toContain('PV-06')
+      expect(reglas(sana({ cls: 0.26 }), { cls: { '/pqrsd': 0.21 } })).not.toContain('PV-06')
+      expect(reglas(sana({ cls: 0.27 }), { cls: { '/pqrsd': 0.21 } })).toContain('PV-06')
     })
 
     it('PV-06 · una línea base menor que 0,1 no relaja el umbral general', () => {

@@ -23,6 +23,13 @@ use Illuminate\Database\Seeder;
  */
 final class PoliticaSeeder extends Seeder
 {
+    /**
+     * Los plazos que fija la ley, no la Entidad: el artículo 14 de la Ley 1581 de 2012 para
+     * las consultas y el 15 para los reclamos. La migración que completa las filas ya
+     * sembradas usa el mismo texto (ver `completar_requisitos_de_politicas`).
+     */
+    public const PLAZOS_LEY_1581 = 'Los reclamos se atienden en un máximo de quince (15) días hábiles contados desde el día siguiente a su recibo; si no es posible, se informa al titular el motivo de la demora y la fecha de respuesta, que no superará ocho (8) días hábiles más (Ley 1581 de 2012, art. 15). Las consultas se atienden en un máximo de diez (10) días hábiles, prorrogables por cinco (5) más (art. 14).';
+
     public function run(): void
     {
         foreach ($this->ejemplos() as $slug => $politica) {
@@ -83,6 +90,9 @@ final class PoliticaSeeder extends Seeder
                     self::seccion('privacidad-y-seguridad', 'Referencia a la política de privacidad y seguridad', [
                         'El tratamiento de datos personales y las medidas de seguridad de la sede se describen en las políticas de Seguridad y privacidad y de Protección y tratamiento de datos personales, disponibles en el pie de página.',
                     ]),
+                    self::seccion('jurisdiccion', 'Jurisdicción y ley aplicable', [
+                        'Estos términos se rigen por las leyes de la República de Colombia. Las controversias que surjan de su aplicación se resolverán ante la autoridad competente [por definir: autoridad y mecanismo para resolver controversias, definidos por la Entidad].',
+                    ]),
                 ],
             ],
             'seguridad-y-privacidad' => [
@@ -121,6 +131,7 @@ final class PoliticaSeeder extends Seeder
                     self::seccion('responsable', 'Contacto del responsable', [$responsable]),
                     self::seccion('reclamos', 'Mecanismo de reclamo', [
                         'Las consultas y reclamos se presentan por escrito ante el responsable, con la identificación del titular, la descripción de los hechos y los datos de contacto. La Entidad los atiende en los términos de la Ley 1581 de 2012 [por definir: canal y formulario oficiales].',
+                        self::PLAZOS_LEY_1581,
                     ]),
                 ],
             ],

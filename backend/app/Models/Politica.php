@@ -51,6 +51,8 @@ final class Politica extends Model
             'responsabilidad-de-la-entidad' => 'Responsabilidad de la Entidad',
             'contacto' => 'Contacto',
             'privacidad-y-seguridad' => 'Referencia a la política de privacidad y seguridad',
+            // RF-01-019, parte (f): jurisdicción aplicable.
+            'jurisdiccion' => 'Jurisdicción y ley aplicable',
         ],
         'seguridad-y-privacidad' => [
             'categorias-de-datos' => 'Categorías de datos',
@@ -79,6 +81,24 @@ final class Politica extends Model
             'como-citar' => 'Cómo citarlos',
         ],
     ];
+
+    /**
+     * Lo que RF-01-020 exige del TEXTO de la política de datos personales, además de
+     * que existan sus apartados: que fije el plazo de respuesta a los reclamos y que
+     * cite la Ley 1581 de 2012.
+     *
+     * El plazo es el del artículo 15 de esa ley: quince (15) días hábiles, prorrogables
+     * hasta ocho (8) más. Se exige en esta política y no en las demás: es la que trata
+     * los derechos del titular. «15» solo no vale: «1581» lo contiene, así que el patrón
+     * pide la palabra «días» y «hábiles» detrás y no acepta un dígito pegado.
+     */
+    public const PLAZO_DE_RECLAMOS = '/(?<![\d.,])(?:quince|15)\s*(?:\(\s*15\s*\)\s*)?d[ií]as\s+h[aá]biles/iu';
+
+    /** La cita de la ley que rige el tratamiento de datos personales. */
+    public const CITA_LEY_1581 = '/Ley\s+1581\s+de\s+2012/iu';
+
+    /** La política que debe cumplir RF-01-020 (derechos del titular y plazo de reclamos). */
+    public const POLITICA_DE_DATOS = 'proteccion-y-tratamiento-de-datos-personales';
 
     /** Marcador de dato por completar: «[por asignar]», «[por definir: ...]». */
     public const MARCADOR = '/\[\s*por\s[^\]]*\]/iu';
@@ -165,6 +185,17 @@ final class Politica extends Model
         }
         if (preg_match('/en preparaci[oó]n/iu', implode("\n", $textos)) === 1) {
             $problemas[] = 'El texto contiene «en preparación».';
+        }
+
+        if ($this->slug === self::POLITICA_DE_DATOS) {
+            $reclamos = trim(implode(' ', $porId['reclamos']['parrafos'] ?? []));
+            // Si el apartado falta o está vacío, ya se informó arriba: no se repite.
+            if ($reclamos !== '' && preg_match(self::PLAZO_DE_RECLAMOS, $reclamos) !== 1) {
+                $problemas[] = 'El apartado «Mecanismo de reclamo» debe indicar el plazo de respuesta: quince (15) días hábiles (Ley 1581 de 2012, art. 15).';
+            }
+            if (preg_match(self::CITA_LEY_1581, implode("\n", $textos)) !== 1) {
+                $problemas[] = 'El texto debe citar la Ley 1581 de 2012.';
+            }
         }
 
         if (! $this->es_ejemplo) {

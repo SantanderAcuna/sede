@@ -365,9 +365,9 @@ jobs:
         working-directory: sitio
         run: |
           if [ "$NAVEGADOR" = "msedge" ]; then
-            npx playwright install msedge
+            bash ../scripts/reintentar.sh 4 npx playwright install msedge
           else
-            npx playwright install --with-deps "$NAVEGADOR"
+            bash ../scripts/reintentar.sh 4 npx playwright install --with-deps "$NAVEGADOR"
           fi
       - name: Compilar (la prueba de diseño arranca su propio servidor)
         working-directory: sitio

@@ -207,7 +207,16 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Instalar el navegador
         working-directory: sitio
-        run: npx playwright install --with-deps chromium
+        # `--with-deps` mezcla dos cosas: bajar el navegador (CDN de Playwright) e instalar sus
+        # librerías con apt. Con el DNS de azure.archive.ubuntu.com caído más de una hora (CI de
+        # #532/#533) todo el paso fallaba aunque el navegador estuviera bien. Se separan: el
+        # navegador es obligatorio; las librerías se intentan una vez y, si apt no responde, se
+        # sigue con aviso y la comprobación final decide si el navegador arranca de verdad.
+        run: |
+          npx playwright install chromium
+          bash ../scripts/reintentar.sh 1 npx playwright install-deps chromium \
+            || echo "::warning::apt no respondió: se sigue con las librerías que trae la imagen (fuentes pueden diferir)"
+          node -e "require('@playwright/test').chromium.launch().then(async b => { console.log('chromium arranca:', b.version()); await b.close() })"
       - name: Generar los tipos desde el contrato
         working-directory: sitio
         run: npx openapi-typescript ../contract/openapi.yaml -o types/openapi.d.ts --read-write-markers
@@ -426,7 +435,19 @@ jobs:
             || { echo "nginx.conf ya no incluye mapa-sin-transformar.conf."; exit 1; }
           grep -q 'snippets/compresion.conf' docker/nginx/nginx.conf \
             || { echo "nginx.conf ya no incluye compresion.conf (sin él, el HTML se comprime a nivel 1)."; exit 1; }
-          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends nginx-light > /dev/null
+          # El espejo de apt del ejecutor estuvo sin resolver «azure.archive.ubuntu.com» más de una
+          # hora (CI de #532 y #533: 5 corridas seguidas, una de ellas con 4 reintentos durante 23
+          # min). La imagen ubuntu-24.04 ya trae nginx 1.24.0 (lista de software de la imagen, según
+          # su documentación): se usa ése y apt queda de respaldo, con reintentos, sólo si falta.
+          # Un fallo permanente sigue terminando en error (scripts/reintentar.sh, con su prueba).
+          bash deploy/pruebas/prueba-reintentar.sh
+          export PATH="$PATH:/usr/sbin"
+          if command -v nginx >/dev/null; then
+            echo "nginx preinstalado en la imagen: $(nginx -v 2>&1)"
+          else
+            echo "La imagen no trae nginx: se instala con apt (con reintentos)."
+            bash scripts/reintentar.sh 4 bash -c 'sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends nginx-light > /dev/null'
+          fi
           bash deploy/pruebas/prueba-sin-transformar.sh
       - name: nginx no registra lo que el ciudadano busca
         run: |

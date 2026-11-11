@@ -123,7 +123,7 @@ el SQL del repositorio sobre PostgreSQL 16 local.
 | Umbral / cobertura | Recall top-3 (semilla de elección) | Semillas ajenas (11 · 222 · 3333) | Ruido manual | Ruido sintético (2 conjuntos) |
 |---|---|---|---|---|
 | 0,45 / 0,45 (anterior) | 85,0 % | 81,5 · 83,0 · 84,8 % | 0 / 12 | 0 / 300 · 0 / 300 |
-| **0,45 / 0,40 (vigente)** | **91,1 %** | **88,8 · 90,1 · 90,1 %** | **0 / 12** | **0 / 300 · 0 / 300** |
+| **0,45 / 0,40 (vigente hasta M01-3; hoy 0,49 / 0,40, §2.6)** | **91,1 %** | **88,8 · 90,1 · 90,1 %** | **0 / 12** | **0 / 300 · 0 / 300** |
 | 0,45 / 0,35 | 92,0 % | 91,5 · 91,6 · 91,3 % | 1 / 12 | 0 / 300 · 0 / 300 |
 | 0,40 / 0,40 | 93,9 % | 90,6 · 92,6 · 92,9 % | 2 / 12 | 4 / 300 · 1 / 300 |
 | 0,50 / 0,40 | 89,9 % | 87,9 · 89,8 · 89,5 % | 0 / 12 | 0 / 300 · 0 / 300 |
@@ -303,6 +303,60 @@ es repetir la medición de dos clientes en staging tras el despliegue** (tarea a
 cupo del servidor (poco tráfico). La IP de la propia API no se leyó en un registro, pero su efecto sí se observó (ver la repetición
 de arriba): el límite por IP de Laravel separó a los dos clientes.
 
+## 2.6 El falso positivo «transparencia» y el umbral 0,49 (M01-3, 2026-11-10)
+
+**Hallazgo (HECHO).** En staging, «transparencia» devolvía «Duplicado licencia(s) de tránsito de un vehículo
+automotor». El catálogo no tiene ningún trámite de transparencia (`busqueda like '%transparen%'` → 0 filas).
+Reproducido en PostgreSQL 16 local con los 123 trámites que publica `TramiteSeeder`: la similitud de palabra
+con el título es **0,474** (trigramas sueltos de «tránsito» y «automotor») y la cobertura por palabra,
+0,529; con el umbral de 0,45 pasa las tres condiciones de §2 del repositorio.
+
+**Medición** (todos los bancos: 30 + 10 + 330 positivos con una errata, 12 + 5 + 300 negativos; catálogo de 123
+trámites; cobertura 0,40; HECHO, con `config('busqueda.umbral')` variado en el mismo código):
+
+| Umbral | Aciertos top-3 de 370 | Ruido en negativos | «transparencia» |
+|---|---|---|---|
+| 0,45 (anterior) | 333 | 0 | 1 resultado |
+| 0,46 | 332 | 0 | — |
+| 0,47 | 330 | 0 | 1 (0,474 ≥ 0,47) |
+| **0,48 – 0,50** | **330** | **0** | **0** |
+| 0,51 | 315 | 0 | 0 |
+
+Entre 0,475 y 0,50 todas las cifras son iguales; a 0,51 se caen 15 aciertos (el piso de los aciertos más
+difíciles es 0,500, §2.1). Se eligió **0,49**, a mitad de esa franja y no al filo de ninguno de sus bordes.
+**Costo (HECHO):** 3 de 370 aciertos del banco («carroecria», «currpo o», «cultuarles»; −0,8 puntos) y ningún
+ruido nuevo. **Efecto lateral (HECHO):** «contratacion» dejó de devolver tres trámites de «Expedición
+concepto(s)…» sin relación.
+
+**Qué esta medición NO demuestra.** (1) Los bancos son optimistas (§2.1, R2): el costo en erratas reales de
+ciudadanos es desconocido (HIPÓTESIS: del mismo orden, pero sin dato). (2) El margen sobre el caso de
+«transparencia» es de 0,016: un trámite nuevo puede producir otro falso positivo que ningún umbral global
+corrija. (3) La medición fue en PostgreSQL 16; CI corre 18. El algoritmo de `pg_trgm` no cambia entre
+ambas, pero la cifra se confirma con la prueba de regresión en CI y en staging. (4) No incluye políticas
+(el banco sólo cubre trámites).
+
+**Lo que sigue pasando (HECHO, no se corrige aquí).** Otras palabras de la sede que no son trámites aún
+devuelven contenido ajeno, con puntajes que **ningún umbral global separa de los aciertos legítimos**:
+
+| Consulta | Primer resultado | Puntaje |
+|---|---|---|
+| «seguimiento» | Reconocimiento seguro(s) por muerte | 0,833 |
+| «presupuesto» | Aprobación exención impuesto predial… | 0,667 |
+| «peticion» | Expedición permiso(s) realización de espectáculos… | 0,667 |
+| «quejas» | Autorización licencia(s) de funcionamiento… | 0,571 |
+| «participacion» | Cancelación programa(s) de educación… | 0,500 |
+| «impuesto de renta» (§2.1) | Registro de contribuyentes… | 0,667 |
+
+**HIPÓTESIS de la causa (sin probar):** sufijos y fragmentos frecuentes en español («-miento», «-cion»,
+«esto») aportan trigramas compartidos entre palabras sin relación. Una corrección de raíz exigiría
+ponderar los trigramas por su rareza en el catálogo o un diccionario de términos de la sede; es un cambio de
+diseño, no de cifra, y queda como tarea aparte. Por eso `/buscar` y el desplegable seguirán ofreciendo
+primero las secciones de la sede (ADR-0021): para esas palabras, la página correcta sale antes que el ruido.
+
+**Reversión.** Un solo valor: `backend/config/busqueda.php`, `umbral`. La prueba
+`test_las_regresiones_conocidas_siguen_sin_devolver_nada…` (`tests/Support/banco-regresiones.php`) fija
+«transparencia» y «contratacion»; si se vuelve a 0,45 esa prueba falla y señala por qué.
+
 ## 3. Decisiones
 
 | # | Decisión | Alternativa descartada | Motivo |
@@ -313,7 +367,7 @@ de arriba): el límite por IP de Laravel separó a los dos clientes.
 | D4 | Dos operaciones distintas | Una con `autocompletar` | Ver §1. |
 | D5 | `word_similarity` y umbral por transacción (`SET LOCAL` / `set_config(…, true)`) | Umbral global del servidor | Cambiar el global afectaría a toda consulta de la base. |
 | D6 | Desempate por `similarity()` de la cadena entera | Orden alfabético | HECHO: sin él, «Exención del impuesto predial…» ganaba a «Impuesto predial…» por orden alfabético. |
-| D7 | Umbral **0,45**, calibrado en la entrega 2 (§2.1) | 0,4 (ruido) · 0,5–0,55 (sin margen sobre el piso de 0,500) | HECHO: con la cobertura por palabra (D8), 0,45 está en una meseta de 0,45–0,50 con 30/30 aciertos y 0 ruido; queda a ≈ 0,05 de cada borde. |
+| D7 | Umbral **0,49** (era 0,45 en la entrega 2, §2.1; cambiado en M01-3, §2.6) | 0,4 (ruido) · 0,45 (dejaba pasar «transparencia») · 0,51 o más (pierde 15 aciertos) | HECHO: con la cobertura por palabra (D8), la franja 0,475–0,50 da 330 de 370 aciertos y 0 ruido; 0,49 queda a mitad de esa franja (§2.6). Costo medido: 3 aciertos del banco. |
 | D8 | **Cobertura por palabra:** cada palabra de la consulta con ≥ 4 letras (hasta 6) debe aparecer en el contenido con `word_similarity` ≥ **0,40** (era 0,45; §2.3) | Sólo el umbral global | HECHO: ningún umbral global separaba «licencia de conducción» (ruido, 0,600 con «licencia de exhumación») de los aciertos más difíciles (0,500). Es un cambio de diseño, no un ajuste de cifra. |
 
 ## 4. Riesgos

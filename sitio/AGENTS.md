@@ -189,12 +189,20 @@ igual**: un párrafo descolocado o una altura distinta no violan ninguna norma.
 cd sitio
 npm run build
 PORT=4300 node .output/server/index.mjs &
-BASE=http://127.0.0.1:4300 node scripts/captura-visual.mjs            # compara
-BASE=http://127.0.0.1:4300 node scripts/captura-visual.mjs --guardar  # re-fija
+BASE=http://127.0.0.1:4300 node scripts/captura-visual.mjs --contra=origin/develop   # RECOMENDADO
 ```
 
-Once vistas, en `tests/visual/referencia/`. **Están versionadas a propósito**: una
-referencia que sólo existe en tu máquina no protege a nadie más.
+**`--contra=<rama>` compara dos renders de la misma máquina**: compila la rama base en
+un árbol temporal, captura las once vistas en ambos builds y las compara. Es el modo
+fiable porque el hash de una captura es determinista **dentro de una máquina** y no
+entre máquinas (medido el 2026-11-10: la referencia PNG de 2026-10-02 no se reproduce
+en otra máquina ni compilando el código de aquel día; con el modo `--contra`, un cambio
+de 1/255 en un solo token de color se detecta en las 11 vistas). Un cambio de diseño
+**intencionado** aparece como «CAMBIADA»: revísalo con tus ojos y dilo en el PR.
+
+Los PNG de `tests/visual/referencia/` y el modo sin `--contra` (`--guardar`) **sólo
+valen en la máquina que los fijó**; hoy no coinciden con ninguna otra. Se conservan
+como histórico, no como puerta.
 
 > **Caso real, y la razón de que esto exista.** `stylelint --fix` aplicó
 > `selector-not-notation` a la regla del modo de contraste. La notación moderna
@@ -250,7 +258,7 @@ npm run typecheck                     # 0 errores
 npm run build                         # sin errores
 npx stylelint "app/assets/css/*.css"  # limpio
 # con el build servido:
-node scripts/captura-visual.mjs       # las 11 vistas iguales
+node scripts/captura-visual.mjs --contra=origin/develop   # sólo los cambios que buscabas
 ```
 
 **Y arranca el servidor con un puerto libre y mátalo al terminar.** Esta máquina

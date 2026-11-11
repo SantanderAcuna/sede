@@ -210,11 +210,11 @@ jobs:
         # `--with-deps` mezcla dos cosas: bajar el navegador (CDN de Playwright) e instalar sus
         # librerías con apt. Con el DNS de azure.archive.ubuntu.com caído más de una hora (CI de
         # #532/#533) todo el paso fallaba aunque el navegador estuviera bien. Se separan: el
-        # navegador es obligatorio; las librerías se intentan una vez y, si apt no responde, se
+        # navegador es obligatorio; las librerías se intentan una vez (tope de 3 min) y, si apt no responde, se
         # sigue con aviso y la comprobación final decide si el navegador arranca de verdad.
         run: |
           npx playwright install chromium
-          bash ../scripts/reintentar.sh 1 npx playwright install-deps chromium \
+          timeout 180 npx playwright install-deps chromium \
             || echo "::warning::apt no respondió: se sigue con las librerías que trae la imagen (fuentes pueden diferir)"
           node -e "require('@playwright/test').chromium.launch().then(async b => { console.log('chromium arranca:', b.version()); await b.close() })"
       - name: Generar los tipos desde el contrato

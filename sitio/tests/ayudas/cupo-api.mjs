@@ -67,3 +67,27 @@ export async function describirApi(contexto, base) {
     return `sin respuesta (${error.message})`
   }
 }
+
+/**
+ * Adaptador: hace las consultas de `esperarCupoApi` y `describirApi` con el `fetch` de
+ * una página ya abierta en el sitio, en lugar del cliente HTTP de Playwright.
+ *
+ * Medido en el despliegue 43068782240: el cliente HTTP de Playwright recibe de
+ * Cloudflare un 403 SIN cabeceras de cupo (no es un navegador), y la espera lo
+ * confundía con «no hay API» y seguía sin esperar. El `fetch` de una página del
+ * sitio viaja con la identidad del navegador, igual que las peticiones del propio
+ * sitio. Debe ser una página del mismo origen (cualquier ruta; `/robots.txt` basta).
+ */
+export function sondaDesdePagina(pagina) {
+  return {
+    request: {
+      get: async (url) => {
+        const r = await pagina.evaluate(async (u) => {
+          const respuesta = await fetch(u, { cache: 'no-store' })
+          return { status: respuesta.status, headers: Object.fromEntries(respuesta.headers) }
+        }, url)
+        return { status: () => r.status, headers: () => r.headers }
+      },
+    },
+  }
+}

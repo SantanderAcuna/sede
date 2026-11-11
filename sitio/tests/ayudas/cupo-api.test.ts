@@ -12,7 +12,7 @@
  * que la prueba lo respete antes de medir lo que depende de la API.
  */
 import { describe, expect, it } from 'vitest'
-import { describirApi, esperarCupoApi } from './cupo-api.mjs'
+import { describirApi, esperarCupoApi, sondaDesdePagina } from './cupo-api.mjs'
 
 type Respuesta = { status: number; cabeceras: Record<string, string> }
 
@@ -100,5 +100,34 @@ describe('describirApi', () => {
   it('un fallo de red se informa sin lanzar', async () => {
     const ctx = { request: { get: async () => { throw new Error('ECONNRESET') } } }
     expect(await describirApi(ctx, 'https://x.test')).toBe('sin respuesta (ECONNRESET)')
+  })
+})
+
+describe('sondaDesdePagina', () => {
+  it('consulta con el fetch de la página y devuelve código y cabeceras como una respuesta de Playwright', async () => {
+    const visto: string[] = []
+    const pagina = {
+      evaluate: async (_f: unknown, url: string) => {
+        visto.push(url)
+        return { status: 200, headers: { 'x-ratelimit-remaining': '40' } }
+      },
+    }
+    const sonda = sondaDesdePagina(pagina)
+    const r = await sonda.request.get('https://x.test/api/v1/tramites?per_page=1')
+    expect(visto).toEqual(['https://x.test/api/v1/tramites?per_page=1'])
+    expect(r.status()).toBe(200)
+    expect(r.headers()['x-ratelimit-remaining']).toBe('40')
+  })
+
+  it('sirve de contexto para esperarCupoApi y describirApi', async () => {
+    const pagina = { evaluate: async () => ({ status: 200, headers: { 'x-ratelimit-remaining': '33', 'x-ratelimit-limit': '60' } }) }
+    const sonda = sondaDesdePagina(pagina)
+    expect(await esperarCupoApi(sonda, 'https://x.test')).toEqual({ listo: true, consultas: 1, restantes: 33 })
+    expect(await describirApi(sonda, 'https://x.test')).toBe('HTTP 200, cupo 33/60')
+  })
+
+  it('un 403 se informa como 403, no como «sin API» (el fallo que escondía el cliente HTTP)', async () => {
+    const pagina = { evaluate: async () => ({ status: 403, headers: {} }) }
+    expect(await describirApi(sondaDesdePagina(pagina), 'https://x.test')).toBe('HTTP 403')
   })
 })

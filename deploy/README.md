@@ -194,16 +194,25 @@ Según la documentación de Cloudflare, una respuesta así no se modifica en el 
 Sólo el HTML: la API y los activos conservan sus cabeceras.
 
 **Resultado (HECHO, medido en staging tras el despliegue):** `tests/cookies.mjs` pasó de 4 comprobaciones en rojo
-a todo en orden (también en firefox y webkit desde el ejecutor de GitHub). Ya no hay `beacon.min.js` ni la cookie `__cf_ob`.
+a todo en orden desde un Chromium local y, en el flujo de despliegue, desde el ejecutor de GitHub con firefox y
+webkit. **Con chromium y msedge del ejecutor el resultado es «no concluyente»**: el banner nunca aparece
+(Cloudflare acaba desafiando a esas IP; también expiran dos `page.goto` de pasos anteriores, igual que en el
+despliegue previo a este cambio, así que no es efecto del `no-transform`). Ya no hay `beacon.min.js` ni la cookie `__cf_ob`.
 
 **Efectos colaterales (HECHO, medidos en staging; la lista que Cloudflare documenta es más corta):**
 - Desaparecen TODOS los scripts que el borde inyectaba en el HTML, no sólo la baliza: `email-decode.min.js`
-  (los correos del pie salen en claro, como `mailto:`, sin ofuscación contra rastreadores), `rum` y
-  `challenge-platform/.../main.js` (las «detecciones de JavaScript» de los productos de bots; con ellas
-  ausentes, `cf_clearance` ya no se establece). **No evaluado:** si alguna regla de bots/WAF de la cuenta
-  dependía de esas detecciones; hay que revisarlo en Cloudflare → Seguridad.
-- No se recomprime el cuerpo: la portada sale con la compresión del origen (gzip, ~28,5 KB transferidos) en
-  vez de la del borde (zstd). No se midió la diferencia de tamaño.
+  (los correos del pie salen en claro, como `mailto:`), `rum` y `challenge-platform/.../main.js`, que son las
+  «detecciones de JavaScript» de los productos de bots; con ellas ausentes ya no se establece `cf_clearance`
+  (según Cloudflare, esa cookie guarda el resultado de las detecciones).
+- **Detecciones de JavaScript — qué se pierde (documentación de Cloudflare):** son una señal para la puntuación de
+  bots (en Bot Fight Mode están siempre activas); por sí solas no bloquean nada. Sólo se aplican si una regla
+  WAF usa `cf.bot_management.js_detection.passed`, y eso exige Bot Management Enterprise. Con `no-transform` el
+  campo vale `missing`. **No evaluado:** el plan de la cuenta, sus reglas WAF ni cuánto pesa esa señal en la
+  puntuación; hay que mirarlo en Cloudflare → Seguridad (desde aquí no hay sesión en el panel).
+- **Compresión (recuperada):** sin la recompresión del borde, nginx comprime a su nivel por defecto (1). Se subió a 5
+  (`docker/nginx/snippets/compresion.conf`): con el HTML real de la portada compilada (64,8 KB) el nivel 1 da 15,1 KB;
+  el 5, 12,9 KB; zstd -3, 14,0 KB; brotli -q5, 12,2 KB. Queda por debajo de lo que daba el borde, salvo que éste
+  usara zstd de nivel alto (no se sabe qué nivel usa).
 - Sigue activo `cdn-cgi/speculation` (reglas de especulación del borde): no es analítica.
 - El desafío a los ejecutores de GitHub (M01-2) sigue: `curl` desde GitHub recibe 403 `cf-mitigated: challenge`.
 

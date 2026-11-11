@@ -413,6 +413,19 @@ jobs:
             echo "script-src contiene unsafe-inline."; exit 1
           fi
           echo "CSP en modo informe: includes y directivas esenciales presentes."
+      - name: nginx emite el HTML sin transformar (baliza del borde)
+        run: |
+          # M01-4 (RF-01-017). Sin `Cache-Control: no-transform`, el borde de Cloudflare inyecta
+          # su baliza de Web Analytics antes del consentimiento. Guarda de texto: el mapa está
+          # en `http` y los dos bloques de documentos (sitio y panel) incluyen el snippet.
+          # Después, la prueba funcional levanta un nginx real con esos mismos archivos.
+          f=docker/nginx/conf.d/default.conf
+          [ "$(grep -c 'snippets/sin-transformar.conf' "$f")" -ge 2 ] \
+            || { echo "Faltan includes de sin-transformar.conf en los locations del sitio y del panel."; exit 1; }
+          grep -q 'snippets/mapa-sin-transformar.conf' docker/nginx/nginx.conf \
+            || { echo "nginx.conf ya no incluye mapa-sin-transformar.conf."; exit 1; }
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends nginx-light > /dev/null
+          bash deploy/pruebas/prueba-sin-transformar.sh
       - name: nginx no registra lo que el ciudadano busca
         run: |
           # T-22 (AC-22.7, R3). La consulta del buscador viaja en la URL y puede traer

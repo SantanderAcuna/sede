@@ -207,7 +207,7 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Instalar el navegador
         working-directory: sitio
-        run: npx playwright install --with-deps chromium
+        run: bash ../scripts/reintentar.sh 4 npx playwright install --with-deps chromium
       - name: Generar los tipos desde el contrato
         working-directory: sitio
         run: npx openapi-typescript ../contract/openapi.yaml -o types/openapi.d.ts --read-write-markers
@@ -426,7 +426,11 @@ jobs:
             || { echo "nginx.conf ya no incluye mapa-sin-transformar.conf."; exit 1; }
           grep -q 'snippets/compresion.conf' docker/nginx/nginx.conf \
             || { echo "nginx.conf ya no incluye compresion.conf (sin él, el HTML se comprime a nivel 1)."; exit 1; }
-          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends nginx-light > /dev/null
+          # El espejo de apt del ejecutor falla a veces con «Temporary failure resolving
+          # 'azure.archive.ubuntu.com'» (CI de #532: 4 corridas seguidas). Se reintenta; un
+          # fallo permanente sigue terminando en error (scripts/reintentar.sh, con su prueba).
+          bash deploy/pruebas/prueba-reintentar.sh
+          bash scripts/reintentar.sh 4 bash -c 'sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends nginx-light > /dev/null'
           bash deploy/pruebas/prueba-sin-transformar.sh
       - name: nginx no registra lo que el ciudadano busca
         run: |

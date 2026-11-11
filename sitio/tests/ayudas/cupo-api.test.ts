@@ -12,7 +12,7 @@
  * que la prueba lo respete antes de medir lo que depende de la API.
  */
 import { describe, expect, it } from 'vitest'
-import { esperarCupoApi } from './cupo-api.mjs'
+import { describirApi, esperarCupoApi } from './cupo-api.mjs'
 
 type Respuesta = { status: number; cabeceras: Record<string, string> }
 
@@ -78,5 +78,27 @@ describe('esperarCupoApi', () => {
     const ctx = { request: { get: async () => { throw new Error('ECONNRESET') } } }
     const r = await esperarCupoApi(ctx, 'https://x.test', sinPausa)
     expect(r).toEqual({ listo: true, consultas: 1, restantes: null })
+  })
+})
+
+describe('describirApi', () => {
+  it('resume código y cupo restante de una respuesta buena', async () => {
+    const ctx = contextoCon([{ status: 200, cabeceras: { 'x-ratelimit-remaining': '41', 'x-ratelimit-limit': '60' } }])
+    expect(await describirApi(ctx, 'https://x.test')).toBe('HTTP 200, cupo 41/60')
+  })
+
+  it('un 429 dice cuánto esperar', async () => {
+    const ctx = contextoCon([{ status: 429, cabeceras: { 'retry-after': '12' } }])
+    expect(await describirApi(ctx, 'https://x.test')).toBe('HTTP 429, reintentar en 12 s')
+  })
+
+  it('un error del servidor se informa con su código', async () => {
+    const ctx = contextoCon([{ status: 503, cabeceras: {} }])
+    expect(await describirApi(ctx, 'https://x.test')).toBe('HTTP 503')
+  })
+
+  it('un fallo de red se informa sin lanzar', async () => {
+    const ctx = { request: { get: async () => { throw new Error('ECONNRESET') } } }
+    expect(await describirApi(ctx, 'https://x.test')).toBe('sin respuesta (ECONNRESET)')
   })
 })

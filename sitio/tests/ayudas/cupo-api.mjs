@@ -49,3 +49,21 @@ export async function esperarCupoApi(
   }
   return { listo: false, consultas, restantes }
 }
+
+/**
+ * Una línea que describe lo que responde la API ahora: código y cupo, o cuánto
+ * esperar. Sirve para que un «No se pudo cargar el catálogo» diga POR QUÉ en lugar
+ * de obligar a adivinar (cupo agotado, error del servidor o sin respuesta).
+ */
+export async function describirApi(contexto, base) {
+  try {
+    const respuesta = await contexto.request.get(`${base}/api/v1/tramites?per_page=1`, { failOnStatusCode: false })
+    const cabeceras = respuesta.headers()
+    const codigo = respuesta.status()
+    if (codigo === 429) return `HTTP 429, reintentar en ${cabeceras['retry-after'] ?? '?'} s`
+    const restante = cabeceras['x-ratelimit-remaining']
+    return restante === undefined ? `HTTP ${codigo}` : `HTTP ${codigo}, cupo ${restante}/${cabeceras['x-ratelimit-limit'] ?? '?'}`
+  } catch (error) {
+    return `sin respuesta (${error.message})`
+  }
+}

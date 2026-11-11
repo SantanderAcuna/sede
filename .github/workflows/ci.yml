@@ -177,6 +177,60 @@ jobs:
         run: npx vitest run
 
   # ---------------------------------------------------------------------------
+  # Puerta visual automática (sólo en PRs hacia develop)
+  #
+  # Decisión de José (2026-11-10): que el diseño se valide solo, sin su intervención, y que
+  # alcance también a las páginas que se creen de nuevo. Las rutas se descubren desde el
+  # `sitemap.xml` del propio sitio, así que una página publicada entra sin tocar listas.
+  # Mide propiedades objetivas (reflujo, imágenes, fuentes, CLS, tamaño de controles,
+  # errores) y pasa axe (WCAG 2.1 A/AA). Es SÓLO una prueba: no modifica ningún archivo de
+  # diseño. Informa también qué vistas cambiaron de aspecto frente a develop y qué archivos
+  # de diseño toca el PR; eso es informativo, porque juzgar si un cambio de aspecto es
+  # deseado es de quien aprueba el diseño. Ver `sitio/AGENTS.md`.
+  # ---------------------------------------------------------------------------
+  puerta-visual:
+    name: Puerta visual
+    if: github.event_name == 'pull_request' && github.base_ref == 'develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: sitio/package-lock.json
+      - name: Instalar
+        working-directory: sitio
+        run: npm ci --ignore-scripts
+      - name: Instalar el navegador
+        working-directory: sitio
+        run: npx playwright install --with-deps chromium
+      - name: Generar los tipos desde el contrato
+        working-directory: sitio
+        run: npx openapi-typescript ../contract/openapi.yaml -o types/openapi.d.ts --read-write-markers
+      - name: Compilar
+        working-directory: sitio
+        run: npm run build
+      # Si la puerta no ve un defecto conocido, su veredicto no vale: se comprueba primero.
+      - name: Autoprueba de la puerta
+        working-directory: sitio
+        run: npm run test:puerta-visual -- --autoprueba
+      - name: Puerta visual
+        working-directory: sitio
+        run: npm run test:puerta-visual -- --contra=origin/${{ github.base_ref }}
+      - name: Capturas
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: puerta-visual
+          path: sitio/salida-visual
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
   # Pila de contenedores
   # ---------------------------------------------------------------------------
   pila:

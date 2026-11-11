@@ -96,7 +96,16 @@ try {
     const cookies = (await contexto.cookies()).filter((c) => !ESENCIALES.has(c.name))
     comprobar(cookies.length === 0, `sin cookies no esenciales (${cookies.map((c) => c.name).join(', ') || 'ninguna'})`)
     comprobar(estado.analitica.length === 0, `0 peticiones a dominios de analítica (${estado.analitica.length})`)
-    comprobar(await pagina.getByRole('button', { name: /Rechazar opcionales/i }).isVisible(), 'el banner está visible')
+    const hayBanner = await pagina.getByRole('button', { name: /Rechazar opcionales/i }).isVisible()
+    comprobar(hayBanner, 'el banner está visible')
+    if (!hayBanner) {
+      // Sin esto, «el banner no está» no dice si la sede falló o si lo que llegó no era la sede
+      // (p. ej. la página de comprobación de Cloudflare, que desde algunas IP desafía a Chromium).
+      const diag = await pagina
+        .evaluate(() => ({ titulo: document.title, ua: navigator.userAgent, texto: (document.body?.innerText ?? '').replace(/\s+/g, ' ').slice(0, 120) }))
+        .catch((e) => ({ error: String(e.message).slice(0, 80) }))
+      console.log(`    · diagnóstico: ${JSON.stringify(diag)}`)
+    }
     await contexto.close()
   }
 

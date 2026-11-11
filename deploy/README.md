@@ -197,9 +197,12 @@ Sólo el HTML: la API y los activos conservan sus cabeceras.
 a todo en orden desde un Chromium local y, en el flujo de despliegue, desde el ejecutor de GitHub con firefox y
 webkit. **Con chromium y msedge del ejecutor el resultado es «no concluyente»**: el banner nunca aparece, también
 cuando el paso corre justo después del humo (HECHO), y en el despliegue previo a este cambio ya expiraban dos
-`page.goto` de otros pasos, así que no es efecto del `no-transform`. HIPÓTESIS sin confirmar: estas pruebas usan el
-User-Agent por defecto de Playwright («HeadlessChrome») y Cloudflare las desafía desde las IP de GitHub (los specs
-usan el de «Desktop Chrome» y pasan); `cookies.mjs` ahora imprime el título y el User-Agent cuando falta el banner.
+`page.goto` de otros pasos, así que no es efecto del `no-transform`. **HECHO (ejecución 42959455809, diagnóstico de
+`cookies.mjs`):** en chromium y msedge el sitio respondía «Just a moment…» a scripts cuyo User-Agent era
+`HeadlessChrome/…`; los specs de Playwright (User-Agent de «Desktop Chrome») pasan en el mismo trabajo. Corrección:
+`tests/ayudas/agente-usuario.mjs` quita sólo la marca `Headless` (conserva la versión real) y lo usan `cookies.mjs`,
+`movil.mjs` y `kit-ui.mjs`. HIPÓTESIS hasta la siguiente ejecución del despliegue: que con ello Cloudflare deje de
+desafiarlos; el diagnóstico de `cookies.mjs` (título y User-Agent) seguirá mostrándolo si no es así.
 Ya no hay `beacon.min.js` ni la cookie `__cf_ob`.
 
 **Efectos colaterales (HECHO, medidos en staging; la lista que Cloudflare documenta es más corta):**

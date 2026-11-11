@@ -170,3 +170,59 @@ const RUTAS_DE_DISENO = [
 export function archivosDeDiseno(archivos) {
   return archivos.filter((a) => RUTAS_DE_DISENO.some((patron) => patron.test(a)))
 }
+
+/** Distancia del punto (px, py) al rectángulo más cercano; 0 si está dentro. */
+function distanciaARect(px, py, r) {
+  const dx = Math.max(r.x - px, 0, px - (r.x + r.w))
+  const dy = Math.max(r.y - py, 0, py - (r.y + r.h))
+  return Math.hypot(dx, dy)
+}
+
+/**
+ * WCAG 2.2, 2.5.8 «Tamaño del objetivo (mínimo)» con sus excepciones; devuelve los objetivos que NO
+ * cumplen. Cada objetivo: `{selector, x, y, w, h}` en px CSS de página (el área que recibe el clic,
+ * incluida la ampliada con un pseudoelemento), `etiqueta?: {x,y,w,h}` si es una casilla/radio con
+ * etiqueta, `enLinea?: true` si es un enlace dentro de una frase.
+ *
+ * Reglas (texto del W3C, «Understanding 2.5.8», consultado 2026-11-10):
+ *  - ≥ 24×24 cumple.
+ *  - Espaciado: un objetivo menor cumple si su círculo de 24 px (centrado en el centro de su caja)
+ *    no corta a otro objetivo ni al círculo de otro objetivo menor. Rozar el borde no es cortar.
+ *  - Equivalente: la misma función disponible en otro control que mida 24×24. Aplicado SÓLO a la
+ *    etiqueta de una casilla/radio: es una INTERPRETACIÓN (el texto no lo trata expresamente).
+ *  - En línea: un enlace dentro de una frase está exento (pero sigue siendo un objetivo vecino).
+ * La etiqueta propia no cuenta como vecino: es la misma función.
+ */
+export function objetivosIncumplidos(objetivos) {
+  const EPS = 1e-9
+  const MIN = 24
+  const R = MIN / 2
+  const pequeno = (o) => o.w < MIN - EPS || o.h < MIN - EPS
+  const centro = (o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2 })
+  const fallas = []
+  objetivos.forEach((o, i) => {
+    if (!pequeno(o) || o.enLinea) return
+    const c = centro(o)
+    let motivo = null
+    for (let j = 0; j < objetivos.length && !motivo; j++) {
+      if (j === i) continue
+      const otro = objetivos[j]
+      const cajas = [{ caja: otro, nombre: otro.selector }]
+      if (otro.etiqueta) cajas.push({ caja: otro.etiqueta, nombre: `etiqueta de ${otro.selector}` })
+      for (const { caja, nombre } of cajas) {
+        if (distanciaARect(c.x, c.y, caja) < R - EPS) {
+          motivo = `el círculo de 24 px de espaciado corta a ${nombre}`
+          break
+        }
+      }
+      if (!motivo && pequeno(otro) && !otro.enLinea) {
+        const d = Math.hypot(centro(otro).x - c.x, centro(otro).y - c.y)
+        if (d < MIN - EPS) motivo = `los centros distan ${d.toFixed(1)} px de ${otro.selector} (< 24, círculos de espaciado cruzados)`
+      }
+    }
+    if (!motivo) return
+    if (o.etiqueta && o.etiqueta.w >= MIN - EPS && o.etiqueta.h >= MIN - EPS) return
+    fallas.push({ selector: o.selector, ancho: Math.round(o.w), alto: Math.round(o.h), motivo })
+  })
+  return fallas
+}

@@ -17,3 +17,19 @@ export function juzgarCromo(
   medidas: Array<{ ruta: string; ancho: number; firmaCabecera: string; firmaPie: string }>,
 ): Violacion[]
 export function archivosDeDiseno(archivos: string[]): string[]
+export interface ObjetivoMedido {
+  selector: string
+  x: number
+  y: number
+  w: number
+  h: number
+  etiqueta?: { x: number; y: number; w: number; h: number }
+  enLinea?: boolean
+}
+export interface ObjetivoIncumplido {
+  selector: string
+  ancho: number
+  alto: number
+  motivo: string
+}
+export function objetivosIncumplidos(objetivos: ObjetivoMedido[]): ObjetivoIncumplido[]

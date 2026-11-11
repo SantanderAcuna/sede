@@ -134,11 +134,21 @@ final class ConformidadDeLaGuiaTest extends TestCase
     {
         // Un limitador registrado y no aplicado no limita nada, así que la prueba
         // no mira la configuración: agota el cupo de sesenta y espera el corte.
+        //
+        // Se agota contra el panel, que es lo que hoy lleva el límite general: las
+        // lecturas públicas tienen el suyo (`LimiteLecturasPublicasTest`). El límite
+        // corre después de la autenticación, así que hace falta una sesión: sin ella
+        // la respuesta sería 401 y el cupo no se gastaría.
+        [$admin] = $this->sembrarSuperAdmin();
+        $perfil = fn () => $this->session(['_token' => 'test'])
+            ->actingAs($admin, 'web')
+            ->getJson('/api/v1/panel/perfil', ['Origin' => 'http://localhost:5190']);
+
         for ($intento = 0; $intento < 60; $intento++) {
-            $this->getJson('/api/v1/tramites')->assertOk();
+            $perfil()->assertOk();
         }
 
-        $respuesta = $this->getJson('/api/v1/tramites');
+        $respuesta = $perfil();
 
         $respuesta->assertStatus(429)
             ->assertJsonPath('success', false)

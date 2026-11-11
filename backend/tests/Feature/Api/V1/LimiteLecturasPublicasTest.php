@@ -120,7 +120,7 @@ final class LimiteLecturasPublicasTest extends TestCase
     {
         $conLecturas = [];
 
-        foreach (Route::getRoutes() as $ruta) {
+        foreach (Route::getRoutes()->getRoutes() as $ruta) {
             $nombre = (string) $ruta->getName();
             if (! str_starts_with($nombre, 'v1.')) {
                 continue;

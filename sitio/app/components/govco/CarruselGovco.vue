@@ -196,7 +196,9 @@ onMounted(() => {
   const elemento = raiz.value
   if (elemento !== null) {
     medirAncho = () => {
-      estrecho.value = elemento.offsetWidth < UMBRAL_ESTRECHO
+      // Ancho fraccionario, como lo evalúa `@container (width < 652px)` en el CSS: con
+      // `offsetWidth` (entero) los dos criterios discreparían en el borde.
+      estrecho.value = elemento.getBoundingClientRect().width < UMBRAL_ESTRECHO
     }
     medirAncho()
     // Se mide el contenedor y no sólo la ventana: dentro de una rejilla el
@@ -317,6 +319,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .carrusel-govco {
   position: relative;
+  /* La sección es el contenedor cuyo ancho decide si el diseño es «estrecho». */
+  container: carrusel / inline-size;
 }
 
 .carousel-item {
@@ -552,5 +556,43 @@ onBeforeUnmount(() => {
   border-radius: 0.25rem;
   outline: 0.188rem solid #ffffff;
   outline-offset: 0.125rem;
+}
+
+/*
+ * El diseño estrecho, decidido por CSS y no sólo por la clase `responsive-carrusel-govco`.
+ *
+ * Esa clase la añade `onMounted`, porque el servidor no conoce el ancho del contenedor. Hasta
+ * entonces el primer pintado era el diseño ANCHO aunque la pantalla fuera de un teléfono, y al
+ * hidratar la leyenda pasaba de flotar a fluir bajo la imagen y las flechas encogían: todo lo de
+ * debajo bajaba ~125 px (CLS de 0,15 a 390 px y 0,21 a 320 px, medido el 2026-11-10).
+ *
+ * Va AL FINAL de los estilos del componente, porque con igual especificidad la última regla gana y estas
+ * deben ganar a las de base de arriba. Aquí se repite, con una consulta de contenedor (mismo corte que `UMBRAL_ESTRECHO`), lo único
+ * que esa clase cambia en nuestro marcado y que el Kit no puede resolver sin JS: la leyenda de
+ * abajo, y dos reglas del Kit (`.responsive-carrusel-govco …`, en `public/govco/all.css`, que no
+ * se toca). La clase se conserva: el Kit sigue enganchado a ella. Al hidratar, la clase añade
+ * valores que ya estaban puestos y no cambia nada. `tests/carrusel-sin-salto.mjs` lo comprueba.
+ */
+@container carrusel (width < 652px) {
+  /* Con `.carrusel-govco` delante para igualar la especificidad de `.responsive-carrusel-govco
+     .leyenda-carrusel`: la portada fija `max-width` con `.portada-sede .carrusel-govco .leyenda-carrusel`
+     (sitio.css) y, con menos especificidad, esta regla no le ganaría. */
+  .carrusel-govco .leyenda-carrusel {
+    position: static;
+    transform: none;
+    max-width: 100%;
+    border-radius: 0;
+  }
+
+  /* Espejo de `.responsive-carrusel-govco .carousel-control-{prev,next}-icon::after` del Kit. */
+  .carousel-control-prev-icon::after,
+  .carousel-control-next-icon::after {
+    font-size: 2rem;
+  }
+
+  /* Espejo de `.responsive-carrusel-govco .control-start-pause button span` del Kit. */
+  .control-start-pause button span {
+    margin-left: 0.25rem;
+  }
 }
 </style>

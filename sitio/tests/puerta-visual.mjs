@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url'
 import AxeBuilder from '@axe-core/playwright'
 
 import { compararJuegos, resumirComparacion } from '../scripts/lib/captura-ab.mjs'
-import { ANCHOS, archivosDeDiseno, juzgarCromo, juzgarMedidas, rutasDelSitemap } from '../scripts/lib/puerta-visual.mjs'
+import { ANCHOS, archivosDeDiseno, juzgarCromo, juzgarMedidas, objetivosIncumplidos, rutasDelSitemap } from '../scripts/lib/puerta-visual.mjs'
 import { iniciarApiSimulada } from './ayudas/api-simulada.mjs'
 import { lanzar } from './ayudas/motor.mjs'
 
@@ -138,17 +138,54 @@ function medirEnPagina() {
     }
   }
 
-  const pequenos = []
+  // Objetivos del puntero (WCAG 2.5.8). Aquí sólo se MIDE; el juicio (excepciones de espaciado,
+  // equivalente y en línea) es de `objetivosIncumplidos`, que tiene sus pruebas.
+  const objetivos = []
   const controles = 'a[href], button, input:not([type=hidden]), select, textarea, [role=button]'
+  const aCaja = (r) => ({ x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height })
+  // El área que de verdad recibe el clic puede ser mayor que la caja (pseudoelemento): se sondea con
+  // elementFromPoint. Si el sondeo no excede la caja más 1,5 px, manda la caja (el sondeo es entero).
+  const areaDeClic = (el, r) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+    for (let y = Math.floor(r.top) - 24; y <= r.bottom + 24; y++) {
+      for (let x = Math.floor(r.left) - 24; x <= r.right + 24; x++) {
+        if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) continue
+        const t = document.elementFromPoint(x + 0.5, y + 0.5)
+        if (t && (t === el || el.contains(t))) {
+          x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + 1); y1 = Math.max(y1, y + 1)
+        }
+      }
+    }
+    if (x0 === Infinity) return aCaja(r)
+    const caja = aCaja(r)
+    const ancho = x1 - x0 <= r.width + 1.5 ? caja : null
+    const alto = y1 - y0 <= r.height + 1.5 ? caja : null
+    return {
+      x: ancho ? caja.x : x0 + window.scrollX,
+      w: ancho ? caja.w : x1 - x0 - 1,
+      y: alto ? caja.y : y0 + window.scrollY,
+      h: alto ? caja.h : y1 - y0 - 1,
+    }
+  }
   for (const el of document.querySelectorAll(controles)) {
     if (!visible(el)) continue
     const cs = getComputedStyle(el)
-    const r = el.getBoundingClientRect()
-    // Exentos por WCAG 2.5.8: enlaces en línea dentro de un texto. Y lo que sólo aparece al enfocar (saltar al contenido).
-    if (cs.display === 'inline' && el.tagName === 'A') continue
+    // Lo que sólo aparece al enfocar (saltar al contenido) o es sólo para lectores de pantalla.
     if (cs.clip !== 'auto' || /visually-hidden|sr-only|skip/.test(el.className)) continue
-    if (r.width < 24 || r.height < 24) pequenos.push({ selector: selector(el), ancho: Math.round(r.width), alto: Math.round(r.height) })
+    let r = el.getBoundingClientRect()
+    let caja = aCaja(r)
+    if (r.width < 24 || r.height < 24) {
+      el.scrollIntoView({ block: 'center', inline: 'nearest' })
+      r = el.getBoundingClientRect()
+      caja = areaDeClic(el, r)
+    }
+    const objetivo = { selector: selector(el), ...caja }
+    if (cs.display === 'inline' && el.tagName === 'A') objetivo.enLinea = true
+    const et = el.labels && el.labels[0] ? el.labels[0].getBoundingClientRect() : null
+    if (et && et.width > 0 && et.height > 0) objetivo.etiqueta = aCaja(et)
+    objetivos.push(objetivo)
   }
+  window.scrollTo(0, 0)
 
   return {
     titulo: document.title,
@@ -163,7 +200,7 @@ function medirEnPagina() {
     imagenesSinAlt: [...document.images].filter((i) => !i.hasAttribute('alt')).length,
     fuentesConError: [...document.fonts].filter((f) => f.status === 'error').map((f) => f.family),
     cls: window.__cls ?? 0,
-    objetivosPequenos: pequenos,
+    objetivos,
     firmaCabecera: firma(document.querySelector('header')),
     firmaPie: firma(document.querySelector('footer')),
   }
@@ -206,6 +243,8 @@ async function visitar(navegador, origen, { ruta, estadoEsperado }, ancho, { axe
   await esperar(300)
 
   const medidas = await pagina.evaluate(medirEnPagina)
+  medidas.objetivosPequenos = objetivosIncumplidos(medidas.objetivos)
+  delete medidas.objetivos
   const resultado = { ruta, ancho, estado: respuesta?.status() ?? 0, estadoEsperado, erroresConsola, recursosFallidos, ...medidas }
 
   let violacionesAxe = []

@@ -218,6 +218,9 @@ jobs:
       - name: Autoprueba de la puerta
         working-directory: sitio
         run: npm run test:puerta-visual -- --autoprueba
+      - name: Portada sin salto (con JS = sin JS)
+        working-directory: sitio
+        run: npm run test:carrusel
       - name: Puerta visual
         working-directory: sitio
         run: npm run test:puerta-visual -- --contra=origin/${{ github.base_ref }}

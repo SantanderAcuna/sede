@@ -28,6 +28,7 @@
 // `PLAYWRIGHT_MODULE=playwright` usa otra instalación de Playwright (por ejemplo la
 // global, cuyos navegadores sí existen en la máquina); por defecto, la del proyecto.
 import { lanzar } from './ayudas/motor.mjs'
+import { opcionesAgente } from './ayudas/agente-usuario.mjs'
 
 const BASE = (process.env.BASE_URL ?? 'http://localhost:3000').replace(/\/+$/, '')
 const SIMULAR_API = process.env.SIMULAR_API === '1'
@@ -45,10 +46,12 @@ const comprobar = (condicion, mensaje) => {
 }
 
 const navegador = await lanzar()
+/** Agente de usuario sin la marca `Headless` (ver ayudas/agente-usuario.mjs). */
+const AGENTE = await opcionesAgente(navegador)
 
 /** Un contexto limpio que anota peticiones y registros enviados al servidor. */
 async function contextoNuevo({ almacenamiento } = {}) {
-  const contexto = await navegador.newContext({ viewport: { width: 1280, height: 900 } })
+  const contexto = await navegador.newContext({ viewport: { width: 1280, height: 900 }, ...AGENTE })
   if (almacenamiento) {
     await contexto.addInitScript((valor) => {
       if (!sessionStorage.getItem('__sembrado')) {
@@ -96,7 +99,16 @@ try {
     const cookies = (await contexto.cookies()).filter((c) => !ESENCIALES.has(c.name))
     comprobar(cookies.length === 0, `sin cookies no esenciales (${cookies.map((c) => c.name).join(', ') || 'ninguna'})`)
     comprobar(estado.analitica.length === 0, `0 peticiones a dominios de analítica (${estado.analitica.length})`)
-    comprobar(await pagina.getByRole('button', { name: /Rechazar opcionales/i }).isVisible(), 'el banner está visible')
+    const hayBanner = await pagina.getByRole('button', { name: /Rechazar opcionales/i }).isVisible()
+    comprobar(hayBanner, 'el banner está visible')
+    if (!hayBanner) {
+      // Sin esto, «el banner no está» no dice si la sede falló o si lo que llegó no era la sede
+      // (p. ej. la página de comprobación de Cloudflare, que desde algunas IP desafía a Chromium).
+      const diag = await pagina
+        .evaluate(() => ({ titulo: document.title, ua: navigator.userAgent, texto: (document.body?.innerText ?? '').replace(/\s+/g, ' ').slice(0, 120) }))
+        .catch((e) => ({ error: String(e.message).slice(0, 80) }))
+      console.log(`    · diagnóstico: ${JSON.stringify(diag)}`)
+    }
     await contexto.close()
   }
 

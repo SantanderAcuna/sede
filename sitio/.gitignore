@@ -27,3 +27,6 @@ logs
 test-results/
 resultados-navegadores.json
 resumen-*.md
+
+# Salida de la puerta visual (tests/puerta-visual.mjs)
+salida-visual/

@@ -28,6 +28,7 @@
 // `PLAYWRIGHT_MODULE=playwright` usa otra instalación de Playwright (por ejemplo la
 // global, cuyos navegadores sí existen en la máquina); por defecto, la del proyecto.
 import { lanzar } from './ayudas/motor.mjs'
+import { opcionesAgente } from './ayudas/agente-usuario.mjs'
 
 const BASE = (process.env.BASE_URL ?? 'http://localhost:3000').replace(/\/+$/, '')
 const SIMULAR_API = process.env.SIMULAR_API === '1'
@@ -45,10 +46,12 @@ const comprobar = (condicion, mensaje) => {
 }
 
 const navegador = await lanzar()
+/** Agente de usuario sin la marca `Headless` (ver ayudas/agente-usuario.mjs). */
+const AGENTE = await opcionesAgente(navegador)
 
 /** Un contexto limpio que anota peticiones y registros enviados al servidor. */
 async function contextoNuevo({ almacenamiento } = {}) {
-  const contexto = await navegador.newContext({ viewport: { width: 1280, height: 900 } })
+  const contexto = await navegador.newContext({ viewport: { width: 1280, height: 900 }, ...AGENTE })
   if (almacenamiento) {
     await contexto.addInitScript((valor) => {
       if (!sessionStorage.getItem('__sembrado')) {

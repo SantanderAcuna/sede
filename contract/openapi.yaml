@@ -2661,7 +2661,11 @@ components:
                   description: Texto alternativo; obligatorio en una noticia publicada.
         contenido:
           type: string
-          description: Cuerpo en texto plano, párrafos separados por una línea en blanco. Sólo en el detalle.
+          description: |
+            Cuerpo en HTML saneado (lista blanca: h2, h3, p, br, strong, em, ul, ol, li,
+            blockquote, a con https/http/mailto/tel, e img propias con `alt`). Se sanea al
+            guardar y de nuevo al entregarlo; una noticia antigua en texto plano se entrega
+            como párrafos `<p>`. Sólo en el detalle.
 
     EstadoNoticia:
       type: string
@@ -2690,7 +2694,12 @@ components:
       properties:
         titulo: { type: string, maxLength: 150 }
         descripcion_corta: { type: string, maxLength: 200 }
-        contenido: { type: string }
+        contenido:
+          type: string
+          maxLength: 100000
+          description: |
+            HTML del editor o texto plano (párrafos separados por una línea en blanco). Se
+            sanea en el servidor al guardar: lo que no esté en la lista blanca se descarta.
         fecha_publicacion: { type: string, format: date-time }
         destacada: { type: boolean }
         activo: { type: boolean }

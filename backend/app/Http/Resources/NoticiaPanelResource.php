@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\Noticia;
+use App\Support\Noticias\ContenidoNoticia;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,7 +23,7 @@ final class NoticiaPanelResource extends JsonResource
     public function toArray(Request $request): array
     {
         return (new NoticiaPanelFilaResource($this->resource))->resolve($request) + [
-            'contenido' => $this->resource->contenido,
+            'contenido' => ContenidoNoticia::limpio($this->resource->contenido),
         ];
     }
 }

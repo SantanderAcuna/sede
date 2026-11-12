@@ -9,6 +9,8 @@ use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Contracts\Services\NoticiaServiceInterface;
 use App\Exceptions\NoticiaIncompleta;
 use App\Models\Noticia;
+use App\Support\Html\SanitizadorHtml;
+use App\Support\Noticias\ContenidoNoticia;
 use App\Support\Noticias\FiltrosNoticiasPanel;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -19,6 +21,7 @@ final class NoticiaService implements NoticiaServiceInterface
     public function __construct(
         private readonly NoticiaRepositoryInterface $noticias,
         private readonly FilesMediaServiceInterface $archivos,
+        private readonly SanitizadorHtml $sanitizador,
     ) {}
 
     public function publicadas(int $porPagina, ?bool $destacada): LengthAwarePaginator
@@ -44,6 +47,7 @@ final class NoticiaService implements NoticiaServiceInterface
     public function crear(array $datos, ?int $autorId): Noticia
     {
         unset($datos['imagen_alt']);
+        $datos = $this->conContenidoLimpio($datos);
 
         $noticia = new Noticia($datos);
         $noticia->slug = $this->slugUnico((string) $datos['titulo']);
@@ -60,6 +64,7 @@ final class NoticiaService implements NoticiaServiceInterface
     {
         $alt = $datos['imagen_alt'] ?? null;
         unset($datos['imagen_alt']);
+        $datos = $this->conContenidoLimpio($datos);
 
         $noticia->fill($datos);
 
@@ -98,6 +103,22 @@ final class NoticiaService implements NoticiaServiceInterface
     public function eliminar(Noticia $noticia): void
     {
         $this->noticias->eliminar($noticia);
+    }
+
+    /**
+     * El cuerpo se sanea AL ESCRIBIR: es el control principal contra XSS almacenado, porque
+     * quien llama a la API directamente no pasa por el editor. Al leer se vuelve a sanear.
+     *
+     * @param  array<string, mixed>  $datos
+     * @return array<string, mixed>
+     */
+    private function conContenidoLimpio(array $datos): array
+    {
+        if (isset($datos['contenido']) && is_string($datos['contenido'])) {
+            $datos['contenido'] = ContenidoNoticia::limpio($datos['contenido'], $this->sanitizador);
+        }
+
+        return $datos;
     }
 
     /**

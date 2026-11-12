@@ -249,7 +249,7 @@ final class NoticiasPanelListadoTest extends TestCase
 
         $this->actingAs($this->editor(), 'web')->getJson("/api/v1/panel/noticias/{$uuid}")
             ->assertOk()
-            ->assertJsonPath('data.contenido', 'Cuerpo que solo el detalle debe traer.')
+            ->assertJsonPath('data.contenido', '<p>Cuerpo que solo el detalle debe traer.</p>')
             ->assertJsonPath('data.estado', 'publicada');
     }
 

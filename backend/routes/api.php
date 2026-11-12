@@ -157,6 +157,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/noticias/{uuid}', [PanelNoticiaController::class, 'show'])->name('noticias.show');
             Route::patch('/noticias/{uuid}', [PanelNoticiaController::class, 'update'])->name('noticias.update');
             Route::delete('/noticias/{uuid}', [PanelNoticiaController::class, 'destroy'])->name('noticias.destroy');
+            Route::get('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'imagen'])->name('noticias.imagen.ver');
             Route::post('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'subirImagen'])->name('noticias.imagen');
         });
 

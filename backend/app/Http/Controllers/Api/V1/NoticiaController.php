@@ -9,8 +9,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ListarNoticiasRequest;
 use App\Http\Resources\NoticiaResource;
 use App\Support\Api\ApiResponse;
+use App\Support\Api\RespuestaDeImagen;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -69,27 +69,6 @@ final class NoticiaController extends Controller
 
         abort_if($imagen === null, 404);
 
-        $disco = Storage::disk($imagen->disk);
-        abort_unless($disco->exists($imagen->path), 404);
-
-        $flujo = $disco->readStream($imagen->path);
-        abort_if($flujo === null, 404);
-
-        $respuesta = response()->stream(
-            static function () use ($flujo): void {
-                fpassthru($flujo);
-                fclose($flujo);
-            },
-            200,
-            [
-                'Content-Type' => $imagen->mime_type,
-                'Content-Length' => (string) $imagen->size,
-                'Cache-Control' => 'public, max-age=300',
-                'X-Content-Type-Options' => 'nosniff',
-            ],
-        );
-        $respuesta->setEtag(sha1($imagen->uuid));
-
-        return $respuesta;
+        return RespuestaDeImagen::desde($imagen, 'public, max-age=300');
     }
 }

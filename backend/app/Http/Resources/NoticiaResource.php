@@ -20,9 +20,22 @@ final class NoticiaResource extends JsonResource
 {
     private bool $conCuerpo = false;
 
+    private bool $paraPanel = false;
+
     public function conCuerpo(): self
     {
         $this->conCuerpo = true;
+
+        return $this;
+    }
+
+    /**
+     * Para el panel la imagen se sirve por una ruta con sesión: la pública no entrega
+     * borradores ni programadas, y el panel necesita ver la imagen de las suyas.
+     */
+    public function paraPanel(): self
+    {
+        $this->paraPanel = true;
 
         return $this;
     }
@@ -46,7 +59,9 @@ final class NoticiaResource extends JsonResource
             // La dirección es estable: la URL firmada de `FileMedia::url()` caduca a
             // los 15 minutos y no sirve para una imagen de una página pública.
             'imagen' => $imagen === null ? null : [
-                'url' => '/api/v1/noticias/'.$noticia->slug.'/imagen',
+                'url' => $this->paraPanel
+                    ? '/api/v1/panel/noticias/'.$noticia->uuid.'/imagen'
+                    : '/api/v1/noticias/'.$noticia->slug.'/imagen',
                 'alt' => $noticia->imagenAlt(),
             ],
         ];

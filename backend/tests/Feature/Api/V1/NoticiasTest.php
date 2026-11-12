@@ -392,13 +392,20 @@ final class NoticiasTest extends TestCase
         // La ruta pública no sirve borradores; el panel necesita ver la suya.
         $this->get('/api/v1/noticias/borrador-con-foto/imagen')->assertNotFound();
 
-        $this->getJson("/api/v1/panel/noticias/{$uuid}/imagen")->assertUnauthorized();
-        $this->actingAs(User::factory()->create(), 'web')->get("/api/v1/panel/noticias/{$uuid}/imagen")->assertForbidden();
-
         $respuesta = $this->actingAs($this->editor(), 'web')->get("/api/v1/panel/noticias/{$uuid}/imagen")->assertOk();
         $this->assertStringStartsWith('image/png', (string) $respuesta->headers->get('Content-Type'));
         $this->assertStringNotContainsString('public', (string) $respuesta->headers->get('Cache-Control'), 'Un borrador no se guarda en cachés compartidas.');
         $this->assertSame('nosniff', $respuesta->headers->get('X-Content-Type-Options'));
+    }
+
+    public function test_la_imagen_del_panel_exige_sesion_y_permiso(): void
+    {
+        $id = $this->noticia(['slug' => 'borrador-privado', 'activo' => false]);
+        $this->conImagen($id);
+        $uuid = (string) DB::table('noticias')->where('id', $id)->value('uuid');
+
+        $this->getJson("/api/v1/panel/noticias/{$uuid}/imagen")->assertUnauthorized();
+        $this->actingAs(User::factory()->create(), 'web')->get("/api/v1/panel/noticias/{$uuid}/imagen")->assertForbidden();
     }
 
     public function test_la_imagen_del_panel_responde_404_sin_imagen_o_sin_noticia(): void

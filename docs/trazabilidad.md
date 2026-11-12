@@ -125,9 +125,9 @@ Enunciados en `docs/Sección 2 §2.4`.
 | Criterio | Estado | Evidencia (fichero:línea) |
 |---|---|---|
 | **CAG-01** | desviación declarada | `sitio/app/components/govco/CarruselGovco.vue:25` · `sitio/tests/diseno.mjs:2` · `sitio/tests/puerta-visual.test.ts:6` |
-| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:629` |
+| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:571` |
 | **CAG-03** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:29` · `sitio/tests/diseno.mjs:272` |
-| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:629` |
+| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/app/utils/banners.ts:5` · `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:571` |
 | **CAG-05** | **prueba** | `sitio/tests/ayudas/api-simulada.mjs:38` · `sitio/tests/diseno.mjs:309` |
 | **CAG-06** | desviación declarada | `sitio/app/components/govco/BarraSuperior.vue:19` · `sitio/scripts/trazabilidad.mjs:251` · `sitio/tests/diseno.mjs:81` |
 | **CAG-07** | **prueba** | `sitio/app/components/govco/BotonAccesibilidad.vue:51` · `sitio/app/components/govco/PanelAccesibilidad.vue:38` · `sitio/tests/diseno.mjs:319` · `sitio/tests/movil.mjs:15` |
@@ -143,13 +143,13 @@ Enunciados en `docs/Sección 2 §2.4`.
 | **CAG-17** | **prueba** | `sitio/tests/diseno.mjs:700` |
 | **CAG-18** | desviación declarada | `sitio/tests/diseno.mjs:82` |
 | **CAG-19** | desviación declarada | `sitio/tests/diseno.mjs:83` |
-| **CAG-20** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:435` · `sitio/tests/diseno.mjs:828` · `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:355` |
+| **CAG-20** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:435` · `sitio/tests/diseno.mjs:828` · `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:297` |
 | **CAG-21** | desviación declarada | `sitio/app/components/ModalAvisoSalida.vue:9` · `sitio/app/composables/useAvisoSalida.ts:152` · `sitio/tests/diseno.mjs:631` · `panel/.vitest/json/output.json:1` · +1 |
 | **CAG-22** | desviación declarada | `sitio/tests/diseno.mjs:84` |
 | **CAG-23** | implementación | `sitio/app/pages/realizar-una-peticion.vue:1623` · `sitio/app/pages/tramites/index.vue:749` |
 | **CAG-24** | desviación declarada | — |
 | **CAG-25** | desviación declarada | `sitio/tests/diseno.mjs:85` |
-| **CAG-26** | **prueba** | `sitio/app/components/govco/TarjetaInformacionGovco.vue:10` · `sitio/app/pages/index.vue:210` · `sitio/tests/diseno.mjs:760` |
+| **CAG-26** | **prueba** | `sitio/app/components/govco/TarjetaInformacionGovco.vue:10` · `sitio/app/pages/index.vue:224` · `sitio/tests/diseno.mjs:760` |
 | **CAG-27** | **prueba** | `sitio/tests/diseno.mjs:786` |
 | **CAG-28** | **prueba** | `sitio/tests/accesibilidad.mjs:2` · `sitio/tests/diseno.mjs:992` |
 | **CAG-29** | **prueba** | `sitio/app/components/govco/CargandoGovco.vue:3` · `sitio/app/pages/tramites/index.vue:297` · `sitio/tests/diseno.mjs:988` · `sitio/tests/kit-cargando.test.ts:2` |
@@ -187,8 +187,8 @@ Enunciados en `docs/Sección 5 §5.3.1`.
 | **FUN-020** | sin evidencia | — |
 | **FUN-021** | implementación | `contract/openapi-original-backup.yaml:139` · `contract/openapi.yaml:182` |
 | **FUN-022** | implementación | `contract/openapi-original-backup.yaml:139` · `contract/openapi.yaml:182` |
-| **FUN-023** | implementación | `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:355` |
-| **FUN-024** | implementación | `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:355` |
+| **FUN-023** | implementación | `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:297` |
+| **FUN-024** | implementación | `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:297` |
 | **FUN-025** | sin evidencia | — |
 | **FUN-026** | implementación | `sitio/app/pages/noticias/index.vue:3` |
 | **FUN-027** | implementación | `sitio/app/pages/portales.vue:3` |

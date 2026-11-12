@@ -527,7 +527,7 @@ const migas = computed(() =>
         </div>
       </header>
 
-      <main id="contenido-principal" tabindex="-1" class="flex-1 overflow-y-auto p-6 focus:outline-none">
+      <main id="contenido-principal" tabindex="-1" class="flex-1 overflow-y-auto p-6 pr-14 focus:outline-none">
         <RouterView />
       </main>
     </div>

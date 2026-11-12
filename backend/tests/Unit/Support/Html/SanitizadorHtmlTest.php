@@ -91,16 +91,16 @@ final class SanitizadorHtmlTest extends TestCase
     public function test_solo_deja_imagenes_propias_con_alt(): void
     {
         $uuid = '0b9e0a5e-3a52-4c43-9f0e-5a0f4a4e2c11';
-        $s = new SanitizadorHtml(['/storage/', 'https://cdn.santamarta.gov.co/']);
-        $ruta = "file_media/app_models_noticia/contenido/{$uuid}.webp";
+        $s = new SanitizadorHtml(['/api/v1/contenido/imagenes/', 'https://sede.santamarta.gov.co/api/v1/contenido/imagenes/']);
 
-        $this->assertStringContainsString('<img', $s->limpiar("<img src=\"/storage/{$ruta}\" alt=\"Alcalde\">"));
-        $this->assertStringContainsString('<img', $s->limpiar("<img src=\"https://cdn.santamarta.gov.co/{$ruta}\" alt=\"Alcalde\">"));
+        $this->assertStringContainsString('<img', $s->limpiar("<img src=\"/api/v1/contenido/imagenes/{$uuid}\" alt=\"Alcalde\">"));
+        $this->assertStringContainsString('<img', $s->limpiar("<img src=\"https://sede.santamarta.gov.co/api/v1/contenido/imagenes/{$uuid}\" alt=\"Alcalde\">"));
         $this->assertStringNotContainsString('<img', $s->limpiar('<img src="https://evil.test/p.png" alt="x">'));
-        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"https://evil.test/storage/{$ruta}\" alt=\"x\">"));
-        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"/storage/{$ruta}\">"));
-        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"/storage/../../etc/{$uuid}.webp\" alt=\"x\">"));
-        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"/storage/file_media/x/contenido/{$uuid}.svg\" alt=\"x\">"));
+        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"https://evil.test/api/v1/contenido/imagenes/{$uuid}\" alt=\"x\">"));
+        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"/api/v1/contenido/imagenes/{$uuid}\">"));
+        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"/api/v1/contenido/imagenes/../../{$uuid}\" alt=\"x\">"));
+        $this->assertStringNotContainsString('<img', $s->limpiar('<img src="/api/v1/contenido/imagenes/no-es-uuid" alt="x">'));
+        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"/api/v1/contenido/imagenes/{$uuid}?x=1\" alt=\"x\">"));
     }
 
     public function test_es_idempotente(): void

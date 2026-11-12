@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\BusquedaController;
 use App\Http\Controllers\Api\V1\ConsentimientoController;
 use App\Http\Controllers\Api\V1\EntidadController;
 use App\Http\Controllers\Api\V1\IdentidadController;
+use App\Http\Controllers\Api\V1\ImagenContenidoController;
 use App\Http\Controllers\Api\V1\NoticiaController;
 use App\Http\Controllers\Api\V1\PanelNoticiaController;
 use App\Http\Controllers\Api\V1\PanelPoliticaController;
@@ -91,6 +92,13 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
         ->middleware('throttle:imagenes-publicas');
 
+    // Imágenes insertadas en el contenido editado en el panel: públicas, con su propio límite.
+    Route::get('/contenido/imagenes/{uuid}', [ImagenContenidoController::class, 'show'])
+        ->whereUuid('uuid')
+        ->name('contenido.imagenes.ver')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:imagenes-publicas');
+
     // El catálogo de trámites. Las dos operaciones son públicas —el contrato las
     // declara con `security: []`— y por eso no llevan middleware de sesión.
     Route::get('/tramites', [TramiteController::class, 'listar'])
@@ -160,6 +168,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'imagen'])->name('noticias.imagen.ver');
             Route::post('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'subirImagen'])->name('noticias.imagen');
         });
+
+        // Imágenes del editor (noticias, políticas o entidad: lo valida la petición).
+        Route::post('/contenido/imagenes', [ImagenContenidoController::class, 'store'])
+            ->middleware('auth:sanctum')
+            ->name('contenido.imagenes.store');
 
         // Archivos — gestión de archivos subidos (requiere autenticación + permiso)
         Route::middleware('auth:sanctum')->group(function (): void {

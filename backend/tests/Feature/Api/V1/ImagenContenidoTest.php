@@ -41,6 +41,10 @@ final class ImagenContenidoTest extends TestCase
         return $u;
     }
 
+    /**
+     * @param  int<1, max>  $ancho
+     * @param  int<1, max>  $alto
+     */
     private function png(int $ancho = 8, int $alto = 8, string $extra = ''): UploadedFile
     {
         $im = imagecreatetruecolor($ancho, $alto);
@@ -99,7 +103,7 @@ final class ImagenContenidoTest extends TestCase
 
         $fila = FileMedia::where('uuid', $uuid)->firstOrFail();
         $this->assertSame('contenido', $fila->collection);
-        $this->assertSame('Alcalde en la sede', $fila->metadata['alt']);
+        $this->assertSame('Alcalde en la sede', ($fila->metadata ?? [])['alt'] ?? null);
     }
 
     public function test_la_imagen_se_recodifica_y_pierde_el_exif(): void

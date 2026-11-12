@@ -90,13 +90,17 @@ final class SanitizadorHtmlTest extends TestCase
 
     public function test_solo_deja_imagenes_propias_con_alt(): void
     {
-        $propia = $this->limpiar('<img src="/storage/imagenes/'.'0b9e0a5e-3a52-4c43-9f0e-5a0f4a4e2c11.webp" alt="Alcalde">');
-        $ajena = $this->limpiar('<img src="https://evil.test/p.png" alt="x">');
-        $sinAlt = $this->limpiar('<img src="/storage/imagenes/0b9e0a5e-3a52-4c43-9f0e-5a0f4a4e2c11.webp">');
+        $uuid = '0b9e0a5e-3a52-4c43-9f0e-5a0f4a4e2c11';
+        $s = new SanitizadorHtml(['/storage/', 'https://cdn.santamarta.gov.co/']);
+        $ruta = "file_media/app_models_noticia/contenido/{$uuid}.webp";
 
-        $this->assertStringContainsString('<img', $propia);
-        $this->assertStringNotContainsString('<img', $ajena);
-        $this->assertStringNotContainsString('<img', $sinAlt);
+        $this->assertStringContainsString('<img', $s->limpiar("<img src=\"/storage/{$ruta}\" alt=\"Alcalde\">"));
+        $this->assertStringContainsString('<img', $s->limpiar("<img src=\"https://cdn.santamarta.gov.co/{$ruta}\" alt=\"Alcalde\">"));
+        $this->assertStringNotContainsString('<img', $s->limpiar('<img src="https://evil.test/p.png" alt="x">'));
+        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"https://evil.test/storage/{$ruta}\" alt=\"x\">"));
+        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"/storage/{$ruta}\">"));
+        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"/storage/../../etc/{$uuid}.webp\" alt=\"x\">"));
+        $this->assertStringNotContainsString('<img', $s->limpiar("<img src=\"/storage/file_media/x/contenido/{$uuid}.svg\" alt=\"x\">"));
     }
 
     public function test_es_idempotente(): void

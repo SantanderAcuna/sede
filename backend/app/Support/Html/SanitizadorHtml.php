@@ -13,13 +13,22 @@ use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
  */
 final class SanitizadorHtml
 {
-    /** Imágenes propias: solo las que sube el panel (uuid + extensión permitida). */
-    private const RUTA_IMAGEN = '#^/storage/imagenes/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpe?g|webp)$#i';
+    /** Resto de la URL de una imagen propia: lo que sube el panel a `file_media` (colección «contenido»). */
+    private const RESTO_IMAGEN = 'file_media/[a-z0-9_]+/contenido/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:png|jpg|webp)';
+
+    private string $patronImagen;
 
     private HtmlSanitizer $saneador;
 
-    public function __construct()
+    /**
+     * @param  list<string>  $prefijosImagen  Inicios de URL admitidos para imágenes propias
+     *                                        (p. ej. «/storage/» o la URL base del disco remoto).
+     */
+    public function __construct(array $prefijosImagen = ['/storage/'])
     {
+        $alternativas = array_map(static fn (string $p): string => preg_quote($p, '#'), $prefijosImagen);
+        $this->patronImagen = '#^(?:'.implode('|', $alternativas).')'.self::RESTO_IMAGEN.'$#';
+
         $config = (new HtmlSanitizerConfig)
             ->allowElement('h2')->allowElement('h3')
             ->allowElement('p')->allowElement('br')
@@ -32,7 +41,7 @@ final class SanitizadorHtml
             ->allowRelativeLinks(false)
             ->forceAttribute('a', 'rel', 'noopener noreferrer nofollow')
             ->forceHttpsUrls(false)
-            ->allowMediaSchemes([])
+            ->allowMediaSchemes(['https'])
             ->allowRelativeMedias(true)
             ->withMaxInputLength(500_000);
 
@@ -56,7 +65,7 @@ final class SanitizadorHtml
             $src = preg_match('#\ssrc="([^"]*)"#i', $m[0], $s) ? html_entity_decode($s[1]) : '';
             $alt = preg_match('#\salt="([^"]*)"#i', $m[0], $a) ? trim($a[1]) : '';
 
-            return preg_match(self::RUTA_IMAGEN, $src) === 1 && $alt !== '' ? $m[0] : '';
+            return preg_match($this->patronImagen, $src) === 1 && $alt !== '' ? $m[0] : '';
         }, $html);
     }
 }

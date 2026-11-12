@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Repositories\Eloquent;
 
 use App\Contracts\Repositories\NoticiaRepositoryInterface;
+use App\Enums\EstadoNoticia;
 use App\Models\FileMedia;
 use App\Models\Noticia;
+use App\Support\Noticias\FiltrosNoticiasPanel;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 
@@ -28,11 +30,30 @@ final class NoticiaRepository implements NoticiaRepositoryInterface
         return Noticia::query()->publicadas()->with('imagenPrincipal')->where('slug', $slug)->first();
     }
 
-    public function paginarTodas(int $porPagina): LengthAwarePaginator
+    public function paginarTodas(int $porPagina, FiltrosNoticiasPanel $filtros): LengthAwarePaginator
     {
-        return Noticia::query()->with('imagenPrincipal')
-            ->orderByDesc('fecha_publicacion')->orderByDesc('id')
-            ->paginate($porPagina);
+        $consulta = Noticia::query()->with('imagenPrincipal');
+
+        if ($filtros->titulo !== null) {
+            // `%`, `_` y `\` son comodines de LIKE: se escapan para buscar el texto tal cual
+            // («100%» no es «100 y lo que sea»). PostgreSQL usa la barra invertida como escape.
+            $literal = addcslashes($filtros->titulo, '%_\\');
+            $consulta->where('titulo', 'ilike', '%'.$literal.'%');
+        }
+
+        match ($filtros->estado) {
+            EstadoNoticia::BORRADOR => $consulta->where('activo', false),
+            EstadoNoticia::PROGRAMADA => $consulta->where('activo', true)->where('fecha_publicacion', '>', now()),
+            EstadoNoticia::PUBLICADA => $consulta->where('activo', true)->where('fecha_publicacion', '<=', now()),
+            null => null,
+        };
+
+        // La columna sale de una lista cerrada (`FiltrosNoticiasPanel::ORDENES`), nunca del cliente.
+        $columna = $filtros->ordenarPor === FiltrosNoticiasPanel::ORDEN_TITULO ? 'titulo' : 'fecha_publicacion';
+        $sentido = $filtros->direccion === 'asc' ? 'asc' : 'desc';
+
+        // `id` desempata: con la misma fecha o el mismo título, dos páginas seguidas no repiten ni saltan filas.
+        return $consulta->orderBy($columna, $sentido)->orderBy('id', $sentido)->paginate($porPagina);
     }
 
     public function porUuid(string $uuid): ?Noticia

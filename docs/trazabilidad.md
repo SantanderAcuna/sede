@@ -89,7 +89,7 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/panel/ita/tablero` | RF-02-029 | pending |
 | GET | `/panel/auditoria` | — | pending |
 
-El contrato declara **44 operaciones**, de las cuales **37** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
+El contrato declara **45 operaciones**, de las cuales **38** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
 
 ## CAG — Diseño
 
@@ -107,7 +107,7 @@ Enunciados en `docs/Sección 2 §2.4`.
 | **CAG-08** | **prueba** | `sitio/app/layouts/default.vue:9` · `sitio/tests/diseno.mjs:484` |
 | **CAG-09** | **prueba** | `sitio/.vitest/json/output.json:1` · `sitio/app/components/govco/MenuNavegacionGovco.vue:91` · `sitio/app/config/sitemap.ts:8` · `sitio/tests/diseno.mjs:501` · +1 |
 | **CAG-10** | implementación | `sitio/app/components/govco/MenuNavegacionGovco.vue:98` |
-| **CAG-11** | **prueba** | `sitio/app/components/govco/MigaDePanGovco.vue:5` · `sitio/app/layouts/default.vue:106` · `sitio/tests/diseno.mjs:520` |
+| **CAG-11** | **prueba** | `sitio/app/components/govco/MigaDePanGovco.vue:5` · `sitio/app/layouts/default.vue:108` · `sitio/app/middleware/ficha-miga.global.ts:6` · `sitio/app/utils/miga.ts:2` · +2 |
 | **CAG-12** | **prueba** | `sitio/app/components/govco/PiePaginaGovco.vue:28` · `sitio/tests/ayudas/api-simulada.mjs:38` · `sitio/tests/diseno.mjs:535` · `contract/openapi-original-backup.yaml:66` · +1 |
 | **CAG-13** | **prueba** | `sitio/tests/diseno.mjs:567` · `panel/.vitest/json/output.json:1` · `panel/tests/componentes.test.ts:35` |
 | **CAG-14** | **prueba** | `sitio/tests/diseno.mjs:577` |
@@ -122,7 +122,7 @@ Enunciados en `docs/Sección 2 §2.4`.
 | **CAG-23** | implementación | `sitio/app/pages/realizar-una-peticion.vue:1623` · `sitio/app/pages/tramites/index.vue:749` |
 | **CAG-24** | desviación declarada | — |
 | **CAG-25** | desviación declarada | `sitio/tests/diseno.mjs:85` |
-| **CAG-26** | **prueba** | `sitio/app/components/govco/TarjetaInformacionGovco.vue:10` · `sitio/app/pages/index.vue:190` · `sitio/tests/diseno.mjs:760` |
+| **CAG-26** | **prueba** | `sitio/app/components/govco/TarjetaInformacionGovco.vue:10` · `sitio/app/pages/index.vue:210` · `sitio/tests/diseno.mjs:760` |
 | **CAG-27** | **prueba** | `sitio/tests/diseno.mjs:786` |
 | **CAG-28** | **prueba** | `sitio/tests/accesibilidad.mjs:2` · `sitio/tests/diseno.mjs:992` |
 | **CAG-29** | **prueba** | `sitio/app/components/govco/CargandoGovco.vue:3` · `sitio/app/pages/tramites/index.vue:297` · `sitio/tests/diseno.mjs:988` · `sitio/tests/kit-cargando.test.ts:2` |
@@ -148,9 +148,9 @@ Enunciados en `docs/Sección 5 §5.3.1`.
 | **FUN-008** | desviación declarada | — |
 | **FUN-009** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:104` |
 | **FUN-010** | desviación declarada | — |
-| **FUN-011** | implementación | `sitio/app/layouts/default.vue:258` |
+| **FUN-011** | implementación | `sitio/app/layouts/default.vue:242` |
 | **FUN-012** | **prueba** | `sitio/.vitest/json/output.json:1` · `sitio/app/config/sitemap.ts:351` · `sitio/app/types/menu.ts:10` · `sitio/tests/sitemap.test.ts:58` |
-| **FUN-013** | implementación | `sitio/app/components/SeccionEnPreparacion.vue:5` · `sitio/app/pages/index.vue:10` · `sitio/app/pages/noticias.vue:5` · `sitio/app/pages/portales.vue:5` · +3 |
+| **FUN-013** | implementación | `sitio/app/components/SeccionEnPreparacion.vue:5` · `sitio/app/pages/index.vue:10` · `sitio/app/pages/portales.vue:5` · `sitio/app/pages/servicios.vue:5` · +2 |
 | **FUN-014** | implementación | `sitio/app/components/govco/PiePaginaGovco.vue:174` · `contract/openapi-additional-paths.yaml:100` · `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:104` |
 | **FUN-015** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:104` |
 | **FUN-016** | sin evidencia | — |
@@ -163,7 +163,7 @@ Enunciados en `docs/Sección 5 §5.3.1`.
 | **FUN-023** | implementación | `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:353` |
 | **FUN-024** | implementación | `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:353` |
 | **FUN-025** | sin evidencia | — |
-| **FUN-026** | implementación | `sitio/app/pages/noticias.vue:3` |
+| **FUN-026** | implementación | `sitio/app/pages/noticias/index.vue:3` |
 | **FUN-027** | implementación | `sitio/app/pages/portales.vue:3` |
 | **FUN-028** | sin evidencia | — |
 | **FUN-029** | sin evidencia | — |

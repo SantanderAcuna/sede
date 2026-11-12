@@ -90,8 +90,11 @@ final class NoticiasDePruebaSeederTest extends TestCase
         // Proporciones distintas: ancha, alta y cuadrada, para ver el recorte.
         $proporciones = $noticias->map(function (Noticia $n): string {
             $imagen = $n->imagenPrincipal;
+            $this->assertNotNull($imagen);
             $bytes = Storage::disk($imagen->disk)->get($imagen->path);
-            [$ancho, $alto] = getimagesizefromstring((string) $bytes);
+            $medidas = getimagesizefromstring((string) $bytes);
+            $this->assertIsArray($medidas);
+            [$ancho, $alto] = $medidas;
 
             return match (true) {
                 $ancho > $alto => 'ancha',

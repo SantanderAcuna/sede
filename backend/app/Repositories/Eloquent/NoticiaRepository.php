@@ -8,6 +8,7 @@ use App\Contracts\Repositories\NoticiaRepositoryInterface;
 use App\Models\FileMedia;
 use App\Models\Noticia;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Str;
 
 final class NoticiaRepository implements NoticiaRepositoryInterface
 {
@@ -36,6 +37,12 @@ final class NoticiaRepository implements NoticiaRepositoryInterface
 
     public function porUuid(string $uuid): ?Noticia
     {
+        // Un identificador que no es un UUID (p. ej. «undefined») no existe: sin esto
+        // PostgreSQL rechaza la consulta y el ciudadano ve un 500 en lugar de un 404.
+        if (! Str::isUuid($uuid)) {
+            return null;
+        }
+
         return Noticia::query()->with('imagenPrincipal')->where('uuid', $uuid)->first();
     }
 

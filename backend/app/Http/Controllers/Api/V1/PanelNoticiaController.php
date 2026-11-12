@@ -9,7 +9,7 @@ use App\Exceptions\NoticiaIncompleta;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarNoticiaRequest;
 use App\Http\Requests\SubirImagenNoticiaRequest;
-use App\Http\Resources\NoticiaResource;
+use App\Http\Resources\NoticiaPanelResource;
 use App\Models\Noticia;
 use App\Support\Api\ApiResponse;
 use App\Support\Api\RespuestaDeImagen;
@@ -43,12 +43,7 @@ final class PanelNoticiaController extends Controller
 
         $pagina = $this->noticias->todas(max(1, min(100, (int) $peticion->query('per_page', 20))));
 
-        $coleccion = NoticiaResource::collection($pagina);
-        foreach ($coleccion->collection ?? [] as $elemento) {
-            if ($elemento instanceof NoticiaResource) {
-                $elemento->paraPanel();
-            }
-        }
+        $coleccion = NoticiaPanelResource::collection($pagina);
 
         return ApiResponse::coleccion($coleccion, $pagina);
     }
@@ -173,21 +168,15 @@ final class PanelNoticiaController extends Controller
     }
 
     /**
-     * La noticia tal como la ve el panel: el documento público, el cuerpo y lo que
-     * hace falta para editarla y publicarla.
+     * La noticia tal como la ve el panel (ver `NoticiaPanelResource`).
      *
      * @return array<string, mixed>
      */
     private static function elemento(Noticia $noticia): array
     {
+        // Tras subir una imagen la relación cacheada quedó vieja: se vuelve a leer.
         $noticia->unsetRelation('imagenPrincipal')->load('imagenPrincipal');
-        $problemas = $noticia->problemas();
 
-        return (new NoticiaResource($noticia))->conCuerpo()->paraPanel()->resolve() + [
-            'uuid' => $noticia->uuid,
-            'activo' => $noticia->activo,
-            'completa' => $problemas === [],
-            'problemas' => $problemas,
-        ];
+        return (new NoticiaPanelResource($noticia))->resolve();
     }
 }

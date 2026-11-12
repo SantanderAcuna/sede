@@ -1398,7 +1398,11 @@ paths:
       tags: [Panel — Noticias]
       operationId: listarNoticiasPanel
       summary: Todas las noticias, borradores incluidos
-      description: Requiere el permiso `noticias.gestionar`.
+      description: |
+        Requiere el permiso `noticias.gestionar`. Cada elemento trae lo mismo que el
+        detalle del panel (`NoticiaPanelItem`): `uuid`, `activo`, el contenido y lo que
+        falta para publicarla. Con el documento público no se podía abrir una noticia
+        ya creada para editarla.
       x-status: implemented
       x-criterios: [RF-01-013]
       parameters:
@@ -1410,7 +1414,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NoticiaCollection'
+                $ref: '#/components/schemas/NoticiaPanelCollection'
         '401':
           $ref: '#/components/responses/NoAutenticado'
       security:
@@ -2580,6 +2584,16 @@ components:
             data:
               type: array
               items: { $ref: '#/components/schemas/NoticiaItem' }
+
+    NoticiaPanelCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/NoticiaPanelItem' }
 
     # ─── Subsección Transparencia ──────────────────────────────────────────
     SubseccionTransparenciaItem:

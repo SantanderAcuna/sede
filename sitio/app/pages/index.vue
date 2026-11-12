@@ -31,6 +31,7 @@
  */
 import type { DiapositivaCarrusel } from '~/components/govco/CarruselGovco.vue'
 import type { components } from '~~/types/openapi'
+import { TEXTO_SIN_NOTICIAS, estadoDeNoticias, type NoticiaResumen } from '~/utils/noticias'
 
 useHead({
   title: 'Sede Electrónica · Alcaldía Distrital de Santa Marta',
@@ -143,6 +144,25 @@ const { data: tramitesPortada } = await useAsyncData('portada-tramites', async (
   }
 })
 
+/**
+ * Noticias de la portada (M01-6, RF-01-013): las 6 más recientes, de la más nueva
+ * a la más antigua, con su imagen, título, descripción y fecha. Tres estados que
+ * no se confunden: la API no contestó (se dice, sin afirmar que no hay noticias),
+ * contestó y no hay ninguna (CT-01: «No consta información publicada…», sin datos
+ * de ejemplo) o hay noticias.
+ */
+const { data: noticiasPortada } = await useAsyncData('portada-noticias', async () => {
+  try {
+    return await traer<{ data: NoticiaResumen[] }>(`${urlApi}/noticias`, {
+      query: { per_page: 6 },
+    })
+  } catch {
+    return null
+  }
+})
+
+const estadoNoticias = computed(() => estadoDeNoticias(noticiasPortada.value ?? null))
+
 const tramitesDestacados = computed(() =>
   (tramitesPortada.value?.data ?? []).map((tramite) => ({
     id: tramite.id,
@@ -212,6 +232,30 @@ const tramitesDestacados = computed(() =>
             Ver todos los trámites y servicios
           </NuxtLink>
         </div>
+      </section>
+
+      <section aria-labelledby="titulo-noticias-portada" class="mt-5">
+        <h2 id="titulo-noticias-portada" class="titulo-seccion-portada">Noticias</h2>
+
+        <p v-if="estadoNoticias === 'error'" class="text-center mx-auto mb-0">
+          Las noticias no están disponibles en este momento. Puede intentarlo de nuevo en
+          unos minutos.
+        </p>
+        <p v-else-if="estadoNoticias === 'vacio'" class="text-center mx-auto mb-0">
+          {{ TEXTO_SIN_NOTICIAS }}
+        </p>
+        <template v-else>
+          <ul class="row g-4 justify-content-center lista-noticias-portada">
+            <li v-for="noticia in noticiasPortada?.data ?? []" :key="noticia.id" class="col-md-6 col-lg-4">
+              <TarjetaNoticia :noticia="noticia" />
+            </li>
+          </ul>
+          <div class="text-center mt-4">
+            <NuxtLink to="/noticias" class="btn-govco fill-btn-govco boton-ver-todos">
+              Ver más noticias
+            </NuxtLink>
+          </div>
+        </template>
       </section>
 
       <h2 class="titulo-seccion-portada mt-5">Secciones de la Sede</h2>
@@ -299,7 +343,8 @@ const tramitesDestacados = computed(() =>
  * celeste claro del Kit, esquinas redondeadas y un filete en cobalto; todas de la
  * misma altura aunque un trámite tenga el resumen más largo.
  */
-.lista-tramites-portada {
+.lista-tramites-portada,
+.lista-noticias-portada {
   list-style: none;
   padding: 0;
   margin-bottom: 0;

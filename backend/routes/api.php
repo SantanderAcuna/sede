@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\V1\BusquedaController;
 use App\Http\Controllers\Api\V1\ConsentimientoController;
 use App\Http\Controllers\Api\V1\EntidadController;
 use App\Http\Controllers\Api\V1\IdentidadController;
+use App\Http\Controllers\Api\V1\NoticiaController;
+use App\Http\Controllers\Api\V1\PanelNoticiaController;
 use App\Http\Controllers\Api\V1\PanelPoliticaController;
 use App\Http\Controllers\Api\V1\PoliticaController;
 use App\Http\Controllers\Api\V1\TramiteController;
@@ -73,6 +75,22 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         ->withoutMiddleware('throttle:api')
         ->middleware('throttle:lecturas-publicas');
 
+    // Noticias del home (M01-6, RF-01-013): lecturas públicas. La imagen tiene su
+    // propio límite: cada visita al home pide seis y no debe gastar el cupo de las
+    // lecturas de datos.
+    Route::get('/noticias', [NoticiaController::class, 'index'])
+        ->name('noticias.index')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:lecturas-publicas');
+    Route::get('/noticias/{slug}', [NoticiaController::class, 'show'])
+        ->name('noticias.mostrar')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:lecturas-publicas');
+    Route::get('/noticias/{slug}/imagen', [NoticiaController::class, 'imagen'])
+        ->name('noticias.imagen')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:imagenes-publicas');
+
     // El catálogo de trámites. Las dos operaciones son públicas —el contrato las
     // declara con `security: []`— y por eso no llevan middleware de sesión.
     Route::get('/tramites', [TramiteController::class, 'listar'])
@@ -131,6 +149,16 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             ->name('politicas.update')
             ->middleware('auth:sanctum')
             ->middleware('can:politicas.gestionar');
+
+        // Noticias — alta, edición y publicación (requiere autenticación + permiso)
+        Route::middleware(['auth:sanctum', 'can:noticias.gestionar'])->group(function (): void {
+            Route::get('/noticias', [PanelNoticiaController::class, 'index'])->name('noticias.index');
+            Route::post('/noticias', [PanelNoticiaController::class, 'store'])->name('noticias.store');
+            Route::get('/noticias/{uuid}', [PanelNoticiaController::class, 'show'])->name('noticias.show');
+            Route::patch('/noticias/{uuid}', [PanelNoticiaController::class, 'update'])->name('noticias.update');
+            Route::delete('/noticias/{uuid}', [PanelNoticiaController::class, 'destroy'])->name('noticias.destroy');
+            Route::post('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'subirImagen'])->name('noticias.imagen');
+        });
 
         // Archivos — gestión de archivos subidos (requiere autenticación + permiso)
         Route::middleware('auth:sanctum')->group(function (): void {

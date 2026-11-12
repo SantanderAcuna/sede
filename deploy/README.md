@@ -143,6 +143,24 @@ sudo docker compose -f /opt/sede/staging/compose.yaml --env-file /opt/sede/stagi
 Sustituye `staging` por `produccion` donde corresponda. Es idempotente: repetirlo
 no duplica nada.
 
+## Noticias de prueba en staging
+
+Para ver la portada, `/noticias` y el detalle con contenido hay un sembrador aparte,
+`NoticiasDePruebaSeeder`, con diez noticias que dicen ser de prueba en su título y en
+su texto. **No** está en `SedeSeeder`: el despliegue no las siembra, porque la sede no
+publica noticias inventadas. Y `staging` y producción tienen `APP_ENV=production` los
+dos, así que el sembrador se niega a correr sin `PERMITIR_DATOS_DE_PRUEBA=1`, que no
+está en ningún archivo de `deploy/` y se pasa sólo en este comando:
+
+```bash
+sudo docker compose -f /opt/sede/staging/compose.yaml --env-file /opt/sede/staging/.env \
+  run --rm -e PERMITIR_DATOS_DE_PRUEBA=1 app \
+  php artisan db:seed --class=NoticiasDePruebaSeeder --force
+```
+
+**Nunca en `produccion`.** Es idempotente: repetirlo no duplica. Para quitarlas, se
+eliminan desde el panel (Noticias) las que dicen «Noticia de prueba».
+
 ## Cuando la siembra no llega sola
 
 `ingesta: tramites:ingerir` **no** es un sembrador y no corre en el despliegue.

@@ -102,6 +102,13 @@ const rutas: RouteRecordRaw[] = [
         component: () => import('@/views/admin/PoliticasView.vue'),
         meta: { requiereSesion: true, titulo: 'Políticas del sitio', permiso: PERMISO_POR_RUTA['/configuracion/politicas'] },
       },
+      // Noticias del sitio: borrador, imagen con texto alternativo y publicación (M01-6, RF-01-013)
+      {
+        path: 'contenidos/noticias',
+        name: 'panel.noticias',
+        component: () => import('@/views/admin/NoticiasView.vue'),
+        meta: { requiereSesion: true, titulo: 'Noticias', permiso: PERMISO_POR_RUTA['/contenidos/noticias'] },
+      },
       ...MODULOS.map(
         (modulo): RouteRecordRaw => ({
           path: modulo.ruta,

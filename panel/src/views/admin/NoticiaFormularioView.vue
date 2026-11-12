@@ -57,6 +57,8 @@ const erroresServidor = ref<Partial<Record<string, string>>>({})
 const intentoDeGuardar = ref(false)
 const exito = ref<string | null>(null)
 const resumen = ref<HTMLElement | null>(null)
+/** El resumen de errores viene de las comprobaciones locales (no del servidor). */
+let resumenLocal = false
 const confirmandoEliminar = ref(false)
 const eliminando = ref(false)
 const errorEliminar = ref<string | null>(null)
@@ -173,6 +175,7 @@ async function guardar(): Promise<void> {
   }
 
   motivos.value = problemas.value.map((p) => p.mensaje)
+  resumenLocal = true
   if (motivos.value.length > 0) {
     await mostrarResumen()
     return
@@ -228,6 +231,7 @@ async function guardar(): Promise<void> {
     }
   } catch (e) {
     // Si la noticia llegó a crearse, quien edita la ve ya como existente (no se duplica).
+    resumenLocal = false
     erroresServidor.value = erroresPorCampo(e)
     motivos.value = motivosDeError(e, 'No se pudo guardar la noticia.')
     if (Object.keys(erroresServidor.value).length === 0) motivos.value.unshift('No se pudo guardar la noticia.')
@@ -253,6 +257,11 @@ async function confirmarEliminar(): Promise<void> {
     eliminando.value = false
   }
 }
+
+// Quien corrige lo que faltaba no debe seguir viendo «No se guardó» con el problema ya resuelto.
+watch(problemas, (lista) => {
+  if (resumenLocal && lista.length === 0) motivos.value = []
+})
 
 // --- No perder lo escrito ------------------------------------------------------
 // Se registra en el enrutador (no en el componente) para que funcione igual montada por
@@ -410,7 +419,7 @@ watch(
         <img v-if="vistaPrevia" :src="vistaPrevia" alt="Vista previa de la imagen elegida" class="max-h-56 rounded-lg border border-slate-200">
         <img v-else-if="noticia?.imagen" :src="noticia.imagen.url" :alt="noticia.imagen.alt ?? ''" class="max-h-56 rounded-lg border border-slate-200">
         <div>
-          <label :for="idImagen" class="text-sm font-medium text-slate-700">{{ tieneImagen || imagenElegida ? 'Cambiar la imagen' : 'Elegir una imagen' }}</label>
+          <label :for="idImagen" class="block text-sm font-medium text-slate-700">{{ tieneImagen || imagenElegida ? 'Cambiar la imagen' : 'Elegir una imagen' }}</label>
           <input
             :id="idImagen"
             ref="entradaArchivo"
@@ -433,7 +442,7 @@ watch(
       <section class="space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="noticia-publicacion">
         <h2 id="noticia-publicacion" class="font-medium text-slate-900">Publicación</h2>
         <div>
-          <label :for="idFecha" class="text-sm font-medium text-slate-700">Fecha de publicación</label>
+          <label :for="idFecha" class="block text-sm font-medium text-slate-700">Fecha de publicación</label>
           <input
             :id="idFecha"
             v-model="formulario.fecha_publicacion"

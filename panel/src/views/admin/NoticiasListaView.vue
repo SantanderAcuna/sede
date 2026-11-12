@@ -145,9 +145,13 @@ async function confirmarEliminar(): Promise<void> {
 }
 
 // --- Columnas -----------------------------------------------------------------
+// «11 nov 2026, 4:00 a. m.»: el mes con letras, para que nadie dude entre día y mes.
 const formatoFecha = new Intl.DateTimeFormat('es-CO', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
   timeZone: 'America/Bogota',
 })
 
@@ -157,6 +161,11 @@ const ESTADOS: Record<string, { texto: string; variante: 'success' | 'info' | 'w
   borrador: { texto: 'Borrador', variante: 'warning' },
 }
 
+function insigniaDe(n: NoticiaPanelItem, clase = '') {
+  const estado = ESTADOS[n.estado] ?? ESTADOS.borrador!
+  return h(BaseBadge, { variant: estado.variante, dot: true, class: clase }, () => estado.texto)
+}
+
 const columnas: ColumnDef<DataTableFeatures, NoticiaPanelItem, unknown>[] = [
   {
     id: 'titulo',
@@ -164,30 +173,32 @@ const columnas: ColumnDef<DataTableFeatures, NoticiaPanelItem, unknown>[] = [
     header: 'Título',
     enableSorting: true,
     cell: ({ row }) =>
-      h(
-        RouterLink,
-        {
-          to: { name: 'panel.noticias.editar', params: { uuid: row.original.uuid } },
-          class: 'font-medium text-slate-900 hover:text-gov-blue hover:underline',
-        },
-        () => row.original.titulo,
-      ),
+      h('div', { class: 'flex flex-col items-start gap-1.5' }, [
+        h(
+          RouterLink,
+          {
+            to: { name: 'panel.noticias.editar', params: { uuid: row.original.uuid } },
+            class: 'font-medium text-slate-900 hover:text-gov-blue hover:underline',
+          },
+          () => row.original.titulo,
+        ),
+        // En pantallas estrechas la columna Estado se oculta y el estado va bajo el título.
+        insigniaDe(row.original, 'sm:hidden'),
+      ]),
   },
   {
     id: 'estado',
     header: 'Estado',
     enableSorting: false,
-    cell: ({ row }) => {
-      const estado = ESTADOS[row.original.estado] ?? ESTADOS.borrador!
-      return h(BaseBadge, { variant: estado.variante, dot: true }, () => estado.texto)
-    },
+    meta: { clase: 'hidden sm:table-cell' },
+    cell: ({ row }) => insigniaDe(row.original),
   },
   {
     id: 'fecha_publicacion',
     accessorFn: (n) => n.fecha_publicacion,
     header: 'Fecha de publicación',
     enableSorting: true,
-    meta: { clase: 'hidden sm:table-cell' },
+    meta: { clase: 'hidden whitespace-nowrap sm:table-cell' },
     cell: ({ row }) => formatoFecha.format(new Date(row.original.fecha_publicacion)),
   },
   {

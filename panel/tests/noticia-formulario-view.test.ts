@@ -297,6 +297,18 @@ describe('crear una noticia', () => {
     expect(wrapper.find('[role="alert"]').text()).toContain('Falta el título')
   })
 
+  it('al completar lo que faltaba, el aviso «No se guardó» desaparece', async () => {
+    const { wrapper } = await montar()
+    await boton(wrapper, 'Guardar').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+
+    await rellenar(wrapper)
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('No se guardó')
+  })
+
   it('el error de validación local queda junto al campo y el foco va al primero', async () => {
     const { wrapper } = await montar()
     await boton(wrapper, 'Guardar').trigger('click')

@@ -164,7 +164,7 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
               <button
                 v-if="header.column.getCanSort()"
                 type="button"
-                class="inline-flex items-center gap-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue"
+                class="inline-flex items-center gap-1 rounded text-left font-semibold uppercase tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue"
                 @click="servidor ? pedirOrden(header.column.id) : header.column.getToggleSortingHandler()?.($event)"
               >
                 <FlexRender :header="header" />

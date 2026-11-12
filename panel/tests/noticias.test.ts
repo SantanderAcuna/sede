@@ -159,27 +159,84 @@ describe('servicio', () => {
     vi.doMock('../src/services/http', () => ({
       http: peticion,
       desenvolver: (s: { data: unknown }) => s.data,
+      desenvolverPagina: (s: { data: unknown; meta: unknown; links: unknown }) => ({
+        datos: s.data,
+        meta: s.meta,
+        enlaces: s.links,
+      }),
     }))
   })
 
-  it('lista, crea, edita y elimina contra las rutas del contrato', async () => {
+  const sobrePagina = (datos: unknown[] = []) => ({
+    data: {
+      success: true,
+      message: null,
+      data: datos,
+      meta: { current_page: 2, from: 21, last_page: 3, path: '/x', per_page: 20, to: 40, total: 55 },
+      links: { first: null, last: null, prev: null, next: null },
+      errors: null,
+    },
+  })
+
+  it('crea, edita, consulta y elimina contra las rutas del contrato', async () => {
     const servicio = await import('../src/services/noticias')
-    peticion.get.mockResolvedValue({ data: { success: true, data: [] } })
+    peticion.get.mockResolvedValue({ data: { success: true, data: { uuid: 'u' } } })
     peticion.post.mockResolvedValue({ data: { success: true, data: { uuid: 'u' } } })
     peticion.patch.mockResolvedValue({ data: { success: true, data: { uuid: 'u' } } })
     peticion.delete.mockResolvedValue({ data: { success: true } })
 
-    await servicio.listar(2)
-    expect(peticion.get).toHaveBeenCalledWith('/panel/noticias', { params: { page: 2, per_page: 20 } })
-
     await servicio.crear({ titulo: 'T' })
     expect(peticion.post).toHaveBeenCalledWith('/panel/noticias', { titulo: 'T' })
+
+    await servicio.obtener('u-1')
+    expect(peticion.get).toHaveBeenCalledWith('/panel/noticias/u-1')
 
     await servicio.actualizar('u-1', { activo: true })
     expect(peticion.patch).toHaveBeenCalledWith('/panel/noticias/u-1', { activo: true })
 
     await servicio.eliminar('u-1')
     expect(peticion.delete).toHaveBeenCalledWith('/panel/noticias/u-1')
+  })
+
+  it('listar entrega la página con su meta y envía sólo los filtros que tienen valor', async () => {
+    const servicio = await import('../src/services/noticias')
+    peticion.get.mockResolvedValue(sobrePagina([{ uuid: 'a' }]))
+
+    const pagina = await servicio.listar({
+      pagina: 2,
+      porPagina: 20,
+      q: '  parque ',
+      estado: '',
+      ordenarPor: 'titulo',
+      direccion: 'asc',
+    })
+
+    expect(peticion.get).toHaveBeenCalledWith('/panel/noticias', {
+      params: { page: 2, per_page: 20, q: 'parque', ordenar_por: 'titulo', direccion: 'asc' },
+    })
+    expect(pagina.datos).toHaveLength(1)
+    expect(pagina.meta.total).toBe(55)
+    expect(pagina.meta.last_page).toBe(3)
+  })
+
+  it('listar sin filtros sólo pide la página', async () => {
+    const servicio = await import('../src/services/noticias')
+    peticion.get.mockResolvedValue(sobrePagina())
+
+    await servicio.listar({})
+
+    expect(peticion.get).toHaveBeenCalledWith('/panel/noticias', { params: { page: 1, per_page: 20 } })
+  })
+
+  it('listar con estado lo envía tal cual', async () => {
+    const servicio = await import('../src/services/noticias')
+    peticion.get.mockResolvedValue(sobrePagina())
+
+    await servicio.listar({ estado: 'programada' })
+
+    expect(peticion.get).toHaveBeenCalledWith('/panel/noticias', {
+      params: { page: 1, per_page: 20, estado: 'programada' },
+    })
   })
 
   it('sube la imagen y su alt juntos, en un solo multipart', async () => {
@@ -207,5 +264,27 @@ describe('permiso y ruta', () => {
     expect(ruta).toBeDefined()
     expect(ruta?.meta.requiereSesion).toBe(true)
     expect(ruta?.meta.permiso).toBe('noticias.gestionar')
+  })
+
+  it('crear y editar son vistas aparte de la lista, con el mismo permiso', () => {
+    const nueva = enrutador.getRoutes().find((r) => r.name === 'panel.noticias.nueva')
+    const editar = enrutador.getRoutes().find((r) => r.name === 'panel.noticias.editar')
+
+    expect(nueva?.path).toBe('/contenidos/noticias/nueva')
+    expect(editar?.path).toMatch(/^\/contenidos\/noticias\/:uuid/)
+    for (const ruta of [nueva, editar]) {
+      expect(ruta?.meta.requiereSesion).toBe(true)
+      expect(ruta?.meta.permiso).toBe('noticias.gestionar')
+    }
+    expect(nueva?.meta.titulo).toBe('Nueva noticia')
+    expect(editar?.meta.titulo).toBe('Editar noticia')
+  })
+
+  it('«nueva» no se confunde con un uuid, y un uuid válido sí resuelve a editar', () => {
+    expect(enrutador.resolve('/contenidos/noticias/nueva').name).toBe('panel.noticias.nueva')
+    expect(enrutador.resolve('/contenidos/noticias/3f2a9c1e-1b2d-4c3e-8f4a-5b6c7d8e9f01').name).toBe(
+      'panel.noticias.editar',
+    )
+    expect(enrutador.resolve('/contenidos/noticias/algo-que-no-es-uuid').name).toBe('no-encontrado')
   })
 })

@@ -6,6 +6,7 @@ namespace App\Contracts\Services;
 
 use App\Exceptions\NoticiaIncompleta;
 use App\Models\Noticia;
+use App\Support\Noticias\FiltrosNoticiasPanel;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -29,7 +30,7 @@ interface NoticiaServiceInterface
     /**
      * @return LengthAwarePaginator<int, Noticia>
      */
-    public function todas(int $porPagina): LengthAwarePaginator;
+    public function todas(int $porPagina, FiltrosNoticiasPanel $filtros): LengthAwarePaginator;
 
     public function porUuid(string $uuid): ?Noticia;
 

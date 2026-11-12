@@ -13,7 +13,8 @@
  * sesión real dice que no la hay.
  */
 import { computed, ref, watch } from 'vue'
-import { RouterView, RouterLink, useRoute } from 'vue-router'
+import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
+import { construirMigas } from './migas'
 
 import CommandPalette from '@/components/feedback/CommandPalette.vue'
 import AppLogo from '@/components/base/AppLogo.vue'
@@ -138,6 +139,7 @@ watch(
 )
 
 const ruta = useRoute()
+const enrutador = useRouter()
 const paleta = ref<InstanceType<typeof CommandPalette> | null>(null)
 const menuUsuarioAbierto = ref(false)
 
@@ -243,20 +245,13 @@ watch(
  * se marca con `aria-current="page"`. El nombre sale de `meta.titulo` cuando
  * existe, porque el segmento de la URL («gestion-documental») no es un nombre.
  */
-const migas = computed(() => {
-  const segmentos = ruta.path.split('/').filter(Boolean)
-  return segmentos.map((segmento, indice) => {
-    const esActual = indice === segmentos.length - 1
-    return {
-      label:
-        esActual && ruta.meta.titulo
-          ? ruta.meta.titulo
-          : segmento.charAt(0).toUpperCase() + segmento.slice(1).replace(/-/g, ' '),
-      ruta: '/' + segmentos.slice(0, indice + 1).join('/'),
-      esActual,
-    }
-  })
-})
+const migas = computed(() =>
+  construirMigas(ruta.path, ruta.meta.titulo, (destino) => {
+    const resuelta = enrutador.resolve(destino)
+    // La ruta comodín (`no-encontrado`) responde a cualquier dirección: no cuenta.
+    return resuelta.name !== undefined && resuelta.name !== 'no-encontrado'
+  }),
+)
 </script>
 
 <template>
@@ -414,11 +409,12 @@ const migas = computed(() => {
           </template>
           <template v-else>
             <RouterLink to="/" class="hover:text-gov-blue">Inicio</RouterLink>
-            <template v-for="miga in migas" :key="miga.ruta">
+            <template v-for="miga in migas" :key="miga.label + miga.esActual">
               <span class="text-slate-300" aria-hidden="true">/</span>
               <span v-if="miga.esActual" class="truncate text-slate-700" aria-current="page">
                 {{ miga.label }}
               </span>
+              <span v-else-if="miga.ruta === null" class="truncate">{{ miga.label }}</span>
               <RouterLink v-else :to="miga.ruta" class="hover:text-gov-blue truncate">
                 {{ miga.label }}
               </RouterLink>

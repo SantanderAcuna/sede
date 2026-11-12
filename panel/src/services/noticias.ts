@@ -2,6 +2,7 @@
  * Servicio de las noticias del sitio (M01-6, RF-01-013).
  *
  * GET    /api/v1/panel/noticias              → listar()
+ * GET    /api/v1/panel/noticias/{uuid}       → obtener()
  * POST   /api/v1/panel/noticias              → crear()
  * PATCH  /api/v1/panel/noticias/{uuid}       → actualizar()
  * DELETE /api/v1/panel/noticias/{uuid}       → eliminar()
@@ -10,15 +11,42 @@
  * La imagen y su texto alternativo viajan juntos: el servidor no acepta una imagen
  * sin su descripción (Res. MinTIC 1519/2020, Anexo 2).
  */
-import { http, desenvolver } from './http'
-import type { ApiEnvelope, NoticiaInput, NoticiaPanelItem } from '@/types/api'
+import { http, desenvolver, desenvolverPagina, type Pagina } from './http'
+import type { ApiEnvelope, NoticiaInput, NoticiaPanelItem, PaginatedEnvelope } from '@/types/api'
 
 export const POR_PAGINA = 20
 
-export async function listar(pagina = 1): Promise<NoticiaPanelItem[]> {
-  const respuesta = await http.get<ApiEnvelope<NoticiaPanelItem[]>>('/panel/noticias', {
-    params: { page: pagina, per_page: POR_PAGINA },
-  })
+export type EstadoNoticiaFiltro = 'borrador' | 'programada' | 'publicada'
+
+export interface ConsultaNoticias {
+  pagina?: number
+  porPagina?: number
+  /** Texto a buscar en el título. Vacío o de espacios = sin búsqueda. */
+  q?: string
+  /** `''` = todos. */
+  estado?: EstadoNoticiaFiltro | ''
+  ordenarPor?: 'fecha_publicacion' | 'titulo'
+  direccion?: 'asc' | 'desc'
+}
+
+/** Sólo viajan los filtros que tienen valor: el servidor no recibe `q=` ni `estado=`. */
+export async function listar(consulta: ConsultaNoticias = {}): Promise<Pagina<NoticiaPanelItem>> {
+  const params: Record<string, string | number> = {
+    page: consulta.pagina ?? 1,
+    per_page: consulta.porPagina ?? POR_PAGINA,
+  }
+  const q = consulta.q?.trim() ?? ''
+  if (q !== '') params.q = q
+  if (consulta.estado) params.estado = consulta.estado
+  if (consulta.ordenarPor) params.ordenar_por = consulta.ordenarPor
+  if (consulta.direccion) params.direccion = consulta.direccion
+
+  const respuesta = await http.get<PaginatedEnvelope<NoticiaPanelItem>>('/panel/noticias', { params })
+  return desenvolverPagina(respuesta.data)
+}
+
+export async function obtener(uuid: string): Promise<NoticiaPanelItem> {
+  const respuesta = await http.get<ApiEnvelope<NoticiaPanelItem>>(`/panel/noticias/${uuid}`)
   return desenvolver(respuesta.data)
 }
 

@@ -8,13 +8,14 @@ use App\Contracts\Services\NoticiaServiceInterface;
 use App\Exceptions\NoticiaIncompleta;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarNoticiaRequest;
+use App\Http\Requests\ListarNoticiasPanelRequest;
 use App\Http\Requests\SubirImagenNoticiaRequest;
+use App\Http\Resources\NoticiaPanelFilaResource;
 use App\Http\Resources\NoticiaPanelResource;
 use App\Models\Noticia;
 use App\Support\Api\ApiResponse;
 use App\Support\Api\RespuestaDeImagen;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -33,17 +34,19 @@ final class PanelNoticiaController extends Controller
     public function __construct(private readonly NoticiaServiceInterface $noticias) {}
 
     /**
-     * Todas las noticias —borradores y programadas incluidas—, las más recientes primero.
+     * Todas las noticias —borradores y programadas incluidas—, sin su cuerpo, para la tabla
+     * del panel. Se puede buscar por título (`q`), filtrar por `estado` y ordenar
+     * (`ordenar_por`, `direccion`); por defecto, las más recientes primero.
      *
      * @operationId listarNoticiasPanel
      */
-    public function index(Request $peticion): JsonResponse
+    public function index(ListarNoticiasPanelRequest $peticion): JsonResponse
     {
         Gate::authorize('viewAny', Noticia::class);
 
-        $pagina = $this->noticias->todas(max(1, min(100, (int) $peticion->query('per_page', 20))));
+        $pagina = $this->noticias->todas($peticion->porPagina(), $peticion->filtros());
 
-        $coleccion = NoticiaPanelResource::collection($pagina);
+        $coleccion = NoticiaPanelFilaResource::collection($pagina);
 
         return ApiResponse::coleccion($coleccion, $pagina);
     }

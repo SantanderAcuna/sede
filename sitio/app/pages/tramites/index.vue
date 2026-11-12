@@ -25,6 +25,7 @@
  * reserva para el primero.
  */
 import type { components } from '~~/types/openapi'
+import { enlaceTramite } from '~/utils/enlace-tramite'
 
 useHead({
   title: 'Trámites y servicios · Sede Electrónica',
@@ -467,7 +468,18 @@ function reintentar(): void {
         <ul v-else-if="elementos.length > 0" class="tarjetas mt-2" role="list">
           <li v-for="t in elementos" :key="t.slug" class="tarjeta">
             <h3 class="tarjeta-nombre h5">
-              <NuxtLink :to="`/tramites/${t.slug}`" class="tarjeta-enlace">{{ t.nombre }}</NuxtLink>
+              <!-- La ficha completa vive en GOV.CO: la tarjeta lleva allí; sin ficha nacional, a la propia. -->
+              <a
+                v-if="enlaceTramite(t).externo"
+                :href="enlaceTramite(t).href"
+                class="tarjeta-enlace"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ t.nombre }}
+                <span class="solo-lectores">(abre la ficha en GOV.CO, en una pestaña nueva)</span>
+              </a>
+              <NuxtLink v-else :to="enlaceTramite(t).href" class="tarjeta-enlace">{{ t.nombre }}</NuxtLink>
             </h3>
             <p v-if="t.resumen" class="tarjeta-resumen mb-2">{{ t.resumen }}</p>
 
@@ -501,12 +513,6 @@ function reintentar(): void {
                 <span>{{ t.dependencia.nombre }}</span>
               </li>
             </ul>
-
-            <!-- El registro nacional, cuando existe, como enlace secundario. -->
-            <a v-if="t.url_ficha_gov_co" class="enlace-govco" :href="t.url_ficha_gov_co" rel="external">
-              Ficha oficial en GOV.CO
-              <span class="solo-lectores">: {{ t.nombre }} (abre GOV.CO)</span>
-            </a>
           </li>
         </ul>
 
@@ -764,18 +770,6 @@ function reintentar(): void {
   color: var(--govcolor-cobalt, #0943b5);
 }
 
-.enlace-govco {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  color: var(--govcolor-cobalt, #0943b5);
-  font-size: 0.9375rem;
-  font-weight: 700;
-}
-.enlace-govco:focus-visible {
-  outline: 3px solid var(--govcolor-cobalt, #0943b5);
-  outline-offset: 2px;
-}
 
 /* Botones del catálogo. */
 .btn-catalogo {

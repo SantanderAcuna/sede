@@ -9,7 +9,7 @@
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { AxiosError } from 'axios'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 vi.mock('../src/services/noticias', () => ({
@@ -58,11 +58,21 @@ const enrutador = () =>
     ],
   })
 
+const montados: Array<{ unmount: () => void }> = []
+// Conectada al documento: jsdom no envía un formulario que no lo está.
+afterEach(() => {
+  for (const w of montados.splice(0)) w.unmount()
+})
+
 async function montar(ruta = '/contenidos/noticias/nueva') {
   const router = enrutador()
   await router.push(ruta)
   await router.isReady()
-  const wrapper = mount(NoticiaFormularioView, { global: { plugins: [router], stubs: { FaIcon: true } } })
+  const wrapper = mount(NoticiaFormularioView, {
+    attachTo: document.body,
+    global: { plugins: [router], stubs: { FaIcon: true, teleport: true } },
+  })
+  montados.push(wrapper)
   await flushPromises()
   return { wrapper, router }
 }
@@ -310,7 +320,7 @@ describe('crear una noticia', () => {
     expect(wrapper.find('[role="alert"]').text()).toContain('El título ya existe.')
     const titulo = wrapper.findAll('label').find((l) => l.text().includes('Título'))!
     const describedby = wrapper.find(`[id="${titulo.attributes('for')}"]`).attributes('aria-describedby') ?? ''
-    expect(describedby.split(' ').some((id) => wrapper.find(`[id="${id}"]`).text().includes('El título ya existe.'))).toBe(true)
+    expect(describedby.split(' ').some((id) => wrapper.find(`[id="${id}"]`).exists() && wrapper.find(`[id="${id}"]`).text().includes('El título ya existe.'))).toBe(true)
     expect(wrapper.text()).not.toContain('Noticia guardada')
   })
 

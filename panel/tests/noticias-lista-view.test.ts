@@ -72,7 +72,7 @@ async function montar() {
   const router = enrutador()
   await router.push('/contenidos/noticias')
   await router.isReady()
-  const wrapper = mount(NoticiasListaView, { global: { plugins: [router], stubs: { FaIcon: true } } })
+  const wrapper = mount(NoticiasListaView, { global: { plugins: [router], stubs: { FaIcon: true, teleport: true } } })
   await flushPromises()
   return { wrapper, router }
 }
@@ -132,7 +132,8 @@ describe('es una tabla de datos', () => {
     m.listar.mockResolvedValue(pagina([noticia({ uuid: 'abc', titulo: 'Parque' })]))
     const { wrapper } = await montar()
 
-    const editar = wrapper.find('tbody a[href$="/contenidos/noticias/abc"]')
+    expect(wrapper.find('tbody a[href$="/contenidos/noticias/abc"]').text()).toBe('Parque')
+    const editar = wrapper.find('tbody a[aria-label^="Editar"]')
     expect(editar.exists()).toBe(true)
     expect(editar.attributes('aria-label')).toContain('Parque')
     expect(wrapper.find('tbody button[aria-label*="Eliminar"][aria-label*="Parque"]').exists()).toBe(true)
@@ -163,7 +164,9 @@ describe('estados de la lista', () => {
 
   it('con filtros y sin coincidencias: no dice que no hay noticias, ofrece quitar los filtros', async () => {
     vi.useFakeTimers()
+    m.listar.mockResolvedValue(pagina([noticia()]))
     const { wrapper } = await montar()
+    m.listar.mockResolvedValue(pagina([]))
     await wrapper.find('input[type="search"]').setValue('zzz')
     vi.advanceTimersByTime(500)
     await flushPromises()
@@ -196,7 +199,7 @@ describe('estados de la lista', () => {
     m.listar.mockReturnValue(new Promise((r) => (resolver = r)))
     const router = enrutador()
     await router.push('/contenidos/noticias')
-    const wrapper = mount(NoticiasListaView, { global: { plugins: [router], stubs: { FaIcon: true } } })
+    const wrapper = mount(NoticiasListaView, { global: { plugins: [router], stubs: { FaIcon: true, teleport: true } } })
     await flushPromises()
 
     expect(wrapper.text()).toContain('Cargando')
@@ -209,6 +212,7 @@ describe('estados de la lista', () => {
 describe('buscar, filtrar, ordenar y paginar piden los datos al servidor', () => {
   it('buscar espera a que se deje de escribir y vuelve a la página 1', async () => {
     vi.useFakeTimers()
+    m.listar.mockResolvedValue(pagina([noticia()]))
     const { wrapper } = await montar()
     m.listar.mockClear()
 
@@ -225,6 +229,7 @@ describe('buscar, filtrar, ordenar y paginar piden los datos al servidor', () =>
   })
 
   it('el buscador tiene etiqueta visible o accesible', async () => {
+    m.listar.mockResolvedValue(pagina([noticia()]))
     const { wrapper } = await montar()
     const campo = wrapper.find('input[type="search"]')
     const id = campo.attributes('id')
@@ -245,6 +250,7 @@ describe('buscar, filtrar, ordenar y paginar piden los datos al servidor', () =>
   })
 
   it('las opciones del filtro nombran los tres estados', async () => {
+    m.listar.mockResolvedValue(pagina([noticia()]))
     const { wrapper } = await montar()
     const opciones = wrapper.findAll('select option').map((o) => o.text())
 
@@ -292,6 +298,7 @@ describe('buscar, filtrar, ordenar y paginar piden los datos al servidor', () =>
 
   it('una respuesta lenta anterior no pisa a la última consulta', async () => {
     vi.useFakeTimers()
+    m.listar.mockResolvedValue(pagina([noticia()]))
     const { wrapper } = await montar()
     let lenta: (v: ReturnType<typeof pagina>) => void = () => {}
     m.listar.mockReturnValueOnce(new Promise((r) => (lenta = r)))

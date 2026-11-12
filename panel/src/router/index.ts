@@ -102,12 +102,26 @@ const rutas: RouteRecordRaw[] = [
         component: () => import('@/views/admin/PoliticasView.vue'),
         meta: { requiereSesion: true, titulo: 'Políticas del sitio', permiso: PERMISO_POR_RUTA['/configuracion/politicas'] },
       },
-      // Noticias del sitio: borrador, imagen con texto alternativo y publicación (M01-6, RF-01-013)
+      // Noticias del sitio (M01-6, RF-01-013): la lista es una tabla y crear/editar son
+      // vistas propias. «nueva» va antes que «:uuid» y el uuid se restringe a su forma,
+      // para que ninguna palabra suelta se tome por un identificador.
       {
         path: 'contenidos/noticias',
         name: 'panel.noticias',
-        component: () => import('@/views/admin/NoticiasView.vue'),
+        component: () => import('@/views/admin/NoticiasListaView.vue'),
         meta: { requiereSesion: true, titulo: 'Noticias', permiso: PERMISO_POR_RUTA['/contenidos/noticias'] },
+      },
+      {
+        path: 'contenidos/noticias/nueva',
+        name: 'panel.noticias.nueva',
+        component: () => import('@/views/admin/NoticiaFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Nueva noticia', permiso: PERMISO_POR_RUTA['/contenidos/noticias'] },
+      },
+      {
+        path: 'contenidos/noticias/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+        name: 'panel.noticias.editar',
+        component: () => import('@/views/admin/NoticiaFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar noticia', permiso: PERMISO_POR_RUTA['/contenidos/noticias'] },
       },
       ...MODULOS.map(
         (modulo): RouteRecordRaw => ({

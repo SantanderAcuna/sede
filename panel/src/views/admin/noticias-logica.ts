@@ -115,32 +115,56 @@ export function caracteresRestantes(texto: string, maximo: number): number {
   return maximo - texto.length
 }
 
-/** Lo que se puede decir antes de enviar. Lista vacía = se puede intentar guardar. */
-export function problemasLocales(formulario: FormularioNoticia, imagen: ContextoImagen): string[] {
-  const problemas: string[] = []
+export type CampoNoticia = 'titulo' | 'descripcion_corta' | 'contenido' | 'imagen' | 'imagen_alt'
 
-  if (formulario.titulo.trim() === '') problemas.push('Falta el título de la noticia.')
+export interface ProblemaDeCampo {
+  campo: CampoNoticia
+  mensaje: string
+}
+
+/** Lo que se puede decir antes de enviar, con el campo al que pertenece cada aviso. */
+export function problemasPorCampo(formulario: FormularioNoticia, imagen: ContextoImagen): ProblemaDeCampo[] {
+  const problemas: ProblemaDeCampo[] = []
+  const agregar = (campo: CampoNoticia, mensaje: string): void => {
+    problemas.push({ campo, mensaje })
+  }
+
+  if (formulario.titulo.trim() === '') agregar('titulo', 'Falta el título de la noticia.')
   else if (formulario.titulo.length > TITULO_MAX) {
-    problemas.push(`El título pasa de ${TITULO_MAX} caracteres (tiene ${formulario.titulo.length}).`)
+    agregar('titulo', `El título pasa de ${TITULO_MAX} caracteres (tiene ${formulario.titulo.length}).`)
   }
 
-  if (formulario.descripcion_corta.trim() === '') problemas.push('Falta la descripción corta.')
+  if (formulario.descripcion_corta.trim() === '') agregar('descripcion_corta', 'Falta la descripción corta.')
   else if (formulario.descripcion_corta.length > DESCRIPCION_MAX) {
-    problemas.push(`La descripción corta pasa de ${DESCRIPCION_MAX} caracteres (tiene ${formulario.descripcion_corta.length}).`)
+    agregar(
+      'descripcion_corta',
+      `La descripción corta pasa de ${DESCRIPCION_MAX} caracteres (tiene ${formulario.descripcion_corta.length}).`,
+    )
   }
 
-  if (formulario.contenido.trim() === '') problemas.push('Falta el contenido de la noticia.')
+  if (formulario.contenido.trim() === '') agregar('contenido', 'Falta el contenido de la noticia.')
 
   const hayImagen = imagen.tieneImagen || imagen.imagenNueva
-  if (formulario.activo && !hayImagen) problemas.push('Para publicar la noticia hace falta una imagen.')
+  if (formulario.activo && !hayImagen) agregar('imagen', 'Para publicar la noticia hace falta una imagen.')
 
   if (hayImagen) {
     if (formulario.imagen_alt.trim() === '') {
-      problemas.push('Escriba la descripción de la imagen (texto alternativo): es obligatoria para quien no puede verla.')
+      agregar(
+        'imagen_alt',
+        'Escriba la descripción de la imagen (texto alternativo): es obligatoria para quien no puede verla.',
+      )
     } else if (formulario.imagen_alt.length > ALT_MAX) {
-      problemas.push(`La descripción de la imagen pasa de ${ALT_MAX} caracteres (tiene ${formulario.imagen_alt.length}).`)
+      agregar(
+        'imagen_alt',
+        `La descripción de la imagen pasa de ${ALT_MAX} caracteres (tiene ${formulario.imagen_alt.length}).`,
+      )
     }
   }
 
   return problemas
+}
+
+/** Lo que se puede decir antes de enviar. Lista vacía = se puede intentar guardar. */
+export function problemasLocales(formulario: FormularioNoticia, imagen: ContextoImagen): string[] {
+  return problemasPorCampo(formulario, imagen).map((p) => p.mensaje)
 }

@@ -159,6 +159,11 @@ describe('servicio', () => {
     vi.doMock('../src/services/http', () => ({
       http: peticion,
       desenvolver: (s: { data: unknown }) => s.data,
+      desenvolverPagina: (s: { data: unknown; meta: unknown; links: unknown }) => ({
+        datos: s.data,
+        meta: s.meta,
+        enlaces: s.links,
+      }),
     }))
   })
 

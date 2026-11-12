@@ -8,6 +8,7 @@ import {
   type SortingState,
 } from '@tanstack/vue-table';
 import { dataTableFeatures, type DataTableFeatures } from './dataTableFeatures';
+import { ventanaDePaginas } from './paginas';
 
 const props = withDefaults(
   defineProps<{
@@ -17,11 +18,44 @@ const props = withDefaults(
     globalFilter?: string;
     loading?: boolean;
     empty?: string;
+    /** Nombre accesible de la tabla. No se ve, pero un lector de pantalla lo anuncia. */
+    caption?: string;
+    /**
+     * Modo servidor: `data` ya es UNA página, recortada y ordenada por el servidor.
+     * La tabla no filtra, ordena ni pagina por su cuenta: muestra lo recibido y pide
+     * al padre (`cambiarPagina`, `cambiarOrden`) lo que la persona elige.
+     */
+    servidor?: boolean;
+    /** Total de registros en el servidor (sólo modo servidor). */
+    total?: number;
+    /** Página actual, desde 1 (sólo modo servidor). */
+    pagina?: number;
+    /** Registros por página (sólo modo servidor). */
+    porPagina?: number;
+    /** Orden vigente; en modo servidor lo dicta el padre. */
+    orden?: { id: string; desc: boolean } | null;
+    /** Si pulsar la fila emite `rowClick`. Sin esto, la fila no aparenta ser un botón. */
+    clicable?: boolean;
   }>(),
-  { pageSize: 10, globalFilter: '', empty: 'Sin resultados' }
+  {
+    pageSize: 10,
+    globalFilter: '',
+    empty: 'Sin resultados',
+    caption: undefined,
+    servidor: false,
+    total: 0,
+    pagina: 1,
+    porPagina: 20,
+    orden: null,
+    clicable: true,
+  }
 );
 
-const emit = defineEmits<{ rowClick: [row: TData] }>();
+const emit = defineEmits<{
+  rowClick: [row: TData];
+  cambiarPagina: [pagina: number];
+  cambiarOrden: [orden: { id: string; desc: boolean }];
+}>();
 const sorting = ref<SortingState>([]);
 
 // En la v9 las entradas reactivas se pasan como `ref` (aquí `toRef` sobre un
@@ -36,7 +70,7 @@ const columnas = toRef(() => props.columns);
 // cada porción lleva su propio `on…Change`, que puede recibir el valor o una
 // función que lo calcula a partir del anterior. La v9 ya no tiene `onStateChange`.
 const estado = toRef(() => ({
-  sorting: sorting.value,
+  sorting: props.servidor && props.orden ? [{ id: props.orden.id, desc: props.orden.desc }] : sorting.value,
   globalFilter: props.globalFilter,
 }));
 
@@ -45,6 +79,8 @@ const table = useTable<DataTableFeatures, TData>({
   data: datos,
   columns: columnas,
   state: estado,
+  manualPagination: props.servidor,
+  manualSorting: props.servidor,
   onSortingChange: (updater) => {
     sorting.value = typeof updater === 'function' ? updater(sorting.value) : updater;
   },
@@ -55,6 +91,7 @@ const table = useTable<DataTableFeatures, TData>({
 const paginacion = computed(() => table.atoms.pagination.get());
 const numeroPaginas = computed(() => table.getPageCount());
 const paginaActual = computed(() => paginacion.value.pageIndex);
+const numerosLocal = computed(() => ventanaDePaginas(paginaActual.value + 1, numeroPaginas.value));
 
 /**
  * Traduce el estado de ordenación de TanStack a los valores de `aria-sort`.
@@ -62,6 +99,37 @@ const paginaActual = computed(() => paginacion.value.pageIndex);
  * `none` no significa «sin ordenar» y ya está: para ARIA describe una columna
  * **ordenable que ahora mismo no ordena**, que es justo el estado de partida.
  */
+// --- Modo servidor ---------------------------------------------------------
+const ultimaPagina = computed(() => Math.max(1, Math.ceil(props.total / Math.max(props.porPagina, 1))));
+const numerosServidor = computed(() => ventanaDePaginas(props.pagina, ultimaPagina.value));
+const desde = computed(() => (props.total === 0 ? 0 : (props.pagina - 1) * props.porPagina + 1));
+const hasta = computed(() => Math.min(props.pagina * props.porPagina, props.total));
+
+function ordenDe(id: string): false | 'asc' | 'desc' {
+  if (!props.servidor) return false;
+  if (props.orden?.id !== id) return false;
+  return props.orden.desc ? 'desc' : 'asc';
+}
+
+/** Primera pulsación: ascendente. Pulsar la columna ya ordenada invierte el sentido. */
+function pedirOrden(id: string): void {
+  const actual = props.orden;
+  emit('cambiarOrden', { id, desc: actual?.id === id ? !actual.desc : false });
+}
+
+function irA(pagina: number): void {
+  if (pagina < 1 || pagina > ultimaPagina.value || pagina === props.pagina) return;
+  emit('cambiarPagina', pagina);
+}
+
+/**
+ * Clases propias de una columna (`meta.clase`), p. ej. `hidden md:table-cell` para
+ * ocultarla en pantallas estrechas sin perder el dato en las anchas.
+ */
+function claseDe(columna: { columnDef: { meta?: unknown } }): string {
+  return (columna.columnDef.meta as { clase?: string } | undefined)?.clase ?? '';
+}
+
 function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 'none' {
   if (estado === 'asc') return 'ascending';
   if (estado === 'desc') return 'descending';
@@ -73,6 +141,7 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
   <div class="overflow-hidden rounded-xl ring-1 ring-slate-200 bg-white">
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-slate-200">
+        <caption v-if="caption" class="sr-only">{{ caption }}</caption>
         <thead class="bg-slate-50">
           <tr v-for="hg in table.getHeaderGroups()" :key="hg.id">
             <!--
@@ -85,22 +154,23 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
               v-for="header in hg.headers"
               :key="header.id"
               scope="col"
-              :aria-sort="header.column.getCanSort() ? ariaSort(header.column.getIsSorted()) : undefined"
+              :aria-sort="header.column.getCanSort() ? ariaSort(servidor ? ordenDe(header.column.id) : header.column.getIsSorted()) : undefined"
               :class="[
                 'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600',
                 header.column.getCanSort() ? 'hover:bg-slate-100' : '',
+                claseDe(header.column),
               ]"
             >
               <button
                 v-if="header.column.getCanSort()"
                 type="button"
                 class="inline-flex items-center gap-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue"
-                @click="header.column.getToggleSortingHandler()?.($event)"
+                @click="servidor ? pedirOrden(header.column.id) : header.column.getToggleSortingHandler()?.($event)"
               >
                 <FlexRender :header="header" />
                 <FaIcon
-                  :icon="header.column.getIsSorted() === 'desc' ? 'arrow-down' : 'arrow-up'"
-                  :class="['h-3 w-3', header.column.getIsSorted() ? 'text-gov-blue' : 'text-slate-300']"
+                  :icon="(servidor ? ordenDe(header.column.id) : header.column.getIsSorted()) === 'desc' ? 'arrow-down' : 'arrow-up'"
+                  :class="['h-3 w-3', (servidor ? ordenDe(header.column.id) : header.column.getIsSorted()) ? 'text-gov-blue' : 'text-slate-300']"
                   aria-hidden="true"
                 />
               </button>
@@ -119,10 +189,10 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
             v-for="row in table.getRowModel().rows"
             v-else
             :key="row.id"
-            class="hover:bg-gov-blue-light/40 cursor-pointer transition-colors"
-            @click="emit('rowClick', row.original)"
+            :class="['hover:bg-gov-blue-light/40 transition-colors', clicable ? 'cursor-pointer' : '']"
+            @click="clicable && emit('rowClick', row.original)"
           >
-            <td v-for="cell in row.getAllCells()" :key="cell.id" class="px-4 py-3 text-sm text-slate-700">
+            <td v-for="cell in row.getAllCells()" :key="cell.id" :class="['px-4 py-3 text-sm text-slate-700', claseDe(cell.column)]">
               <FlexRender :cell="cell" />
             </td>
           </tr>
@@ -130,7 +200,52 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
       </table>
     </div>
 
-    <div class="flex items-center justify-between px-4 py-3 border-t border-slate-200 text-sm text-slate-600">
+    <!-- Modo servidor: contador y paginación a partir del total que informa el servidor. -->
+    <div
+      v-if="servidor"
+      class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <span v-if="total === 0">0 resultados</span>
+      <span v-else>{{ desde }}–{{ hasta }} de {{ total }}</span>
+      <nav class="flex flex-wrap items-center gap-1" aria-label="Paginación de la tabla">
+        <button
+          type="button"
+          class="grid h-9 min-w-9 place-items-center rounded-lg ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-40"
+          :disabled="pagina <= 1"
+          aria-label="Página anterior"
+          @click="irA(pagina - 1)"
+        >
+          <FaIcon icon="chevron-left" class="h-3 w-3" aria-hidden="true" />
+        </button>
+        <template v-for="(elemento, i) in numerosServidor" :key="`${elemento}-${i}`">
+          <span v-if="elemento === '…'" class="px-1 text-slate-400" aria-hidden="true">…</span>
+          <button
+            v-else
+            type="button"
+            :class="[
+              'grid h-9 min-w-9 place-items-center rounded-lg px-2 text-sm transition-colors',
+              elemento === pagina ? 'bg-gov-blue font-semibold text-white' : 'ring-1 ring-slate-200 hover:bg-slate-50',
+            ]"
+            :aria-current="elemento === pagina ? 'page' : undefined"
+            :aria-label="`Página ${elemento}`"
+            @click="irA(elemento)"
+          >
+            {{ elemento }}
+          </button>
+        </template>
+        <button
+          type="button"
+          class="grid h-9 min-w-9 place-items-center rounded-lg ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-40"
+          :disabled="pagina >= ultimaPagina"
+          aria-label="Página siguiente"
+          @click="irA(pagina + 1)"
+        >
+          <FaIcon icon="chevron-right" class="h-3 w-3" aria-hidden="true" />
+        </button>
+      </nav>
+    </div>
+
+    <div v-else class="flex items-center justify-between px-4 py-3 border-t border-slate-200 text-sm text-slate-600">
       <span>
         {{ paginacion.pageIndex * paginacion.pageSize + 1 }}–{{
           Math.min(
@@ -157,22 +272,24 @@ function ariaSort(estado: false | 'asc' | 'desc'): 'ascending' | 'descending' | 
           <FaIcon icon='chevron-left' class="h-3 w-3" aria-hidden="true" />
         </button>
 
-        <button
-          v-for="pagina in numeroPaginas"
-          :key="pagina"
-          type="button"
-          :class="[
-            'h-8 min-w-8 px-2 grid place-items-center rounded-lg text-sm transition-colors',
-            pagina - 1 === paginaActual
-              ? 'bg-gov-blue text-white font-semibold'
-              : 'ring-1 ring-slate-200 hover:bg-slate-50',
-          ]"
-          :aria-current="pagina - 1 === paginaActual ? 'page' : undefined"
-          :aria-label="`Página ${pagina}`"
-          @click="table.setPageIndex(pagina - 1)"
-        >
-          {{ pagina }}
-        </button>
+        <template v-for="(elemento, i) in numerosLocal" :key="`${elemento}-${i}`">
+          <span v-if="elemento === '…'" class="px-1 text-slate-400" aria-hidden="true">…</span>
+          <button
+            v-else
+            type="button"
+            :class="[
+              'h-8 min-w-8 px-2 grid place-items-center rounded-lg text-sm transition-colors',
+              elemento - 1 === paginaActual
+                ? 'bg-gov-blue text-white font-semibold'
+                : 'ring-1 ring-slate-200 hover:bg-slate-50',
+            ]"
+            :aria-current="elemento - 1 === paginaActual ? 'page' : undefined"
+            :aria-label="`Página ${elemento}`"
+            @click="table.setPageIndex(elemento - 1)"
+          >
+            {{ elemento }}
+          </button>
+        </template>
 
         <button
           type="button"

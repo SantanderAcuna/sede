@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\Services\TramiteServiceInterface;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\GuardarValoracionRequest;
 use App\Http\Requests\ListarTramitesRequest;
 use App\Http\Resources\TramiteFichaResource;
 use App\Http\Resources\TramiteResource;
@@ -45,5 +46,24 @@ final class TramiteController extends Controller
     public function mostrar(string $slug): JsonResponse
     {
         return ApiResponse::objeto(new TramiteFichaResource($this->tramites->porSlug($slug)));
+    }
+
+    /**
+     * La valoración pública de una ficha: «¿Cómo fue tu experiencia?» (FÁCIL/DIFÍCIL) y la encuesta
+     * de 1 a 5 estrellas. Sólo sobre fichas publicadas: `porSlug` devuelve 404 para el resto.
+     */
+    public function valorar(GuardarValoracionRequest $peticion, string $slug): JsonResponse
+    {
+        $tramite = $this->tramites->porSlug($slug);
+        /** @var array{valor?: string|null, estrellas?: int|null, comentario?: string|null} $datos */
+        $datos = $peticion->validated();
+
+        $tramite->valoraciones()->create([
+            'valor' => $datos['valor'] ?? null,
+            'estrellas' => $datos['estrellas'] ?? null,
+            'comentario' => $datos['comentario'] ?? null,
+        ]);
+
+        return ApiResponse::created(null, 'Gracias por su valoración.');
     }
 }

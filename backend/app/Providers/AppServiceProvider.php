@@ -164,6 +164,14 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($peticion->ip());
         });
 
+        // La valoración de una ficha es una escritura pública (el ciudadano califica su experiencia):
+        // cupo propio y ajustado por IP. El valor se lee dentro del cierre para que una prueba lo
+        // cambie con `config([...])` sin reiniciar la aplicación.
+        RateLimiter::for('valoraciones', function (Request $peticion) {
+            return Limit::perMinute((int) config('valoraciones.limite_por_minuto'))
+                ->by('valoraciones|'.$peticion->ip());
+        });
+
         // La búsqueda se llama mientras el ciudadano escribe (una petición por cada
         // pausa), así que su límite es más holgado que el de las escrituras. El valor
         // se lee dentro del cierre y no al registrarlo: así una prueba puede bajarlo

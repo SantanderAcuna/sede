@@ -295,6 +295,9 @@ const tieneInicioEnLinea = computed(
       </ul>
     </section>
 
+    <!-- Valoración de la experiencia (RF-B2-033/034, RF-B1-094). -->
+    <ValoracionTramite :slug="slug" />
+
     <!-- Referencia nacional. -->
     <p v-if="ficha.url_ficha_gov_co" class="pie-govco mt-4">
       Esta ficha también está publicada en el registro nacional:

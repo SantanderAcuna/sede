@@ -317,6 +317,46 @@ paths:
           $ref: '#/components/responses/NoEncontrado'
       security: []
 
+  /tramites/{slug}/valoracion:
+    post:
+      tags: [Trámites]
+      operationId: valorarTramite
+      summary: Valorar una ficha (¿cómo fue tu experiencia?)
+      description: |
+        Escritura pública. La valoración rápida FÁCIL/DIFÍCIL (RF-B2-033/034) y/o la encuesta de 1 a
+        5 estrellas (RF-B1-094), con un comentario opcional. Al menos una de las dos (valor o
+        estrellas) es obligatoria. Límite propio por IP.
+      x-status: implemented
+      x-criterios: [FUN-033, FUN-034]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, maxLength: 160 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                valor: { type: [string, 'null'], enum: [facil, dificil, null] }
+                estrellas: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+                comentario: { type: [string, 'null'], maxLength: 1000 }
+      responses:
+        '201':
+          description: Valoración registrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
   # ══════════════════════════════════════════════════════════════════════════════
   # SALUD — FUERA DE LA API VERSIONADA
   # ══════════════════════════════════════════════════════════════════════════════

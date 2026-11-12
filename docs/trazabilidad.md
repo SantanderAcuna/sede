@@ -28,14 +28,14 @@ Los estados son cuatro y conviene no confundirlos:
 | Familia | Criterios | Con prueba | Con evidencia | Desviación declarada | Sin evidencia |
 |---|---|---|---|---|---|
 | **CAG** — Diseño | 34 | 22 | 33 | 10 | 0 |
-| **FUN** — Funcionalidad | 60 | 1 | 14 | 2 | 44 |
+| **FUN** — Funcionalidad | 60 | 1 | 16 | 2 | 42 |
 | **SEG** — Seguridad | 18 | 1 | 2 | 0 | 16 |
 | **RT** — Requisitos técnicos | 5 | 0 | 0 | 0 | 5 |
 | **O** — Obligaciones derivadas | 14 | 0 | 1 | 0 | 13 |
 | **ACC** — Accesibilidad (citados sin enunciado) | 6 | 0 | 0 | 0 | 6 |
-| **Total** | **137** | **24** | **50** | **12** | **84** |
+| **Total** | **137** | **24** | **52** | **12** | **82** |
 
-Cobertura de trazabilidad: **36 %** de los criterios tiene algo que los trabaja. Los que tienen prueba automatizada son **24**.
+Cobertura de trazabilidad: **38 %** de los criterios tiene algo que los trabaja. Los que tienen prueba automatizada son **24**.
 
 Las columnas **no suman el total** a propósito: un criterio puede estar citado en el código *y* declarado como desviación en un ADR (CAG-06, por ejemplo, se omite con motivo y además aparece en los comentarios del componente que lo explica). La columna que hay que vigilar es la última.
 
@@ -46,6 +46,7 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/entidad` | FUN-007, FUN-009, FUN-014, FUN-015, SEG-006, CAG-12 | pending |
 | GET | `/tramites` | FUN-001, FUN-021, FUN-022, RN-01 | implemented |
 | GET | `/tramites/{slug}` | FUN-021, FUN-023, FUN-024, CAG-20 | implemented |
+| POST | `/tramites/{slug}/valoracion` | FUN-033, FUN-034 | implemented |
 | GET | `/identidad/top-bar` | RF-01-001, RNF-ACES-01 | pending |
 | GET | `/identidad/footer` | RF-01-002, RF-01-018, FUN-014 | pending |
 | GET | `/identidad/menu` | RF-01-007 | pending |
@@ -75,6 +76,7 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/panel/tramites/{uuid}` | RF-01-006 | implemented |
 | PATCH | `/panel/tramites/{uuid}` | RF-01-006 | implemented |
 | DELETE | `/panel/tramites/{uuid}` | RF-01-006 | implemented |
+| GET | `/panel/dependencias` | — | implemented |
 | GET | `/panel/usuarios` | SEG-02 | implemented |
 | POST | `/panel/usuarios` | SEG-02 | implemented |
 | GET | `/panel/usuarios/{uuid}` | SEG-02 | implemented |
@@ -116,7 +118,7 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/panel/ita/tablero` | RF-02-029 | pending |
 | GET | `/panel/auditoria` | — | pending |
 
-El contrato declara **72 operaciones**, de las cuales **65** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
+El contrato declara **74 operaciones**, de las cuales **66** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
 
 ## CAG — Diseño
 
@@ -125,9 +127,9 @@ Enunciados en `docs/Sección 2 §2.4`.
 | Criterio | Estado | Evidencia (fichero:línea) |
 |---|---|---|
 | **CAG-01** | desviación declarada | `sitio/app/components/govco/CarruselGovco.vue:25` · `sitio/tests/diseno.mjs:2` · `sitio/tests/puerta-visual.test.ts:6` |
-| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:571` |
+| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:611` |
 | **CAG-03** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:29` · `sitio/tests/diseno.mjs:272` |
-| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/app/utils/banners.ts:5` · `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:571` |
+| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/app/utils/banners.ts:5` · `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:611` |
 | **CAG-05** | **prueba** | `sitio/tests/ayudas/api-simulada.mjs:38` · `sitio/tests/diseno.mjs:309` |
 | **CAG-06** | desviación declarada | `sitio/app/components/govco/BarraSuperior.vue:19` · `sitio/scripts/trazabilidad.mjs:251` · `sitio/tests/diseno.mjs:81` |
 | **CAG-07** | **prueba** | `sitio/app/components/govco/BotonAccesibilidad.vue:51` · `sitio/app/components/govco/PanelAccesibilidad.vue:38` · `sitio/tests/diseno.mjs:319` · `sitio/tests/movil.mjs:15` |
@@ -197,8 +199,8 @@ Enunciados en `docs/Sección 5 §5.3.1`.
 | **FUN-030** | sin evidencia | — |
 | **FUN-031** | sin evidencia | — |
 | **FUN-032** | sin evidencia | — |
-| **FUN-033** | sin evidencia | — |
-| **FUN-034** | sin evidencia | — |
+| **FUN-033** | implementación | `contract/openapi.yaml:330` |
+| **FUN-034** | implementación | `contract/openapi.yaml:330` |
 | **FUN-035** | sin evidencia | — |
 | **FUN-036** | sin evidencia | — |
 | **FUN-037** | sin evidencia | — |
@@ -301,7 +303,7 @@ Enunciados en `(sin definir)`.
 
 La lista de trabajo, por familia. Es la cifra que hay que bajar:
 
-- **FUN** (44): FUN-002, FUN-003, FUN-004, FUN-005, FUN-006, FUN-016, FUN-017, FUN-018, FUN-019, FUN-020, FUN-025, FUN-028, FUN-029, FUN-030, FUN-031, FUN-032, FUN-033, FUN-034, FUN-035, FUN-036, FUN-037, FUN-038, FUN-039, FUN-040, FUN-041, FUN-042, FUN-043, FUN-044, FUN-045, FUN-046, FUN-047, FUN-048, FUN-049, FUN-050, FUN-051, FUN-052, FUN-053, FUN-054, FUN-055, FUN-056, FUN-057, FUN-058, FUN-059, FUN-060
+- **FUN** (42): FUN-002, FUN-003, FUN-004, FUN-005, FUN-006, FUN-016, FUN-017, FUN-018, FUN-019, FUN-020, FUN-025, FUN-028, FUN-029, FUN-030, FUN-031, FUN-032, FUN-035, FUN-036, FUN-037, FUN-038, FUN-039, FUN-040, FUN-041, FUN-042, FUN-043, FUN-044, FUN-045, FUN-046, FUN-047, FUN-048, FUN-049, FUN-050, FUN-051, FUN-052, FUN-053, FUN-054, FUN-055, FUN-056, FUN-057, FUN-058, FUN-059, FUN-060
 - **SEG** (16): SEG-001, SEG-002, SEG-003, SEG-004, SEG-005, SEG-007, SEG-008, SEG-009, SEG-010, SEG-011, SEG-012, SEG-013, SEG-014, SEG-015, SEG-016, SEG-017
 - **RT** (5): RT-01, RT-02, RT-03, RT-04, RT-05
 - **O** (13): O-02, O-03, O-04, O-05, O-06, O-07, O-08, O-09, O-10, O-11, O-12, O-13, O-14

@@ -14,6 +14,7 @@ import BaseBadge from '@/components/base/BaseBadge.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import ConfirmModal from '@/components/base/ConfirmModal.vue'
 import FormField from '@/components/base/FormField.vue'
+import SubirImagen from '@/components/base/SubirImagen.vue'
 import { actualizar, crear, eliminar, obtener, subirImagen } from '@/services/noticias'
 import type { NoticiaPanelItem } from '@/types/api'
 import { dejarAviso } from './avisos'
@@ -35,7 +36,6 @@ import { motivosDeError } from './politicas-logica'
 const ruta = useRoute()
 const enrutador = useRouter()
 const idFecha = useId()
-const idImagen = useId()
 
 /** `null` mientras se está creando. */
 const uuid = ref<string | null>(typeof ruta.params.uuid === 'string' ? ruta.params.uuid : null)
@@ -48,8 +48,7 @@ const cargando = ref(uuid.value !== null)
 const errorCarga = ref<'no-existe' | 'fallo' | null>(null)
 
 const imagenElegida = ref<File | null>(null)
-const vistaPrevia = ref<string | null>(null)
-const entradaArchivo = ref<HTMLInputElement | null>(null)
+const selectorImagen = ref<InstanceType<typeof SubirImagen> | null>(null)
 
 const guardando = ref(false)
 const motivos = ref<string[]>([])
@@ -117,9 +116,7 @@ function aplicar(guardada: NoticiaPanelItem): void {
 
 function limpiarSeleccion(): void {
   imagenElegida.value = null
-  if (vistaPrevia.value) URL.revokeObjectURL(vistaPrevia.value)
-  vistaPrevia.value = null
-  if (entradaArchivo.value) entradaArchivo.value.value = ''
+  selectorImagen.value?.reiniciar()
 }
 
 async function cargar(): Promise<void> {
@@ -133,13 +130,6 @@ async function cargar(): Promise<void> {
   } finally {
     cargando.value = false
   }
-}
-
-function alElegirArchivo(evento: Event): void {
-  const archivo = (evento.target as HTMLInputElement).files?.[0] ?? null
-  if (vistaPrevia.value) URL.revokeObjectURL(vistaPrevia.value)
-  imagenElegida.value = archivo
-  vistaPrevia.value = archivo ? URL.createObjectURL(archivo) : null
 }
 
 /** El servidor responde `errors: { campo: [mensaje] }`; se queda con el primero de cada campo. */
@@ -286,7 +276,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', avisarAlCerrarPestana)
   quitarGuardia?.()
-  if (vistaPrevia.value) URL.revokeObjectURL(vistaPrevia.value)
 })
 
 // La misma vista puede recibir otra noticia sin desmontarse (p. ej. desde «nueva»).
@@ -415,22 +404,13 @@ watch(
 
       <section class="space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="noticia-imagen">
         <h2 id="noticia-imagen" class="font-medium text-slate-900">Imagen</h2>
-        <p class="text-sm text-slate-600">PNG, JPG o WEBP, hasta 5 MB. Puede ser de cualquier proporción: el sitio la recorta al mostrarla.</p>
-        <img v-if="vistaPrevia" :src="vistaPrevia" alt="Vista previa de la imagen elegida" class="max-h-56 rounded-lg border border-slate-200">
-        <img v-else-if="noticia?.imagen" :src="noticia.imagen.url" :alt="noticia.imagen.alt ?? ''" class="max-h-56 rounded-lg border border-slate-200">
-        <div>
-          <label :for="idImagen" class="block text-sm font-medium text-slate-700">{{ tieneImagen || imagenElegida ? 'Cambiar la imagen' : 'Elegir una imagen' }}</label>
-          <input
-            :id="idImagen"
-            ref="entradaArchivo"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            class="mt-1.5 block w-full text-sm text-slate-700 file:mr-3 file:h-10 file:rounded-lg file:border-0 file:bg-gov-blue-light file:px-4 file:text-sm file:font-medium file:text-gov-blue-dark"
-            :aria-invalid="errorDe('imagen') ? 'true' : undefined"
-            @change="alElegirArchivo"
-          >
-          <p v-if="errorDe('imagen')" class="mt-1 text-xs text-red-700">{{ errorDe('imagen') }}</p>
-        </div>
+        <SubirImagen
+          ref="selectorImagen"
+          :actual="noticia?.imagen ?? null"
+          :error="errorDe('imagen')"
+          ayuda="PNG, JPG o WEBP, hasta 5 MB. Puede ser de cualquier proporción: el sitio la recorta al mostrarla."
+          @seleccionada="imagenElegida = $event"
+        />
         <div v-if="mostrarAlt">
           <FormField v-model="formulario.imagen_alt" label="Descripción de la imagen (texto alternativo)" required :error="errorDe('imagen_alt')" hint="Describa qué se ve, para quien no puede verla. Ejemplo: «Alcalde cortando la cinta en la entrada del parque»." />
           <p class="mt-1 text-xs" :class="caracteresRestantes(formulario.imagen_alt, ALT_MAX) < 0 ? 'font-medium text-red-700' : 'text-slate-600'" data-contador="alt">

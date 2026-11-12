@@ -60,6 +60,10 @@ COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/nginx/conf.d/ /etc/nginx/conf.d/
 COPY docker/nginx/snippets/ /etc/nginx/snippets/
 
+# Modo de la CSP (informe por defecto; «aplicar» solo si SEDE_CSP_MODO=aplicar). Corre antes
+# de nginx gracias al mecanismo /docker-entrypoint.d/ de la imagen oficial.
+COPY --chmod=0755 docker/nginx/entrypoint/40-csp-modo.sh /docker-entrypoint.d/40-csp-modo.sh
+
 # La SPA compilada se sirve desde disco.
 # La carpeta en disco acompaña a la ruta pública `/admin`: así `root` y la URI
 # siguen cuadrando sin `alias`, cuyo `try_files` es una fuente clásica de sorpresas.

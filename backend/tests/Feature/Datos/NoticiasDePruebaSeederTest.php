@@ -132,18 +132,29 @@ final class NoticiasDePruebaSeederTest extends TestCase
         $this->get($portada[0]['imagen']['url'])->assertOk()->assertHeader('Content-Type', 'image/png');
     }
 
+    /**
+     * Igual que en el servidor: `db:seed --class=… --force`. Con `$this->seed()` el comando
+     * pide confirmación en producción y se detiene sin sembrar ni fallar, lo que haría pasar
+     * estas pruebas por la razón equivocada.
+     */
+    private function sembrarComoEnElServidor(): void
+    {
+        $this->artisan('db:seed', ['--class' => NoticiasDePruebaSeeder::class, '--force' => true])->run();
+    }
+
     public function test_se_niega_en_produccion_sin_permiso_expreso(): void
     {
         $this->app['env'] = 'production';
         config(['datos_de_prueba.permitir' => false]);
 
-        $this->expectException(RuntimeException::class);
-
         try {
-            $this->seed(NoticiasDePruebaSeeder::class);
-        } finally {
-            $this->assertSame(0, Noticia::query()->withTrashed()->count());
+            $this->sembrarComoEnElServidor();
+            $this->fail('El sembrador debía negarse en producción sin el permiso expreso.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('PERMITIR_DATOS_DE_PRUEBA', $e->getMessage());
         }
+
+        $this->assertSame(0, Noticia::query()->withTrashed()->count());
     }
 
     public function test_corre_en_staging_con_permiso_expreso_aunque_el_entorno_sea_produccion(): void
@@ -151,7 +162,7 @@ final class NoticiasDePruebaSeederTest extends TestCase
         $this->app['env'] = 'production';
         config(['datos_de_prueba.permitir' => true]);
 
-        $this->seed(NoticiasDePruebaSeeder::class);
+        $this->sembrarComoEnElServidor();
 
         $this->assertSame(10, Noticia::query()->count());
     }

@@ -11,22 +11,30 @@
  * no conteste no se disfraza de «no existe».
  */
 import { useMetadatosComparticion } from '~/composables/useMetadatosComparticion'
+import { useFichaPrecargada, leerFicha } from '~/composables/useFichaPrecargada'
+import { fichaDeRuta } from '~/utils/miga'
 import { fechaLarga, parrafosDeNoticia, urlDeImagen, type NoticiaResumen } from '~/utils/noticias'
 
 const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
 const traer = useRequestFetch()
 const slug = String(useRoute().params.slug ?? '')
 
+const precargada = useFichaPrecargada()
+const ficha = fichaDeRuta(useRoute().path)
+
+/*
+ * Si el middleware ya leyó esta noticia para la miga de pan, se reutiliza esa lectura:
+ * una sola consulta a la API por visita. Si no (fallo previo, o ruta sin pasar por él),
+ * se lee aquí.
+ */
 const { data, status, error } = await useAsyncData<{ data: NoticiaResumen } | null>(
   `noticia-${slug}`,
   async () => {
-    try {
-      return await traer<{ data: NoticiaResumen }>(`${urlApi}/noticias/${slug}`)
-    } catch (fallo) {
-      const respuesta = fallo as { statusCode?: number; response?: { status?: number } }
-      if ((respuesta.statusCode ?? respuesta.response?.status) === 404) return null
-      throw fallo
+    if (precargada.value?.clave === `noticia-${slug}`) {
+      return precargada.value.respuesta as { data: NoticiaResumen } | null
     }
+    if (!ficha) return null
+    return await leerFicha<{ data: NoticiaResumen }>(traer as never, urlApi, ficha)
   },
 )
 

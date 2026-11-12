@@ -44,8 +44,10 @@ final class PanelNoticiaController extends Controller
         $pagina = $this->noticias->todas(max(1, min(100, (int) $peticion->query('per_page', 20))));
 
         $coleccion = NoticiaResource::collection($pagina);
-        foreach ($coleccion->collection as $elemento) {
-            $elemento->paraPanel();
+        foreach ($coleccion->collection ?? [] as $elemento) {
+            if ($elemento instanceof NoticiaResource) {
+                $elemento->paraPanel();
+            }
         }
 
         return ApiResponse::coleccion($coleccion, $pagina);

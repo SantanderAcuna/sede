@@ -57,15 +57,6 @@ export function fechaLarga(iso: string): string {
   }).format(fecha)
 }
 
-/** El cuerpo es texto plano: párrafos separados por una línea en blanco. */
-export function parrafosDeNoticia(texto: string): string[] {
-  return texto
-    .replace(/\r\n?/g, '\n')
-    .split(/\n{2,}/)
-    .map((bloque) => bloque.trim())
-    .filter((bloque) => bloque !== '')
-}
-
 /**
  * La dirección de la imagen, sólo si es la ruta estable de la propia API. Una
  * URL absoluta, de protocolo relativo o con otro esquema no se pinta: el sitio

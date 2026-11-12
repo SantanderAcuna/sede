@@ -43,6 +43,8 @@
  */
 import type { components } from '~~/types/openapi'
 import { useMetadatosComparticion } from '~/composables/useMetadatosComparticion'
+import { useFichaPrecargada, leerFicha } from '~/composables/useFichaPrecargada'
+import { fichaDeRuta } from '~/utils/miga'
 
 // ---------------------------------------------------------------------------
 // Modelo
@@ -147,19 +149,18 @@ const slug = String(useRoute().params.slug ?? '')
  * conteste es otra cosa, y tratarla como un «no existe» sería decirle al
  * ciudadano que un trámite que la Entidad sí tiene no existe.
  */
+const precargada = useFichaPrecargada()
+const ficha = fichaDeRuta(useRoute().path)
+
 const { data, status, error, refresh } = await useAsyncData<RespuestaTramite | null>(
   `tramite-${slug}`,
   async () => {
-    try {
-      return await traer<RespuestaTramite>(`${urlApi}/tramites/${slug}`)
-    } catch (fallo) {
-      const respuesta = (fallo as { statusCode?: number; response?: { status?: number } })
-      const estado = respuesta.statusCode ?? respuesta.response?.status
-
-      if (estado === 404) return null
-
-      throw fallo
+    // Si el middleware ya leyó este trámite para la miga de pan, se reutiliza esa lectura.
+    if (precargada.value?.clave === `tramite-${slug}`) {
+      return precargada.value.respuesta as RespuestaTramite | null
     }
+    if (!ficha) return null
+    return await leerFicha<RespuestaTramite>(traer as never, urlApi, ficha)
   },
 )
 

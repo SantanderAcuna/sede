@@ -34,7 +34,7 @@ final class UsuariosRolesPanelTest extends TestCase
 
     private function superAdmin(string $correo = 'super@example.com'): User
     {
-        $usuario = User::factory()->create(['email' => $correo, 'estado' => 'activo']);
+        $usuario = User::factory()->create(['name' => 'Titular Prueba', 'email' => $correo, 'estado' => 'activo']);
         $usuario->assignRole(Role::findOrCreate('super-admin', 'web'));
 
         return $usuario;

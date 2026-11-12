@@ -91,7 +91,7 @@ const VISTAS = [
   { ruta: '/pqrsd', nombre: 'PQRSD' },
   { ruta: '/realizar-una-peticion', nombre: 'Formulario de petición' },
   { ruta: '/seguimiento', nombre: 'Seguimiento (en preparación)' },
-  { ruta: '/noticias', nombre: 'Noticias (en preparación)' },
+  { ruta: '/noticias', nombre: 'Noticias' },
   { ruta: '/portales', nombre: 'Portales (en preparación)' },
   { ruta: '/servicios', nombre: 'Servicios (en preparación)' },
   { ruta: '/normativa', nombre: 'Normativa' },

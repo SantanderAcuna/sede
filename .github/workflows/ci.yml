@@ -449,6 +449,7 @@ jobs:
             bash scripts/reintentar.sh 4 bash -c 'sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends nginx-light > /dev/null'
           fi
           bash deploy/pruebas/prueba-sin-transformar.sh
+          bash deploy/pruebas/prueba-csp-panel.sh
       - name: nginx no registra lo que el ciudadano busca
         run: |
           # T-22 (AC-22.7, R3). La consulta del buscador viaja en la URL y puede traer

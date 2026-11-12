@@ -117,6 +117,14 @@ describe('estado de publicación', () => {
     expect(todasLasRutas().find((ruta) => ruta.ruta === '/buscar')?.publicada).toBe(false)
   })
 
+  it('noticias publica contenido real desde M01-6: se anuncia al buscador (decisión de José, 2026-11-12)', () => {
+    const noticias = todasLasRutas().find((ruta) => ruta.ruta === '/noticias')
+
+    expect(noticias?.publicada).toBe(true)
+    expect(noticias?.prioridadSitemap).toBeGreaterThan(0)
+    expect(noticias?.frecuenciaSitemap).toBe('daily')
+  })
+
   it('ninguna ruta publicada queda sin prioridad declarada al buscador', () => {
     for (const ruta of todasLasRutas().filter((r) => r.publicada)) {
       expect(ruta.prioridadSitemap).toBeGreaterThan(0)

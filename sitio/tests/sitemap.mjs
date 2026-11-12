@@ -92,9 +92,11 @@ const fechasMal = [...enMapa].filter(([slug, e]) => vigentesApi.get(slug) && e.l
 verificar(fechasMal.length === 0, `AC-1.D  el lastmod de cada trámite es su actualizado_en (discrepan ${fechasMal.length})`)
 
 // AC-1.E
-for (const ruta of ['/transparencia', '/noticias', '/servicios', '/portales', '/seguimiento']) {
+for (const ruta of ['/transparencia', '/servicios', '/portales', '/seguimiento']) {
   verificar(!entradas.some((e) => rutaDe(e.loc) === ruta), `AC-1.E  ${ruta} (en preparación) no se anuncia`)
 }
+// M01-6: las noticias ya publican contenido (o el aviso CT-01 de «sin noticias»), así que sí se anuncian.
+verificar(entradas.some((e) => rutaDe(e.loc) === '/noticias'), 'AC-1.E  /noticias (publicada en M01-6) se anuncia')
 
 // AC-1.F
 const muestra = COMPLETO ? entradas : [...entradas.slice(0, 15), ...entradas.slice(-15)]

@@ -13,7 +13,9 @@ use App\Http\Controllers\Api\V1\ImagenContenidoController;
 use App\Http\Controllers\Api\V1\NoticiaController;
 use App\Http\Controllers\Api\V1\PanelNoticiaController;
 use App\Http\Controllers\Api\V1\PanelPoliticaController;
+use App\Http\Controllers\Api\V1\PanelRolController;
 use App\Http\Controllers\Api\V1\PanelTramiteController;
+use App\Http\Controllers\Api\V1\PanelUsuarioController;
 use App\Http\Controllers\Api\V1\PoliticaController;
 use App\Http\Controllers\Api\V1\TramiteController;
 use Illuminate\Support\Facades\Route;
@@ -166,6 +168,20 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/tramites/{uuid}', [PanelTramiteController::class, 'show'])->name('panel.tramites.show');
             Route::patch('/tramites/{uuid}', [PanelTramiteController::class, 'update'])->name('panel.tramites.update');
             Route::delete('/tramites/{uuid}', [PanelTramiteController::class, 'destroy'])->name('panel.tramites.destroy');
+        });
+
+        // Usuarios, roles y permisos. Las reglas contra la escalada de privilegios viven en los servicios.
+        Route::middleware(['auth:sanctum', 'can:usuarios.gestionar'])->group(function (): void {
+            Route::get('/usuarios', [PanelUsuarioController::class, 'index'])->name('panel.usuarios.index');
+            Route::post('/usuarios', [PanelUsuarioController::class, 'store'])->name('panel.usuarios.store');
+            Route::get('/usuarios/{uuid}', [PanelUsuarioController::class, 'show'])->name('panel.usuarios.show');
+            Route::patch('/usuarios/{uuid}', [PanelUsuarioController::class, 'update'])->name('panel.usuarios.update');
+            Route::get('/permisos', [PanelRolController::class, 'permisos'])->name('panel.permisos.index');
+            Route::get('/roles', [PanelRolController::class, 'index'])->name('panel.roles.index');
+            Route::post('/roles', [PanelRolController::class, 'store'])->name('panel.roles.store');
+            Route::get('/roles/{id}', [PanelRolController::class, 'show'])->whereNumber('id')->name('panel.roles.show');
+            Route::patch('/roles/{id}', [PanelRolController::class, 'update'])->whereNumber('id')->name('panel.roles.update');
+            Route::delete('/roles/{id}', [PanelRolController::class, 'destroy'])->whereNumber('id')->name('panel.roles.destroy');
         });
 
         // Noticias — alta, edición y publicación (requiere autenticación + permiso)

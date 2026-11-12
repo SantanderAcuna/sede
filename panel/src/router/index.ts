@@ -61,7 +61,6 @@ const MODULOS: Array<{ ruta: string; nombre: string; titulo: string; subtitulo: 
   { ruta: 'gestion-documental', nombre: 'gestion-documental', titulo: 'Gestión Documental', subtitulo: 'Ciclo de vida del documento electrónico' },
   { ruta: 'sigmi', nombre: 'sigmi', titulo: 'Interoperabilidad SIGMI', subtitulo: 'Intercambio con el sistema distrital' },
   { ruta: 'integraciones', nombre: 'integraciones', titulo: 'Conectores externos', subtitulo: 'Servicios de terceros y pasarelas' },
-  { ruta: 'usuarios', nombre: 'usuarios', titulo: 'Usuarios y Roles', subtitulo: 'Cuentas, roles y permisos' },
   { ruta: 'auditoria', nombre: 'auditoria', titulo: 'Auditoría', subtitulo: 'Trazabilidad de la operación' },
   { ruta: 'reportes', nombre: 'reportes', titulo: 'Reportes', subtitulo: 'Informes y exportaciones' },
   { ruta: 'asignacion', nombre: 'asignacion', titulo: 'Motor de asignación', subtitulo: 'Reparto automático de casos' },
@@ -146,6 +145,43 @@ const rutas: RouteRecordRaw[] = [
         name: 'panel.tramites.editar',
         component: () => import('@/views/admin/TramiteFormularioView.vue'),
         meta: { requiereSesion: true, titulo: 'Editar trámite', permiso: PERMISO_POR_RUTA['/tramites'] },
+      },
+      // Usuarios y roles: dos listas en tabla (pestañas) y vistas propias para crear y editar.
+      {
+        path: 'usuarios',
+        name: 'usuarios',
+        component: () => import('@/views/admin/UsuariosListaView.vue'),
+        meta: { requiereSesion: true, titulo: 'Usuarios y roles', permiso: PERMISO_POR_RUTA['/usuarios'] },
+      },
+      {
+        path: 'usuarios/nuevo',
+        name: 'panel.usuarios.nuevo',
+        component: () => import('@/views/admin/UsuarioFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Nuevo usuario', permiso: PERMISO_POR_RUTA['/usuarios'] },
+      },
+      {
+        path: 'usuarios/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+        name: 'panel.usuarios.editar',
+        component: () => import('@/views/admin/UsuarioFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar usuario', permiso: PERMISO_POR_RUTA['/usuarios'] },
+      },
+      {
+        path: 'usuarios/roles',
+        name: 'panel.roles',
+        component: () => import('@/views/admin/RolesListaView.vue'),
+        meta: { requiereSesion: true, titulo: 'Roles y permisos', permiso: PERMISO_POR_RUTA['/usuarios'] },
+      },
+      {
+        path: 'usuarios/roles/nuevo',
+        name: 'panel.roles.nuevo',
+        component: () => import('@/views/admin/RolFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Nuevo rol', permiso: PERMISO_POR_RUTA['/usuarios'] },
+      },
+      {
+        path: 'usuarios/roles/:id(\\d+)',
+        name: 'panel.roles.editar',
+        component: () => import('@/views/admin/RolFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar rol', permiso: PERMISO_POR_RUTA['/usuarios'] },
       },
       ...MODULOS.map(
         (modulo): RouteRecordRaw => ({

@@ -21,8 +21,10 @@ use App\Contracts\Services\IdentidadServiceInterface;
 use App\Contracts\Services\ImagenContenidoServiceInterface;
 use App\Contracts\Services\IngestaTramitesInterface;
 use App\Contracts\Services\NoticiaServiceInterface;
+use App\Contracts\Services\RolPanelServiceInterface;
 use App\Contracts\Services\TramitePanelServiceInterface;
 use App\Contracts\Services\TramiteServiceInterface;
+use App\Contracts\Services\UsuarioPanelServiceInterface;
 use App\Models\Entidad;
 use App\Models\FileMedia;
 use App\Models\Noticia;
@@ -49,8 +51,10 @@ use App\Services\IdentidadService;
 use App\Services\ImagenContenidoService;
 use App\Services\IngestaTramites;
 use App\Services\NoticiaService;
+use App\Services\RolPanelService;
 use App\Services\TramitePanelService;
 use App\Services\TramiteService;
+use App\Services\UsuarioPanelService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -81,6 +85,8 @@ class AppServiceProvider extends ServiceProvider
         // Trámites en el panel
         $this->app->bind(TramitePanelRepositoryInterface::class, TramitePanelRepository::class);
         $this->app->bind(TramitePanelServiceInterface::class, TramitePanelService::class);
+        $this->app->bind(UsuarioPanelServiceInterface::class, UsuarioPanelService::class);
+        $this->app->bind(RolPanelServiceInterface::class, RolPanelService::class);
 
         // Entidad: datos institucionales para cabecera y pie de página
         $this->app->bind(EntidadRepositoryInterface::class, EntidadRepository::class);

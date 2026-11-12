@@ -73,6 +73,16 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/panel/tramites/{uuid}` | RF-01-006 | implemented |
 | PATCH | `/panel/tramites/{uuid}` | RF-01-006 | implemented |
 | DELETE | `/panel/tramites/{uuid}` | RF-01-006 | implemented |
+| GET | `/panel/usuarios` | SEG-02 | implemented |
+| POST | `/panel/usuarios` | SEG-02 | implemented |
+| GET | `/panel/usuarios/{uuid}` | SEG-02 | implemented |
+| PATCH | `/panel/usuarios/{uuid}` | SEG-02 | implemented |
+| GET | `/panel/permisos` | SEG-02 | implemented |
+| GET | `/panel/roles` | SEG-02 | implemented |
+| POST | `/panel/roles` | SEG-02 | implemented |
+| GET | `/panel/roles/{id}` | SEG-02 | implemented |
+| PATCH | `/panel/roles/{id}` | SEG-02 | implemented |
+| DELETE | `/panel/roles/{id}` | SEG-02 | implemented |
 | GET | `/panel/noticias` | RF-01-013 | implemented |
 | POST | `/panel/noticias` | RF-01-013 | implemented |
 | GET | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
@@ -96,7 +106,7 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/panel/ita/tablero` | RF-02-029 | pending |
 | GET | `/panel/auditoria` | — | pending |
 
-El contrato declara **52 operaciones**, de las cuales **45** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
+El contrato declara **62 operaciones**, de las cuales **55** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
 
 ## CAG — Diseño
 

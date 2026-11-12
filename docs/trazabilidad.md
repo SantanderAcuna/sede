@@ -2,7 +2,7 @@
 
 > **Documento generado.** No se edita a mano: se produce con `make trazabilidad`
 > (`npm run trazabilidad` desde `sitio/`), que lee el expediente, el contrato OpenAPI y el
-> código, y escribe lo que encuentra. Última generación: **2026-11-10**.
+> código, y escribe lo que encuentra. Última generación: **2026-11-12**.
 
 ## Qué mide esta matriz, y qué no
 
@@ -49,8 +49,9 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/identidad/top-bar` | RF-01-001, RNF-ACES-01 | pending |
 | GET | `/identidad/footer` | RF-01-002, RF-01-018, FUN-014 | pending |
 | GET | `/identidad/menu` | RF-01-007 | pending |
-| GET | `/noticias` | RF-01-013 | pending |
-| GET | `/noticias/{slug}` | — | pending |
+| GET | `/noticias` | RF-01-013 | implemented |
+| GET | `/noticias/{slug}` | RF-01-013 | implemented |
+| GET | `/noticias/{slug}/imagen` | RF-01-013 | implemented |
 | GET | `/transparencia/subsecciones` | RF-02-001, RN-02 | pending |
 | GET | `/transparencia/documentos` | RF-02-002, RF-02-028 | pending |
 | GET | `/transparencia/documentos/{slug}` | RF-02-004, RF-02-024 | pending |
@@ -67,6 +68,12 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | POST | `/panel/logout` | — | pending |
 | GET | `/panel/perfil` | — | pending |
 | PATCH | `/panel/entidad` | RF-01-001, RF-01-002, RF-01-003, RF-01-018 | implemented |
+| GET | `/panel/noticias` | RF-01-013 | implemented |
+| POST | `/panel/noticias` | RF-01-013 | implemented |
+| GET | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
+| PATCH | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
+| DELETE | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
+| POST | `/panel/noticias/{uuid}/imagen` | RF-01-013 | implemented |
 | GET | `/panel/politicas` | RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010 | implemented |
 | PATCH | `/panel/politicas/{slug}` | RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010, RN-01-D01 | implemented |
 | GET | `/panel/entidad/{modelUuid}/archivos` | — | implemented |
@@ -81,7 +88,7 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/panel/ita/tablero` | RF-02-029 | pending |
 | GET | `/panel/auditoria` | — | pending |
 
-El contrato declara **37 operaciones**, de las cuales **29** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
+El contrato declara **44 operaciones**, de las cuales **37** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
 
 ## CAG — Diseño
 
@@ -89,7 +96,7 @@ Enunciados en `docs/Sección 2 §2.4`.
 
 | Criterio | Estado | Evidencia (fichero:línea) |
 |---|---|---|
-| **CAG-01** | desviación declarada | `sitio/app/components/govco/CarruselGovco.vue:25` · `sitio/tests/diseno.mjs:2` |
+| **CAG-01** | desviación declarada | `sitio/app/components/govco/CarruselGovco.vue:25` · `sitio/tests/diseno.mjs:2` · `sitio/tests/puerta-visual.test.ts:6` |
 | **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` |
 | **CAG-03** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:29` · `sitio/tests/diseno.mjs:272` |
 | **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/tests/diseno.mjs:233` |
@@ -108,7 +115,7 @@ Enunciados en `docs/Sección 2 §2.4`.
 | **CAG-17** | **prueba** | `sitio/tests/diseno.mjs:700` |
 | **CAG-18** | desviación declarada | `sitio/tests/diseno.mjs:82` |
 | **CAG-19** | desviación declarada | `sitio/tests/diseno.mjs:83` |
-| **CAG-20** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:435` · `sitio/tests/diseno.mjs:828` · `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:351` |
+| **CAG-20** | **prueba** | `sitio/app/pages/realizar-una-peticion.vue:435` · `sitio/tests/diseno.mjs:828` · `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:353` |
 | **CAG-21** | desviación declarada | `sitio/app/components/ModalAvisoSalida.vue:9` · `sitio/app/composables/useAvisoSalida.ts:152` · `sitio/tests/diseno.mjs:631` · `panel/.vitest/json/output.json:1` · +1 |
 | **CAG-22** | desviación declarada | `sitio/tests/diseno.mjs:84` |
 | **CAG-23** | implementación | `sitio/app/pages/realizar-una-peticion.vue:1623` · `sitio/app/pages/tramites/index.vue:749` |
@@ -130,30 +137,30 @@ Enunciados en `docs/Sección 5 §5.3.1`.
 
 | Criterio | Estado | Evidencia (fichero:línea) |
 |---|---|---|
-| **FUN-001** | implementación | `contract/openapi-original-backup.yaml:139` · `contract/openapi.yaml:178` |
+| **FUN-001** | implementación | `contract/openapi-original-backup.yaml:139` · `contract/openapi.yaml:180` |
 | **FUN-002** | sin evidencia | — |
 | **FUN-003** | sin evidencia | — |
 | **FUN-004** | sin evidencia | — |
 | **FUN-005** | sin evidencia | — |
 | **FUN-006** | sin evidencia | — |
-| **FUN-007** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:102` |
+| **FUN-007** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:104` |
 | **FUN-008** | desviación declarada | — |
-| **FUN-009** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:102` |
+| **FUN-009** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:104` |
 | **FUN-010** | desviación declarada | — |
 | **FUN-011** | implementación | `sitio/app/layouts/default.vue:258` |
 | **FUN-012** | **prueba** | `sitio/.vitest/json/output.json:1` · `sitio/app/config/sitemap.ts:351` · `sitio/app/types/menu.ts:10` · `sitio/tests/sitemap.test.ts:58` |
 | **FUN-013** | implementación | `sitio/app/components/SeccionEnPreparacion.vue:5` · `sitio/app/pages/index.vue:10` · `sitio/app/pages/noticias.vue:5` · `sitio/app/pages/portales.vue:5` · +3 |
-| **FUN-014** | implementación | `sitio/app/components/govco/PiePaginaGovco.vue:174` · `contract/openapi-additional-paths.yaml:100` · `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:102` |
-| **FUN-015** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:102` |
+| **FUN-014** | implementación | `sitio/app/components/govco/PiePaginaGovco.vue:174` · `contract/openapi-additional-paths.yaml:100` · `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:104` |
+| **FUN-015** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:104` |
 | **FUN-016** | sin evidencia | — |
 | **FUN-017** | sin evidencia | — |
 | **FUN-018** | sin evidencia | — |
 | **FUN-019** | sin evidencia | — |
 | **FUN-020** | sin evidencia | — |
-| **FUN-021** | implementación | `contract/openapi-original-backup.yaml:139` · `contract/openapi.yaml:178` |
-| **FUN-022** | implementación | `contract/openapi-original-backup.yaml:139` · `contract/openapi.yaml:178` |
-| **FUN-023** | implementación | `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:351` |
-| **FUN-024** | implementación | `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:351` |
+| **FUN-021** | implementación | `contract/openapi-original-backup.yaml:139` · `contract/openapi.yaml:180` |
+| **FUN-022** | implementación | `contract/openapi-original-backup.yaml:139` · `contract/openapi.yaml:180` |
+| **FUN-023** | implementación | `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:353` |
+| **FUN-024** | implementación | `contract/openapi-original-backup.yaml:299` · `contract/openapi.yaml:353` |
 | **FUN-025** | sin evidencia | — |
 | **FUN-026** | implementación | `sitio/app/pages/noticias.vue:3` |
 | **FUN-027** | implementación | `sitio/app/pages/portales.vue:3` |

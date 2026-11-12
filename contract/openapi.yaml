@@ -71,6 +71,8 @@ tags:
     description: 10 subsecciones de Ley 1712, documentos, búsqueda
   - name: Buscar
     description: Búsqueda full-text unificada
+  - name: Panel — Noticias
+    description: Alta, edición y publicación de noticias (permiso noticias.gestionar)
   - name: Panel — Auth
     description: Autenticación del panel (Sanctum)
   - name: Panel — Transparencia
@@ -517,25 +519,26 @@ paths:
     get:
       tags: [Noticias]
       operationId: listarNoticias
-      summary: Listado de noticias
-      description: Lista paginada de noticias del home. RF-01-013.
-      x-status: pending
+      summary: Noticias publicadas
+      description: |
+        Las noticias publicadas, de la más reciente a la más antigua (con la misma
+        fecha, la de `id` mayor). El home pide `per_page=6`. No se listan los
+        borradores, las programadas a futuro ni las eliminadas. Sin noticias responde
+        `data: []` (CT-01): el sitio decide qué decir. El listado no incluye el cuerpo
+        (`contenido`), sólo el detalle. RF-01-013.
+      x-status: implemented
       x-criterios: [RF-01-013]
       parameters:
         - $ref: '#/components/parameters/Pagina'
-        - $ref: '#/components/parameters/PorPagina'
-        - name: categoria
+        - name: per_page
           in: query
           required: false
-          schema: { type: string }
+          description: Elementos por página (1 a 100; por encima, 422).
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
         - name: destacada
           in: query
           required: false
           schema: { type: boolean }
-        - name: sort
-          in: query
-          required: false
-          schema: { type: string, default: "-fecha_publicacion" }
       responses:
         '200':
           description: Lista paginada
@@ -543,14 +546,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NoticiaCollection'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
       security: []
 
   /noticias/{slug}:
     get:
       tags: [Noticias]
       operationId: obtenerNoticia
-      summary: Detalle de una noticia
-      x-status: pending
+      summary: Detalle de una noticia publicada
+      x-status: implemented
+      x-criterios: [RF-01-013]
       parameters:
         - name: slug
           in: path
@@ -558,7 +566,7 @@ paths:
           schema: { type: string }
       responses:
         '200':
-          description: Noticia
+          description: Noticia, con su cuerpo
           content:
             application/json:
               schema:
@@ -571,6 +579,38 @@ paths:
                         $ref: '#/components/schemas/NoticiaItem'
         '404':
           $ref: '#/components/responses/NoEncontrado'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
+  /noticias/{slug}/imagen:
+    get:
+      tags: [Noticias]
+      operationId: obtenerImagenNoticia
+      summary: Imagen de una noticia publicada
+      description: |
+        La imagen en una dirección estable (no una URL firmada, que caduca a los 15
+        minutos). Lleva `ETag` y `Cache-Control: public, max-age=300`, y no instala
+        cookies. Tiene su propio límite de peticiones, aparte del de las lecturas de
+        datos. 404 si la noticia no está publicada o no tiene imagen.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: El archivo de imagen
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
       security: []
 
   # ══════════════════════════════════════════════════════════════════════════════
@@ -1345,6 +1385,210 @@ paths:
                         $ref: '#/components/schemas/EntidadItem'
         '401':
           $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PANEL — NOTICIAS
+  # ══════════════════════════════════════════════════════════════════════════════
+  /panel/noticias:
+    get:
+      tags: [Panel — Noticias]
+      operationId: listarNoticiasPanel
+      summary: Todas las noticias, borradores incluidos
+      description: Requiere el permiso `noticias.gestionar`.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      parameters:
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/PorPagina'
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoticiaCollection'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Noticias]
+      operationId: crearNoticia
+      summary: Crear una noticia (nace como borrador)
+      description: |
+        Requiere `noticias.gestionar`. Título hasta 150 caracteres y descripción hasta
+        200 (RF-01-013). La dirección (`slug`) se genera del título y no cambia después.
+        La imagen se sube aparte, con `POST /panel/noticias/{uuid}/imagen`.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NoticiaInput' }
+      responses:
+        '201':
+          description: Noticia creada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/NoticiaPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/noticias/{uuid}:
+    get:
+      tags: [Panel — Noticias]
+      operationId: obtenerNoticiaPanel
+      summary: Una noticia con su estado de publicación
+      description: Requiere el permiso `noticias.gestionar`.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Noticia
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/NoticiaPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    patch:
+      tags: [Panel — Noticias]
+      operationId: actualizarNoticia
+      summary: Editar o publicar una noticia
+      description: |
+        Actualización parcial. Requiere `noticias.gestionar`. Para pasar `activo` a
+        `true` la noticia debe estar completa: título, descripción, contenido, imagen
+        y texto alternativo de la imagen no vacío (Res. MinTIC 1519/2020, Anexo 2); si
+        no, `422` con `errors.noticia`. `imagen_alt` cambia el texto alternativo de la
+        imagen ya subida y no puede quedar vacío.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NoticiaInput' }
+      responses:
+        '200':
+          description: Noticia actualizada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/NoticiaPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    delete:
+      tags: [Panel — Noticias]
+      operationId: eliminarNoticia
+      summary: Eliminar una noticia (borrado lógico)
+      description: Requiere `noticias.gestionar`. La noticia se archiva y deja de verse en el sitio.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Noticia eliminada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+
+  /panel/noticias/{uuid}/imagen:
+    post:
+      tags: [Panel — Noticias]
+      operationId: subirImagenNoticia
+      summary: Subir o reemplazar la imagen de una noticia
+      description: |
+        Requiere `noticias.gestionar`. La imagen y su texto alternativo (`alt`) van
+        siempre juntos: sin `alt` (o con sólo espacios) no se guarda nada y la
+        respuesta es `422`. PNG, JPG o WebP, hasta 5 MB. La nueva reemplaza a la
+        anterior: una noticia tiene una sola imagen.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [imagen, alt]
+              properties:
+                imagen: { type: string, format: binary }
+                alt:
+                  type: string
+                  maxLength: 250
+                  description: Describe lo que muestra la imagen para quien no la ve.
+      responses:
+        '200':
+          description: Imagen guardada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/NoticiaPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
         '422':
           $ref: '#/components/responses/ValidacionInvalida'
       security:
@@ -2240,23 +2484,58 @@ components:
     # ─── Noticias ──────────────────────────────────────────────────────────
     NoticiaItem:
       type: object
-      required: [id, type, slug, titulo, fecha_publicacion]
+      required: [id, type, slug, titulo, descripcion_corta, fecha_publicacion, destacada, imagen]
       properties:
         id: { type: integer }
-        type: { type: string, const: noticia }
+        type: { type: string, const: noticias }
         slug: { type: string }
-        titulo: { type: string }
-        descripcion_corta: { type: [string, 'null'] }
-        contenido_html: { type: [string, 'null'] }
+        titulo: { type: string, maxLength: 150 }
+        descripcion_corta: { type: string, maxLength: 200 }
+        fecha_publicacion: { type: string, format: date-time }
+        destacada: { type: boolean }
+        imagen:
+          description: Nula si la noticia no tiene imagen (una publicada siempre la tiene).
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [url, alt]
+              properties:
+                url:
+                  type: string
+                  example: /api/v1/noticias/inauguracion-del-parque/imagen
+                alt:
+                  type: [string, 'null']
+                  description: Texto alternativo; obligatorio en una noticia publicada.
+        contenido:
+          type: string
+          description: Cuerpo en texto plano, párrafos separados por una línea en blanco. Sólo en el detalle.
+
+    NoticiaPanelItem:
+      allOf:
+        - $ref: '#/components/schemas/NoticiaItem'
+        - type: object
+          required: [uuid, activo, completa, problemas]
+          properties:
+            uuid: { type: string, format: uuid }
+            activo: { type: boolean, description: Publicada. }
+            completa: { type: boolean }
+            problemas:
+              type: array
+              items: { type: string }
+
+    NoticiaInput:
+      type: object
+      properties:
+        titulo: { type: string, maxLength: 150 }
+        descripcion_corta: { type: string, maxLength: 200 }
+        contenido: { type: string }
         fecha_publicacion: { type: string, format: date-time }
         destacada: { type: boolean }
         activo: { type: boolean }
-        imagen_url: { type: [string, 'null'], format: uri }
-        categorias:
-          type: array
-          items: { type: string }
-        created_at: { type: string, format: date-time, readOnly: true }
-        updated_at: { type: string, format: date-time, readOnly: true }
+        imagen_alt:
+          type: string
+          maxLength: 250
+          description: Cambia el texto alternativo de la imagen ya subida (sólo en PATCH).
 
     NoticiaCollection:
       allOf:

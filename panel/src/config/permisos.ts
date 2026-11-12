@@ -34,6 +34,9 @@ export const PERMISO_POR_RUTA: Record<string, string> = {
   '/portal': 'portal.publicar',
   '/transparencia': 'transparencia.ver',
 
+  // Contenidos del sitio
+  '/contenidos/noticias': 'noticias.gestionar',
+
   // Gestión documental e integraciones
   '/gestion-documental': 'documental.gestionar',
   '/sigmi': 'sigmi.ver',

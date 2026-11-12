@@ -10,6 +10,7 @@ use App\Contracts\Repositories\BusquedaRepositoryInterface;
 use App\Contracts\Repositories\EntidadRepositoryInterface;
 use App\Contracts\Repositories\IngestaTramiteRepositoryInterface;
 use App\Contracts\Repositories\MenuRepositoryInterface;
+use App\Contracts\Repositories\NoticiaRepositoryInterface;
 use App\Contracts\Repositories\TramiteRepositoryInterface;
 use App\Contracts\Services\AuthServiceInterface;
 use App\Contracts\Services\BusquedaServiceInterface;
@@ -17,17 +18,21 @@ use App\Contracts\Services\EntidadServiceInterface;
 use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Contracts\Services\IdentidadServiceInterface;
 use App\Contracts\Services\IngestaTramitesInterface;
+use App\Contracts\Services\NoticiaServiceInterface;
 use App\Contracts\Services\TramiteServiceInterface;
 use App\Models\Entidad;
 use App\Models\FileMedia;
+use App\Models\Noticia;
 use App\Models\User;
 use App\Policies\ArchivoPolicy;
 use App\Policies\EntidadPolicy;
+use App\Policies\NoticiaPolicy;
 use App\Repositories\Eloquent\AuthRepository;
 use App\Repositories\Eloquent\BusquedaRepository;
 use App\Repositories\Eloquent\EntidadRepository;
 use App\Repositories\Eloquent\IngestaTramiteRepository;
 use App\Repositories\Eloquent\MenuRepository;
+use App\Repositories\Eloquent\NoticiaRepository;
 use App\Repositories\Eloquent\TramiteRepository;
 use App\Services\AuthService;
 use App\Services\BusquedaService;
@@ -36,6 +41,7 @@ use App\Services\FilesMediaService;
 use App\Services\GovCo\FuenteFichaGovCo;
 use App\Services\IdentidadService;
 use App\Services\IngestaTramites;
+use App\Services\NoticiaService;
 use App\Services\TramiteService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -59,6 +65,10 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(TramiteRepositoryInterface::class, TramiteRepository::class);
         $this->app->bind(TramiteServiceInterface::class, TramiteService::class);
+
+        // Noticias del home (M01-6)
+        $this->app->bind(NoticiaRepositoryInterface::class, NoticiaRepository::class);
+        $this->app->bind(NoticiaServiceInterface::class, NoticiaService::class);
 
         // Entidad: datos institucionales para cabecera y pie de página
         $this->app->bind(EntidadRepositoryInterface::class, EntidadRepository::class);
@@ -112,6 +122,7 @@ class AppServiceProvider extends ServiceProvider
         // sigan la convención de nombres (App\Models\X → App\Policies\XPolicy), pero
         // el registro explícito es más legible y no depende de la convención.
         Gate::policy(Entidad::class, EntidadPolicy::class);
+        Gate::policy(Noticia::class, NoticiaPolicy::class);
         Gate::policy(FileMedia::class, ArchivoPolicy::class);
 
         // El acceso se limita por correo y por IP a la vez: el primer límite frena
@@ -154,6 +165,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('lecturas-publicas', function (Request $peticion) {
             return Limit::perMinute((int) config('lecturas.limite_por_minuto'))
                 ->by('lecturas|'.$peticion->ip());
+        });
+
+        // Las imágenes de las noticias: cada visita al home pide seis (y las repite
+        // sólo si el navegador no las guardó: llevan ETag y `max-age`). Con su propio
+        // contador no gastan el de las lecturas de datos.
+        RateLimiter::for('imagenes-publicas', function (Request $peticion) {
+            return Limit::perMinute((int) config('lecturas.imagenes_por_minuto'))
+                ->by('imagenes|'.$peticion->ip());
         });
 
         // El resto de la API —el panel— cabe en sesenta peticiones por minuto. Se cuenta por

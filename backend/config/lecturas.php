@@ -33,4 +33,18 @@ return [
     */
     'limite_por_minuto' => (int) env('LECTURAS_LIMITE_POR_MINUTO', 300),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Imágenes de las noticias, por minuto y por IP
+    |--------------------------------------------------------------------------
+    |
+    | Contador aparte del de arriba: cada visita al home pide seis imágenes y, si
+    | compartieran cupo, el home gastaría de una vez la mitad de las lecturas de
+    | datos de quien lo visita. 600 = 100 visitas al home por minuto desde una misma
+    | IP sin caché de navegador (ESTIMACIÓN, no una medición); con la caché del
+    | navegador llegan muchas menos. Mismo criterio de ajuste: subirlo si los 429 de
+    | estas rutas pasan del 1 % en producción.
+    */
+    'imagenes_por_minuto' => (int) env('IMAGENES_LIMITE_POR_MINUTO', 600),
+
 ];

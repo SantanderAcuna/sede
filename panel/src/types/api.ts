@@ -31,6 +31,8 @@ export type TramiteRequisito = Esquemas['TramiteRequisito']
 export type TramiteDocumento = Esquemas['TramiteDocumento']
 export type TramitePaso = Esquemas['TramitePaso']
 export type TramiteInput = Esquemas['TramiteInput']
+export type TramitePanelItem = Esquemas['TramitePanelItem']
+export type TramitePanelFila = Esquemas['TramitePanelFila']
 export type PageMeta = Esquemas['PageMeta']
 export type CollectionLinks = Esquemas['CollectionLinks']
 

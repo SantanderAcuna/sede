@@ -2928,7 +2928,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/TramiteItem'
         - type: object
-          required: [uuid, codigo, estado, origen, completo, problemas]
+          required: [uuid, codigo, estado, origen, modificado_en_panel, completo, problemas]
           properties:
             uuid: { type: string, format: uuid }
             codigo: { type: string, maxLength: 20 }
@@ -2936,7 +2936,10 @@ components:
             origen:
               type: string
               enum: [panel, fuente]
-              description: "`panel` si se creó o editó aquí; `fuente` si viene intacto del catálogo oficial."
+              description: "`panel` si se creó aquí (se puede eliminar); `fuente` si viene del catálogo oficial, se haya corregido o no (solo se despublica)."
+            modificado_en_panel:
+              type: boolean
+              description: Un trámite del catálogo oficial que se corrigió aquí; la carga automática ya no lo sobrescribe.
             completo: { type: boolean }
             problemas:
               type: array
@@ -2945,7 +2948,7 @@ components:
 
     TramitePanelFila:
       type: object
-      required: [id, uuid, type, codigo, slug, nombre, estado, origen, completo, problemas]
+      required: [id, uuid, type, codigo, slug, nombre, estado, origen, modificado_en_panel, completo, problemas]
       properties:
         id: { type: integer }
         uuid: { type: string, format: uuid }
@@ -2956,6 +2959,7 @@ components:
         modalidad: { type: [string, 'null'], enum: [en_linea, parcialmente_en_linea, presencial, null] }
         estado: { $ref: '#/components/schemas/EstadoTramitePanel' }
         origen: { type: string, enum: [panel, fuente] }
+        modificado_en_panel: { type: boolean }
         completo: { type: boolean }
         problemas:
           type: array

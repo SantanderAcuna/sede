@@ -28,7 +28,9 @@ final class TramitePanelResource extends JsonResource
         return (new TramiteResource($tramite))->toArray($request) + [
             'codigo' => $tramite->codigo,
             'estado' => $publico ? 'publicado' : 'borrador',
-            'origen' => $tramite->esDelPanel() || $tramite->procedencia_fuente === Tramite::FUENTE_PANEL ? 'panel' : 'fuente',
+            // `panel` = lo creó una persona aquí; `fuente` = viene del catálogo oficial, se haya corregido o no.
+            'origen' => $tramite->esDelPanel() ? 'panel' : 'fuente',
+            'modificado_en_panel' => ! $tramite->esDelPanel() && $tramite->procedencia_fuente === Tramite::FUENTE_PANEL,
             'completo' => $problemas === [],
             'problemas' => $problemas,
         ];

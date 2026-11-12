@@ -175,7 +175,8 @@ final class TramitesPanelTest extends TestCase
 
         $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", ['resumen' => 'Corregido por la Entidad'])
             ->assertOk()
-            ->assertJsonPath('data.origen', 'panel')
+            ->assertJsonPath('data.origen', 'fuente')
+            ->assertJsonPath('data.modificado_en_panel', true)
             ->assertJsonPath('data.procedencia.fuente', Tramite::FUENTE_PANEL)
             ->assertJsonPath('data.procedencia.url', 'https://visor/x')
             ->assertJsonPath('data.procedencia.origen_por_campo.resumen', 'entidad')

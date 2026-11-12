@@ -31,7 +31,9 @@ final class TramitePanelFilaResource extends JsonResource
             'nombre' => $tramite->nombre,
             'modalidad' => $tramite->modalidad?->value,
             'estado' => $tramite->publicado_en !== null && $problemas === [] ? 'publicado' : 'borrador',
-            'origen' => $tramite->esDelPanel() || $tramite->procedencia_fuente === Tramite::FUENTE_PANEL ? 'panel' : 'fuente',
+            // `panel` = lo creó una persona aquí; `fuente` = viene del catálogo oficial, se haya corregido o no.
+            'origen' => $tramite->esDelPanel() ? 'panel' : 'fuente',
+            'modificado_en_panel' => ! $tramite->esDelPanel() && $tramite->procedencia_fuente === Tramite::FUENTE_PANEL,
             'completo' => $problemas === [],
             'problemas' => $problemas,
             'publicado_en' => $tramite->publicado_en?->toIso8601String(),

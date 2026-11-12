@@ -160,6 +160,61 @@ final class Tramite extends Model
     public const MAXIMO_RESUMEN = 500;
 
     /**
+     * La fuente que declara un trámite creado o corregido en el panel.
+     *
+     * Es distinta de `FuenteSuit::NOMBRE` a propósito: la ingesta automática solo
+     * reescribe los trámites cuya fuente sea la oficial, así que esta marca es lo que
+     * impide que la siguiente ingesta pise lo que una persona de la Entidad corrigió.
+     */
+    public const FUENTE_PANEL = 'Alcaldía Distrital de Santa Marta (panel de gestión)';
+
+    /** Prefijo del código de los trámites creados en el panel: `P0001`, `P0002`… */
+    public const PREFIJO_CODIGO_PANEL = 'P';
+
+    /** ¿Lo creó una persona en el panel (y no la carga desde la fuente oficial)? */
+    public function esDelPanel(): bool
+    {
+        return str_starts_with($this->codigo, self::PREFIJO_CODIGO_PANEL)
+            && ctype_digit(substr($this->codigo, strlen(self::PREFIJO_CODIGO_PANEL)));
+    }
+
+    /**
+     * Qué le falta para publicarse: la ficha GOV.CO y los seis atributos obligatorios
+     * de la Guía §5.1.3. Lista vacía = se puede publicar. Es la misma regla de
+     * `scopePublicados`, dicha con palabras para quien edita.
+     *
+     * @return list<string>
+     */
+    public function problemasParaPublicar(): array
+    {
+        $problemas = [];
+
+        if (trim((string) $this->url_ficha_gov_co) === '') {
+            $problemas[] = 'Falta la dirección de la ficha en GOV.CO.';
+        }
+        if ($this->modalidad === null) {
+            $problemas[] = 'Falta la modalidad (en línea, parcialmente en línea o presencial).';
+        }
+        if ($this->tiene_costo === null) {
+            $problemas[] = 'Falta decir si el trámite tiene costo o es gratuito.';
+        }
+        if ($this->tiempo_solucion_dias === null) {
+            $problemas[] = 'Falta el tiempo de solución, en días.';
+        }
+        if ($this->canal_inicio === null) {
+            $problemas[] = 'Falta el canal por el que se inicia el trámite.';
+        }
+        if (trim((string) $this->consulta_estado) === '') {
+            $problemas[] = 'Falta cómo se consulta el estado del trámite.';
+        }
+        if ($this->requisitos === null || $this->requisitos === []) {
+            $problemas[] = 'Falta al menos un requisito.';
+        }
+
+        return $problemas;
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

@@ -39,6 +39,7 @@ final class PermissionSeeder extends Seeder
         // Contenidos
         'cms.gestionar',
         'noticias.gestionar',
+        'tramites.gestionar',
         'portal.publicar',
         'transparencia.ver',
 

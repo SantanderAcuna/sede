@@ -50,7 +50,6 @@ const TITULO_BASE = 'SGDI · Alcaldía Distrital de Santa Marta'
 /** Módulos del panel. Comparten marcador hasta que cada uno se implemente. */
 const MODULOS: Array<{ ruta: string; nombre: string; titulo: string; subtitulo: string }> = [
   { ruta: 'pqrsd', nombre: 'pqrsd', titulo: 'PQRSD', subtitulo: 'Peticiones, quejas, reclamos, sugerencias y denuncias' },
-  { ruta: 'tramites', nombre: 'tramites', titulo: 'Trámites', subtitulo: 'Catálogo de trámites y servicios' },
   { ruta: 'citas', nombre: 'citas', titulo: 'Citas y turnos', subtitulo: 'Agenda de atención presencial' },
   { ruta: 'notificaciones', nombre: 'notificaciones', titulo: 'Notificaciones electrónicas', subtitulo: 'Envío y constancia de notificaciones' },
   { ruta: 'sede', nombre: 'sede', titulo: 'Sede Electrónica', subtitulo: 'Publicación del sitio público' },
@@ -128,6 +127,25 @@ const rutas: RouteRecordRaw[] = [
         name: 'panel.noticias.editar',
         component: () => import('@/views/admin/NoticiaFormularioView.vue'),
         meta: { requiereSesion: true, titulo: 'Editar noticia', permiso: PERMISO_POR_RUTA['/contenidos/noticias'] },
+      },
+      // Trámites y servicios: lista en tabla; crear y editar son vistas propias (mismo patrón que noticias).
+      {
+        path: 'tramites',
+        name: 'tramites',
+        component: () => import('@/views/admin/TramitesListaView.vue'),
+        meta: { requiereSesion: true, titulo: 'Trámites', permiso: PERMISO_POR_RUTA['/tramites'] },
+      },
+      {
+        path: 'tramites/nuevo',
+        name: 'panel.tramites.nuevo',
+        component: () => import('@/views/admin/TramiteFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Nuevo trámite', permiso: PERMISO_POR_RUTA['/tramites'] },
+      },
+      {
+        path: 'tramites/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+        name: 'panel.tramites.editar',
+        component: () => import('@/views/admin/TramiteFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar trámite', permiso: PERMISO_POR_RUTA['/tramites'] },
       },
       ...MODULOS.map(
         (modulo): RouteRecordRaw => ({

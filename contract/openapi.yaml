@@ -1395,6 +1395,198 @@ paths:
   # ══════════════════════════════════════════════════════════════════════════════
   # PANEL — NOTICIAS
   # ══════════════════════════════════════════════════════════════════════════════
+  /panel/tramites:
+    get:
+      tags: [Panel — Trámites]
+      operationId: listarTramitesPanel
+      summary: Todos los trámites, borradores incluidos
+      description: |
+        Requiere el permiso `tramites.gestionar`. Alimenta la tabla del panel: cada elemento
+        trae lo justo para listar (código, nombre, estado, origen y lo que falta para
+        publicarlo) y NO la ficha entera; ésa se pide con `GET /panel/tramites/{uuid}`.
+
+        Se busca por nombre (sin distinguir mayúsculas ni tildes) o por código (`q`), se
+        filtra por `estado` y se ordena. Sin parámetros, los editados más recientemente
+        primero. Un valor fuera de lo declarado es 422.
+      x-status: implemented
+      x-criterios: [RF-01-006]
+      parameters:
+        - $ref: '#/components/parameters/Pagina'
+        - name: per_page
+          in: query
+          required: false
+          description: Elementos por página. Por encima de 100 la respuesta es 422.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: q
+          in: query
+          required: false
+          description: Texto del nombre o del código. Hasta 100 caracteres; `%`, `_` y `\` cuentan como texto.
+          schema: { type: string, maxLength: 100 }
+        - name: estado
+          in: query
+          required: false
+          description: |
+            `publicado` (completo y publicado; el que el sitio muestra) o `borrador`
+            (todo lo demás).
+          schema: { $ref: '#/components/schemas/EstadoTramitePanel' }
+        - name: ordenar_por
+          in: query
+          required: false
+          schema: { type: string, enum: [nombre, actualizado_en], default: actualizado_en }
+        - name: direccion
+          in: query
+          required: false
+          description: Por omisión `asc` para el nombre y `desc` para la fecha.
+          schema: { type: string, enum: [asc, desc] }
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TramitePanelCollection'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Trámites]
+      operationId: crearTramite
+      summary: Crear un trámite (basta el nombre)
+      description: |
+        Requiere `tramites.gestionar`. Solo el nombre es obligatorio: el trámite nace como
+        borrador. El código (`P0001`, `P0002`…) y la dirección (`slug`) los asigna el sistema
+        y no cambian después. Pedir `publicado: true` en un trámite incompleto es 422 y el
+        mensaje dice qué falta.
+      x-status: implemented
+      x-criterios: [RF-01-006]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TramiteInput' }
+      responses:
+        '201':
+          description: Trámite creado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/TramitePanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/tramites/{uuid}:
+    get:
+      tags: [Panel — Trámites]
+      operationId: obtenerTramitePanel
+      summary: Un trámite completo, con su estado y lo que le falta
+      description: Requiere el permiso `tramites.gestionar`.
+      x-status: implemented
+      x-criterios: [RF-01-006]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: El trámite
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/TramitePanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    patch:
+      tags: [Panel — Trámites]
+      operationId: actualizarTramite
+      summary: Editar un trámite
+      description: |
+        Requiere `tramites.gestionar`. Acepta cualquier subconjunto de campos; una lista que
+        se envía reemplaza a la guardada (vacía, la borra). El código y la dirección no
+        cambian. Editar un trámite del catálogo oficial (SUIT) lo marca como del panel: la
+        carga automática deja de sobrescribirlo y la ficha pública lo declara en
+        `procedencia.fuente` y en `origen_por_campo`. Un trámite publicado debe seguir
+        completo; `publicado: false` lo retira del sitio.
+      x-status: implemented
+      x-criterios: [RF-01-006]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TramiteInput' }
+      responses:
+        '200':
+          description: Trámite actualizado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/TramitePanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    delete:
+      tags: [Panel — Trámites]
+      operationId: eliminarTramite
+      summary: Eliminar un trámite creado en el panel
+      description: |
+        Requiere `tramites.gestionar`. Solo se eliminan los trámites creados en el panel; los
+        del catálogo oficial responden 409 (la carga automática los traería de vuelta) y se
+        retiran del sitio con `PATCH` y `publicado: false`.
+      x-status: implemented
+      x-criterios: [RF-01-006]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Trámite eliminado
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: El trámite viene del catálogo oficial y no se puede eliminar.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+
   /panel/noticias:
     get:
       tags: [Panel — Noticias]
@@ -2728,6 +2920,108 @@ components:
               type: array
               items: { $ref: '#/components/schemas/NoticiaPanelItem' }
 
+    EstadoTramitePanel:
+      type: string
+      enum: [publicado, borrador]
+
+    TramitePanelItem:
+      allOf:
+        - $ref: '#/components/schemas/TramiteItem'
+        - type: object
+          required: [uuid, codigo, estado, origen, modificado_en_panel, completo, problemas]
+          properties:
+            uuid: { type: string, format: uuid }
+            codigo: { type: string, maxLength: 20 }
+            estado: { $ref: '#/components/schemas/EstadoTramitePanel' }
+            origen:
+              type: string
+              enum: [panel, fuente]
+              description: "`panel` si se creó aquí (se puede eliminar); `fuente` si viene del catálogo oficial, se haya corregido o no (solo se despublica)."
+            modificado_en_panel:
+              type: boolean
+              description: Un trámite del catálogo oficial que se corrigió aquí; la carga automática ya no lo sobrescribe.
+            completo: { type: boolean }
+            problemas:
+              type: array
+              description: Lo que falta para poder publicarlo, en español.
+              items: { type: string }
+
+    TramitePanelFila:
+      type: object
+      required: [id, uuid, type, codigo, slug, nombre, estado, origen, modificado_en_panel, completo, problemas]
+      properties:
+        id: { type: integer }
+        uuid: { type: string, format: uuid }
+        type: { type: string, const: tramites }
+        codigo: { type: string }
+        slug: { type: string }
+        nombre: { type: string }
+        modalidad: { type: [string, 'null'], enum: [en_linea, parcialmente_en_linea, presencial, null] }
+        estado: { $ref: '#/components/schemas/EstadoTramitePanel' }
+        origen: { type: string, enum: [panel, fuente] }
+        modificado_en_panel: { type: boolean }
+        completo: { type: boolean }
+        problemas:
+          type: array
+          items: { type: string }
+        publicado_en: { type: [string, 'null'], format: date-time }
+        actualizado_en: { type: [string, 'null'], format: date-time }
+
+    TramitePanelCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/TramitePanelFila' }
+
+    TramiteInput:
+      type: object
+      description: |
+        Datos de un trámite. En `POST` solo `nombre` es obligatorio. Los campos de las
+        listas (`requisitos`, `documentos`, `momentos`, `audiencias`, `perfiles`,
+        `medios_resultado`, `puntos_atencion`, `normativa`, `cuentas`,
+        `canales_consulta_estado`) tienen la misma forma que en `TramiteItem`; `slug` y
+        `codigo` se ignoran.
+      properties:
+        nombre: { type: string, minLength: 3, maxLength: 200 }
+        resumen: { type: [string, 'null'], maxLength: 500 }
+        url_ficha_gov_co: { type: [string, 'null'], format: uri, maxLength: 500 }
+        modalidad: { type: [string, 'null'], enum: [en_linea, parcialmente_en_linea, presencial, null] }
+        tiene_costo: { type: [string, 'null'], enum: [gratuito, con_costo, null] }
+        tiempo_solucion_dias: { type: [integer, 'null'], minimum: 0, maximum: 36500 }
+        canal_inicio: { type: [string, 'null'], enum: [propio, portal_nacional, null] }
+        url_inicio: { type: [string, 'null'], format: uri, maxLength: 500 }
+        url_manual_tramite_en_linea: { type: [string, 'null'], format: uri, maxLength: 500 }
+        consulta_estado: { type: [string, 'null'], maxLength: 500 }
+        resultado: { type: [string, 'null'], maxLength: 2000 }
+        producto_final: { type: [string, 'null'], maxLength: 500 }
+        observaciones_resultado: { type: [string, 'null'], maxLength: 2000 }
+        fecha_cualquiera: { type: [boolean, 'null'] }
+        cuando_se_puede_realizar: { type: [string, 'null'], maxLength: 1000 }
+        url_calendario: { type: [string, 'null'], format: uri, maxLength: 500 }
+        palabras_relacionadas: { type: [string, 'null'], maxLength: 1000 }
+        publicado: { type: boolean, description: "`true` publica (exige ficha completa); `false` retira del sitio." }
+        costo: { type: [object, 'null'], additionalProperties: true }
+        categoria:
+          type: [object, 'null']
+          properties:
+            slug: { type: string, pattern: '^[a-z0-9-]+$', maxLength: 120 }
+            nombre: { type: string, maxLength: 160 }
+        requisitos: { type: array, items: { type: object, additionalProperties: true }, maxItems: 100 }
+        documentos: { type: array, items: { type: object, additionalProperties: true }, maxItems: 100 }
+        momentos: { type: array, items: { type: object, additionalProperties: true }, maxItems: 30 }
+        audiencias: { type: array, items: { type: object, additionalProperties: true }, maxItems: 50 }
+        perfiles: { type: array, items: { type: string, maxLength: 60 }, maxItems: 30 }
+        medios_resultado: { type: array, items: { type: string, maxLength: 60 }, maxItems: 30 }
+        puntos_atencion: { type: array, items: { type: object, additionalProperties: true }, maxItems: 50 }
+        normativa: { type: array, items: { type: object, additionalProperties: true }, maxItems: 100 }
+        cuentas: { type: array, items: { type: object, additionalProperties: true }, maxItems: 20 }
+        canales_consulta_estado: { type: array, items: { type: object, additionalProperties: true }, maxItems: 20 }
+        seguimiento: { type: [object, 'null'], additionalProperties: true }
+
     # ─── Subsección Transparencia ──────────────────────────────────────────
     SubseccionTransparenciaItem:
       type: object
@@ -3437,29 +3731,3 @@ components:
       properties:
         campo: { type: string, maxLength: 60 }
         regla: { type: string, maxLength: 500 }
-
-    TramiteInput:
-      type: object
-      required:
-        - nombre
-        - modalidad
-        - tiene_costo
-        - tiempo_solucion_dias
-        - canal_inicio
-        - consulta_estado
-        - url_ficha_gov_co
-      properties:
-        nombre: { type: string, maxLength: 200 }
-        slug: { type: string, maxLength: 160 }
-        resumen: { type: [string, 'null'], maxLength: 500 }
-        url_ficha_gov_co: { type: string, format: uri, maxLength: 500 }
-        modalidad: { type: string, enum: [en_linea, parcialmente_en_linea, presencial] }
-        tiene_costo: { type: string, enum: [gratuito, con_costo] }
-        costo:
-          oneOf:
-            - $ref: '#/components/schemas/TramiteCosto'
-            - type: 'null'
-        tiempo_solucion_dias: { type: integer, minimum: 0 }
-        canal_inicio: { type: string, enum: [propio, portal_nacional] }
-        url_inicio: { type: [string, 'null'], maxLength: 500 }
-        consulta_estado: { type: string, maxLength: 500 }

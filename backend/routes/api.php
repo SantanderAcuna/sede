@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\ImagenContenidoController;
 use App\Http\Controllers\Api\V1\NoticiaController;
 use App\Http\Controllers\Api\V1\PanelNoticiaController;
 use App\Http\Controllers\Api\V1\PanelPoliticaController;
+use App\Http\Controllers\Api\V1\PanelTramiteController;
 use App\Http\Controllers\Api\V1\PoliticaController;
 use App\Http\Controllers\Api\V1\TramiteController;
 use Illuminate\Support\Facades\Route;
@@ -157,6 +158,15 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             ->name('politicas.update')
             ->middleware('auth:sanctum')
             ->middleware('can:politicas.gestionar');
+
+        // Trámites — alta, edición y publicación (requiere autenticación + permiso)
+        Route::middleware(['auth:sanctum', 'can:tramites.gestionar'])->group(function (): void {
+            Route::get('/tramites', [PanelTramiteController::class, 'index'])->name('panel.tramites.index');
+            Route::post('/tramites', [PanelTramiteController::class, 'store'])->name('panel.tramites.store');
+            Route::get('/tramites/{uuid}', [PanelTramiteController::class, 'show'])->name('panel.tramites.show');
+            Route::patch('/tramites/{uuid}', [PanelTramiteController::class, 'update'])->name('panel.tramites.update');
+            Route::delete('/tramites/{uuid}', [PanelTramiteController::class, 'destroy'])->name('panel.tramites.destroy');
+        });
 
         // Noticias — alta, edición y publicación (requiere autenticación + permiso)
         Route::middleware(['auth:sanctum', 'can:noticias.gestionar'])->group(function (): void {

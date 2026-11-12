@@ -179,6 +179,17 @@ describe('crear una noticia', () => {
     expect(wrapper.text()).toContain('hace falta una imagen')
   })
 
+  it('al crear envía la fecha de publicación aunque no se haya tocado (el servidor la exige)', async () => {
+    m.crear.mockResolvedValue(noticia({ uuid: 'n', titulo: 'Mi noticia' }))
+    const wrapper = await montar()
+    await rellenar(wrapper)
+    await boton(wrapper, 'Guardar').trigger('click')
+    await flushPromises()
+
+    const enviado = m.crear.mock.calls[0]![0] as { fecha_publicacion?: string }
+    expect(enviado.fecha_publicacion).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00[+-]\d{2}:\d{2}$/)
+  })
+
   it('como borrador y sin imagen se puede guardar', async () => {
     m.crear.mockResolvedValue(noticia({ uuid: 'n', titulo: 'Mi noticia' }))
     const wrapper = await montar()

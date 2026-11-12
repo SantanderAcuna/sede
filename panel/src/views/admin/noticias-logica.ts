@@ -74,8 +74,18 @@ export function formularioDesde(noticia: NoticiaPanelItem): FormularioNoticia {
   }
 }
 
-/** Lo que se envía al servidor: sólo los campos que cambiaron. */
-export function entradaDesde(formulario: FormularioNoticia, original: FormularioNoticia): NoticiaInput {
+/**
+ * Lo que se envía al servidor: sólo los campos que cambiaron.
+ *
+ * Al **crear** (`completa`) la fecha de publicación viaja siempre: el servidor la
+ * exige, y la que trae el formulario por defecto no es un «cambio» de la persona,
+ * así que sin esto no se enviaba y el guardado fallaba con un 422.
+ */
+export function entradaDesde(
+  formulario: FormularioNoticia,
+  original: FormularioNoticia,
+  opciones: { completa?: boolean } = {},
+): NoticiaInput {
   const entrada: NoticiaInput = {}
 
   if (formulario.titulo.trim() !== original.titulo.trim()) entrada.titulo = formulario.titulo.trim()
@@ -83,7 +93,10 @@ export function entradaDesde(formulario: FormularioNoticia, original: Formulario
     entrada.descripcion_corta = formulario.descripcion_corta.trim()
   }
   if (formulario.contenido.trim() !== original.contenido.trim()) entrada.contenido = formulario.contenido.trim()
-  if (formulario.fecha_publicacion !== original.fecha_publicacion && formulario.fecha_publicacion !== '') {
+  if (
+    formulario.fecha_publicacion !== '' &&
+    (opciones.completa === true || formulario.fecha_publicacion !== original.fecha_publicacion)
+  ) {
     entrada.fecha_publicacion = aIsoConZona(formulario.fecha_publicacion)
   }
   if (formulario.destacada !== original.destacada) entrada.destacada = formulario.destacada

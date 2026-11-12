@@ -14,6 +14,7 @@ import {
   caracteresRestantes,
   entradaDesde,
   formularioDesde,
+  formularioVacio,
   hayCambios,
   problemasLocales,
 } from '../src/views/admin/noticias-logica'
@@ -56,6 +57,17 @@ describe('formulario', () => {
 
     expect(entradaDesde(editado, original)).toEqual({ titulo: 'Otro título' })
     expect(entradaDesde(original, original)).toEqual({})
+  })
+
+  it('al crear, la fecha de publicación viaja aunque no se haya cambiado', () => {
+    const vacio = formularioVacio()
+    const lleno = { ...vacio, titulo: 'T', descripcion_corta: 'D', contenido: 'C' }
+
+    const entrada = entradaDesde(lleno, vacio, { completa: true })
+
+    expect(entrada.fecha_publicacion).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00[+-]\d{2}:\d{2}$/)
+    // Al editar (sin `completa`) una fecha sin tocar sigue sin enviarse.
+    expect(entradaDesde(lleno, lleno).fecha_publicacion).toBeUndefined()
   })
 
   it('un cambio de alt viaja como imagen_alt; vaciar el contenido no se envía como cadena vacía', () => {

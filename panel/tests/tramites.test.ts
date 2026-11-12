@@ -1,9 +1,11 @@
 /**
  * Trámites en el panel: lógica del formulario, servicio, permiso y rutas.
  *
- * El servidor valida siempre. Aquí se comprueba lo que protege a quien edita: que solo viaje lo que
- * cambió (así un trámite del catálogo oficial no pierde datos que la pantalla no toca), que se diga en
- * español qué falta para publicar y que el permiso y las rutas existan.
+ * El catálogo es contenido propio y relacional (pasos, requisitos, solicitantes, dependencia). El
+ * servidor valida siempre; aquí se comprueba lo que protege a quien edita: que los campos simples
+ * viajen sólo si cambiaron, que la **ficha viaje entera en cuanto cualquier parte cambia** (el
+ * servidor la reemplaza completa), que se diga en español qué falta para publicar, y que el permiso
+ * y las rutas existan.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -28,31 +30,28 @@ const tramite = (extra: Partial<TramitePanelItem> = {}): TramitePanelItem =>
     uuid: '33333333-3333-4333-8333-333333333333',
     type: 'tramites',
     slug: 'certificado-de-residencia',
-    codigo: 'P0001',
+    codigo: 'T0001',
     nombre: 'Certificado de residencia',
     resumen: 'Constancia de dónde vive.',
     url_ficha_gov_co: 'https://www.gov.co/ficha-tramites-y-servicios/T1',
     modalidad: 'presencial',
     tiene_costo: 'con_costo',
-    costo: { tiene_costo: 'con_costo', tipo_valor: 'fijo', valor: '25000.00', moneda: 'COP', url_pago: null, descripcion: null, cuentas: [] },
+    costo: { tiene_costo: 'con_costo', tipo_valor: 'fijo', valor: 25000, moneda: 'COP', url_pago: null, descripcion: null, cuentas: [] },
     tiempo_solucion_dias: 3,
     canal_inicio: 'propio',
     url_inicio: null,
     consulta_estado: 'Llamando a la oficina',
-    requisitos: [{ tipo: 'documento', descripcion: 'Cédula', obligatorio: true, cantidad: 1 }],
+    dependencia_id: 2,
+    requisitos: [{ tipo: 'documento', descripcion: 'Cédula', obligatorio: true, paso: null }],
+    pasos: [],
     documentos: [],
-    momentos: [],
-    audiencias: [],
-    perfiles: ['Adulto mayor'],
-    medios_resultado: ['Correo'],
     puntos_atencion: [],
     normativa: [],
-    cuentas: [],
     canales_consulta_estado: [],
-    seguimiento: { telefono: [{ numero: '4380000' }], email: [], web: [], presencial: [] },
+    solicitantes: ['ciudadano'],
+    medios_resultado: ['Correo'],
     categoria: null,
     estado: 'publicado',
-    origen: 'panel',
     completo: true,
     problemas: [],
     ...extra,
@@ -62,36 +61,39 @@ describe('formulario', () => {
   it('carga lo que entrega la API', () => {
     const f = formularioDesde(tramite())
     expect(f.nombre).toBe('Certificado de residencia')
+    expect(f.type).toBe('tramites')
     expect(f.tiempo_solucion_dias).toBe('3')
-    expect(f.costo_valor).toBe('25000.00')
+    expect(f.costo_valor).toBe('25000')
     expect(f.requisitos).toHaveLength(1)
+    expect(f.solicitantes).toEqual(['ciudadano'])
+    expect(f.dependencia_id).toBe('2')
     // Las listas de textos sueltos se editan como filas con un solo campo.
-    expect(f.perfiles).toEqual([{ valor: 'Adulto mayor' }])
-    expect(f.seg_telefono).toEqual([{ numero: '4380000' }])
+    expect(f.medios_resultado).toEqual([{ valor: 'Correo' }])
     expect(f.publicado).toBe(true)
   })
 
   it('un trámite en borrador y vacío no revienta', () => {
     const f = formularioDesde(
-      tramite({ modalidad: null, tiene_costo: null, tiempo_solucion_dias: null, canal_inicio: null, seguimiento: null, costo: null, estado: 'borrador' } as never),
+      tramite({ modalidad: null, tiene_costo: null, tiempo_solucion_dias: null, canal_inicio: null, costo: null, dependencia_id: null, estado: 'borrador' } as never),
     )
     expect(f.modalidad).toBe('')
     expect(f.tiempo_solucion_dias).toBe('')
-    expect(f.seg_telefono).toEqual([])
+    expect(f.dependencia_id).toBe('')
+    expect(f.costo_valor).toBe('')
     expect(f.publicado).toBe(false)
   })
 
-  it('envía solo lo que cambió', () => {
+  it('envía solo el campo simple que cambió', () => {
     const original = formularioDesde(tramite())
     const editado = { ...original, nombre: 'Otro nombre' }
     expect(entradaDesde(editado, original)).toEqual({ nombre: 'Otro nombre' })
     expect(entradaDesde(original, original)).toEqual({})
   })
 
-  it('al crear envía el nombre y lo que se llenó, sin vacíos', () => {
+  it('al crear envía el nombre, el tipo y lo que se llenó, sin vacíos', () => {
     const vacio = formularioVacio()
     const entrada = entradaDesde({ ...vacio, nombre: '  Licencia  ', modalidad: 'presencial' }, null)
-    expect(entrada).toEqual({ nombre: 'Licencia', modalidad: 'presencial' })
+    expect(entrada).toEqual({ nombre: 'Licencia', type: 'tramites', modalidad: 'presencial' })
   })
 
   it('vaciar un campo envía null, no se queda el valor viejo', () => {
@@ -99,42 +101,39 @@ describe('formulario', () => {
     expect(entradaDesde({ ...original, resumen: '' }, original)).toEqual({ resumen: null })
   })
 
-  it('el tiempo viaja como número', () => {
+  it('el tiempo y la dependencia viajan como número', () => {
     const original = formularioDesde(tramite())
     expect(entradaDesde({ ...original, tiempo_solucion_dias: '10' }, original)).toEqual({ tiempo_solucion_dias: 10 })
+    expect(entradaDesde({ ...original, dependencia_id: '5' }, original)).toEqual({ dependencia_id: 5 })
   })
 
-  it('una lista cambiada viaja entera; una sin tocar no viaja', () => {
+  it('cuando cambia una lista de la ficha, viaja la ficha entera (el servidor la reemplaza)', () => {
     const original = formularioDesde(tramite())
     const editado = { ...original, requisitos: [...original.requisitos, { tipo: 'pago', descripcion: 'Recibo' }] }
-    const entrada = entradaDesde(editado, original)
-    expect(Object.keys(entrada)).toEqual(['requisitos'])
+    const entrada = entradaDesde(editado, original) as Record<string, unknown>
+    // No sólo requisitos: también las demás listas y los solicitantes, para no borrarlas.
+    expect(Object.keys(entrada)).toEqual(expect.arrayContaining(['pasos', 'requisitos', 'documentos', 'puntos_atencion', 'normativa', 'canales_consulta_estado', 'solicitantes', 'costo']))
     expect(entrada.requisitos).toHaveLength(2)
+    expect(entrada.solicitantes).toEqual(['ciudadano'])
+  })
+
+  it('cambiar los solicitantes también hace viajar la ficha entera', () => {
+    const original = formularioDesde(tramite())
+    const entrada = entradaDesde({ ...original, solicitantes: ['ciudadano', 'extranjeros'] }, original) as Record<string, unknown>
+    expect(entrada.solicitantes).toEqual(['ciudadano', 'extranjeros'])
+    expect(entrada.requisitos).toHaveLength(1)
   })
 
   it('las filas de texto suelto vuelven a ser una lista de textos y descartan las vacías', () => {
     const original = formularioDesde(tramite())
-    const entrada = entradaDesde({ ...original, perfiles: [{ valor: 'Joven' }, { valor: '  ' }] }, original)
-    expect(entrada.perfiles).toEqual(['Joven'])
+    const entrada = entradaDesde({ ...original, medios_resultado: [{ valor: 'Correo físico' }, { valor: '  ' }] }, original)
+    expect(entrada.medios_resultado).toEqual(['Correo físico'])
   })
 
   it('el costo viaja como un solo bloque cuando cambia cualquiera de sus partes', () => {
     const original = formularioDesde(tramite())
     const entrada = entradaDesde({ ...original, costo_valor: '30000' }, original)
-    expect(entrada.costo).toMatchObject({ valor: '30000', tipo_valor: 'fijo', moneda: 'COP' })
-  })
-
-  it('el seguimiento viaja entero si cambia una de sus listas', () => {
-    const original = formularioDesde(tramite())
-    const entrada = entradaDesde({ ...original, seg_email: [{ email: 'a@b.co' }] }, original)
-    expect(entrada.seguimiento).toEqual({ telefono: [{ numero: '4380000' }], email: [{ email: 'a@b.co' }], web: [], presencial: [] })
-  })
-
-  it('las filas conservan los datos que la pantalla no muestra', () => {
-    const original = formularioDesde(tramite({ requisitos: [{ tipo: 'pago', descripcion: 'x', pago: [{ valor: '1' }], canales: [{ tipo: 'web' }] }] as never }))
-    original.requisitos[0]!.descripcion = 'y'
-    const entrada = entradaDesde(original, formularioDesde(tramite({ requisitos: [{ tipo: 'pago', descripcion: 'x', pago: [{ valor: '1' }], canales: [{ tipo: 'web' }] }] as never })))
-    expect(entrada.requisitos).toEqual([{ tipo: 'pago', descripcion: 'y', pago: [{ valor: '1' }], canales: [{ tipo: 'web' }] }])
+    expect(entrada.costo).toMatchObject({ valor: 30000, tipo_valor: 'fijo', moneda: 'COP' })
   })
 
   it('hayCambios detecta una edición y no se confunde con espacios al final', () => {
@@ -145,12 +144,16 @@ describe('formulario', () => {
 })
 
 describe('qué falta para publicar', () => {
-  it('lista en español lo que falta', () => {
-    const f = formularioVacio()
-    const falta = faltaParaPublicar(f)
-    expect(falta).toContain('Falta la dirección de la ficha en GOV.CO.')
+  it('lista en español lo que falta a un trámite', () => {
+    const falta = faltaParaPublicar(formularioVacio())
+    expect(falta).toContain('Falta la dirección de la ficha en GOV.CO (obligatoria para trámites y OPA).')
     expect(falta).toContain('Falta al menos un requisito.')
-    expect(falta).toHaveLength(7)
+    expect(falta).toHaveLength(8)
+  })
+
+  it('una consulta no exige ficha de GOV.CO (Decreto 2106)', () => {
+    const falta = faltaParaPublicar({ ...formularioVacio(), type: 'consultas' })
+    expect(falta).not.toContain('Falta la dirección de la ficha en GOV.CO (obligatoria para trámites y OPA).')
   })
 
   it('un trámite completo no tiene faltantes', () => {
@@ -177,15 +180,15 @@ describe('problemas antes de enviar', () => {
 
 describe('mensajes del servidor en español sencillo', () => {
   it('traduce la ruta de un campo de una lista', () => {
-    expect(rutaLegible('momentos.1.titulo')).toBe('Paso 2 · Título')
-    expect(rutaLegible('momentos.1.requisitos.0.tipo')).toBe('Paso 2, Requisito 1 · Tipo')
-    expect(rutaLegible('seguimiento.email.0.email')).toBe('Correo de seguimiento 1 · Correo')
+    expect(rutaLegible('pasos.1.titulo')).toBe('Paso 2 · Título')
+    expect(rutaLegible('requisitos.0.descripcion')).toBe('Requisito 1 · Descripción')
+    expect(rutaLegible('canales_consulta_estado.0.canal')).toBe('Canal de consulta 1 · Canal')
     expect(rutaLegible('costo.cuentas.2.titular')).toBe('Cuenta del costo 3 · Titular')
     expect(rutaLegible('url_ficha_gov_co')).toBe('Dirección de la ficha en GOV.CO')
   })
 
   it('cambia el nombre técnico dentro del mensaje, con o sin guiones bajos', () => {
-    expect(mensajeLegible('momentos.1.titulo', 'El campo momentos.1.titulo es obligatorio.')).toBe('El campo «Paso 2 · Título» es obligatorio.')
+    expect(mensajeLegible('pasos.1.titulo', 'El campo pasos.1.titulo es obligatorio.')).toBe('El campo «Paso 2 · Título» es obligatorio.')
   })
 
   it('junta todos los motivos y deja pasar tal cual los del trámite incompleto', () => {
@@ -231,7 +234,7 @@ describe('servicio', () => {
     expect(http.get).toHaveBeenLastCalledWith('/panel/tramites', { params: { page: 1, per_page: 20, q: 'predial', estado: 'borrador' } })
   })
 
-  it('crear, actualizar y eliminar usan las rutas del panel', async () => {
+  it('crear, actualizar, eliminar y dependencias usan las rutas del panel', async () => {
     const respuesta = { data: { success: true, message: null, data: { uuid: 'u' }, errors: null } }
     http.post.mockResolvedValue(respuesta)
     http.patch.mockResolvedValue(respuesta)
@@ -246,5 +249,8 @@ describe('servicio', () => {
     expect(http.get).toHaveBeenCalledWith('/panel/tramites/u')
     await s.eliminar('u')
     expect(http.delete).toHaveBeenCalledWith('/panel/tramites/u')
+    http.get.mockResolvedValue({ data: { success: true, message: null, data: [{ id: 1, nombre: 'Hacienda' }], errors: null } })
+    await s.dependencias()
+    expect(http.get).toHaveBeenLastCalledWith('/panel/dependencias')
   })
 })

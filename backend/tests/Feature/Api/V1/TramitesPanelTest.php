@@ -63,6 +63,18 @@ final class TramitesPanelTest extends TestCase
         $this->actingAs($sinPermiso)->postJson('/api/v1/panel/tramites', ['nombre' => 'X'])->assertForbidden();
     }
 
+    public function test_lista_las_dependencias_para_el_selector(): void
+    {
+        $respuesta = $this->actingAs($this->gestor())->getJson('/api/v1/panel/dependencias');
+        $respuesta->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure(['data' => [['id', 'nombre']]]);
+        $this->assertNotEmpty($respuesta->json('data'));
+
+        // Sin el permiso de gestión no se pueden ver.
+        $this->actingAs(User::factory()->create())->getJson('/api/v1/panel/dependencias')->assertForbidden();
+    }
+
     public function test_el_listado_trae_borradores_y_publicados_con_su_estado(): void
     {
         Tramite::factory()->published()->create(['nombre' => 'Uno publicado', 'codigo' => 'T1']);

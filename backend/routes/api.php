@@ -181,6 +181,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/tramites/{uuid}', [PanelTramiteController::class, 'show'])->name('panel.tramites.show');
             Route::patch('/tramites/{uuid}', [PanelTramiteController::class, 'update'])->name('panel.tramites.update');
             Route::delete('/tramites/{uuid}', [PanelTramiteController::class, 'destroy'])->name('panel.tramites.destroy');
+            // Las dependencias responsables, para el selector del formulario.
+            Route::get('/dependencias', [PanelTramiteController::class, 'dependencias'])->name('panel.tramites.dependencias');
         });
 
         // Carrusel de la portada (banners).

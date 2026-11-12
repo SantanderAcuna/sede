@@ -1584,6 +1584,41 @@ paths:
       security:
         - cookieSesion: []
 
+  /panel/dependencias:
+    get:
+      tags: [Panel — Trámites]
+      operationId: listarDependencias
+      summary: Dependencias responsables, para el selector del formulario
+      description: Requiere `tramites.gestionar`. Lista las dependencias de la Alcaldía (id y nombre), en su orden.
+      x-status: implemented
+      responses:
+        '200':
+          description: Dependencias
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, nombre]
+                          properties:
+                            id: { type: integer }
+                            nombre: { type: string }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: No tiene el permiso para gestionar trámites.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+
   /panel/usuarios:
     get:
       tags: [Panel — Usuarios]

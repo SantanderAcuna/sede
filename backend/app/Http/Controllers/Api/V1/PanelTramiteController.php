@@ -11,6 +11,7 @@ use App\Http\Requests\GuardarTramiteRequest;
 use App\Http\Requests\ListarTramitesPanelRequest;
 use App\Http\Resources\TramitePanelFilaResource;
 use App\Http\Resources\TramitePanelResource;
+use App\Models\Dependencia;
 use App\Models\Tramite;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -117,5 +118,23 @@ final class PanelTramiteController extends Controller
         $this->tramites->eliminar($tramite);
 
         return response()->noContent();
+    }
+
+    /**
+     * Las dependencias responsables, para poblar el selector del formulario.
+     *
+     * @operationId listarDependencias
+     */
+    public function dependencias(): JsonResponse
+    {
+        Gate::authorize('viewAny', Tramite::class);
+
+        $dependencias = Dependencia::query()
+            ->orderBy('orden')
+            ->get(['id', 'nombre'])
+            ->map(static fn (Dependencia $d): array => ['id' => $d->id, 'nombre' => $d->nombre])
+            ->all();
+
+        return ApiResponse::ok($dependencias);
     }
 }

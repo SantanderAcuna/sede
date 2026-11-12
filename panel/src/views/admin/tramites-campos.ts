@@ -1,12 +1,19 @@
 /**
  * Descripción de los campos de cada lista del formulario de trámites.
  *
- * Los textos están escritos para quien no conoce el sistema: dicen qué se pide, no cómo se llama en la
- * base de datos. Las claves son las del contrato (`TramiteItem`).
+ * Los textos están escritos para quien no conoce el sistema: dicen qué se pide, no cómo se llama en
+ * la base de datos. El catálogo es contenido propio y relacional: la ficha se compone de pasos,
+ * requisitos (cada uno puede pertenecer a un paso), documentos, puntos de atención, normas, canales
+ * de consulta y cuentas del costo.
  */
 import type { CampoLista, OpcionCampo } from '@/components/base/ListaEditable.vue'
 import type { Fila } from './tramites-logica'
 
+export const TIPOS: OpcionCampo[] = [
+  { valor: 'tramites', etiqueta: 'Trámite' },
+  { valor: 'opa', etiqueta: 'OPA (otro procedimiento administrativo)' },
+  { valor: 'consultas', etiqueta: 'Consulta de acceso a información pública' },
+]
 export const MODALIDADES: OpcionCampo[] = [
   { valor: 'en_linea', etiqueta: 'En línea' },
   { valor: 'parcialmente_en_linea', etiqueta: 'Parcialmente en línea' },
@@ -38,18 +45,6 @@ const TIPOS_REQUISITO: OpcionCampo[] = [
   { valor: 'formulario', etiqueta: 'Formulario' },
   { valor: 'pago', etiqueta: 'Pago' },
 ]
-const AUDIENCIAS: OpcionCampo[] = [
-  { valor: 'Ciudadano', etiqueta: 'Ciudadano' },
-  { valor: 'Extranjeros', etiqueta: 'Extranjeros' },
-  { valor: 'Organizaciones', etiqueta: 'Organizaciones' },
-  { valor: 'Instituciones o dependencias públicas', etiqueta: 'Instituciones o dependencias públicas' },
-]
-const CANALES_REQUISITO: OpcionCampo[] = [
-  { valor: 'web', etiqueta: 'Por la web' },
-  { valor: 'presencial', etiqueta: 'Presencial' },
-  { valor: 'correo', etiqueta: 'Por correo electrónico' },
-  { valor: 'telefonico', etiqueta: 'Por teléfono' },
-]
 const CANALES_CONSULTA: OpcionCampo[] = [
   { valor: 'sede', etiqueta: 'Sede Electrónica' },
   { valor: 'presencial', etiqueta: 'Presencial' },
@@ -59,41 +54,26 @@ const CANALES_CONSULTA: OpcionCampo[] = [
   { valor: 'otro', etiqueta: 'Otro' },
 ]
 
-export const CAMPOS_REQUISITO: CampoLista[] = [
-  { clave: 'tipo', etiqueta: 'Qué clase de requisito es', tipo: 'select', opciones: TIPOS_REQUISITO, requerido: true },
-  { clave: 'obligatorio', etiqueta: 'Es obligatorio', tipo: 'casilla', porDefecto: true },
-  { clave: 'descripcion', etiqueta: 'Descripción', tipo: 'textarea', ayuda: 'Qué debe hacer o presentar la persona, en palabras sencillas.' },
-  { clave: 'documento', etiqueta: 'Nombre del documento', tipo: 'texto', avanzado: true },
-  { clave: 'cantidad', etiqueta: 'Cantidad', tipo: 'numero', avanzado: true },
-  { clave: 'unidad_cantidad', etiqueta: 'Unidad de la cantidad', tipo: 'texto', avanzado: true, ayuda: 'Por ejemplo: copias, hojas.' },
-  { clave: 'nota', etiqueta: 'Nota', tipo: 'textarea', avanzado: true },
-  { clave: 'canal', etiqueta: 'Por qué medio se presenta', tipo: 'select', opciones: CANALES_REQUISITO, avanzado: true },
-  { clave: 'url', etiqueta: 'Dirección web', tipo: 'url', avanzado: true },
-  { clave: 'correo', etiqueta: 'Correo electrónico', tipo: 'correo', avanzado: true },
-  { clave: 'formulario', etiqueta: 'Nombre del formulario', tipo: 'texto', avanzado: true },
-  { clave: 'formulario_url', etiqueta: 'Dirección del formulario', tipo: 'url', avanzado: true },
-  { clave: 'url_pago', etiqueta: 'Dirección donde se paga', tipo: 'url', avanzado: true },
-  { clave: 'tipos_audiencia', etiqueta: 'A quién aplica', tipo: 'multi', opciones: AUDIENCIAS, avanzado: true, ayuda: 'Si no marca ninguno, aplica a todos.' },
-  { clave: 'orden', etiqueta: 'Posición', tipo: 'numero', avanzado: true },
-]
-
-export const CAMPOS_MOMENTO: CampoLista[] = [
+export const CAMPOS_PASO: CampoLista[] = [
   { clave: 'orden', etiqueta: 'Número del paso', tipo: 'numero', requerido: true },
   { clave: 'titulo', etiqueta: 'Título del paso', tipo: 'texto', requerido: true, ayuda: 'Por ejemplo: «Reunir los documentos».' },
   { clave: 'descripcion', etiqueta: 'Descripción', tipo: 'textarea' },
-  { clave: 'requisitos', etiqueta: 'Requisitos de este paso', tipo: 'lista', etiquetaItem: 'Requisito', campos: CAMPOS_REQUISITO, nuevoItem: () => ({ tipo: 'documento', obligatorio: true }) },
+]
+
+export const CAMPOS_REQUISITO: CampoLista[] = [
+  { clave: 'tipo', etiqueta: 'Qué clase de requisito es', tipo: 'select', opciones: TIPOS_REQUISITO, requerido: true },
+  { clave: 'descripcion', etiqueta: 'Descripción', tipo: 'textarea', requerido: true, ayuda: 'Qué debe hacer o presentar la persona, en palabras sencillas.' },
+  { clave: 'obligatorio', etiqueta: 'Es obligatorio', tipo: 'casilla', porDefecto: true },
+  { clave: 'paso', etiqueta: 'Paso al que pertenece', tipo: 'numero', avanzado: true, ayuda: 'El número del paso; déjelo vacío si es un requisito general.' },
+  { clave: 'nota', etiqueta: 'Nota', tipo: 'textarea', avanzado: true },
+  { clave: 'url', etiqueta: 'Dirección web', tipo: 'url', avanzado: true },
+  { clave: 'orden', etiqueta: 'Posición', tipo: 'numero', avanzado: true },
 ]
 
 export const CAMPOS_DOCUMENTO: CampoLista[] = [
   { clave: 'nombre', etiqueta: 'Nombre del documento', tipo: 'texto', requerido: true },
   { clave: 'url', etiqueta: 'Dirección para descargarlo', tipo: 'url' },
   { clave: 'formato', etiqueta: 'Formato', tipo: 'texto', ayuda: 'Por ejemplo: PDF, DOCX.' },
-]
-
-export const CAMPOS_AUDIENCIA: CampoLista[] = [
-  { clave: 'grupo', etiqueta: 'Grupo', tipo: 'texto', ayuda: 'Por ejemplo: Ciudadano.' },
-  { clave: 'nombre', etiqueta: 'Nombre', tipo: 'texto', requerido: true },
-  { clave: 'descripcion', etiqueta: 'Descripción', tipo: 'textarea' },
 ]
 
 export const CAMPOS_TEXTO: CampoLista[] = [{ clave: 'valor', etiqueta: 'Texto', tipo: 'texto', requerido: true }]
@@ -115,7 +95,6 @@ export const CAMPOS_NORMA: CampoLista[] = [
   { clave: 'anio', etiqueta: 'Año', tipo: 'numero' },
   { clave: 'articulos', etiqueta: 'Artículos que aplican', tipo: 'texto' },
   { clave: 'url', etiqueta: 'Dirección web de la norma', tipo: 'url' },
-  { clave: 'url_descarga', etiqueta: 'Dirección para descargarla', tipo: 'url', avanzado: true },
 ]
 
 /** Cuentas bancarias de un pago (forma de la fuente oficial: banco / tipo / número / titular). */
@@ -136,21 +115,5 @@ export const CAMPOS_CANAL_CONSULTA: CampoLista[] = [
   { clave: 'horario', etiqueta: 'Horario', tipo: 'texto' },
 ]
 
-export const CAMPOS_TELEFONO: CampoLista[] = [
-  { clave: 'numero', etiqueta: 'Número', tipo: 'texto' },
-  { clave: 'extension', etiqueta: 'Extensión', tipo: 'texto' },
-  { clave: 'horario', etiqueta: 'Horario', tipo: 'texto' },
-]
-export const CAMPOS_CORREO: CampoLista[] = [{ clave: 'email', etiqueta: 'Correo electrónico', tipo: 'correo' }]
-export const CAMPOS_WEB: CampoLista[] = [
-  { clave: 'url', etiqueta: 'Dirección web', tipo: 'url' },
-  { clave: 'nombre', etiqueta: 'Nombre', tipo: 'texto' },
-]
-export const CAMPOS_PRESENCIAL: CampoLista[] = [
-  { clave: 'nombre', etiqueta: 'Nombre del lugar', tipo: 'texto', requerido: true },
-  { clave: 'direccion', etiqueta: 'Dirección', tipo: 'texto', requerido: true },
-  { clave: 'horario', etiqueta: 'Horario', tipo: 'texto' },
-  { clave: 'telefono', etiqueta: 'Teléfono', tipo: 'texto' },
-]
-
 export const NUEVO_REQUISITO = (): Fila => ({ tipo: 'documento', obligatorio: true })
+export const NUEVO_PASO = (): Fila => ({ obligatorio: true })

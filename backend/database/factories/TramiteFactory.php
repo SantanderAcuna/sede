@@ -5,23 +5,25 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Models\Tramite;
+use App\Models\TramiteRequisito;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Tramite>
  */
-final class TramiteFactory extends Factory
+class TramiteFactory extends Factory
 {
     protected $model = Tramite::class;
 
+    /** @return array<string, mixed> */
     public function definition(): array
     {
         $nombre = $this->faker->sentence(4);
 
         return [
-            'codigo' => 'TR-'.Str::upper(Str::random(6)),
-            'slug' => Str::slug($nombre),
+            'codigo' => 'T'.$this->faker->unique()->numerify('#####'),
+            'slug' => Str::slug($nombre).'-'.Str::lower(Str::random(5)),
             'nombre' => $nombre,
             'resumen' => $this->faker->paragraph(),
             'type' => 'tramites',
@@ -29,50 +31,38 @@ final class TramiteFactory extends Factory
             'tiene_costo' => 'gratuito',
             'tiempo_solucion_dias' => $this->faker->numberBetween(1, 60),
             'canal_inicio' => 'propio',
-            'consulta_estado' => '/seguimiento?radicado=…',
-            'requisitos' => [['descripcion' => 'Cédula de ciudadanía', 'obligatorio' => true]],
-            'documentos' => null,
-            'resultado' => null,
-            'producto_final' => null,
-            'observaciones_resultado' => null,
-            'fecha_cualquiera' => true,
-            'cuando_se_puede_realizar' => null,
-            'url_calendario' => null,
-            'perfiles' => null,
-            'momentos' => null,
-            'puntos_atencion' => null,
-            'normativa' => null,
-            'canales_consulta_estado' => null,
-            'medios_resultado' => null,
-            'audiencias' => null,
-            'cuentas' => null,
-            'seguimiento' => null,
-            'palabras_relacionadas' => null,
-            'costo' => null,
-            'costo_tipo_valor' => null,
-            'costo_moneda' => null,
-            'costo_url_pago' => null,
-            'costo_descripcion' => null,
-            'costo_cuentas' => null,
-            'url_inicio' => null,
-            'url_manual_tramite_en_linea' => null,
-            'url_ficha_gov_co' => 'https://www.gov.co/ficha/'.Str::random(6),
-            'categoria_slug' => null,
-            'categoria_nombre' => null,
-            'procedencia_fuente' => null,
-            'procedencia_url' => null,
-            'procedencia_obtenido_en' => null,
-            'procedencia_nota' => null,
-            'procedencia_api' => null,
-            'procedencia_origen_por_campo' => null,
-            'procedencia_derivados' => null,
-            'procedencia_faltantes' => null,
+            'consulta_estado' => 'En la ventanilla única',
+            'url_ficha_gov_co' => null,
             'publicado_en' => null,
         ];
     }
 
+    /** Publicado: con fecha de alta y con el requisito que la regla de publicación exige. */
     public function published(): static
     {
-        return $this->state(fn (): array => ['publicado_en' => now()]);
+        return $this->state(fn (): array => ['publicado_en' => now()])
+            ->afterCreating(function (Tramite $tramite): void {
+                if (! $tramite->requisitos()->exists()) {
+                    $tramite->requisitos()->create(['orden' => 1, 'tipo' => 'documento', 'descripcion' => 'Cédula de ciudadanía', 'obligatorio' => true]);
+                }
+            });
+    }
+
+    public function conRequisito(string $descripcion = 'Cédula de ciudadanía'): static
+    {
+        return $this->afterCreating(function (Tramite $tramite) use ($descripcion): void {
+            TramiteRequisito::query()->create(['tramite_id' => $tramite->id, 'orden' => 1, 'tipo' => 'documento', 'descripcion' => $descripcion, 'obligatorio' => true]);
+        });
+    }
+
+    public function opa(): static
+    {
+        return $this->state(fn (): array => ['type' => 'opa', 'codigo' => 'T'.$this->faker->unique()->numerify('9####')]);
+    }
+
+    /** Una consulta de acceso a información pública: no es un trámite y no lleva código SUIT. */
+    public function consulta(): static
+    {
+        return $this->state(fn (): array => ['type' => 'consultas', 'codigo' => 'C'.$this->faker->unique()->numerify('####'), 'modalidad' => null, 'tiene_costo' => null, 'tiempo_solucion_dias' => null, 'canal_inicio' => null, 'consulta_estado' => null]);
     }
 }

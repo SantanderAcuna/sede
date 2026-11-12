@@ -440,6 +440,45 @@ final class NoticiasTest extends TestCase
         $this->getJson('/api/v1/noticias/dos-rutas')->assertJsonPath('data.imagen.url', '/api/v1/noticias/dos-rutas/imagen');
     }
 
+    public function test_el_listado_del_panel_trae_lo_necesario_para_editar_cada_noticia(): void
+    {
+        $publicada = $this->noticia(['slug' => 'lista-publicada', 'activo' => true, 'contenido' => 'Cuerpo publicado.']);
+        $this->conImagen($publicada);
+        $this->noticia(['slug' => 'lista-borrador', 'activo' => false, 'contenido' => 'Cuerpo en borrador.']);
+
+        $datos = $this->actingAs($this->editor(), 'web')->getJson('/api/v1/panel/noticias')->assertOk()->json('data');
+        $porSlug = collect($datos)->keyBy('slug');
+
+        foreach (['lista-publicada', 'lista-borrador'] as $slug) {
+            $item = $porSlug[$slug];
+            $this->assertTrue(Str::isUuid((string) ($item['uuid'] ?? '')), "{$slug}: sin uuid");
+            foreach (['activo', 'contenido', 'completa', 'problemas', 'titulo', 'descripcion_corta', 'fecha_publicacion', 'destacada'] as $campo) {
+                $this->assertArrayHasKey($campo, $item, "{$slug}: falta {$campo}");
+            }
+        }
+        $this->assertTrue($porSlug['lista-publicada']['activo']);
+        $this->assertFalse($porSlug['lista-borrador']['activo']);
+        $this->assertSame('Cuerpo publicado.', $porSlug['lista-publicada']['contenido']);
+        $this->assertSame('Cuerpo en borrador.', $porSlug['lista-borrador']['contenido']);
+        $this->assertTrue($porSlug['lista-publicada']['completa']);
+        $this->assertFalse($porSlug['lista-borrador']['completa']);
+    }
+
+    public function test_un_identificador_que_no_es_uuid_responde_404_y_no_500(): void
+    {
+        $editor = $this->editor();
+
+        foreach (['undefined', 'null', '123', 'no-es-uuid'] as $malo) {
+            $this->actingAs($editor, 'web')->getJson("/api/v1/panel/noticias/{$malo}")->assertNotFound();
+            $this->actingAs($editor, 'web')->patchJson("/api/v1/panel/noticias/{$malo}", ['titulo' => 'X'])->assertNotFound();
+            $this->actingAs($editor, 'web')->deleteJson("/api/v1/panel/noticias/{$malo}")->assertNotFound();
+            $this->actingAs($editor, 'web')->get("/api/v1/panel/noticias/{$malo}/imagen")->assertNotFound();
+            $this->actingAs($editor, 'web')
+                ->post("/api/v1/panel/noticias/{$malo}/imagen", ['imagen' => $this->png(), 'alt' => 'x'], ['Accept' => 'application/json'])
+                ->assertNotFound();
+        }
+    }
+
     public function test_editar_el_titulo_no_cambia_la_direccion_de_la_noticia(): void
     {
         // Una noticia publicada siempre tiene imagen con alt: sin ella ni siquiera se puede editar.

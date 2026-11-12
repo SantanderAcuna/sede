@@ -6,6 +6,7 @@ namespace App\Contracts\Repositories;
 
 use App\Models\FileMedia;
 use App\Models\Noticia;
+use App\Support\Noticias\FiltrosNoticiasPanel;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
@@ -28,11 +29,12 @@ interface NoticiaRepositoryInterface
     public function publicadaPorSlug(string $slug): ?Noticia;
 
     /**
-     * Todas —borradores y programadas incluidas—, las más recientes primero.
+     * Todas —borradores y programadas incluidas—, filtradas por título y estado y en el
+     * orden pedido (por defecto, las más recientes primero).
      *
      * @return LengthAwarePaginator<int, Noticia>
      */
-    public function paginarTodas(int $porPagina): LengthAwarePaginator;
+    public function paginarTodas(int $porPagina, FiltrosNoticiasPanel $filtros): LengthAwarePaginator;
 
     /** La noticia con ese uuid (publicada o no), con su imagen, o nulo. */
     public function porUuid(string $uuid): ?Noticia;

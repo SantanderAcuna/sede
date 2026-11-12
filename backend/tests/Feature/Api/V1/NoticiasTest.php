@@ -440,7 +440,7 @@ final class NoticiasTest extends TestCase
         $this->getJson('/api/v1/noticias/dos-rutas')->assertJsonPath('data.imagen.url', '/api/v1/noticias/dos-rutas/imagen');
     }
 
-    public function test_el_listado_del_panel_trae_lo_necesario_para_editar_cada_noticia(): void
+    public function test_el_listado_del_panel_trae_lo_necesario_para_la_tabla(): void
     {
         $publicada = $this->noticia(['slug' => 'lista-publicada', 'activo' => true, 'contenido' => 'Cuerpo publicado.']);
         $this->conImagen($publicada);
@@ -457,14 +457,14 @@ final class NoticiasTest extends TestCase
         foreach (['lista-publicada', 'lista-borrador'] as $slug) {
             $item = $porSlug[$slug];
             $this->assertTrue(Str::isUuid((string) ($item['uuid'] ?? '')), "{$slug}: sin uuid");
-            foreach (['activo', 'contenido', 'completa', 'problemas', 'titulo', 'descripcion_corta', 'fecha_publicacion', 'destacada'] as $campo) {
+            foreach (['activo', 'estado', 'completa', 'problemas', 'titulo', 'descripcion_corta', 'fecha_publicacion', 'destacada'] as $campo) {
                 $this->assertArrayHasKey($campo, $item, "{$slug}: falta {$campo}");
             }
+            // El cuerpo se pide al abrir la noticia (GET /panel/noticias/{uuid}): el listado es una tabla.
+            $this->assertArrayNotHasKey('contenido', $item, "{$slug}: el listado no lleva el cuerpo");
         }
         $this->assertTrue($porSlug['lista-publicada']['activo']);
         $this->assertFalse($porSlug['lista-borrador']['activo']);
-        $this->assertSame('Cuerpo publicado.', $porSlug['lista-publicada']['contenido']);
-        $this->assertSame('Cuerpo en borrador.', $porSlug['lista-borrador']['contenido']);
         $this->assertTrue($porSlug['lista-publicada']['completa']);
         $this->assertFalse($porSlug['lista-borrador']['completa']);
     }

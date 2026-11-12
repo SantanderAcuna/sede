@@ -1399,15 +1399,45 @@ paths:
       operationId: listarNoticiasPanel
       summary: Todas las noticias, borradores incluidos
       description: |
-        Requiere el permiso `noticias.gestionar`. Cada elemento trae lo mismo que el
-        detalle del panel (`NoticiaPanelItem`): `uuid`, `activo`, el contenido y lo que
-        falta para publicarla. Con el documento público no se podía abrir una noticia
-        ya creada para editarla.
+        Requiere el permiso `noticias.gestionar`. Alimenta la tabla del panel: cada
+        elemento trae lo necesario para listar y abrir la noticia (`uuid`, `estado`,
+        `activo`, `fecha_publicacion`, la imagen y lo que falta para publicarla) y NO trae
+        el cuerpo (`contenido`); ése se pide al abrirla, con `GET /panel/noticias/{uuid}`.
+
+        Se puede buscar por título (`q`), filtrar por `estado` y ordenar. Sin parámetros,
+        las más recientes primero. La búsqueda ignora mayúsculas y trata `%`, `_` y `\`
+        como texto, no como comodines. Cualquier valor fuera de lo declarado es 422.
       x-status: implemented
       x-criterios: [RF-01-013]
       parameters:
         - $ref: '#/components/parameters/Pagina'
-        - $ref: '#/components/parameters/PorPagina'
+        - name: per_page
+          in: query
+          required: false
+          description: Elementos por página. Por encima de 100 la respuesta es 422.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: q
+          in: query
+          required: false
+          description: Texto que debe contener el título (sin distinguir mayúsculas). Hasta 100 caracteres.
+          schema: { type: string, maxLength: 100 }
+        - name: estado
+          in: query
+          required: false
+          description: |
+            `borrador` (sin marcar como publicada), `programada` (publicada, con fecha
+            futura) o `publicada` (publicada y con la fecha cumplida; la que el sitio muestra).
+          schema: { $ref: '#/components/schemas/EstadoNoticia' }
+        - name: ordenar_por
+          in: query
+          required: false
+          description: Columna de orden.
+          schema: { type: string, enum: [fecha_publicacion, titulo], default: fecha_publicacion }
+        - name: direccion
+          in: query
+          required: false
+          description: Sentido del orden. Por omisión `desc` para la fecha y `asc` para el título.
+          schema: { type: string, enum: [asc, desc] }
       responses:
         '200':
           description: Lista paginada
@@ -1417,6 +1447,8 @@ paths:
                 $ref: '#/components/schemas/NoticiaPanelCollection'
         '401':
           $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
       security:
         - cookieSesion: []
     post:
@@ -2548,14 +2580,23 @@ components:
           type: string
           description: Cuerpo en texto plano, párrafos separados por una línea en blanco. Sólo en el detalle.
 
+    EstadoNoticia:
+      type: string
+      enum: [borrador, programada, publicada]
+      description: |
+        Lo decide el servidor con su reloj. `borrador`: sin marcar como publicada, no se
+        ve en el sitio sea cual sea la fecha. `programada`: publicada, pero su fecha aún
+        no llega. `publicada`: publicada y con la fecha cumplida.
+
     NoticiaPanelItem:
       allOf:
         - $ref: '#/components/schemas/NoticiaItem'
         - type: object
-          required: [uuid, activo, completa, problemas]
+          required: [uuid, activo, estado, completa, problemas]
           properties:
             uuid: { type: string, format: uuid }
-            activo: { type: boolean, description: Publicada. }
+            activo: { type: boolean, description: Marcada como publicada. }
+            estado: { $ref: '#/components/schemas/EstadoNoticia' }
             completa: { type: boolean }
             problemas:
               type: array

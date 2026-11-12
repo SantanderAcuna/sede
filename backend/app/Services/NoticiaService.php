@@ -9,6 +9,7 @@ use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Contracts\Services\NoticiaServiceInterface;
 use App\Exceptions\NoticiaIncompleta;
 use App\Models\Noticia;
+use App\Support\Noticias\FiltrosNoticiasPanel;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
@@ -30,9 +31,9 @@ final class NoticiaService implements NoticiaServiceInterface
         return $this->noticias->publicadaPorSlug($slug);
     }
 
-    public function todas(int $porPagina): LengthAwarePaginator
+    public function todas(int $porPagina, FiltrosNoticiasPanel $filtros): LengthAwarePaginator
     {
-        return $this->noticias->paginarTodas($porPagina);
+        return $this->noticias->paginarTodas($porPagina, $filtros);
     }
 
     public function porUuid(string $uuid): ?Noticia

@@ -81,12 +81,21 @@ describe('nomenclatura de los permisos', () => {
     for (const rutas of porPermiso.values()) expect(rutas.length).toBeGreaterThan(0)
   })
 
-  it('los permisos de los 18 módulos son únicos', () => {
-    const deModulos = modulos
-      .filter((ruta) => ruta.path !== '/')
-      .map((ruta) => ruta.meta.permiso)
-      .filter((permiso): permiso is string => typeof permiso === 'string')
+  it('cada permiso pertenece a un solo módulo: dos rutas lo comparten sólo si una cuelga de la otra', () => {
+    const porPermiso = new Map<string, string[]>()
+    for (const ruta of modulos.filter((r) => r.path !== '/')) {
+      const permiso = ruta.meta.permiso
+      if (typeof permiso !== 'string') continue
+      porPermiso.set(permiso, [...(porPermiso.get(permiso) ?? []), ruta.path])
+    }
 
-    expect(new Set(deModulos).size).toBe(deModulos.length)
+    for (const [permiso, rutas] of porPermiso) {
+      const base = [...rutas].sort((a, b) => a.length - b.length)[0]!
+      // Las vistas de crear/editar de un módulo (`/contenidos/noticias/nueva`) usan el permiso del módulo.
+      for (const ruta of rutas) {
+        expect(ruta === base || ruta.startsWith(`${base}/`), `${permiso}: ${ruta} no cuelga de ${base}`).toBe(true)
+      }
+    }
+    expect(porPermiso.size).toBeGreaterThanOrEqual(18)
   })
 })

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\EstadoNoticia;
 use App\Models\Traits\HasUuids;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -87,6 +88,19 @@ final class Noticia extends Model
         return $this->hasOne(FileMedia::class, 'model_uuid', 'uuid')
             ->where('model_type', self::class)
             ->where('collection', self::COLECCION_IMAGEN);
+    }
+
+    /**
+     * Borrador, programada o publicada, según `activo` y el reloj del servidor.
+     * La misma regla que `scopePublicadas` y que el filtro por estado del panel.
+     */
+    public function estado(): EstadoNoticia
+    {
+        if (! $this->activo) {
+            return EstadoNoticia::BORRADOR;
+        }
+
+        return $this->fecha_publicacion->isFuture() ? EstadoNoticia::PROGRAMADA : EstadoNoticia::PUBLICADA;
     }
 
     /** El texto alternativo de la imagen, o nulo si no hay imagen o no lo tiene. */

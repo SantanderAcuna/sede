@@ -10,6 +10,7 @@ use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\NoticiasDePruebaSeeder;
 use Database\Seeders\SedeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\TestCase;
@@ -139,7 +140,7 @@ final class NoticiasDePruebaSeederTest extends TestCase
      */
     private function sembrarComoEnElServidor(): void
     {
-        $this->artisan('db:seed', ['--class' => NoticiasDePruebaSeeder::class, '--force' => true])->run();
+        Artisan::call('db:seed', ['--class' => NoticiasDePruebaSeeder::class, '--force' => true]);
     }
 
     public function test_se_niega_en_produccion_sin_permiso_expreso(): void

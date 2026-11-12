@@ -649,7 +649,7 @@ paths:
       tags: [Banners]
       operationId: obtenerImagenBanner
       summary: Imagen de una diapositiva vigente
-      description: Dirección estable, con `ETag` y `Cache-Control: public, max-age=300`. 404 si la diapositiva no está vigente o no tiene imagen.
+      description: "Dirección estable, con `ETag` y `Cache-Control public, max-age=300`. 404 si la diapositiva no está vigente o no tiene imagen."
       x-status: implemented
       x-criterios: [CAG-04]
       parameters:
@@ -2196,7 +2196,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: eliminarBanner
       summary: Eliminar una diapositiva
-      description: Requiere `banners.gestionar`. Borrado lógico: deja de verse en el sitio y en el panel; queda en la auditoría.
+      description: "Requiere `banners.gestionar`. Borrado lógico: deja de verse en el sitio y en el panel; queda en la auditoría."
       x-status: implemented
       x-criterios: [CAG-02]
       parameters:
@@ -2227,7 +2227,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: obtenerImagenBannerPanel
       summary: Ver la imagen de una diapositiva, publicada o no
-      description: Requiere `banners.gestionar`. Entrega también la de un borrador; `Cache-Control: private, no-store`.
+      description: "Requiere `banners.gestionar`. Entrega también la de un borrador; `Cache-Control: private, no-store`."
       x-status: implemented
       x-criterios: [CAG-04]
       parameters:

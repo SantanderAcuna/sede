@@ -446,8 +446,13 @@ final class NoticiasTest extends TestCase
         $this->conImagen($publicada);
         $this->noticia(['slug' => 'lista-borrador', 'activo' => false, 'contenido' => 'Cuerpo en borrador.']);
 
+        /** @var list<array<string, mixed>> $datos */
         $datos = $this->actingAs($this->editor(), 'web')->getJson('/api/v1/panel/noticias')->assertOk()->json('data');
-        $porSlug = collect($datos)->keyBy('slug');
+        /** @var array<string, array<string, mixed>> $porSlug */
+        $porSlug = [];
+        foreach ($datos as $elemento) {
+            $porSlug[(string) $elemento['slug']] = $elemento;
+        }
 
         foreach (['lista-publicada', 'lista-borrador'] as $slug) {
             $item = $porSlug[$slug];

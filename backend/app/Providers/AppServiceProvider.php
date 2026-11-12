@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Contracts\Integraciones\FuenteFichaGovCoInterface;
 use App\Contracts\Repositories\AuthRepositoryInterface;
 use App\Contracts\Repositories\BusquedaRepositoryInterface;
 use App\Contracts\Repositories\EntidadRepositoryInterface;
-use App\Contracts\Repositories\IngestaTramiteRepositoryInterface;
 use App\Contracts\Repositories\MenuRepositoryInterface;
 use App\Contracts\Repositories\NoticiaRepositoryInterface;
 use App\Contracts\Repositories\TramitePanelRepositoryInterface;
@@ -20,7 +18,6 @@ use App\Contracts\Services\EntidadServiceInterface;
 use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Contracts\Services\IdentidadServiceInterface;
 use App\Contracts\Services\ImagenContenidoServiceInterface;
-use App\Contracts\Services\IngestaTramitesInterface;
 use App\Contracts\Services\NoticiaServiceInterface;
 use App\Contracts\Services\RolPanelServiceInterface;
 use App\Contracts\Services\TramitePanelServiceInterface;
@@ -40,7 +37,6 @@ use App\Policies\TramitePolicy;
 use App\Repositories\Eloquent\AuthRepository;
 use App\Repositories\Eloquent\BusquedaRepository;
 use App\Repositories\Eloquent\EntidadRepository;
-use App\Repositories\Eloquent\IngestaTramiteRepository;
 use App\Repositories\Eloquent\MenuRepository;
 use App\Repositories\Eloquent\NoticiaRepository;
 use App\Repositories\Eloquent\TramitePanelRepository;
@@ -50,10 +46,8 @@ use App\Services\BannerService;
 use App\Services\BusquedaService;
 use App\Services\EntidadService;
 use App\Services\FilesMediaService;
-use App\Services\GovCo\FuenteFichaGovCo;
 use App\Services\IdentidadService;
 use App\Services\ImagenContenidoService;
-use App\Services\IngestaTramites;
 use App\Services\NoticiaService;
 use App\Services\RolPanelService;
 use App\Services\TramitePanelService;
@@ -117,9 +111,6 @@ class AppServiceProvider extends ServiceProvider
         // la ingesta entera —incluido su comportamiento de reanudación— sin salir a
         // la red: la fuente del Estado limita la tasa y una prueba que dependiera
         // de ella fallaría los días que la fuente decide no contestar.
-        $this->app->bind(IngestaTramiteRepositoryInterface::class, IngestaTramiteRepository::class);
-        $this->app->bind(FuenteFichaGovCoInterface::class, FuenteFichaGovCo::class);
-        $this->app->bind(IngestaTramitesInterface::class, IngestaTramites::class);
     }
 
     /**

@@ -37,15 +37,22 @@ class TramiteFactory extends Factory
         ];
     }
 
-    /** Publicado: con fecha de alta y con el requisito que la regla de publicación exige. */
+    /**
+     * Publicado: con fecha de alta, con el requisito que la regla exige y con la ficha de GOV.CO
+     * que la integración pide para trámites y OPA (RF-B1-021). Las consultas no la usan, pero
+     * ponerla no estorba.
+     */
     public function published(): static
     {
-        return $this->state(fn (): array => ['publicado_en' => now()])
-            ->afterCreating(function (Tramite $tramite): void {
-                if (! $tramite->requisitos()->exists()) {
-                    $tramite->requisitos()->create(['orden' => 1, 'tipo' => 'documento', 'descripcion' => 'Cédula de ciudadanía', 'obligatorio' => true]);
-                }
-            });
+        return $this->state(fn (array $attrs): array => [
+            'publicado_en' => now(),
+            'url_ficha_gov_co' => $attrs['url_ficha_gov_co']
+                ?? 'https://www.gov.co/servicios-y-tramites/'.($attrs['codigo'] ?? 'T00000'),
+        ])->afterCreating(function (Tramite $tramite): void {
+            if (! $tramite->requisitos()->exists()) {
+                $tramite->requisitos()->create(['orden' => 1, 'tipo' => 'documento', 'descripcion' => 'Cédula de ciudadanía', 'obligatorio' => true]);
+            }
+        });
     }
 
     public function conRequisito(string $descripcion = 'Cédula de ciudadanía'): static

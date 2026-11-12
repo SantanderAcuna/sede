@@ -17,10 +17,16 @@ interface TramitePanelRepositoryInterface
 
     public function existeSlug(string $slug): bool;
 
-    /** El siguiente código libre para un trámite del panel: `P0001`, `P0002`… */
-    public function siguienteCodigo(): string;
+    /** El siguiente código libre para el tipo dado: `T0001` (trámite), `O0001` (OPA), `C0001` (consulta). */
+    public function siguienteCodigo(string $tipo): string;
 
-    public function guardar(Tramite $tramite): Tramite;
+    /**
+     * Guarda el trámite y, cuando se recibe la ficha convertida, reemplaza sus filas hijas en una
+     * transacción.
+     *
+     * @param  array<string, mixed>|null  $ficha
+     */
+    public function guardar(Tramite $tramite, ?array $ficha = null): Tramite;
 
     public function eliminar(Tramite $tramite): void;
 }

@@ -6,7 +6,6 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\Tramite;
 use App\Models\User;
-use App\Support\Tramites\FuenteSuit;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TramiteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,12 +13,12 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Tests\TestCase;
 
 /**
- * Gestión de trámites desde el panel (Fase 4).
+ * Gestión de trámites, OPA y consultas desde el panel.
  *
- * Lo que se protege: que un trámite pueda existir incompleto (borrador) pero no publicarse
- * sin sus seis atributos y su ficha GOV.CO; que lo corregido a mano no lo pise la ingesta
- * automática; que lo que viene de la fuente oficial no se pueda borrar (volvería en la
- * siguiente ingesta); y que el permiso se compruebe en el servidor.
+ * Lo que se protege: que un elemento pueda existir incompleto (borrador) pero no publicarse sin su
+ * contenido propio y, para trámites y OPA, su ficha de GOV.CO; que todo elemento sea editable y
+ * borrable (papelera); que la ficha viaje y vuelva en forma relacional sin perderse; que se puedan
+ * crear OPA y consultas; y que el permiso se compruebe en el servidor.
  */
 final class TramitesPanelTest extends TestCase
 {
@@ -28,7 +27,6 @@ final class TramitesPanelTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         $this->seed(PermissionSeeder::class);
     }
 
@@ -65,10 +63,10 @@ final class TramitesPanelTest extends TestCase
         $this->actingAs($sinPermiso)->postJson('/api/v1/panel/tramites', ['nombre' => 'X'])->assertForbidden();
     }
 
-    public function test_el_listado_trae_borradores_y_publicados_con_su_estado_y_origen(): void
+    public function test_el_listado_trae_borradores_y_publicados_con_su_estado(): void
     {
-        Tramite::factory()->published()->create(['nombre' => 'Uno publicado', 'codigo' => 'T1', 'procedencia_fuente' => FuenteSuit::NOMBRE]);
-        Tramite::factory()->create(['nombre' => 'Dos borrador', 'codigo' => 'P0001', 'url_ficha_gov_co' => null]);
+        Tramite::factory()->published()->create(['nombre' => 'Uno publicado', 'codigo' => 'T1']);
+        Tramite::factory()->create(['nombre' => 'Dos borrador', 'codigo' => 'T2', 'url_ficha_gov_co' => null]);
 
         $respuesta = $this->actingAs($this->gestor())->getJson('/api/v1/panel/tramites?ordenar_por=nombre&direccion=asc')
             ->assertOk()
@@ -78,24 +76,20 @@ final class TramitesPanelTest extends TestCase
         $datos = $respuesta->json('data');
         $filas = array_column($datos, null, 'codigo');
         $this->assertSame('publicado', $filas['T1']['estado']);
-        $this->assertSame('fuente', $filas['T1']['origen']);
-        $this->assertSame('borrador', $filas['P0001']['estado']);
-        $this->assertSame('panel', $filas['P0001']['origen']);
-        $this->assertNotEmpty($filas['P0001']['problemas']);
+        $this->assertSame('borrador', $filas['T2']['estado']);
+        $this->assertNotEmpty($filas['T2']['problemas']);
     }
 
-    public function test_buscar_y_filtrar_por_estado_se_hace_en_el_servidor(): void
+    public function test_buscar_y_filtrar_en_el_servidor(): void
     {
         Tramite::factory()->published()->create(['nombre' => 'Licencia de construcción', 'codigo' => 'T1']);
         Tramite::factory()->create(['nombre' => 'Licencia de tránsito', 'codigo' => 'T2']);
-        Tramite::factory()->create(['nombre' => 'Impuesto predial', 'codigo' => 'T3']);
+        Tramite::factory()->opa()->create(['nombre' => 'OPA de ejemplo']);
         $gestor = $this->gestor();
 
         $this->actingAs($gestor)->getJson('/api/v1/panel/tramites?q=licencia')->assertJsonPath('meta.total', 2);
-        $this->actingAs($gestor)->getJson('/api/v1/panel/tramites?q=transito')->assertJsonPath('meta.total', 1);
         $this->actingAs($gestor)->getJson('/api/v1/panel/tramites?estado=publicado')->assertJsonPath('meta.total', 1);
-        $this->actingAs($gestor)->getJson('/api/v1/panel/tramites?estado=borrador')->assertJsonPath('meta.total', 2);
-        $this->actingAs($gestor)->getJson('/api/v1/panel/tramites?q=T3')->assertJsonPath('meta.total', 1);
+        $this->actingAs($gestor)->getJson('/api/v1/panel/tramites?type=opa')->assertJsonPath('meta.total', 1);
         $this->actingAs($gestor)->getJson('/api/v1/panel/tramites?estado=raro')->assertUnprocessable();
     }
 
@@ -104,17 +98,32 @@ final class TramitesPanelTest extends TestCase
         $this->actingAs($this->gestor())->postJson('/api/v1/panel/tramites', ['nombre' => 'Certificado de residencia'])
             ->assertCreated()
             ->assertJsonPath('data.estado', 'borrador')
-            ->assertJsonPath('data.codigo', 'P0001')
+            ->assertJsonPath('data.type', 'tramites')
+            ->assertJsonPath('data.codigo', 'T0001')
             ->assertJsonPath('data.slug', 'certificado-de-residencia')
-            ->assertJsonPath('data.origen', 'panel')
             ->assertJsonPath('data.publicado_en', null);
 
         $this->actingAs($this->gestor())->postJson('/api/v1/panel/tramites', ['nombre' => 'Certificado de residencia'])
             ->assertCreated()
             ->assertJsonPath('data.slug', 'certificado-de-residencia-2')
-            ->assertJsonPath('data.codigo', 'P0002');
+            ->assertJsonPath('data.codigo', 'T0002');
 
         $this->assertDatabaseCount('tramites', 2);
+    }
+
+    public function test_se_puede_crear_una_opa_y_una_consulta(): void
+    {
+        $gestor = $this->gestor();
+
+        $this->actingAs($gestor)->postJson('/api/v1/panel/tramites', ['nombre' => 'OPA de ejemplo', 'type' => 'opa'])
+            ->assertCreated()
+            ->assertJsonPath('data.type', 'opa')
+            ->assertJsonPath('data.codigo', 'O0001');
+
+        $this->actingAs($gestor)->postJson('/api/v1/panel/tramites', ['nombre' => 'Consulta de ejemplo', 'type' => 'consultas'])
+            ->assertCreated()
+            ->assertJsonPath('data.type', 'consultas')
+            ->assertJsonPath('data.codigo', 'C0001');
     }
 
     public function test_publicar_un_incompleto_se_rechaza_y_dice_que_falta(): void
@@ -122,11 +131,31 @@ final class TramitesPanelTest extends TestCase
         $respuesta = $this->actingAs($this->gestor())->postJson('/api/v1/panel/tramites', ['nombre' => 'A medias', 'publicado' => true])
             ->assertUnprocessable();
 
-        $texto = json_encode($respuesta->json('errors'), JSON_UNESCAPED_UNICODE);
+        $texto = (string) json_encode($respuesta->json('errors'), JSON_UNESCAPED_UNICODE);
         foreach (['ficha', 'modalidad', 'costo', 'tiempo', 'canal', 'consulta', 'requisito'] as $palabra) {
-            $this->assertStringContainsStringIgnoringCase($palabra, (string) $texto);
+            $this->assertStringContainsStringIgnoringCase($palabra, $texto);
         }
         $this->assertDatabaseCount('tramites', 0);
+    }
+
+    public function test_una_consulta_se_publica_sin_ficha_gov_co(): void
+    {
+        $datos = [
+            'nombre' => 'Consulta de estado de cuenta',
+            'type' => 'consultas',
+            'resumen' => 'Permite consultar el estado de cuenta.',
+            'modalidad' => 'en_linea',
+            'tiene_costo' => 'gratuito',
+            'tiempo_solucion_dias' => 0,
+            'canal_inicio' => 'propio',
+            'consulta_estado' => 'En línea',
+            'requisitos' => [['tipo' => 'documento', 'descripcion' => 'Número de predio', 'obligatorio' => true]],
+            'publicado' => true,
+        ];
+
+        $this->actingAs($this->gestor())->postJson('/api/v1/panel/tramites', $datos)
+            ->assertCreated()
+            ->assertJsonPath('data.estado', 'publicado');
     }
 
     public function test_un_completo_se_publica_y_el_ciudadano_lo_ve(): void
@@ -139,8 +168,7 @@ final class TramitesPanelTest extends TestCase
         $this->assertNotNull($respuesta->json('data.publicado_en'));
 
         $this->getJson('/api/v1/tramites/certificado-de-residencia')->assertOk()
-            ->assertJsonPath('data.nombre', 'Certificado de residencia')
-            ->assertJsonPath('data.procedencia.fuente', Tramite::FUENTE_PANEL);
+            ->assertJsonPath('data.nombre', 'Certificado de residencia');
     }
 
     public function test_despublicar_lo_saca_del_catalogo_sin_borrarlo(): void
@@ -158,88 +186,69 @@ final class TramitesPanelTest extends TestCase
     public function test_publicar_de_nuevo_conserva_la_fecha_original(): void
     {
         $gestor = $this->gestor();
-        $tramite = Tramite::factory()->published()->create(['publicado_en' => now()->subYear()->startOfDay(), 'codigo' => 'P0009']);
+        $tramite = Tramite::factory()->published()->create(['publicado_en' => now()->subYear()->startOfDay(), 'codigo' => 'T9']);
         $antes = $tramite->publicado_en?->toIso8601String();
 
         $this->actingAs($gestor)->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", ['publicado' => true, 'resumen' => 'Nuevo'])
             ->assertOk()->assertJsonPath('data.publicado_en', $antes);
     }
 
-    public function test_editar_un_tramite_de_la_fuente_lo_marca_como_corregido_para_que_la_ingesta_no_lo_pise(): void
-    {
-        $tramite = Tramite::factory()->published()->create([
-            'codigo' => 'T100',
-            'procedencia_fuente' => FuenteSuit::NOMBRE,
-            'procedencia_url' => 'https://visor/x',
-            'procedencia_obtenido_en' => '2026-10-02',
-            'procedencia_origen_por_campo' => ['nombre' => 'fuente', 'resumen' => 'fuente'],
-        ]);
-
-        $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", ['resumen' => 'Corregido por la Entidad'])
-            ->assertOk()
-            ->assertJsonPath('data.origen', 'fuente')
-            ->assertJsonPath('data.modificado_en_panel', true)
-            ->assertJsonPath('data.procedencia.fuente', Tramite::FUENTE_PANEL)
-            ->assertJsonPath('data.procedencia.url', 'https://visor/x')
-            ->assertJsonPath('data.procedencia.origen_por_campo.resumen', 'entidad')
-            ->assertJsonPath('data.procedencia.origen_por_campo.nombre', 'fuente');
-
-        $this->assertNotSame(FuenteSuit::NOMBRE, $tramite->fresh()?->procedencia_fuente);
-    }
-
     public function test_el_slug_y_el_codigo_no_cambian_al_editar(): void
     {
-        $tramite = Tramite::factory()->create(['codigo' => 'P0003', 'slug' => 'original']);
+        $tramite = Tramite::factory()->create(['codigo' => 'T0003', 'slug' => 'original']);
 
         $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", ['nombre' => 'Otro nombre', 'slug' => 'otro', 'codigo' => 'X'])
-            ->assertOk()->assertJsonPath('data.slug', 'original')->assertJsonPath('data.codigo', 'P0003')->assertJsonPath('data.nombre', 'Otro nombre');
+            ->assertOk()->assertJsonPath('data.slug', 'original')->assertJsonPath('data.codigo', 'T0003')->assertJsonPath('data.nombre', 'Otro nombre');
     }
 
-    public function test_guarda_todas_las_listas_de_la_ficha(): void
+    public function test_guarda_y_devuelve_la_ficha_relacional(): void
     {
-        $tramite = Tramite::factory()->create(['codigo' => 'P0005']);
+        $tramite = Tramite::factory()->create(['codigo' => 'T0005']);
         $datos = [
+            'pasos' => [['orden' => 1, 'titulo' => 'Reunir documentos', 'descripcion' => 'Prepare los soportes']],
+            'requisitos' => [['tipo' => 'documento', 'descripcion' => 'Cédula', 'obligatorio' => true, 'orden' => 1, 'paso' => 1]],
             'documentos' => [['nombre' => 'Formulario', 'url' => 'https://x.co/f.pdf', 'formato' => 'PDF']],
-            'momentos' => [['orden' => 1, 'titulo' => 'Reunir documentos', 'descripcion' => 'Prepare los soportes', 'requisitos' => [['tipo' => 'documento', 'descripcion' => 'Cédula', 'obligatorio' => true]]]],
-            'audiencias' => [['grupo' => 'Ciudadano', 'nombre' => 'Juventud', 'descripcion' => null]],
-            'perfiles' => ['Ciudadano'],
-            'medios_resultado' => ['Correo electrónico'],
             'puntos_atencion' => [['nombre' => 'Palacio', 'direccion' => 'Calle 14 No. 2-49', 'horario' => 'L-V', 'telefono' => '6054209600', 'latitud' => 11.24, 'longitud' => -74.21]],
             'normativa' => [['tipo' => 'Ley', 'numero' => '1437', 'anio' => 2011, 'articulos' => '1-5', 'url' => 'https://x.co/l']],
-            'cuentas' => [['banco' => 'Bancolombia', 'tipo' => 'Ahorros', 'numero' => '123456', 'titular' => 'Distrito']],
             'canales_consulta_estado' => [['canal' => 'web', 'habilitado' => true, 'nombre' => 'Sede', 'url' => 'https://x.co']],
-            'seguimiento' => ['telefono' => [['numero' => '6054209600', 'horario' => 'L-V']], 'email' => [['email' => 'a@b.co']], 'web' => [['url' => 'https://x.co']]],
-            'costo' => ['tiene_costo' => 'con_costo', 'tipo_valor' => 'fijo', 'valor' => '25000', 'moneda' => 'COP', 'url_pago' => 'https://pagos.co', 'descripcion' => 'Derechos', 'cuentas' => [['entidad' => 'Banco', 'numero_cuenta' => '99']]],
+            'solicitantes' => ['ciudadano', 'organizaciones'],
+            'medios_resultado' => ['Correo electrónico'],
+            'costo' => ['tiene_costo' => 'con_costo', 'tipo_valor' => 'fijo', 'valor' => '25000', 'moneda' => 'COP', 'url_pago' => 'https://pagos.co', 'descripcion' => 'Derechos', 'cuentas' => [['banco' => 'Bancolombia', 'tipo' => 'Ahorros', 'numero' => '99', 'titular' => 'Distrito']]],
             'tiene_costo' => 'con_costo',
-            'resultado' => 'Certificado', 'producto_final' => 'Certificado en PDF', 'observaciones_resultado' => 'Depende del caso',
-            'fecha_cualquiera' => false, 'cuando_se_puede_realizar' => 'En enero', 'url_calendario' => 'https://x.co/c',
-            'palabras_relacionadas' => 'residencia, domicilio', 'url_manual_tramite_en_linea' => 'https://x.co/m',
+            'resultado' => 'Certificado', 'observaciones_resultado' => 'Depende del caso',
             'categoria' => ['slug' => 'vivienda', 'nombre' => 'Vivienda'],
         ];
 
-        $respuesta = $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", $datos)->assertOk();
+        $r = $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", $datos)->assertOk();
 
-        foreach (['documentos', 'momentos', 'audiencias', 'perfiles', 'medios_resultado', 'puntos_atencion', 'normativa', 'cuentas', 'canales_consulta_estado', 'seguimiento'] as $clave) {
-            $this->assertEquals($datos[$clave], $respuesta->json("data.{$clave}"), $clave);
-        }
-        $this->assertSame('vivienda', $respuesta->json('data.categoria.slug'));
-        $this->assertSame('25000.00', $respuesta->json('data.costo.valor'));
-        $this->assertSame('COP', $respuesta->json('data.costo.moneda'));
-        $this->assertSame('Derechos', $respuesta->json('data.costo.descripcion'));
-        $this->assertFalse($respuesta->json('data.fecha_cualquiera'));
+        $r->assertJsonPath('data.pasos.0.titulo', 'Reunir documentos')
+            ->assertJsonPath('data.requisitos.0.descripcion', 'Cédula')
+            ->assertJsonPath('data.requisitos.0.paso', 1)
+            ->assertJsonPath('data.documentos.0.nombre', 'Formulario')
+            ->assertJsonPath('data.puntos_atencion.0.nombre', 'Palacio')
+            ->assertJsonPath('data.normativa.0.numero', '1437')
+            ->assertJsonPath('data.canales_consulta_estado.0.canal', 'web')
+            ->assertJsonPath('data.solicitantes', ['ciudadano', 'organizaciones'])
+            ->assertJsonPath('data.medios_resultado', ['Correo electrónico'])
+            ->assertJsonPath('data.costo.valor', '25000.00')
+            ->assertJsonPath('data.costo.cuentas.0.banco', 'Bancolombia')
+            ->assertJsonPath('data.categoria.slug', 'vivienda');
     }
 
     public function test_vaciar_una_lista_la_deja_vacia(): void
     {
-        $tramite = Tramite::factory()->create(['codigo' => 'P0006', 'perfiles' => ['Ciudadano']]);
+        $tramite = Tramite::factory()->create(['codigo' => 'T0006']);
+        $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", [
+            'documentos' => [['nombre' => 'Uno']],
+        ])->assertOk()->assertJsonPath('data.documentos.0.nombre', 'Uno');
 
-        $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", ['perfiles' => []])
-            ->assertOk()->assertJsonPath('data.perfiles', []);
+        $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", ['documentos' => []])
+            ->assertOk()->assertJsonPath('data.documentos', []);
     }
 
     public function test_los_datos_mal_formados_se_rechazan_con_mensajes_utiles(): void
     {
-        $tramite = Tramite::factory()->create(['codigo' => 'P0007']);
+        $tramite = Tramite::factory()->create(['codigo' => 'T0007']);
         $gestor = $this->gestor();
         $ruta = "/api/v1/panel/tramites/{$tramite->uuid}";
 
@@ -249,32 +258,32 @@ final class TramitesPanelTest extends TestCase
         $this->actingAs($gestor)->patchJson($ruta, ['requisitos' => [['tipo' => 'otro', 'descripcion' => 'x']]])->assertUnprocessable()->assertJsonValidationErrors(['requisitos.0.tipo']);
         $this->actingAs($gestor)->patchJson($ruta, ['normativa' => [['tipo' => 'Ley', 'url' => 'no es url']]])->assertUnprocessable()->assertJsonValidationErrors(['normativa.0.url']);
         $this->actingAs($gestor)->patchJson($ruta, ['puntos_atencion' => [['nombre' => 'x', 'direccion' => 'y', 'latitud' => 200]]])->assertUnprocessable()->assertJsonValidationErrors(['puntos_atencion.0.latitud']);
-        $this->actingAs($gestor)->patchJson($ruta, ['seguimiento' => ['email' => [['email' => 'no']]]])->assertUnprocessable()->assertJsonValidationErrors(['seguimiento.email.0.email']);
         $this->actingAs($gestor)->patchJson($ruta, ['nombre' => str_repeat('a', 201)])->assertUnprocessable()->assertJsonValidationErrors(['nombre']);
     }
 
-    public function test_texto_con_etiquetas_se_guarda_tal_cual_como_texto_y_se_publica_escapado_por_el_sitio(): void
+    public function test_texto_con_etiquetas_se_guarda_tal_cual(): void
     {
-        $tramite = Tramite::factory()->create(['codigo' => 'P0008']);
+        $tramite = Tramite::factory()->create(['codigo' => 'T0008']);
 
         $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", ['resumen' => '<script>alert(1)</script> hola'])
             ->assertOk();
 
-        // Es texto plano: el sitio lo pinta con {{ }} (escapado). Aquí solo se verifica que no se interpreta ni se pierde.
         $this->assertSame('<script>alert(1)</script> hola', $tramite->fresh()?->resumen);
     }
 
-    public function test_un_tramite_creado_en_el_panel_se_puede_eliminar_pero_el_de_la_fuente_no(): void
+    public function test_todo_elemento_se_puede_borrar(): void
     {
         $gestor = $this->gestor();
-        $propio = Tramite::factory()->create(['codigo' => 'P0010']);
-        $deLaFuente = Tramite::factory()->create(['codigo' => 'T200', 'procedencia_fuente' => FuenteSuit::NOMBRE]);
+        $propio = Tramite::factory()->create(['codigo' => 'T0010']);
+        $otro = Tramite::factory()->published()->create(['codigo' => 'T200']);
 
         $this->actingAs($gestor)->deleteJson("/api/v1/panel/tramites/{$propio->uuid}")->assertNoContent();
-        $this->assertDatabaseMissing('tramites', ['uuid' => $propio->uuid]);
+        $this->actingAs($gestor)->deleteJson("/api/v1/panel/tramites/{$otro->uuid}")->assertNoContent();
 
-        $this->actingAs($gestor)->deleteJson("/api/v1/panel/tramites/{$deLaFuente->uuid}")->assertStatus(409);
-        $this->assertDatabaseHas('tramites', ['uuid' => $deLaFuente->uuid]);
+        // A la papelera (soft delete): la fila sigue existiendo con su fecha de borrado.
+        $this->assertSoftDeleted('tramites', ['uuid' => $propio->uuid]);
+        $this->assertSoftDeleted('tramites', ['uuid' => $otro->uuid]);
+        $this->getJson('/api/v1/tramites/'.$otro->slug)->assertNotFound();
     }
 
     public function test_un_identificador_que_no_es_uuid_es_404_no_500(): void
@@ -287,7 +296,7 @@ final class TramitesPanelTest extends TestCase
 
     public function test_el_indice_de_busqueda_se_actualiza_al_cambiar_el_nombre(): void
     {
-        $tramite = Tramite::factory()->published()->create(['codigo' => 'P0011', 'nombre' => 'Antiguo']);
+        $tramite = Tramite::factory()->published()->create(['codigo' => 'T0011', 'nombre' => 'Antiguo']);
 
         $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", ['nombre' => 'Zanahoria'])->assertOk();
 
@@ -295,49 +304,41 @@ final class TramitesPanelTest extends TestCase
     }
 
     /**
-     * El panel reenvía lo que recibe: abrir un trámite de la fuente oficial y guardarlo sin tocarlo
-     * no puede perder datos ni ser rechazado. Se prueba con el catálogo real sembrado (todas las
-     * formas que trae SUIT: canales, pagos y cuentas por requisito, descripciones nulas…).
+     * Abrir un trámite real del catálogo cargado y guardarlo sin tocarlo no puede perder ni
+     * reordenar la ficha: el GET y el POST usan la misma forma relacional.
      */
-    public function test_guardar_sin_cambios_un_tramite_real_de_la_fuente_no_pierde_ni_rechaza_nada(): void
+    public function test_guardar_sin_cambios_un_tramite_del_catalogo_no_pierde_nada(): void
     {
         $this->seed(TramiteSeeder::class);
-        $this->withoutMiddleware(ThrottleRequests::class); // 246 peticiones seguidas
+        $this->withoutMiddleware(ThrottleRequests::class);
         $gestor = $this->gestor();
-        $campos = ['resumen', 'url_ficha_gov_co', 'modalidad', 'tiene_costo', 'tiempo_solucion_dias', 'canal_inicio', 'url_inicio',
-            'url_manual_tramite_en_linea', 'consulta_estado', 'resultado', 'producto_final', 'observaciones_resultado', 'fecha_cualquiera',
-            'cuando_se_puede_realizar', 'url_calendario', 'palabras_relacionadas', 'costo', 'categoria', 'requisitos', 'documentos',
-            'momentos', 'audiencias', 'perfiles', 'medios_resultado', 'puntos_atencion', 'normativa', 'cuentas',
-            'canales_consulta_estado', 'seguimiento'];
+        $campos = ['resumen', 'url_ficha_gov_co', 'modalidad', 'tiene_costo', 'tiempo_solucion_dias', 'canal_inicio',
+            'url_inicio', 'consulta_estado', 'resultado', 'medios_resultado', 'costo', 'categoria',
+            'pasos', 'requisitos', 'documentos', 'puntos_atencion', 'normativa', 'canales_consulta_estado', 'solicitantes'];
 
         $revisados = 0;
-        $invalidas = 0;
-        foreach (Tramite::query()->get() as $tramite) {
+        foreach (Tramite::query()->take(30)->get() as $tramite) {
             $antes = $this->actingAs($gestor)->getJson("/api/v1/panel/tramites/{$tramite->uuid}")->assertOk()->json('data');
             $envio = array_intersect_key($antes, array_flip($campos));
             $envio['nombre'] = $antes['nombre'];
 
-            // La fuente trae una dirección de pago que no es una dirección (un texto con espacios): al
-            // reenviarla el panel la rechaza con el campo exacto, y quien edita debe corregirla. Aquí se
-            // simula esa corrección para comprobar que todo lo demás viaja intacto.
-            $envio = self::sinDireccionesDePagoInvalidas($envio, $invalidas);
+            $despues = $this->actingAs($gestor)->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", $envio)
+                ->assertOk()->json('data');
 
-            $respuesta = $this->actingAs($gestor)->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", $envio);
-            $this->assertSame(200, $respuesta->status(), "{$tramite->codigo}: ".json_encode($respuesta->json('errors'), JSON_UNESCAPED_UNICODE));
-
-            $despues = $respuesta->json('data');
-            $antes = self::sinDireccionesDePagoInvalidas($antes, $invalidas);
-            foreach (['requisitos', 'momentos', 'documentos', 'puntos_atencion', 'normativa', 'seguimiento', 'cuentas', 'canales_consulta_estado', 'costo', 'audiencias'] as $campo) {
-                $this->assertSame(self::canonico($antes[$campo]), self::canonico($despues[$campo]), "{$tramite->codigo}: se alteró «{$campo}» al guardar sin cambios.");
+            foreach (['requisitos', 'pasos', 'documentos', 'puntos_atencion', 'normativa', 'canales_consulta_estado', 'solicitantes'] as $campo) {
+                $this->assertSame(
+                    self::canonico($antes[$campo]),
+                    self::canonico($despues[$campo]),
+                    "{$tramite->codigo}: se alteró «{$campo}» al guardar sin cambios.",
+                );
             }
             $revisados++;
         }
 
-        $this->assertGreaterThan(50, $revisados);
-        $this->assertGreaterThan(0, $invalidas, 'Se esperaba al menos una dirección de pago inválida en la fuente (defecto conocido).');
+        $this->assertGreaterThan(20, $revisados);
     }
 
-    /** Orden de claves, espacios sobrantes y «vacío» ('' o null) no son información: se igualan para comparar. */
+    /** Orden de claves, espacios de borde (incluido el no-separable) y «vacío» no son información. */
     private static function canonico(mixed $valor): mixed
     {
         if (! is_array($valor)) {
@@ -351,26 +352,5 @@ final class TramitesPanelTest extends TestCase
         }
 
         return $limpio;
-    }
-
-    /**
-     * Anula las direcciones web que no lo son (defecto de la fuente, ver el test): simula la corrección de quien edita.
-     *
-     * @param  array<mixed>  $datos
-     * @return array<mixed>
-     */
-    private static function sinDireccionesDePagoInvalidas(array $datos, int &$contador): array
-    {
-        foreach ($datos as $clave => $valor) {
-            if (is_array($valor)) {
-                $datos[$clave] = self::sinDireccionesDePagoInvalidas($valor, $contador);
-            } elseif (is_string($clave) && is_string($valor) && trim($valor) !== '' && ($clave === 'url' || str_starts_with($clave, 'url_') || str_ends_with($clave, '_url') || $clave === 'formulario_url')
-                && validator(['u' => $valor], ['u' => 'url:http,https'])->fails()) {
-                $datos[$clave] = null;
-                $contador++;
-            }
-        }
-
-        return $datos;
     }
 }

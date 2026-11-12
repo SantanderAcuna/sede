@@ -24,6 +24,7 @@ final class ListarTramitesPanelRequest extends FormRequest
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'q' => ['sometimes', 'nullable', 'string', 'max:100'],
             'estado' => ['sometimes', 'nullable', Rule::in(FiltrosTramitePanel::ESTADOS)],
+            'type' => ['sometimes', 'nullable', Rule::in(FiltrosTramitePanel::TIPOS)],
             'ordenar_por' => ['sometimes', Rule::in(FiltrosTramitePanel::ORDENES)],
             'direccion' => ['sometimes', Rule::in(['asc', 'desc'])],
         ];
@@ -39,12 +40,14 @@ final class ListarTramitesPanelRequest extends FormRequest
         $ordenarPor = (string) $this->validated('ordenar_por', FiltrosTramitePanel::ORDEN_ACTUALIZADO);
         $texto = trim((string) $this->validated('q', ''));
         $estado = (string) $this->validated('estado', '');
+        $tipo = (string) $this->validated('type', '');
 
         return new FiltrosTramitePanel(
             texto: $texto === '' ? null : $texto,
             estado: $estado === '' ? null : $estado,
             ordenarPor: $ordenarPor,
             direccion: (string) $this->validated('direccion', $ordenarPor === FiltrosTramitePanel::ORDEN_NOMBRE ? 'asc' : 'desc'),
+            tipo: $tipo === '' ? null : $tipo,
         );
     }
 }

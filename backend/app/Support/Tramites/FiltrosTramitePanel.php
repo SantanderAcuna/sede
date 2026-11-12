@@ -15,10 +15,14 @@ final readonly class FiltrosTramitePanel
 
     public const ESTADOS = ['publicado', 'borrador'];
 
+    public const TIPOS = ['tramites', 'opa', 'consultas'];
+
     public function __construct(
         public ?string $texto,
         public ?string $estado,
         public string $ordenarPor,
         public string $direccion,
+        /** Grupo del catálogo a filtrar en el panel; nulo = los tres. */
+        public ?string $tipo = null,
     ) {}
 }

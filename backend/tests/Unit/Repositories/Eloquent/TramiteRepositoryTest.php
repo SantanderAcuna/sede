@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Tests\Unit\Repositories\Eloquent;
 
 use App\Models\Tramite;
+use App\Models\TramiteCategoria;
 use App\Repositories\Eloquent\TramiteRepository;
 use App\Support\Tramites\FiltrosTramite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Unidad de TramiteRepository.
+ * Unidad de TramiteRepository sobre el modelo relacional: filtros facetados, facetas y ficha.
  */
 final class TramiteRepositoryTest extends TestCase
 {
@@ -26,44 +27,55 @@ final class TramiteRepositoryTest extends TestCase
     }
 
     /** @param array<string, mixed> $override */
-    private function publicar(array $override = []): Tramite
+    private function publicar(array $override = [], ?string $categoriaSlug = null): Tramite
     {
+        $categoriaId = $categoriaSlug === null
+            ? null
+            : TramiteCategoria::query()->firstOrCreate(['slug' => $categoriaSlug], ['nombre' => ucfirst($categoriaSlug)])->id;
+
         return Tramite::factory()->published()->create(array_merge([
             'nombre' => 'Trámite de prueba',
-            'slug' => 'tramite-prueba',
-            'codigo' => 'T00001',
             'modalidad' => 'parcialmente_en_linea',
             'tiene_costo' => 'gratuito',
             'costo' => null,
             'tiempo_solucion_dias' => 15,
             'canal_inicio' => 'propio',
             'consulta_estado' => '/seguimiento?radicado=…',
-            'requisitos' => [['descripcion' => 'Cédula', 'obligatorio' => true]],
-            'url_ficha_gov_co' => 'https://www.gov.co/ficha/T00001',
-            'categoria_slug' => 'finanzas',
-            'publicado_en' => now(),
+            'categoria_id' => $categoriaId,
         ], $override));
     }
 
-    public function test_paginar_sin_filtros_devuelve_todos_los_publicados(): void
-    {
-        $this->publicar(['slug' => 'tramite-1', 'codigo' => 'T00001']);
-        $this->publicar(['slug' => 'tramite-2', 'codigo' => 'T00002']);
+    private function filtros(
+        ?string $tipo = null,
+        ?string $buscar = null,
+        ?string $categoria = null,
+        ?string $modalidad = null,
+        ?string $costo = null,
+        ?int $dependencia = null,
+        ?string $solicitante = null,
+    ): FiltrosTramite {
+        return new FiltrosTramite(
+            pagina: 1, porPagina: 10, buscar: $buscar, categoria: $categoria, tipo: $tipo,
+            modalidad: $modalidad, costo: $costo, dependencia: $dependencia, solicitante: $solicitante,
+        );
+    }
 
-        $filtros = new FiltrosTramite(pagina: 1, porPagina: 10, buscar: null, categoria: null, tipo: null);
-        $resultado = $this->repository->paginar($filtros);
+    public function test_paginar_del_grupo_tramites_devuelve_los_publicados(): void
+    {
+        $this->publicar(['slug' => 'tramite-1']);
+        $this->publicar(['slug' => 'tramite-2']);
+
+        $resultado = $this->repository->paginar($this->filtros(tipo: 'tramites'));
 
         $this->assertSame(2, $resultado->total());
     }
 
     public function test_paginar_filtra_por_tipo(): void
     {
-        // Línea 25: where('type', $filtros->tipo)
-        $this->publicar(['slug' => 'tramite-1', 'codigo' => 'T00001', 'type' => 'tramites']);
-        $this->publicar(['slug' => 'tramite-2', 'codigo' => 'T00002', 'type' => 'opa']);
+        $this->publicar(['slug' => 'tramite-1', 'type' => 'tramites']);
+        $this->publicar(['slug' => 'opa-2', 'type' => 'opa']);
 
-        $filtros = new FiltrosTramite(pagina: 1, porPagina: 10, buscar: null, categoria: null, tipo: 'tramites');
-        $resultado = $this->repository->paginar($filtros);
+        $resultado = $this->repository->paginar($this->filtros(tipo: 'tramites'));
 
         $this->assertSame(1, $resultado->total());
         $this->assertNotNull($resultado->first());
@@ -72,26 +84,51 @@ final class TramiteRepositoryTest extends TestCase
 
     public function test_paginar_filtra_por_categoria(): void
     {
-        // Línea 29: where('categoria_slug', $filtros->categoria)
-        $this->publicar(['slug' => 'tramite-1', 'codigo' => 'T00001', 'categoria_slug' => 'finanzas']);
-        $this->publicar(['slug' => 'tramite-2', 'codigo' => 'T00002', 'categoria_slug' => 'salud']);
+        $this->publicar(['slug' => 'tramite-1'], categoriaSlug: 'finanzas');
+        $this->publicar(['slug' => 'tramite-2'], categoriaSlug: 'salud');
 
-        $filtros = new FiltrosTramite(pagina: 1, porPagina: 10, buscar: null, categoria: 'finanzas', tipo: null);
-        $resultado = $this->repository->paginar($filtros);
+        $resultado = $this->repository->paginar($this->filtros(tipo: 'tramites', categoria: 'finanzas'));
 
         $this->assertSame(1, $resultado->total());
         $this->assertNotNull($resultado->first());
-        $this->assertSame('finanzas', $resultado->first()->categoria_slug);
+        $this->assertSame('finanzas', $resultado->first()->categoria?->slug);
     }
 
-    public function test_por_slug_devuelve_tramite_publicado(): void
+    public function test_paginar_filtra_por_modalidad_y_costo(): void
     {
-        $tramite = $this->publicar(['slug' => 'mi-slug', 'codigo' => 'T00001']);
+        $this->publicar(['slug' => 'en-linea', 'modalidad' => 'en_linea', 'tiene_costo' => 'gratuito']);
+        $this->publicar(['slug' => 'presencial', 'modalidad' => 'presencial', 'tiene_costo' => 'con_costo']);
+
+        $this->assertSame(1, $this->repository->paginar($this->filtros(tipo: 'tramites', modalidad: 'en_linea'))->total());
+        $this->assertSame(1, $this->repository->paginar($this->filtros(tipo: 'tramites', costo: 'con_costo'))->total());
+    }
+
+    public function test_facetas_cuentan_por_grupo_modalidad_y_costo(): void
+    {
+        $this->publicar(['slug' => 't1', 'modalidad' => 'en_linea', 'tiene_costo' => 'gratuito']);
+        $this->publicar(['slug' => 't2', 'modalidad' => 'presencial', 'tiene_costo' => 'con_costo']);
+        $this->publicar(['slug' => 'o1', 'type' => 'opa']);
+
+        $facetas = $this->repository->facetas($this->filtros(tipo: 'tramites'));
+
+        // El tipo cuenta sobre todos los grupos; el resto, sobre el grupo activo (tramites: 2).
+        $tipos = collect($facetas['tipos'])->pluck('total', 'valor')->all();
+        $this->assertSame(2, $tipos['tramites']);
+        $this->assertSame(1, $tipos['opa']);
+        $this->assertCount(2, $facetas['modalidades']);
+        $this->assertCount(2, $facetas['costos']);
+    }
+
+    public function test_por_slug_devuelve_la_ficha_con_relaciones(): void
+    {
+        $tramite = $this->publicar(['slug' => 'mi-slug']);
 
         $encontrado = $this->repository->porSlug('mi-slug');
 
         $this->assertNotNull($encontrado);
         $this->assertSame($tramite->id, $encontrado->id);
+        $this->assertTrue($encontrado->relationLoaded('requisitos'));
+        $this->assertTrue($encontrado->requisitos->isNotEmpty());
     }
 
     public function test_por_slug_devuelve_null_cuando_no_existe(): void
@@ -101,7 +138,7 @@ final class TramiteRepositoryTest extends TestCase
 
     public function test_por_slug_devuelve_null_cuando_esta_sin_publicar(): void
     {
-        $this->publicar(['slug' => 'borrador', 'codigo' => 'T00001', 'publicado_en' => null]);
+        $this->publicar(['slug' => 'borrador', 'publicado_en' => null]);
 
         $this->assertNull($this->repository->porSlug('borrador'));
     }

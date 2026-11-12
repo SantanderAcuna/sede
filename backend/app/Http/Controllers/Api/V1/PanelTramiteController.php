@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\Services\TramitePanelServiceInterface;
 use App\Exceptions\TramiteIncompleto;
-use App\Exceptions\TramiteNoSePuedeEliminar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarTramiteRequest;
 use App\Http\Requests\ListarTramitesPanelRequest;
@@ -103,7 +102,7 @@ final class PanelTramiteController extends Controller
     }
 
     /**
-     * Elimina un trámite creado en el panel. Los del catálogo oficial no se eliminan: se despublican.
+     * Envía un elemento del catálogo a la papelera. Todo elemento es borrable (soft delete).
      *
      * @operationId eliminarTramite
      */
@@ -115,11 +114,7 @@ final class PanelTramiteController extends Controller
         }
         Gate::authorize('delete', $tramite);
 
-        try {
-            $this->tramites->eliminar($tramite);
-        } catch (TramiteNoSePuedeEliminar $e) {
-            return ApiResponse::error($e->getMessage(), 409);
-        }
+        $this->tramites->eliminar($tramite);
 
         return response()->noContent();
     }

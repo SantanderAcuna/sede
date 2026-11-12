@@ -92,7 +92,7 @@ final class ConversorFichaJson
             foreach (self::lista($momento['requisitos'] ?? null) as $requisito) {
                 $fila = self::requisito($requisito, ++$orden, $numero);
                 if ($fila === null || isset($vistos[self::clave($fila)])) {
-                    --$orden;
+                    $orden--;
 
                     continue;
                 }
@@ -106,7 +106,7 @@ final class ConversorFichaJson
             if ($fila === null || isset($vistos[self::clave($fila)])) {
                 continue;
             }
-            ++$orden;
+            $orden++;
             $vistos[self::clave($fila)] = true;
             $requisitos[] = $fila;
         }

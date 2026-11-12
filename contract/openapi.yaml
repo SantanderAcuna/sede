@@ -71,6 +71,8 @@ tags:
     description: 10 subsecciones de Ley 1712, documentos, búsqueda
   - name: Buscar
     description: Búsqueda full-text unificada
+  - name: Panel — Imágenes del contenido
+    description: Imágenes que el editor del panel inserta en noticias, políticas y entidad
   - name: Panel — Noticias
     description: Alta, edición y publicación de noticias (permiso noticias.gestionar)
   - name: Panel — Auth
@@ -1655,6 +1657,87 @@ paths:
           $ref: '#/components/responses/NoAutenticado'
         '404':
           $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PANEL — IMÁGENES DEL CONTENIDO
+  # ══════════════════════════════════════════════════════════════════════════════
+  /contenido/imagenes/{uuid}:
+    get:
+      tags: [Panel — Imágenes del contenido]
+      operationId: obtenerImagenContenido
+      summary: Una imagen insertada en el contenido publicado
+      description: |
+        Pública, con límite de peticiones. Sólo sirve las imágenes subidas por el editor
+        del panel (colección «contenido»); cualquier otro archivo responde 404. Lleva
+        `Cache-Control: public, max-age=86400, immutable` y `X-Content-Type-Options: nosniff`.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: El archivo de imagen
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
+  /panel/contenido/imagenes:
+    post:
+      tags: [Panel — Imágenes del contenido]
+      operationId: subirImagenContenido
+      summary: Subir una imagen para insertarla en el contenido
+      description: |
+        Requiere `noticias.gestionar`, `politicas.gestionar` o `entidad.gestionar`. La
+        imagen y su texto alternativo (`alt`) van siempre juntos. PNG, JPG o WebP, hasta
+        5 MB y 4000 px por lado. Se re-codifica antes de guardarse (sin EXIF ni bytes
+        añadidos). Devuelve la URL pública con la que se inserta en el HTML.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [imagen, alt]
+              properties:
+                imagen: { type: string, format: binary }
+                alt:
+                  type: string
+                  maxLength: 250
+                  description: Describe lo que muestra la imagen para quien no la ve.
+      responses:
+        '201':
+          description: Imagen subida
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [uuid, url, alt]
+                        properties:
+                          uuid: { type: string, format: uuid }
+                          url: { type: string, example: /api/v1/contenido/imagenes/0b9e0a5e-3a52-4c43-9f0e-5a0f4a4e2c11 }
+                          alt: { type: string }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
         '422':
           $ref: '#/components/responses/ValidacionInvalida'
       security:

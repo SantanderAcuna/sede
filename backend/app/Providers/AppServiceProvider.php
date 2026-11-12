@@ -17,6 +17,7 @@ use App\Contracts\Services\BusquedaServiceInterface;
 use App\Contracts\Services\EntidadServiceInterface;
 use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Contracts\Services\IdentidadServiceInterface;
+use App\Contracts\Services\ImagenContenidoServiceInterface;
 use App\Contracts\Services\IngestaTramitesInterface;
 use App\Contracts\Services\NoticiaServiceInterface;
 use App\Contracts\Services\TramiteServiceInterface;
@@ -40,6 +41,7 @@ use App\Services\EntidadService;
 use App\Services\FilesMediaService;
 use App\Services\GovCo\FuenteFichaGovCo;
 use App\Services\IdentidadService;
+use App\Services\ImagenContenidoService;
 use App\Services\IngestaTramites;
 use App\Services\NoticiaService;
 use App\Services\TramiteService;
@@ -88,6 +90,7 @@ class AppServiceProvider extends ServiceProvider
 
         // FilesMedia: archivos subidos
         $this->app->bind(FilesMediaServiceInterface::class, FilesMediaService::class);
+        $this->app->bind(ImagenContenidoServiceInterface::class, ImagenContenidoService::class);
 
         // La ingesta y su fuente. La interfaz de la fuente es lo que permite probar
         // la ingesta entera —incluido su comportamiento de reanudación— sin salir a

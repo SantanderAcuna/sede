@@ -13,8 +13,8 @@ use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
  */
 final class SanitizadorHtml
 {
-    /** Resto de la URL de una imagen propia: lo que sube el panel a `file_media` (colección «contenido»). */
-    private const RESTO_IMAGEN = 'file_media/[a-z0-9_]+/contenido/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:png|jpg|webp)';
+    /** Lo que sigue al prefijo: el uuid de una imagen subida por el editor (colección «contenido»). */
+    private const RESTO_IMAGEN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 
     private string $patronImagen;
 
@@ -22,12 +22,12 @@ final class SanitizadorHtml
 
     /**
      * @param  list<string>  $prefijosImagen  Inicios de URL admitidos para imágenes propias
-     *                                        (p. ej. «/storage/» o la URL base del disco remoto).
+     *                                        (la ruta pública de `ImagenContenidoController`, relativa o con el dominio de la sede).
      */
-    public function __construct(array $prefijosImagen = ['/storage/'])
+    public function __construct(array $prefijosImagen = ['/api/v1/contenido/imagenes/'])
     {
         $alternativas = array_map(static fn (string $p): string => preg_quote($p, '#'), $prefijosImagen);
-        $this->patronImagen = '#^(?:'.implode('|', $alternativas).')'.self::RESTO_IMAGEN.'$#';
+        $this->patronImagen = '#^(?:'.implode('|', $alternativas).')'.self::RESTO_IMAGEN.'\z#';
 
         $config = (new HtmlSanitizerConfig)
             ->allowElement('h2')->allowElement('h3')

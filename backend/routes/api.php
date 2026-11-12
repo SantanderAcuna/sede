@@ -125,6 +125,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         ->name('tramites.mostrar')
         ->withoutMiddleware('throttle:api')
         ->middleware('throttle:lecturas-publicas');
+    // La valoración de una ficha — escritura pública con su propio límite por IP.
+    Route::post('/tramites/{slug}/valoracion', [TramiteController::class, 'valorar'])
+        ->name('tramites.valorar')
+        ->withoutMiddleware('throttle:api')
+        ->middleware('throttle:valoraciones');
 
     // La búsqueda de la sede (T-22). Las dos operaciones son públicas y comparten un
     // límite por IP: se llaman mientras el ciudadano escribe, así que son las más
@@ -181,6 +186,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/tramites/{uuid}', [PanelTramiteController::class, 'show'])->name('panel.tramites.show');
             Route::patch('/tramites/{uuid}', [PanelTramiteController::class, 'update'])->name('panel.tramites.update');
             Route::delete('/tramites/{uuid}', [PanelTramiteController::class, 'destroy'])->name('panel.tramites.destroy');
+            // Las dependencias responsables, para el selector del formulario.
+            Route::get('/dependencias', [PanelTramiteController::class, 'dependencias'])->name('panel.tramites.dependencias');
         });
 
         // Carrusel de la portada (banners).

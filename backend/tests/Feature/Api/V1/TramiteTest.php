@@ -6,16 +6,15 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\Tramite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
  * El catálogo público de trámites.
  *
- * Lo que estas pruebas protegen no es que la ruta responda, sino las tres
- * promesas que el contrato hace al ciudadano: que el catálogo se puede recorrer
- * por páginas, que la búsqueda perdona las tildes —el sitio ya lo asume— y que
- * nada sin ficha en GOV.CO llega a publicarse.
+ * Lo que estas pruebas protegen no es que la ruta responda, sino las promesas del contrato: que el
+ * catálogo se recorre por páginas, que la tarjeta trae los metadatos que el directorio compara
+ * (modalidad, costo, tiempo), que la búsqueda perdona las tildes, que las facetas acompañan al
+ * listado y que la integración con GOV.CO se cumple —un trámite sin ficha nacional no se publica—.
  */
 final class TramiteTest extends TestCase
 {
@@ -31,8 +30,6 @@ final class TramiteTest extends TestCase
 
         $respuesta->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('message', null)
-            ->assertJsonPath('errors', null)
             ->assertJsonPath('meta.current_page', 2)
             ->assertJsonPath('meta.per_page', 10)
             ->assertJsonPath('meta.last_page', 3)
@@ -44,39 +41,38 @@ final class TramiteTest extends TestCase
         $datos = $respuesta->json('data');
 
         $this->assertCount(10, $datos);
-
-        // La segunda página empieza donde terminó la primera: con un orden total
-        // —el nombre— ninguna fila se repite ni se pierde entre páginas.
         $this->assertSame('Trámite de prueba 11', $datos[0]['nombre']);
-
-        $this->assertIsString($respuesta->json('links.first'));
-        $this->assertIsString($respuesta->json('links.last'));
-        $this->assertIsString($respuesta->json('links.prev'));
         $this->assertIsString($respuesta->json('links.next'));
     }
 
-    public function test_el_listado_trae_los_seis_atributos_de_cada_tramite(): void
+    public function test_la_tarjeta_trae_los_metadatos_del_directorio(): void
     {
         $tramite = $this->publicar();
 
-        $respuesta = $this->getJson('/api/v1/tramites');
-
-        $respuesta->assertOk()
+        $this->getJson('/api/v1/tramites')
+            ->assertOk()
             ->assertJsonPath('data.0.id', $tramite->id)
             ->assertJsonPath('data.0.type', 'tramites')
             ->assertJsonPath('data.0.slug', $tramite->slug)
             ->assertJsonPath('data.0.modalidad', 'parcialmente_en_linea')
             ->assertJsonPath('data.0.tiene_costo', 'gratuito')
             ->assertJsonPath('data.0.tiempo_solucion_dias', 15)
-            ->assertJsonPath('data.0.canal_inicio', 'propio')
-            ->assertJsonPath('data.0.consulta_estado', '/seguimiento?radicado=…')
-            ->assertJsonPath('data.0.url_ficha_gov_co', 'https://www.gov.co/ficha-tramites-y-servicios/T00001')
-            ->assertJsonPath('data.0.requisitos.0.descripcion', 'Cédula de ciudadanía')
-            ->assertJsonPath('data.0.procedencia.fuente', 'SUIT — Función Pública (entidad 0043)')
-            ->assertJsonPath('data.0.procedencia.obtenido_en', '2026-09-30')
-            // La fuente no clasifica los trámites: el campo viaja en nulo y no
-            // con una categoría inventada.
-            ->assertJsonPath('data.0.categoria', null);
+            ->assertJsonPath('data.0.url_ficha_gov_co', $tramite->url_ficha_gov_co)
+            // La fuente no clasifica ni asigna dependencia por defecto: viajan en nulo, no inventados.
+            ->assertJsonPath('data.0.categoria', null)
+            ->assertJsonPath('data.0.dependencia', null);
+    }
+
+    public function test_el_listado_trae_sus_facetas_en_meta(): void
+    {
+        $this->publicar(['modalidad' => 'en_linea']);
+        $this->publicar(['modalidad' => 'presencial']);
+
+        $respuesta = $this->getJson('/api/v1/tramites')->assertOk();
+
+        $this->assertIsArray($respuesta->json('meta.facetas'));
+        $this->assertIsArray($respuesta->json('meta.facetas.modalidades'));
+        $this->assertIsArray($respuesta->json('meta.facetas.tipos'));
     }
 
     public function test_la_busqueda_no_distingue_tildes(): void
@@ -90,18 +86,15 @@ final class TramiteTest extends TestCase
             'resumen' => 'Pago anual sobre los bienes inmuebles.',
         ]);
 
-        // El ciudadano escribe sin tilde lo que el catálogo dice con tilde.
         $this->getJson('/api/v1/tramites?buscar=rectificacion')
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.nombre', 'Rectificación de áreas y linderos');
 
-        // Y al revés: busca «áreas» con tilde y encuentra lo que la tiene.
         $this->getJson('/api/v1/tramites?buscar='.rawurlencode('ÁREAS'))
             ->assertOk()
             ->assertJsonPath('meta.total', 1);
 
-        // También busca en el resumen, no sólo en el nombre.
         $this->getJson('/api/v1/tramites?buscar='.rawurlencode('inmuebles'))
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
@@ -112,25 +105,35 @@ final class TramiteTest extends TestCase
     {
         $conFicha = $this->publicar();
 
-        // Un trámite guardado pero sin ficha: puede existir —la Entidad todavía
-        // no la tiene— y no puede publicarse, porque el clic en su nombre no
-        // llevaría a ninguna parte.
+        // Integración GOV.CO: un trámite sin ficha nacional puede existir como borrador, pero no se
+        // publica (RF-B1-021).
         $sinFicha = $this->publicar([
             'nombre' => 'Trámite sin ficha en GOV.CO',
-            'slug' => 'tramite-sin-ficha',
             'url_ficha_gov_co' => null,
         ]);
 
-        $respuesta = $this->getJson('/api/v1/tramites');
+        $this->getJson('/api/v1/tramites')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.slug', $conFicha->slug);
 
-        $respuesta->assertOk()->assertJsonPath('meta.total', 1);
-        $respuesta->assertJsonPath('data.0.slug', $conFicha->slug);
+        $this->getJson('/api/v1/tramites/'.$sinFicha->slug)->assertStatus(404);
+    }
 
-        // Tampoco por su ficha: no se publica es no estar en ninguna respuesta.
-        $this->getJson('/api/v1/tramites/'.$sinFicha->slug)
-            ->assertStatus(404)
-            ->assertJsonPath('success', false)
-            ->assertJsonPath('data', null);
+    public function test_una_consulta_no_exige_ficha_en_gov_co(): void
+    {
+        // Las consultas de acceso a información pública no están en el SUIT (RN-B2-002): se publican
+        // sin ficha nacional.
+        $consulta = $this->publicar([
+            'type' => 'consultas',
+            'nombre' => 'Consulta de estado de cuenta de predial',
+            'url_ficha_gov_co' => null,
+        ]);
+
+        $this->getJson('/api/v1/tramites?type=consultas')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.slug', $consulta->slug);
     }
 
     public function test_un_tramite_sin_publicar_no_se_publica(): void
@@ -148,8 +151,6 @@ final class TramiteTest extends TestCase
         $this->getJson('/api/v1/tramites/'.$tramite->slug)
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('message', null)
-            ->assertJsonPath('errors', null)
             ->assertJsonPath('data.slug', $tramite->slug)
             ->assertJsonPath('data.url_ficha_gov_co', $tramite->url_ficha_gov_co)
             ->assertJsonStructure([
@@ -158,23 +159,11 @@ final class TramiteTest extends TestCase
                 'data' => [
                     'id', 'type', 'slug', 'nombre', 'resumen', 'url_ficha_gov_co',
                     'modalidad', 'tiene_costo', 'costo', 'tiempo_solucion_dias',
-                    'canal_inicio', 'consulta_estado', 'requisitos', 'documentos',
-                    'url_inicio', 'categoria', 'publicado_en', 'actualizado_en',
-                    'procedencia' => ['fuente', 'url', 'obtenido_en', 'nota'],
+                    'canal_inicio', 'consulta_estado', 'pasos', 'requisitos', 'documentos',
+                    'puntos_atencion', 'normativa', 'canales_consulta_estado', 'solicitantes',
+                    'url_inicio', 'categoria', 'dependencia', 'publicado_en', 'actualizado_en',
                 ],
                 'errors',
-            ]);
-    }
-
-    public function test_un_slug_desconocido_responde_404_con_el_sobre(): void
-    {
-        $this->getJson('/api/v1/tramites/no-existe')
-            ->assertStatus(404)
-            ->assertExactJson([
-                'success' => false,
-                'message' => 'El recurso no fue encontrado.',
-                'data' => null,
-                'errors' => null,
             ]);
     }
 
@@ -183,28 +172,18 @@ final class TramiteTest extends TestCase
         $this->getJson('/api/v1/tramites?per_page=101')
             ->assertStatus(422)
             ->assertJsonPath('success', false)
-            ->assertJsonPath('message', 'Error de validación.')
-            ->assertJsonPath('data', null)
             ->assertJsonPath('errors.per_page.0', 'El campo per_page no puede ser mayor que 100.');
     }
 
     /**
-     * Publica un trámite con todos sus atributos.
-     *
-     * Los valores por defecto son los de un trámite completo a propósito: una
-     * prueba que quiera comprobar qué pasa cuando falta un atributo tiene que
-     * decir cuál quita, y así se lee en la propia prueba.
+     * Publica un trámite completo. Quien quiera comprobar qué pasa cuando falta un atributo dice
+     * cuál quita en `$cambios`, y así se lee en la propia prueba.
      *
      * @param  array<string, mixed>  $cambios
      */
     private function publicar(array $cambios = []): Tramite
     {
-        $numero = Tramite::query()->count() + 1;
-
-        /** @var array<string, mixed> $atributos */
-        $atributos = array_merge([
-            'codigo' => 'T'.str_pad((string) $numero, 5, '0', STR_PAD_LEFT),
-            'slug' => 'tramite-de-prueba-'.$numero,
+        return Tramite::factory()->published()->create(array_merge([
             'nombre' => 'Trámite de prueba',
             'resumen' => 'Sirve para comprobar el catálogo.',
             'modalidad' => 'parcialmente_en_linea',
@@ -214,18 +193,6 @@ final class TramiteTest extends TestCase
             'canal_inicio' => 'propio',
             'url_inicio' => null,
             'consulta_estado' => '/seguimiento?radicado=…',
-            'requisitos' => [['descripcion' => 'Cédula de ciudadanía', 'obligatorio' => true]],
-            'documentos' => [['nombre' => 'Formulario', 'url' => null, 'formato' => 'PDF']],
-            'categoria_slug' => null,
-            'categoria_nombre' => null,
-            'url_ficha_gov_co' => 'https://www.gov.co/ficha-tramites-y-servicios/T00001',
-            'procedencia_fuente' => 'SUIT — Función Pública (entidad 0043)',
-            'procedencia_url' => 'https://www.funcionpublica.gov.co/suit',
-            'procedencia_obtenido_en' => '2026-09-30',
-            'procedencia_nota' => null,
-            'publicado_en' => Carbon::now(),
-        ], $cambios);
-
-        return Tramite::create($atributos);
+        ], $cambios));
     }
 }

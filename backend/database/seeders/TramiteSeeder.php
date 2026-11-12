@@ -8,12 +8,16 @@ use App\Enums\CanalInicioTramite;
 use App\Enums\CostoTramite;
 use App\Enums\ModalidadTramite;
 use App\Models\Tramite;
+use App\Models\TramiteCategoria;
 use App\Support\Tramites\ContactoPublicable;
-use App\Support\Tramites\FuenteSuit;
+use App\Support\Tramites\ConversorFichaJson;
+use App\Support\Tramites\EscritorFichaRelacional;
 use App\Support\Tramites\SlugCatalogo;
+use App\Support\Tramites\TemaDeTramite;
 use App\Support\Tramites\TiempoEnDias;
 use Illuminate\Console\Command;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use RuntimeException;
 use Throwable;
@@ -98,32 +102,6 @@ use Throwable;
 final class TramiteSeeder extends Seeder
 {
     /**
-     * La fuente oficial. Se publica en la procedencia de cada trámite.
-     *
-     * Apunta al sitio único donde está declarada (`FuenteSuit`) y no a un literal
-     * propio: la marca de procedencia es también la marca con la que la ingesta de
-     * la ficha oficial reconoce lo que escribió este sembrador, así que las dos
-     * tienen que ser exactamente la misma cadena.
-     */
-    public const FUENTE = FuenteSuit::NOMBRE;
-
-    public const URL_FUENTE = FuenteSuit::URL;
-
-    /** La fecha en que se obtuvo el catálogo. No es la de hoy: es la del dato. */
-    public const OBTENIDO_EN = '2026-09-30';
-
-    /**
-     * La copia congelada de la recolección, dentro del proyecto.
-     *
-     * **Ya no la lee la siembra**: el catálogo vive en `datos/catalogo.php`. Esta
-     * ruta se queda porque es el origen del que se regenera ese archivo y porque
-     * hay una prueba que comprueba, sobre la copia, que la fuente no trae datos
-     * de contacto personal —una comprobación sobre el dato original, no sobre lo
-     * que el sembrador escribió—.
-     */
-    public const ARCHIVO = FuenteSuit::COPIA_CATALOGO;
-
-    /**
      * El mecanismo con el que la Sede permite consultar el estado de una
      * solicitud, por radicado.
      */
@@ -198,17 +176,25 @@ final class TramiteSeeder extends Seeder
      */
     public function sembrar(): array
     {
+        // **Carga única.** Si el catálogo ya tiene algo —incluida la papelera— no se toca nada: una
+        // segunda ejecución, o un despliegue posterior, nunca pisa lo que la Entidad haya creado o
+        // corregido en el panel. Esta es la diferencia con la antigua resiembra por despliegue.
+        if (Tramite::withTrashed()->exists()) {
+            return [
+                'publicados' => 0,
+                'actualizados' => 0,
+                'protegidos' => Tramite::withTrashed()->count(),
+                'descartados' => [],
+                'detalle_descartes' => [],
+            ];
+        }
+
         $filas = $this->leerFuente();
 
-        // Slug => código, para detectar dos trámites que darían el mismo slug. Se
-        // parte de lo que ya hay en la base para que una segunda ejecución no
-        // renombre lo publicado: un slug es la dirección de una ficha.
         /** @var array<string, string> $usados */
-        $usados = Tramite::query()->pluck('codigo', 'slug')->all();
+        $usados = [];
 
         $publicados = 0;
-        $actualizados = 0;
-        $protegidos = 0;
 
         /** @var array<string, int> $descartados */
         $descartados = [];
@@ -221,8 +207,6 @@ final class TramiteSeeder extends Seeder
             $titulo = $this->texto($fila, 'titulo');
 
             if ($codigo === null) {
-                // Una fila sin identificador no se puede ni comparar con la base:
-                // no hay manera de saber si ya está sembrada. Se cuenta aparte.
                 $descartados['id'] = ($descartados['id'] ?? 0) + 1;
                 $detalle[] = ['codigo' => '(sin identificador)', 'motivo' => 'id', 'titulo' => $titulo];
 
@@ -239,45 +223,73 @@ final class TramiteSeeder extends Seeder
                 continue;
             }
 
-            $existente = Tramite::query()->where('codigo', $codigo)->first();
-
-            if ($existente !== null && ! $this->llevaLaMarcaDeLaSiembra($existente)) {
-                $protegidos++;
-
-                continue;
-            }
-
-            // `updateOrCreate` por identificador: volver a ejecutar la siembra
-            // actualiza estas filas y no crea otras. Los atributos salen de la
-            // misma fuente, así que el número de filas no cambia —y la prueba lo
-            // comprueba, porque un sembrador que duplica sólo se nota cuando ya
-            // duplicó—.
-            //
-            // El slug se preserva cuando el trámite ya existe: el nombre
-            // estandarizado puede cambiar entre cosechas (GOV.CO actualiza
-            // nombres con regularidad), pero el slug es una **dirección estable**
-            // de la ficha del ciudadano. Cambiarlo rompería los enlaces guardados
-            // sin que la nueva versión aporte nada al ciudadano.
-            $atributosConSlug = $atributos;
-            if ($existente !== null && $existente->slug !== '' && $existente->slug !== null) {
-                $atributosConSlug['slug'] = $existente->slug;
-            }
-            Tramite::updateOrCreate(['codigo' => $codigo], $atributosConSlug);
-
-            if ($existente === null) {
-                $publicados++;
-            } else {
-                $actualizados++;
-            }
+            $this->crearRelacional($codigo, $atributos);
+            $publicados++;
         }
 
         return [
             'publicados' => $publicados,
-            'actualizados' => $actualizados,
-            'protegidos' => $protegidos,
+            'actualizados' => 0,
+            'protegidos' => 0,
             'descartados' => $descartados,
             'detalle_descartes' => $detalle,
         ];
+    }
+
+    /**
+     * Crea un trámite con sus columnas escalares y escribe su ficha en las tablas hijas, separando
+     * los bloques (momentos, requisitos, documentos, puntos, normativa, canales, cuentas,
+     * seguimiento, audiencias) del resto y pasándolos por el mismo conversor y escritor que el panel.
+     *
+     * @param  array<string, mixed>  $atributos
+     */
+    private function crearRelacional(string $codigo, array $atributos): void
+    {
+        /** @var array<string, mixed> $bloques */
+        $bloques = [
+            'momentos' => $atributos['momentos'] ?? null,
+            'requisitos' => $atributos['requisitos'] ?? null,
+            'documentos' => $atributos['documentos'] ?? null,
+            'puntos_atencion' => $atributos['puntos_atencion'] ?? null,
+            'normativa' => $atributos['normativa'] ?? null,
+            'canales_consulta_estado' => $atributos['canales_consulta_estado'] ?? null,
+            'cuentas' => $atributos['cuentas'] ?? null,
+            'costo_cuentas' => $atributos['costo_cuentas'] ?? null,
+            'seguimiento' => $atributos['seguimiento'] ?? null,
+            'audiencias' => $atributos['audiencias'] ?? null,
+            'resultado' => $atributos['resultado'] ?? null,
+            'producto_final' => $atributos['producto_final'] ?? null,
+        ];
+        $ficha = ConversorFichaJson::convertir($bloques);
+
+        $escalares = Arr::except($atributos, [
+            'momentos', 'requisitos', 'documentos', 'puntos_atencion', 'normativa',
+            'canales_consulta_estado', 'cuentas', 'costo_cuentas', 'seguimiento', 'audiencias', 'producto_final',
+        ]);
+        $escalares['codigo'] = $codigo;
+        $escalares['type'] = 'tramites';
+        $escalares['resultado'] = $ficha['resultado'];
+        $escalares['categoria_id'] = $this->temaId((string) $escalares['nombre']);
+
+        $tramite = new Tramite($escalares);
+        $tramite->save();
+        EscritorFichaRelacional::escribir($tramite, $ficha);
+    }
+
+    /** @var array<string, int> El id de cada tema por su slug, resuelto una vez. */
+    private array $temas = [];
+
+    /** El id del tema que corresponde al nombre del trámite (clasificación inicial revisable). */
+    private function temaId(string $nombre): int
+    {
+        if ($this->temas === []) {
+            foreach (TemaDeTramite::catalogo() as $tema) {
+                $this->temas[$tema['slug']] = TramiteCategoria::query()
+                    ->firstOrCreate(['slug' => $tema['slug']], ['nombre' => $tema['nombre']])->id;
+            }
+        }
+
+        return $this->temas[TemaDeTramite::slugPara($nombre)];
     }
 
     /**
@@ -461,20 +473,15 @@ final class TramiteSeeder extends Seeder
             'medios_resultado' => $medios,
             'palabras_relacionadas' => $palabras,
             'audiencias' => $this->perfilesDesdeAudiencias($audiencias)['audiencias'],
-            'perfiles' => $this->perfilesDesdeAudiencias($audiencias)['perfiles'],
             'puntos_atencion' => $puntos,
             'normativa' => $normativa,
             'canales_consulta_estado' => $this->canalesDesdeSeguimiento($seguimiento),
+            // `seguimiento` se conserva como bloque de entrada para el conversor (del que salen los
+            // puntos de atención cuando la ficha no trae `puntosAtencion`), no como columna.
             'seguimiento' => $seguimiento,
-            'categoria_slug' => null,
-            'categoria_nombre' => null,
             'url_ficha_gov_co' => $ficha,
-            'procedencia_fuente' => self::FUENTE,
-            'procedencia_url' => self::URL_FUENTE,
-            'procedencia_obtenido_en' => self::OBTENIDO_EN,
-            'procedencia_nota' => $tiempo['nota'] ?? null,
-            // Se publica al sembrarlo: lo que entra al catálogo por esta puerta
-            // ya pasó la comprobación de los seis atributos y de la ficha.
+            // Se publica al cargarlo: lo que entra al catálogo por esta puerta ya pasó la
+            // comprobación de los atributos obligatorios y de la ficha de GOV.CO.
             'publicado_en' => Carbon::now(),
         ];
     }
@@ -1156,18 +1163,6 @@ final class TramiteSeeder extends Seeder
     private function tiempoEnDias(array $fila): ?array
     {
         return TiempoEnDias::desde($this->texto($fila, 'tiempoObtencion'));
-    }
-
-    /**
-     * Si el trámite lo escribió esta siembra.
-     *
-     * La marca es la fuente declarada. Un trámite cargado a mano no la tiene, y
-     * uno corregido por una persona deja de tenerla en cuanto la Entidad pone su
-     * propia fuente: en los dos casos la siembra no lo toca.
-     */
-    private function llevaLaMarcaDeLaSiembra(Tramite $tramite): bool
-    {
-        return $tramite->procedencia_fuente === self::FUENTE;
     }
 
     /**

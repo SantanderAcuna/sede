@@ -59,3 +59,14 @@ export async function actualizar(uuid: string, datos: TramiteInput): Promise<Tra
 export async function eliminar(uuid: string): Promise<void> {
   await http.delete(`/panel/tramites/${uuid}`)
 }
+
+export interface DependenciaOpcion {
+  id: number
+  nombre: string
+}
+
+/** Las dependencias responsables, para el selector del formulario. */
+export async function dependencias(): Promise<DependenciaOpcion[]> {
+  const respuesta = await http.get<ApiEnvelope<DependenciaOpcion[]>>('/panel/dependencias')
+  return desenvolver(respuesta.data)
+}

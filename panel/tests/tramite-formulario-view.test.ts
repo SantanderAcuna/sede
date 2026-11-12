@@ -1,9 +1,10 @@
 /**
- * TramiteFormularioView — crear y editar un trámite en una vista propia.
+ * TramiteFormularioView — crear y editar un elemento del catálogo (trámite, OPA o consulta).
  *
- * Se verifica lo que protege a quien edita: que un trámite se pueda guardar como borrador con solo el
- * nombre, que no se pueda publicar incompleto (y se diga qué falta), que solo viaje lo que cambió, que el
- * error del servidor aparezca junto al campo, y que un trámite del catálogo oficial se avise y no se elimine.
+ * Se verifica lo que protege a quien edita: que se pueda guardar como borrador con solo el nombre,
+ * que no se pueda publicar incompleto (y se diga qué falta), que los campos simples viajen solos,
+ * que el error del servidor aparezca junto al campo, que se pueda elegir el tipo y la dependencia, y
+ * que **todo** elemento se pueda eliminar (ya no hay candado por catálogo).
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { AxiosError } from 'axios'
@@ -16,6 +17,7 @@ vi.mock('../src/services/tramites', () => ({
   crear: vi.fn(),
   actualizar: vi.fn(),
   eliminar: vi.fn(),
+  dependencias: vi.fn(),
 }))
 
 import * as servicio from '../src/services/tramites'
@@ -31,7 +33,7 @@ function tramite(extra: Partial<TramitePanelItem> = {}): TramitePanelItem {
     uuid: UUID,
     type: 'tramites',
     slug: 'certificado',
-    codigo: 'P0001',
+    codigo: 'T0001',
     nombre: 'Certificado de residencia',
     resumen: null,
     url_ficha_gov_co: null,
@@ -41,20 +43,17 @@ function tramite(extra: Partial<TramitePanelItem> = {}): TramitePanelItem {
     tiempo_solucion_dias: null,
     canal_inicio: null,
     consulta_estado: null,
+    dependencia_id: null,
     requisitos: [],
+    pasos: [],
     documentos: [],
-    momentos: [],
-    audiencias: [],
-    perfiles: [],
-    medios_resultado: [],
     puntos_atencion: [],
     normativa: [],
-    cuentas: [],
     canales_consulta_estado: [],
-    seguimiento: null,
+    solicitantes: [],
+    medios_resultado: [],
     categoria: null,
     estado: 'borrador',
-    origen: 'panel',
     completo: false,
     problemas: [],
     ...extra,
@@ -63,13 +62,14 @@ function tramite(extra: Partial<TramitePanelItem> = {}): TramitePanelItem {
 
 const completo = (extra: Partial<TramitePanelItem> = {}) =>
   tramite({
+    resumen: 'Constancia de dónde vive.',
     url_ficha_gov_co: 'https://www.gov.co/ficha-tramites-y-servicios/T1',
     modalidad: 'presencial',
     tiene_costo: 'gratuito',
     tiempo_solucion_dias: 3,
     canal_inicio: 'propio',
     consulta_estado: 'Llamando',
-    requisitos: [{ tipo: 'documento', descripcion: 'Cédula', obligatorio: true }],
+    requisitos: [{ tipo: 'documento', descripcion: 'Cédula', obligatorio: true, paso: null }],
     estado: 'publicado',
     completo: true,
     ...extra,
@@ -99,7 +99,10 @@ async function montar(destino: string) {
 const rechazo422 = (errors: Record<string, string[]>) =>
   Object.assign(new AxiosError('x'), { response: { status: 422, data: { message: 'No válido', errors } } })
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  m.dependencias.mockResolvedValue([{ id: 7, nombre: 'Hacienda' }])
+})
 afterEach(() => {
   montados.splice(0).forEach((w) => w.unmount())
 })
@@ -111,57 +114,65 @@ const campo = (w: ReturnType<typeof mount>, etiqueta: string) => {
 }
 
 describe('crear', () => {
-  it('muestra el formulario con todas sus secciones y un índice para llegar a ellas', async () => {
+  it('muestra el formulario con sus secciones y un índice para llegar a ellas', async () => {
     const { wrapper } = await montar('/tramites/nuevo')
     const titulos = wrapper.findAll('h2').map((h) => h.text())
-    for (const t of ['Datos principales', 'Costo', 'Requisitos', 'Pasos del trámite', 'Documentos para descargar', 'Resultado', 'Para quién es', 'Dónde se atiende', 'Normativa', 'Cuentas de recaudo', 'Consulta y seguimiento', 'Publicación']) {
+    for (const t of ['Datos principales', 'Costo', 'Requisitos', 'Pasos del trámite', 'Documentos para descargar', 'Resultado', 'Para quién es', 'Dónde se atiende', 'Normativa', 'Consulta del estado', 'Publicación']) {
       expect(titulos).toContain(t)
     }
     expect(wrapper.find('nav[aria-label="Secciones del formulario"] a[href="#t-requisitos"]').exists()).toBe(true)
   })
 
+  it('ofrece elegir el tipo (trámite, OPA o consulta) y la dependencia', async () => {
+    const { wrapper } = await montar('/tramites/nuevo')
+    expect(wrapper.text()).toContain('OPA (otro procedimiento administrativo)')
+    expect(wrapper.text()).toContain('Consulta de acceso a información pública')
+    // La dependencia cargada aparece como opción.
+    expect(wrapper.text()).toContain('Hacienda')
+  })
+
   it('con solo el nombre se guarda como borrador y se va a la edición', async () => {
     m.crear.mockResolvedValue(tramite())
     const { wrapper, router } = await montar('/tramites/nuevo')
-    await campo(wrapper, 'Nombre del trámite').setValue('Certificado de residencia')
+    await campo(wrapper, 'Nombre').setValue('Certificado de residencia')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(m.crear).toHaveBeenCalledWith({ nombre: 'Certificado de residencia' })
+    expect(m.crear).toHaveBeenCalledWith({ nombre: 'Certificado de residencia', type: 'tramites' })
     expect(router.currentRoute.value.name).toBe('panel.tramites.editar')
-    expect(wrapper.text()).toContain('Trámite guardado como borrador')
+    expect(wrapper.text()).toContain('guardado como borrador')
   })
 
   it('un nombre demasiado corto se explica y no se envía', async () => {
     const { wrapper } = await montar('/tramites/nuevo')
-    await campo(wrapper, 'Nombre del trámite').setValue('ab')
+    await campo(wrapper, 'Nombre').setValue('ab')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
     expect(m.crear).not.toHaveBeenCalled()
-    expect(wrapper.find('[role="alert"]').text()).toMatch(/nombre del trámite necesita al menos 3/i)
+    expect(wrapper.find('[role="alert"]').text()).toMatch(/nombre necesita al menos 3/i)
   })
 
   it('publicar incompleto no se envía y dice qué falta', async () => {
     const { wrapper } = await montar('/tramites/nuevo')
-    await campo(wrapper, 'Nombre del trámite').setValue('Licencia')
+    await campo(wrapper, 'Nombre').setValue('Licencia')
     await wrapper.find('input[value="publicar"]').setValue(true)
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
     expect(m.crear).not.toHaveBeenCalled()
     const aviso = wrapper.find('[role="alert"]').text()
-    expect(aviso).toContain('Falta la dirección de la ficha en GOV.CO.')
+    expect(aviso).toContain('Falta la dirección de la ficha en GOV.CO')
     expect(aviso).toContain('Falta al menos un requisito.')
   })
 
   it('el aviso de lo que faltaba desaparece cuando se corrige', async () => {
     const { wrapper } = await montar('/tramites/nuevo')
-    await campo(wrapper, 'Nombre del trámite').setValue('ab')
+    await campo(wrapper, 'Nombre').setValue('ab')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
-    await campo(wrapper, 'Nombre del trámite').setValue('Licencia')
+    await campo(wrapper, 'Nombre').setValue('Licencia')
     await flushPromises()
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
@@ -169,12 +180,12 @@ describe('crear', () => {
   it('la lista «Antes de publicar» se actualiza mientras se escribe', async () => {
     const { wrapper } = await montar('/tramites/nuevo')
     const lista = () => wrapper.find('[data-checklist]').text()
-    expect(lista()).toContain('Falta: la dirección de la ficha en GOV.CO')
+    expect(lista()).toContain('la dirección de la ficha en GOV.CO')
     await campo(wrapper, 'Dirección de la ficha en GOV.CO').setValue('https://www.gov.co/x')
     expect(lista()).not.toContain('la dirección de la ficha en GOV.CO')
   })
 
-  it('el costo solo se pide si el trámite tiene costo', async () => {
+  it('el costo solo se pide si tiene costo', async () => {
     const { wrapper } = await montar('/tramites/nuevo')
     expect(wrapper.text()).not.toContain('Cómo se calcula')
     await campo(wrapper, '¿Tiene costo?').setValue('con_costo')
@@ -191,12 +202,12 @@ describe('crear', () => {
 })
 
 describe('editar', () => {
-  it('carga el trámite y muestra su código y estado', async () => {
+  it('carga el elemento y muestra su código y estado', async () => {
     m.obtener.mockResolvedValue(completo())
     const { wrapper } = await montar(`/tramites/${UUID}`)
     expect(m.obtener).toHaveBeenCalledWith(UUID)
-    expect((campo(wrapper, 'Nombre del trámite').element as HTMLInputElement).value).toBe('Certificado de residencia')
-    expect(wrapper.text()).toContain('P0001')
+    expect((campo(wrapper, 'Nombre').element as HTMLInputElement).value).toBe('Certificado de residencia')
+    expect(wrapper.text()).toContain('T0001')
     expect(wrapper.text()).toContain('Publicado')
     expect(wrapper.find('[data-checklist]').text()).toContain('Listo')
   })
@@ -210,16 +221,16 @@ describe('editar', () => {
     expect(wrapper.text()).toContain('No hay cambios que guardar')
   })
 
-  it('con un cambio envía solo ese campo', async () => {
+  it('con un cambio simple envía solo ese campo', async () => {
     m.obtener.mockResolvedValue(completo())
     m.actualizar.mockResolvedValue(completo({ nombre: 'Otro nombre' }))
     const { wrapper } = await montar(`/tramites/${UUID}`)
-    await campo(wrapper, 'Nombre del trámite').setValue('Otro nombre')
+    await campo(wrapper, 'Nombre').setValue('Otro nombre')
     expect(wrapper.text()).toContain('Hay cambios sin guardar')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(m.actualizar).toHaveBeenCalledWith(UUID, { nombre: 'Otro nombre' })
-    expect(wrapper.text()).toContain('Cambios guardados. El trámite está publicado.')
+    expect(wrapper.text()).toContain('El trámite está publicado.')
   })
 
   it('despublicar envía publicado:false', async () => {
@@ -255,19 +266,13 @@ describe('editar', () => {
   })
 })
 
-describe('origen', () => {
-  it('uno del catálogo oficial avisa que al editarlo queda como del panel y no se puede eliminar', async () => {
-    m.obtener.mockResolvedValue(completo({ origen: 'fuente' } as never))
-    const { wrapper } = await montar(`/tramites/${UUID}`)
-    expect(wrapper.find('[data-aviso-catalogo]').text()).toContain('catálogo oficial')
-    expect(wrapper.text()).not.toContain('Zona de peligro')
-  })
-
-  it('uno creado en el panel se puede eliminar con confirmación', async () => {
+describe('borrado', () => {
+  it('ya no hay aviso de catálogo SUIT y cualquier elemento se puede eliminar', async () => {
     m.obtener.mockResolvedValue(completo())
     m.eliminar.mockResolvedValue(undefined)
     const { wrapper, router } = await montar(`/tramites/${UUID}`)
-    expect(wrapper.find('[data-aviso-catalogo]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('catálogo oficial (SUIT)')
+    expect(wrapper.text()).toContain('Zona de peligro')
     await boton(wrapper, 'Eliminar trámite').trigger('click')
     expect(m.eliminar).not.toHaveBeenCalled()
     await wrapper.findAll('[role="dialog"] button').find((b) => b.text().includes('Sí, eliminar'))!.trigger('click')

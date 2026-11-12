@@ -432,6 +432,10 @@ final class NoticiasTest extends TestCase
         $this->actingAs($editor, 'web')->getJson("/api/v1/panel/noticias/{$uuid}")
             ->assertJsonPath('data.imagen.url', "/api/v1/panel/noticias/{$uuid}/imagen");
 
+        // También el listado del panel entrega la dirección del panel (la recorre cada elemento).
+        $this->actingAs($editor, 'web')->getJson('/api/v1/panel/noticias')
+            ->assertJsonPath('data.0.imagen.url', "/api/v1/panel/noticias/{$uuid}/imagen");
+
         DB::table('noticias')->where('id', $id)->update(['activo' => true]);
         $this->getJson('/api/v1/noticias/dos-rutas')->assertJsonPath('data.imagen.url', '/api/v1/noticias/dos-rutas/imagen');
     }

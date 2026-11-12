@@ -3727,29 +3727,3 @@ components:
       properties:
         campo: { type: string, maxLength: 60 }
         regla: { type: string, maxLength: 500 }
-
-    TramiteInput:
-      type: object
-      required:
-        - nombre
-        - modalidad
-        - tiene_costo
-        - tiempo_solucion_dias
-        - canal_inicio
-        - consulta_estado
-        - url_ficha_gov_co
-      properties:
-        nombre: { type: string, maxLength: 200 }
-        slug: { type: string, maxLength: 160 }
-        resumen: { type: [string, 'null'], maxLength: 500 }
-        url_ficha_gov_co: { type: string, format: uri, maxLength: 500 }
-        modalidad: { type: string, enum: [en_linea, parcialmente_en_linea, presencial] }
-        tiene_costo: { type: string, enum: [gratuito, con_costo] }
-        costo:
-          oneOf:
-            - $ref: '#/components/schemas/TramiteCosto'
-            - type: 'null'
-        tiempo_solucion_dias: { type: integer, minimum: 0 }
-        canal_inicio: { type: string, enum: [propio, portal_nacional] }
-        url_inicio: { type: [string, 'null'], maxLength: 500 }
-        consulta_estado: { type: string, maxLength: 500 }

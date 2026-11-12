@@ -41,7 +41,62 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 
 ## Operaciones del contrato
 
-No se pudo leer `contract/openapi.yaml`.
+| Método | Ruta | Criterios declarados (`x-criterios`) | Estado (`x-status`) |
+|---|---|---|---|
+| GET | `/entidad` | FUN-007, FUN-009, FUN-014, FUN-015, SEG-006, CAG-12 | pending |
+| GET | `/tramites` | FUN-001, FUN-021, FUN-022, RN-01 | implemented |
+| GET | `/tramites/{slug}` | FUN-021, FUN-023, FUN-024, CAG-20 | implemented |
+| GET | `/identidad/top-bar` | RF-01-001, RNF-ACES-01 | pending |
+| GET | `/identidad/footer` | RF-01-002, RF-01-018, FUN-014 | pending |
+| GET | `/identidad/menu` | RF-01-007 | pending |
+| GET | `/noticias` | RF-01-013 | implemented |
+| GET | `/noticias/{slug}` | RF-01-013 | implemented |
+| GET | `/noticias/{slug}/imagen` | RF-01-013 | implemented |
+| GET | `/transparencia/subsecciones` | RF-02-001, RN-02 | pending |
+| GET | `/transparencia/documentos` | RF-02-002, RF-02-028 | pending |
+| GET | `/transparencia/documentos/{slug}` | RF-02-004, RF-02-024 | pending |
+| GET | `/transparencia/buscar` | RF-02-027, RNF-REND-01 | pending |
+| GET | `/transparencia/directorio` | RF-02-006, RN-03 | pending |
+| GET | `/transparencia/calendario-tributario` | RF-02-016 | pending |
+| GET | `/busqueda/sugerencias` | RF-01-009, RF-B1-006, RF-B2-036, RNF-REND-01 | implemented |
+| GET | `/buscar` | RF-01-009, RF-B1-005, RF-B2-035, RNF-REND-01 | implemented |
+| POST | `/consentimientos` | RF-B1-008, RF-01-D01, RN-01-D01 | implemented |
+| GET | `/politicas` | RF-B1-009, RF-B3-058, RF-B2-008, RF-B2-009, RF-B2-010 | implemented |
+| GET | `/politicas/{slug}` | RF-B1-009, RF-B3-058, RF-B2-008, RF-B2-009, RF-B2-010 | implemented |
+| POST | `/panel/login` | RF-SEG-02, RNF-SEG-02 | pending |
+| POST | `/panel/mfa` | RF-SEG-02 | pending |
+| POST | `/panel/logout` | — | pending |
+| GET | `/panel/perfil` | — | pending |
+| PATCH | `/panel/entidad` | RF-01-001, RF-01-002, RF-01-003, RF-01-018 | implemented |
+| GET | `/panel/tramites` | RF-01-006 | implemented |
+| POST | `/panel/tramites` | RF-01-006 | implemented |
+| GET | `/panel/tramites/{uuid}` | RF-01-006 | implemented |
+| PATCH | `/panel/tramites/{uuid}` | RF-01-006 | implemented |
+| DELETE | `/panel/tramites/{uuid}` | RF-01-006 | implemented |
+| GET | `/panel/noticias` | RF-01-013 | implemented |
+| POST | `/panel/noticias` | RF-01-013 | implemented |
+| GET | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
+| PATCH | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
+| DELETE | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
+| GET | `/panel/noticias/{uuid}/imagen` | RF-01-013 | implemented |
+| POST | `/panel/noticias/{uuid}/imagen` | RF-01-013 | implemented |
+| GET | `/contenido/imagenes/{uuid}` | RF-01-013 | implemented |
+| POST | `/panel/contenido/imagenes` | RF-01-013 | implemented |
+| GET | `/panel/politicas` | RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010 | implemented |
+| PATCH | `/panel/politicas/{slug}` | RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010, RN-01-D01 | implemented |
+| GET | `/panel/entidad/{modelUuid}/archivos` | — | implemented |
+| POST | `/panel/entidad/{modelUuid}/archivos` | — | implemented |
+| GET | `/panel/archivos/{uuid}` | — | implemented |
+| DELETE | `/panel/archivos/{uuid}` | — | implemented |
+| GET | `/panel/transparencia/documentos` | RF-02-021 | pending |
+| POST | `/panel/transparencia/documentos` | RF-02-021 | pending |
+| PATCH | `/panel/transparencia/documentos/{id}` | RF-02-021 | pending |
+| DELETE | `/panel/transparencia/documentos/{id}` | RF-02-021 | pending |
+| GET | `/panel/alertas` | RF-02-022 | pending |
+| GET | `/panel/ita/tablero` | RF-02-029 | pending |
+| GET | `/panel/auditoria` | — | pending |
+
+El contrato declara **52 operaciones**, de las cuales **45** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
 
 ## CAG — Diseño
 

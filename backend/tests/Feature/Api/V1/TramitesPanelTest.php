@@ -8,7 +8,9 @@ use App\Models\Tramite;
 use App\Models\User;
 use App\Support\Tramites\FuenteSuit;
 use Database\Seeders\PermissionSeeder;
+use Database\Seeders\TramiteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Tests\TestCase;
 
 /**
@@ -288,5 +290,85 @@ final class TramitesPanelTest extends TestCase
         $this->actingAs($this->gestor())->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", ['nombre' => 'Zanahoria'])->assertOk();
 
         $this->assertStringContainsString('zanahoria', (string) $tramite->fresh()?->busqueda);
+    }
+
+    /**
+     * El panel reenvía lo que recibe: abrir un trámite de la fuente oficial y guardarlo sin tocarlo
+     * no puede perder datos ni ser rechazado. Se prueba con el catálogo real sembrado (todas las
+     * formas que trae SUIT: canales, pagos y cuentas por requisito, descripciones nulas…).
+     */
+    public function test_guardar_sin_cambios_un_tramite_real_de_la_fuente_no_pierde_ni_rechaza_nada(): void
+    {
+        $this->seed(TramiteSeeder::class);
+        $this->withoutMiddleware(ThrottleRequests::class); // 246 peticiones seguidas
+        $gestor = $this->gestor();
+        $campos = ['resumen', 'url_ficha_gov_co', 'modalidad', 'tiene_costo', 'tiempo_solucion_dias', 'canal_inicio', 'url_inicio',
+            'url_manual_tramite_en_linea', 'consulta_estado', 'resultado', 'producto_final', 'observaciones_resultado', 'fecha_cualquiera',
+            'cuando_se_puede_realizar', 'url_calendario', 'palabras_relacionadas', 'costo', 'categoria', 'requisitos', 'documentos',
+            'momentos', 'audiencias', 'perfiles', 'medios_resultado', 'puntos_atencion', 'normativa', 'cuentas',
+            'canales_consulta_estado', 'seguimiento'];
+
+        $revisados = 0;
+        $invalidas = 0;
+        foreach (Tramite::query()->get() as $tramite) {
+            $antes = $this->actingAs($gestor)->getJson("/api/v1/panel/tramites/{$tramite->uuid}")->assertOk()->json('data');
+            $envio = array_intersect_key($antes, array_flip($campos));
+            $envio['nombre'] = $antes['nombre'];
+
+            // La fuente trae una dirección de pago que no es una dirección (un texto con espacios): al
+            // reenviarla el panel la rechaza con el campo exacto, y quien edita debe corregirla. Aquí se
+            // simula esa corrección para comprobar que todo lo demás viaja intacto.
+            $envio = self::sinDireccionesDePagoInvalidas($envio, $invalidas);
+
+            $respuesta = $this->actingAs($gestor)->patchJson("/api/v1/panel/tramites/{$tramite->uuid}", $envio);
+            $this->assertSame(200, $respuesta->status(), "{$tramite->codigo}: ".json_encode($respuesta->json('errors'), JSON_UNESCAPED_UNICODE));
+
+            $despues = $respuesta->json('data');
+            $antes = self::sinDireccionesDePagoInvalidas($antes, $invalidas);
+            foreach (['requisitos', 'momentos', 'documentos', 'puntos_atencion', 'normativa', 'seguimiento', 'cuentas', 'canales_consulta_estado', 'costo', 'audiencias'] as $campo) {
+                $this->assertSame(self::canonico($antes[$campo]), self::canonico($despues[$campo]), "{$tramite->codigo}: se alteró «{$campo}» al guardar sin cambios.");
+            }
+            $revisados++;
+        }
+
+        $this->assertGreaterThan(50, $revisados);
+        $this->assertGreaterThan(0, $invalidas, 'Se esperaba al menos una dirección de pago inválida en la fuente (defecto conocido).');
+    }
+
+    /** Orden de claves, espacios sobrantes y «vacío» ('' o null) no son información: se igualan para comparar. */
+    private static function canonico(mixed $valor): mixed
+    {
+        if (! is_array($valor)) {
+            $valor = is_string($valor) ? (string) preg_replace('/^[\s\x{00A0}]+|[\s\x{00A0}]+$/u', '', $valor) : $valor;
+
+            return $valor === '' ? null : $valor;
+        }
+        $limpio = array_map(self::canonico(...), $valor);
+        if (! array_is_list($limpio)) {
+            ksort($limpio);
+        }
+
+        return $limpio;
+    }
+
+    /**
+     * Anula las direcciones web que no lo son (defecto de la fuente, ver el test): simula la corrección de quien edita.
+     *
+     * @param  array<mixed>  $datos
+     * @return array<mixed>
+     */
+    private static function sinDireccionesDePagoInvalidas(array $datos, int &$contador): array
+    {
+        foreach ($datos as $clave => $valor) {
+            if (is_array($valor)) {
+                $datos[$clave] = self::sinDireccionesDePagoInvalidas($valor, $contador);
+            } elseif (is_string($clave) && is_string($valor) && trim($valor) !== '' && ($clave === 'url' || str_starts_with($clave, 'url_') || str_ends_with($clave, '_url') || $clave === 'formulario_url')
+                && validator(['u' => $valor], ['u' => 'url:http,https'])->fails()) {
+                $datos[$clave] = null;
+                $contador++;
+            }
+        }
+
+        return $datos;
     }
 }

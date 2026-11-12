@@ -9,10 +9,15 @@
  * scroll, y paginación. El RF-B1-022 añade filtros por nombre, modalidad, costo y tipo de
  * solicitante.
  *
- * **Presentación de directorio.** Cada trámite es una tarjeta que se compara de un vistazo: su
- * nombre lleva a la **ficha propia** de la Sede (destino principal), y la ficha oficial de GOV.CO
- * es un enlace secundario cuando existe. La tarjeta muestra, con icono y etiqueta, la modalidad, si
- * tiene costo, la duración y la dependencia —los metadatos que el ciudadano necesita para elegir—.
+ * **Presentación de directorio (modelo: el listado de trámites de la Alcaldía de Montería).** Cada
+ * trámite es una fila a todo el ancho: a la izquierda su nombre y un resumen; a la derecha, en
+ * columna y con icono y etiqueta, la modalidad, si tiene costo, la duración y la dependencia —los
+ * metadatos que el ciudadano necesita para elegir—. Al lado izquierdo, en un panel propio, el
+ * buscador y los filtros agrupados en acordeones.
+ *
+ * **Adónde lleva cada fila.** La ficha completa vive en GOV.CO (registro nacional de trámites): la
+ * fila entera abre su `url_ficha_gov_co` en una pestaña nueva (`enlaceTramite`). Un trámite sin ficha
+ * nacional, como las consultas, cae a la ficha propia de la Sede.
  *
  * **Los filtros y la búsqueda son del servidor, y el contrato lo dice.** `GET /tramites` declara
  * `page`, `per_page`, `buscar`, `type`, `categoria`, `modalidad`, `costo`, `dependencia` y
@@ -96,8 +101,8 @@ const ETIQUETA_SOLICITANTE: Record<string, string> = {
   instituciones: 'Instituciones',
 }
 
-/** Seis por página: con la primera fila compacta, el primer resultado cabe sin hacer scroll. */
-const TAMANO_PAGINA = 6
+/** Diez por página, como el listado de referencia. */
+const TAMANO_PAGINA = 10
 
 // ---------------------------------------------------------------------------
 // Estado de los mecanismos de acceso
@@ -114,6 +119,14 @@ const pagina = ref(1)
 const claveBuscador = ref(0)
 /** En móvil el panel de filtros se pliega para no empujar el primer resultado fuera de pantalla. */
 const filtrosAbiertos = ref(false)
+/** Qué grupos de filtros están desplegados. «Modalidad» arranca abierto: es el primer criterio con que se elige. */
+const gruposAbiertos = reactive({
+  modalidad: true,
+  costo: false,
+  categoria: false,
+  dependencia: false,
+  solicitante: false,
+})
 
 // ---------------------------------------------------------------------------
 // Lectura del catálogo
@@ -213,11 +226,16 @@ const estadoVacio = computed<EstadoVacio>(() => {
 })
 
 // ---------------------------------------------------------------------------
-// Presentación de cada tarjeta
+// Presentación de cada fila
 // ---------------------------------------------------------------------------
 
 function textoModalidad(valor: string | null | undefined): string | null {
   return valor == null ? null : (ETIQUETA_MODALIDAD[valor] ?? valor)
+}
+
+/** El icono de la modalidad: una persona para lo presencial, una pantalla para lo que se hace en línea. */
+function iconoModalidad(valor: string | null | undefined): 'persona' | 'pantalla' {
+  return valor === 'presencial' ? 'persona' : 'pantalla'
 }
 
 function textoCosto(valor: string | null | undefined): string | null {
@@ -321,130 +339,152 @@ function reintentar(): void {
       </button>
     </div>
 
-    <!-- Buscador, siempre a la vista. -->
-    <div class="mt-3">
-      <BuscadorGovco
-        :key="claveBuscador"
-        etiqueta="Buscar dentro de trámites, OPA y consultas de acceso a información pública"
-        placeholder="Buscar en trámites y servicios"
-        texto-boton="Buscar en el catálogo"
-        :valor-inicial="terminoAplicado"
-        @buscar="alBuscar"
-        @limpiar="alLimpiarBusqueda"
-      />
-    </div>
-
-    <!-- Botón de filtros, sólo en móvil: pliega el panel para no empujar el primer resultado. -->
-    <button
-      type="button"
-      class="boton-filtros mt-3"
-      :aria-expanded="filtrosAbiertos"
-      aria-controls="panel-filtros"
-      @click="filtrosAbiertos = !filtrosAbiertos"
-    >
-      {{ filtrosAbiertos ? 'Ocultar filtros' : 'Mostrar filtros' }}
-    </button>
-
     <div class="directorio mt-3">
-      <!-- Barra lateral de facetas. En escritorio siempre visible; en móvil se pliega. -->
-      <aside
-        id="panel-filtros"
-        class="panel-filtros"
-        :class="{ 'panel-filtros-abierto': filtrosAbiertos }"
-        aria-label="Filtrar el catálogo"
-      >
-        <div class="panel-filtros-cabecera">
-          <h2 class="h6 mb-0">Filtrar por</h2>
-          <button v-if="hayFiltros" type="button" class="enlace-limpiar" @click="limpiarFiltros">
-            Limpiar
-          </button>
+      <!-- Columna lateral: el buscador, siempre a la vista, y los filtros. -->
+      <div class="lateral">
+        <div class="lateral-buscar">
+          <h2 id="titulo-buscar" class="lateral-titulo">Buscar</h2>
+          <BuscadorGovco
+            :key="claveBuscador"
+            etiqueta="Buscar dentro de trámites, OPA y consultas de acceso a información pública"
+            placeholder="Palabra clave"
+            texto-boton="Buscar en el catálogo"
+            :valor-inicial="terminoAplicado"
+            @buscar="alBuscar"
+            @limpiar="alLimpiarBusqueda"
+          />
         </div>
 
-        <fieldset v-if="facetas && facetas.modalidades.length > 0" class="faceta">
-          <legend class="faceta-titulo">Modalidad</legend>
-          <ul class="faceta-lista" role="list">
-            <li v-for="f in facetas.modalidades" :key="f.valor">
-              <button
-                type="button"
-                class="faceta-opcion"
-                :aria-pressed="modalidadElegida === f.valor"
-                @click="alternar('modalidad', f.valor)"
-              >
-                <span>{{ ETIQUETA_MODALIDAD[f.valor] ?? f.valor }}</span>
-                <span class="faceta-cuenta">{{ f.total }}</span>
-              </button>
-            </li>
-          </ul>
-        </fieldset>
+        <!-- Botón de filtros, sólo en móvil: pliega el panel para no empujar el primer resultado. -->
+        <button
+          type="button"
+          class="boton-filtros mt-3"
+          :aria-expanded="filtrosAbiertos"
+          aria-controls="panel-filtros"
+          @click="filtrosAbiertos = !filtrosAbiertos"
+        >
+          {{ filtrosAbiertos ? 'Ocultar filtros' : 'Mostrar filtros' }}
+        </button>
 
-        <fieldset v-if="facetas && facetas.costos.length > 0" class="faceta">
-          <legend class="faceta-titulo">Costo</legend>
-          <ul class="faceta-lista" role="list">
-            <li v-for="f in facetas.costos" :key="f.valor">
-              <button
-                type="button"
-                class="faceta-opcion"
-                :aria-pressed="costoElegido === f.valor"
-                @click="alternar('costo', f.valor)"
-              >
-                <span>{{ ETIQUETA_COSTO[f.valor] ?? f.valor }}</span>
-                <span class="faceta-cuenta">{{ f.total }}</span>
-              </button>
-            </li>
-          </ul>
-        </fieldset>
+        <aside
+          id="panel-filtros"
+          class="panel-filtros"
+          :class="{ 'panel-filtros-abierto': filtrosAbiertos }"
+          aria-label="Filtrar el catálogo"
+        >
+          <div class="panel-filtros-cabecera">
+            <h2 class="lateral-titulo mb-0">Filtrar por:</h2>
+            <button v-if="hayFiltros" type="button" class="enlace-limpiar" @click="limpiarFiltros">
+              Limpiar
+            </button>
+          </div>
 
-        <fieldset v-if="facetas && facetas.categorias.length > 0" class="faceta">
-          <legend class="faceta-titulo">Tema</legend>
-          <ul class="faceta-lista" role="list">
-            <li v-for="f in facetas.categorias" :key="f.slug">
-              <button
-                type="button"
-                class="faceta-opcion"
-                :aria-pressed="categoriaElegida === f.slug"
-                @click="alternar('categoria', f.slug)"
-              >
-                <span>{{ f.nombre }}</span>
-                <span class="faceta-cuenta">{{ f.total }}</span>
-              </button>
-            </li>
-          </ul>
-        </fieldset>
+          <AcordeonGovco
+            v-if="facetas && facetas.modalidades.length > 0"
+            v-model:abierto="gruposAbiertos.modalidad"
+            titulo="Modalidad"
+            :nivel="3"
+          >
+            <ul class="faceta-lista" role="list">
+              <li v-for="f in facetas.modalidades" :key="f.valor">
+                <button
+                  type="button"
+                  class="faceta-opcion"
+                  :aria-pressed="modalidadElegida === f.valor"
+                  @click="alternar('modalidad', f.valor)"
+                >
+                  <span>{{ ETIQUETA_MODALIDAD[f.valor] ?? f.valor }}</span>
+                  <span class="faceta-cuenta">{{ f.total }}</span>
+                </button>
+              </li>
+            </ul>
+          </AcordeonGovco>
 
-        <fieldset v-if="facetas && facetas.dependencias.length > 0" class="faceta">
-          <legend class="faceta-titulo">Dependencia</legend>
-          <ul class="faceta-lista" role="list">
-            <li v-for="f in facetas.dependencias" :key="f.id">
-              <button
-                type="button"
-                class="faceta-opcion"
-                :aria-pressed="dependenciaElegida === f.id"
-                @click="alternarDependencia(f.id)"
-              >
-                <span>{{ f.nombre }}</span>
-                <span class="faceta-cuenta">{{ f.total }}</span>
-              </button>
-            </li>
-          </ul>
-        </fieldset>
+          <AcordeonGovco
+            v-if="facetas && facetas.costos.length > 0"
+            v-model:abierto="gruposAbiertos.costo"
+            titulo="Costo"
+            :nivel="3"
+          >
+            <ul class="faceta-lista" role="list">
+              <li v-for="f in facetas.costos" :key="f.valor">
+                <button
+                  type="button"
+                  class="faceta-opcion"
+                  :aria-pressed="costoElegido === f.valor"
+                  @click="alternar('costo', f.valor)"
+                >
+                  <span>{{ ETIQUETA_COSTO[f.valor] ?? f.valor }}</span>
+                  <span class="faceta-cuenta">{{ f.total }}</span>
+                </button>
+              </li>
+            </ul>
+          </AcordeonGovco>
 
-        <fieldset v-if="facetas && facetas.solicitantes.length > 0" class="faceta">
-          <legend class="faceta-titulo">Tipo de solicitante</legend>
-          <ul class="faceta-lista" role="list">
-            <li v-for="f in facetas.solicitantes" :key="f.valor">
-              <button
-                type="button"
-                class="faceta-opcion"
-                :aria-pressed="solicitanteElegido === f.valor"
-                @click="alternar('solicitante', f.valor)"
-              >
-                <span>{{ ETIQUETA_SOLICITANTE[f.valor] ?? f.valor }}</span>
-                <span class="faceta-cuenta">{{ f.total }}</span>
-              </button>
-            </li>
-          </ul>
-        </fieldset>
-      </aside>
+          <AcordeonGovco
+            v-if="facetas && facetas.categorias.length > 0"
+            v-model:abierto="gruposAbiertos.categoria"
+            titulo="Temáticas"
+            :nivel="3"
+          >
+            <ul class="faceta-lista" role="list">
+              <li v-for="f in facetas.categorias" :key="f.slug">
+                <button
+                  type="button"
+                  class="faceta-opcion"
+                  :aria-pressed="categoriaElegida === f.slug"
+                  @click="alternar('categoria', f.slug)"
+                >
+                  <span>{{ f.nombre }}</span>
+                  <span class="faceta-cuenta">{{ f.total }}</span>
+                </button>
+              </li>
+            </ul>
+          </AcordeonGovco>
+
+          <AcordeonGovco
+            v-if="facetas && facetas.dependencias.length > 0"
+            v-model:abierto="gruposAbiertos.dependencia"
+            titulo="Dependencias"
+            :nivel="3"
+          >
+            <ul class="faceta-lista" role="list">
+              <li v-for="f in facetas.dependencias" :key="f.id">
+                <button
+                  type="button"
+                  class="faceta-opcion"
+                  :aria-pressed="dependenciaElegida === f.id"
+                  @click="alternarDependencia(f.id)"
+                >
+                  <span>{{ f.nombre }}</span>
+                  <span class="faceta-cuenta">{{ f.total }}</span>
+                </button>
+              </li>
+            </ul>
+          </AcordeonGovco>
+
+          <AcordeonGovco
+            v-if="facetas && facetas.solicitantes.length > 0"
+            v-model:abierto="gruposAbiertos.solicitante"
+            titulo="Tipo de solicitante"
+            :nivel="3"
+          >
+            <ul class="faceta-lista" role="list">
+              <li v-for="f in facetas.solicitantes" :key="f.valor">
+                <button
+                  type="button"
+                  class="faceta-opcion"
+                  :aria-pressed="solicitanteElegido === f.valor"
+                  @click="alternar('solicitante', f.valor)"
+                >
+                  <span>{{ ETIQUETA_SOLICITANTE[f.valor] ?? f.valor }}</span>
+                  <span class="faceta-cuenta">{{ f.total }}</span>
+                </button>
+              </li>
+            </ul>
+          </AcordeonGovco>
+        </aside>
+      </div>
 
       <!-- Resultados. -->
       <section class="resultados" aria-label="Resultados">
@@ -465,52 +505,65 @@ function reintentar(): void {
           </button>
         </div>
 
-        <ul v-else-if="elementos.length > 0" class="tarjetas mt-2" role="list">
-          <li v-for="t in elementos" :key="t.slug" class="tarjeta">
-            <h3 class="tarjeta-nombre h5">
-              <!-- La ficha completa vive en GOV.CO: la tarjeta lleva allí; sin ficha nacional, a la propia. -->
-              <a
-                v-if="enlaceTramite(t).externo"
-                :href="enlaceTramite(t).href"
-                class="tarjeta-enlace"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {{ t.nombre }}
-                <span class="solo-lectores">(abre la ficha en GOV.CO, en una pestaña nueva)</span>
-              </a>
-              <NuxtLink v-else :to="enlaceTramite(t).href" class="tarjeta-enlace">{{ t.nombre }}</NuxtLink>
-            </h3>
-            <p v-if="t.resumen" class="tarjeta-resumen mb-2">{{ t.resumen }}</p>
+        <ul v-else-if="elementos.length > 0" class="filas mt-2" role="list">
+          <li v-for="t in elementos" :key="t.slug" class="fila">
+            <div class="fila-texto">
+              <h3 class="fila-nombre h5">
+                <!-- La ficha completa vive en GOV.CO: la fila entera lleva allí; sin ficha nacional, a la propia. -->
+                <a
+                  v-if="enlaceTramite(t).externo"
+                  :href="enlaceTramite(t).href"
+                  class="fila-enlace"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{ t.nombre }}
+                  <span class="solo-lectores">(abre la ficha en GOV.CO, en una pestaña nueva)</span>
+                </a>
+                <NuxtLink v-else :to="enlaceTramite(t).href" class="fila-enlace">{{ t.nombre }}</NuxtLink>
+              </h3>
+              <p v-if="t.resumen" class="fila-resumen mb-0">{{ t.resumen }}</p>
+            </div>
 
-            <ul class="chips" role="list">
-              <li v-if="textoModalidad(t.modalidad)" class="chip">
-                <svg class="chip-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <ul class="fila-datos" role="list">
+              <li v-if="textoModalidad(t.modalidad)" class="dato dato-modalidad">
+                <svg v-if="iconoModalidad(t.modalidad) === 'persona'" class="dato-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <circle cx="8" cy="5" r="2.6" fill="currentColor" />
+                  <path d="M2.5 14c0-3 2.4-4.8 5.5-4.8s5.5 1.8 5.5 4.8z" fill="currentColor" />
+                </svg>
+                <svg v-else class="dato-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                   <path d="M2 3h12v8H2z" fill="none" stroke="currentColor" stroke-width="1.3" />
                   <path d="M6 13h4M8 11v2" stroke="currentColor" stroke-width="1.3" />
                 </svg>
                 <span>{{ textoModalidad(t.modalidad) }}</span>
               </li>
-              <li v-if="textoCosto(t.tiene_costo)" class="chip">
-                <svg class="chip-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <li v-if="textoCosto(t.tiene_costo)" class="dato">
+                <svg class="dato-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                   <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.3" />
                   <path d="M8 4.5v7M6.3 6.2c0-1 .8-1.5 1.7-1.5s1.7.5 1.7 1.4c0 1.8-3.4 1-3.4 2.9 0 .9.8 1.5 1.7 1.5s1.7-.5 1.7-1.5" fill="none" stroke="currentColor" stroke-width="1.1" />
                 </svg>
                 <span>{{ textoCosto(t.tiene_costo) }}</span>
               </li>
-              <li v-if="textoDuracion(t.tiempo_solucion_dias)" class="chip">
-                <svg class="chip-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <li v-if="textoDuracion(t.tiempo_solucion_dias)" class="dato">
+                <svg class="dato-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                   <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.3" />
                   <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" stroke-width="1.3" />
                 </svg>
                 <span>{{ textoDuracion(t.tiempo_solucion_dias) }}</span>
               </li>
-              <li v-if="t.dependencia" class="chip">
-                <svg class="chip-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <li v-if="t.dependencia" class="dato">
+                <svg class="dato-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                   <path d="M3 13V4l5-2 5 2v9" fill="none" stroke="currentColor" stroke-width="1.3" />
                   <path d="M6 7h1M9 7h1M6 10h1M9 10h1" stroke="currentColor" stroke-width="1.2" />
                 </svg>
                 <span>{{ t.dependencia.nombre }}</span>
+              </li>
+              <!-- Rótulo de destino, no un segundo enlace: toda la fila ya lo es. El logo es blanco, va sobre la pastilla azul. -->
+              <li v-if="enlaceTramite(t).externo" class="dato dato-govco">
+                <span class="insignia-govco" aria-hidden="true">
+                  <img src="/govco/assets/images/logo.svg" alt="" width="65" height="14" />
+                </span>
+                <span>Trámite en gov.co</span>
               </li>
             </ul>
           </li>
@@ -597,20 +650,25 @@ function reintentar(): void {
   outline-offset: 2px;
 }
 
-/* Rejilla: en escritorio, barra lateral + resultados; en móvil, una columna. */
+/* Rejilla: en escritorio, columna lateral + resultados; en móvil, una columna. */
 .directorio {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5rem;
 }
 
-/* --- Panel de facetas --------------------------------------------------- */
+/* --- Columna lateral: buscador + filtros -------------------------------- */
+.lateral-titulo {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--govcolor-black, #000);
+  margin: 0 0 0.5rem;
+}
+
+/* --- Panel de filtros ----------------------------------------------------- */
 .panel-filtros {
   display: none;
-  border: 1px solid var(--govcolor-silver, #b9b9b9);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  background-color: var(--govcolor-white, #ffffff);
+  margin-top: 1rem;
 }
 .panel-filtros-abierto {
   display: block;
@@ -619,7 +677,7 @@ function reintentar(): void {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 .enlace-limpiar {
   border: 0;
@@ -634,19 +692,35 @@ function reintentar(): void {
   outline: 3px solid var(--govcolor-cobalt, #0943b5);
   outline-offset: 2px;
 }
-.faceta {
-  border: 0;
-  margin: 0 0 1rem;
-  padding: 0;
+
+/* Los grupos son acordeones del Kit; dentro del panel se aprietan: el Kit les da el relleno de una
+   página, no el de una columna de 17 rem. */
+.panel-filtros :deep(.accordion-govco) {
+  margin: 0;
 }
-.faceta-titulo {
-  float: none;
-  width: auto;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--govcolor-matterhorn, #4c4c4c);
-  margin-bottom: 0.35rem;
+.panel-filtros :deep(.item-accordion-govco),
+.panel-filtros :deep(.accordion-header),
+.panel-filtros :deep(.accordion-collapse),
+.panel-filtros :deep(.body-accordion-govco) {
+  background-color: transparent;
 }
+.panel-filtros :deep(.item-accordion-govco) {
+  border-bottom: 1px solid var(--govcolor-silver, #b9b9b9);
+}
+.panel-filtros :deep(.button-accordion-govco) {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  background-color: transparent;
+}
+.panel-filtros :deep(.button-accordion-govco),
+.panel-filtros :deep(.text-button-accordion-govco) {
+  font-size: 1.125rem;
+  font-weight: 400;
+}
+.panel-filtros :deep(.body-accordion-govco) {
+  padding: 0 0 0.5rem;
+}
+
 .faceta-lista {
   list-style: none;
   margin: 0;
@@ -658,7 +732,7 @@ function reintentar(): void {
   justify-content: space-between;
   gap: 0.5rem;
   width: 100%;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   padding: 0.35rem 0.5rem;
   border: 0;
   border-radius: 0.375rem;
@@ -669,7 +743,7 @@ function reintentar(): void {
   cursor: pointer;
 }
 .faceta-opcion:hover {
-  background-color: var(--govcolor-white-smoke, #f4f4f4);
+  background-color: var(--govcolor-solitude, #e5ecf8);
 }
 .faceta-opcion[aria-pressed='true'] {
   background-color: var(--govcolor-cobalt, #0943b5);
@@ -687,7 +761,7 @@ function reintentar(): void {
   opacity: 0.85;
 }
 
-/* --- Resultados --------------------------------------------------------- */
+/* --- Resultados: una fila por trámite ------------------------------------- */
 .barra-resumen {
   margin-bottom: 0.5rem;
 }
@@ -696,80 +770,103 @@ function reintentar(): void {
   color: var(--govcolor-matterhorn, #4c4c4c);
 }
 
-.tarjetas {
+.filas {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+.fila {
+  /* El tope de 68 ch que `sitio.css` pone a todo `li` de `#contenido-principal` es para prosa; una fila de
+     directorio ocupa su columna. `min-width` gana a `max-width` cuando chocan, así no hace falta un
+     `#id` en el selector (el proyecto no los admite fuera de la capa de modos de accesibilidad). */
+  min-width: 100%;
+  /* La fila entera es el enlace (el `::after` del título la cubre), sin una segunda parada de teclado. */
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem;
+  gap: 0.75rem 2rem;
+  padding: 1.25rem 0.5rem;
+  border-top: 1px solid var(--govcolor-silver, #b9b9b9);
 }
-.tarjeta {
-  border: 1px solid var(--govcolor-silver, #b9b9b9);
-  border-radius: 0.5rem;
-  padding: 1rem 1.125rem;
-  background-color: var(--govcolor-white, #ffffff);
-  transition:
-    box-shadow 0.15s ease,
-    border-color 0.15s ease;
+.fila:last-child {
+  border-bottom: 1px solid var(--govcolor-silver, #b9b9b9);
 }
-.tarjeta:hover,
-.tarjeta:focus-within {
-  border-color: var(--govcolor-cobalt, #0943b5);
-  box-shadow: 0 0.25rem 0.75rem rgb(0 0 0 / 0.08);
+.fila:hover,
+.fila:focus-within {
+  background-color: var(--govcolor-solitude, #e5ecf8);
 }
-.tarjeta-nombre {
+.fila-nombre {
   margin-bottom: 0.35rem;
 }
-.tarjeta-enlace {
+.fila-enlace {
   color: var(--govcolor-cobalt, #0943b5);
-  text-decoration: none;
-}
-.tarjeta-enlace:hover {
   text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
-.tarjeta-enlace:focus-visible {
+.fila-enlace::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+/* Al pasar el cursor la fila se tiñe; el `a:hover` del Kit baja el enlace a un azul que ahí ya no llega
+   a 4,5:1 (medido: 3,93). El token del proyecto para enlaces sobre fondo teñido sí. */
+.fila:hover .fila-enlace,
+.fila-enlace:hover {
+  color: var(--color-enlace-sobre-tenido, #00568d);
+}
+.fila-enlace:focus-visible {
   outline: 3px solid var(--govcolor-cobalt, #0943b5);
   outline-offset: 2px;
 }
-.tarjeta-resumen {
+.fila-resumen {
   color: var(--govcolor-matterhorn, #4c4c4c);
-  font-size: 0.9375rem;
-  /* Dos líneas como máximo: las tarjetas conservan una altura comparable. */
+  /* Cuatro líneas como máximo: las filas conservan una altura comparable. */
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* Chips de metadatos: icono + etiqueta (nunca sólo icono). */
-.chips {
+/* Columna de datos: icono + etiqueta (nunca sólo icono), uno bajo otro. */
+.fila-datos {
   list-style: none;
-  margin: 0 0 0.5rem;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem 0.5rem;
+  gap: 0.5rem 1.25rem;
+  align-content: start;
 }
-.chip {
+.dato {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--govcolor-matterhorn, #4c4c4c);
+}
+.dato-modalidad {
+  color: var(--govcolor-green, #158361);
+}
+.dato-icono {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+.dato-govco {
+  margin-top: 0.25rem;
+  color: var(--govcolor-black, #000);
+}
+/* El logo de GOV.CO es blanco: sobre fondo claro no se vería. Va en una pastilla azul. */
+.insignia-govco {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.55rem;
-  border: 1px solid var(--govcolor-silver, #b9b9b9);
-  border-radius: 1rem;
-  font-size: 0.8125rem;
-  color: var(--govcolor-matterhorn, #4c4c4c);
-  background-color: var(--govcolor-white-smoke, #f4f4f4);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  background-color: var(--govcolor-cobalt, #0943b5);
 }
-.chip-icono {
-  width: 0.9rem;
-  height: 0.9rem;
-  flex-shrink: 0;
-  color: var(--govcolor-cobalt, #0943b5);
+.insignia-govco img {
+  display: block;
 }
-
 
 /* Botones del catálogo. */
 .btn-catalogo {
@@ -793,22 +890,30 @@ function reintentar(): void {
   font-weight: 700;
 }
 
-/* --- Escritorio: barra lateral + rejilla de dos columnas --------------- */
+/* --- Escritorio: columna lateral + filas ------------------------------- */
 @media (min-width: 62rem) {
   .boton-filtros {
     display: none;
   }
   .directorio {
-    grid-template-columns: 17rem 1fr;
+    grid-template-columns: 18rem 1fr;
     align-items: start;
+  }
+  /* El panel lateral, con el tono neutro del sitio (no hay un beige entre los tokens). */
+  .lateral {
+    padding: 1.25rem 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--govcolor-white-smoke, #f4f4f4);
   }
   .panel-filtros {
     display: block;
-    position: sticky;
-    top: 1rem;
   }
-  .tarjetas {
-    grid-template-columns: repeat(2, 1fr);
+  .fila {
+    grid-template-columns: 1fr 15rem;
+  }
+  .fila-datos {
+    flex-direction: column;
+    flex-wrap: nowrap;
   }
 }
 

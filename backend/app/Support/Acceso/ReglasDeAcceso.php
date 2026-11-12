@@ -27,7 +27,7 @@ final class ReglasDeAcceso
     /** @return list<string> */
     public static function permisosDe(User $usuario): array
     {
-        return $usuario->getAllPermissions()->pluck('name')->values()->all();
+        return array_values(array_map('strval', $usuario->getAllPermissions()->pluck('name')->all()));
     }
 
     /** @param list<string> $permisos */
@@ -49,7 +49,7 @@ final class ReglasDeAcceso
             return false;
         }
 
-        return self::puedeOtorgarPermisos($actor, $rol->permissions->pluck('name')->all());
+        return self::puedeOtorgarPermisos($actor, array_values(array_map('strval', $rol->permissions->pluck('name')->all())));
     }
 
     public static function exigirOtorgarRol(User $actor, Role $rol): void

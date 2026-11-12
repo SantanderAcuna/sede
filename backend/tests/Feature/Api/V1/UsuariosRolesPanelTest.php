@@ -49,8 +49,14 @@ final class UsuariosRolesPanelTest extends TestCase
         return $usuario;
     }
 
+    private function recargar(User $usuario): User
+    {
+        return User::query()->findOrFail($usuario->id);
+    }
+
     private function rolEditor(): Role
     {
+        /** @var Role $rol */
         $rol = Role::findOrCreate('editor', 'web');
         $rol->syncPermissions(['noticias.gestionar']);
 
@@ -157,7 +163,7 @@ final class UsuariosRolesPanelTest extends TestCase
             'estado' => 'inactivo',
         ])->assertForbidden();
 
-        $this->assertSame('activo', $super->fresh()->estado);
+        $this->assertSame('activo', $this->recargar($super)->estado);
     }
 
     public function test_nadie_cambia_sus_propios_roles_ni_su_estado(): void
@@ -173,7 +179,7 @@ final class UsuariosRolesPanelTest extends TestCase
             'estado' => 'inactivo',
         ])->assertForbidden();
 
-        $this->assertSame('activo', $admin->fresh()->estado);
+        $this->assertSame('activo', $this->recargar($admin)->estado);
     }
 
     public function test_actualiza_nombre_roles_y_clave_y_deja_huella_sin_la_clave(): void
@@ -187,7 +193,7 @@ final class UsuariosRolesPanelTest extends TestCase
             'password' => 'Otra-Clave-Segura-1',
         ])->assertOk()->assertJsonPath('data.name', 'Nuevo nombre')->assertJsonPath('data.roles.0', 'editor');
 
-        $this->assertTrue(password_verify('Otra-Clave-Segura-1', $objetivo->fresh()->password));
+        $this->assertTrue(password_verify('Otra-Clave-Segura-1', $this->recargar($objetivo)->password));
         $huella = AuditLog::query()->where('accion', 'usuario_actualizado')->first();
         $this->assertNotNull($huella);
         $this->assertStringNotContainsString('Otra-Clave', json_encode($huella->cambios, JSON_THROW_ON_ERROR));
@@ -222,8 +228,8 @@ final class UsuariosRolesPanelTest extends TestCase
             'roles' => [],
         ])->assertUnprocessable();
 
-        $this->assertSame('activo', $unico->fresh()->estado);
-        $this->assertTrue($unico->fresh()->hasRole('super-admin'));
+        $this->assertSame('activo', $this->recargar($unico)->estado);
+        $this->assertTrue($this->recargar($unico)->hasRole('super-admin'));
     }
 
     public function test_usuario_inexistente_es_404(): void

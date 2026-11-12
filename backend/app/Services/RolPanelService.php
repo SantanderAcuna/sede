@@ -34,11 +34,12 @@ final class RolPanelService implements RolPanelServiceInterface
         $this->exigirPoderSobre($actor, $permisos);
 
         return DB::transaction(function () use ($actor, $nombre, $permisos): Role {
+            /** @var Role $rol */
             $rol = Role::create(['name' => $nombre, 'guard_name' => 'web']);
             $rol->syncPermissions($permisos);
-            Huella::registrar($actor, 'rol_creado', 'roles', $rol->id, ['rol' => $nombre, 'permisos' => $permisos]);
+            Huella::registrar($actor, 'rol_creado', 'roles', (int) $rol->id, ['rol' => $nombre, 'permisos' => $permisos]);
 
-            return $this->porId($rol->id) ?? $rol;
+            return $this->porId((int) $rol->id) ?? $rol;
         });
     }
 
@@ -48,7 +49,7 @@ final class RolPanelService implements RolPanelServiceInterface
 
         if ($permisos !== null) {
             // Quitar un permiso ajeno también es tocar poder que no se tiene.
-            $actuales = $rol->permissions->pluck('name')->all();
+            $actuales = $this->nombresDe($rol);
             $this->exigirPoderSobre($actor, array_values(array_unique(array_merge($permisos, $actuales))));
         }
 
@@ -61,27 +62,27 @@ final class RolPanelService implements RolPanelServiceInterface
             if ($permisos !== null) {
                 $rol->syncPermissions($permisos);
             }
-            Huella::registrar($actor, 'rol_actualizado', 'roles', $rol->id, [
+            Huella::registrar($actor, 'rol_actualizado', 'roles', (int) $rol->id, [
                 'rol' => $rol->name,
                 'permisos_antes' => $antes,
                 'permisos_despues' => $rol->fresh()?->permissions->pluck('name')->sort()->values()->all() ?? [],
             ]);
 
-            return $this->porId($rol->id) ?? $rol;
+            return $this->porId((int) $rol->id) ?? $rol;
         });
     }
 
     public function eliminar(User $actor, Role $rol): void
     {
         $this->exigirNoProtegido($rol);
-        $this->exigirPoderSobre($actor, $rol->permissions->pluck('name')->all());
+        $this->exigirPoderSobre($actor, $this->nombresDe($rol));
 
         if ($this->usuariosDelRol($rol) > 0) {
             throw new RolEnUso('El rol tiene usuarios asignados: quíteselo primero a cada uno.');
         }
 
         DB::transaction(function () use ($actor, $rol): void {
-            $id = $rol->id;
+            $id = (int) $rol->id;
             $nombre = $rol->name;
             $rol->delete();
             Huella::registrar($actor, 'rol_eliminado', 'roles', $id, ['rol' => $nombre]);
@@ -113,6 +114,12 @@ final class RolPanelService implements RolPanelServiceInterface
     private function usuariosDelRol(Role $rol): int
     {
         return DB::table('model_has_roles')->where('role_id', $rol->id)->count();
+    }
+
+    /** @return list<string> */
+    private function nombresDe(Role $rol): array
+    {
+        return array_values(array_map('strval', $rol->permissions->pluck('name')->all()));
     }
 
     private function exigirNoProtegido(Role $rol): void

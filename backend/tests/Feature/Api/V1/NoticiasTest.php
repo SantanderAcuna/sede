@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -56,7 +57,7 @@ final class NoticiasTest extends TestCase
         $n++;
 
         $datos = $campos + [
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'slug' => 'noticia-'.$n,
             'titulo' => 'Noticia '.$n,
             'descripcion_corta' => 'Resumen de la noticia '.$n,
@@ -80,7 +81,7 @@ final class NoticiasTest extends TestCase
         Storage::disk($disco)->put($ruta, (string) base64_decode(self::PNG, true));
 
         DB::table('file_media')->insert([
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'model_type' => 'App\\Models\\Noticia',
             'model_id' => $id,
             'model_uuid' => $uuid,

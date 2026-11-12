@@ -409,8 +409,10 @@ jobs:
           # la política no recupera `unsafe-eval` ni abre `unsafe-inline` en scripts.
           f=docker/nginx/conf.d/default.conf
           p=docker/nginx/snippets/csp-informe.conf
-          [ "$(grep -c 'snippets/csp-informe.conf' "$f")" -ge 2 ] \
-            || { echo "Faltan includes de csp-informe.conf en los locations del sitio y del panel."; exit 1; }
+          [ "$(grep -c 'include /var/run/sede-csp.conf;' "$f")" -ge 2 ] \
+            || { echo "Faltan includes de sede-csp.conf (CSP generada al arrancar) en los locations del sitio y del panel."; exit 1; }
+          ! grep -q 'snippets/csp-informe.conf' "$f" \
+            || { echo "default.conf incluye la CSP directamente: debe pasar por el modo (40-csp-modo.sh)."; exit 1; }
           grep -q '^add_header Content-Security-Policy-Report-Only ' "$p" \
             || { echo "El snippet ya no emite Content-Security-Policy-Report-Only."; exit 1; }
           linea="$(grep '^add_header Content-Security-Policy-Report-Only ' "$p")"
@@ -450,6 +452,7 @@ jobs:
           fi
           bash deploy/pruebas/prueba-sin-transformar.sh
           bash deploy/pruebas/prueba-csp-panel.sh
+          bash deploy/pruebas/prueba-csp-modo.sh
       - name: nginx no registra lo que el ciudadano busca
         run: |
           # T-22 (AC-22.7, R3). La consulta del buscador viaja en la URL y puede traer

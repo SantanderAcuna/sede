@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\Noticia;
+use App\Support\Noticias\ContenidoNoticia;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -67,7 +68,7 @@ final class NoticiaResource extends JsonResource
         ];
 
         if ($this->conCuerpo) {
-            $datos['contenido'] = $noticia->contenido;
+            $datos['contenido'] = ContenidoNoticia::limpio($noticia->contenido);
         }
 
         return $datos;

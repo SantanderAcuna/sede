@@ -187,7 +187,7 @@ final class NoticiasTest extends TestCase
         $this->getJson('/api/v1/noticias/visible')
             ->assertOk()
             ->assertJsonPath('data.slug', 'visible')
-            ->assertJsonPath('data.contenido', "Uno.\n\nDos.");
+            ->assertJsonPath('data.contenido', '<p>Uno.</p><p>Dos.</p>');
         $this->getJson('/api/v1/noticias/oculta')->assertNotFound()->assertJsonPath('success', false);
         $this->getJson('/api/v1/noticias/no-existe')->assertNotFound();
     }

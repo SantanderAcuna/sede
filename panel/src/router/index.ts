@@ -50,7 +50,6 @@ const TITULO_BASE = 'SGDI · Alcaldía Distrital de Santa Marta'
 /** Módulos del panel. Comparten marcador hasta que cada uno se implemente. */
 const MODULOS: Array<{ ruta: string; nombre: string; titulo: string; subtitulo: string }> = [
   { ruta: 'pqrsd', nombre: 'pqrsd', titulo: 'PQRSD', subtitulo: 'Peticiones, quejas, reclamos, sugerencias y denuncias' },
-  { ruta: 'tramites', nombre: 'tramites', titulo: 'Trámites', subtitulo: 'Catálogo de trámites y servicios' },
   { ruta: 'citas', nombre: 'citas', titulo: 'Citas y turnos', subtitulo: 'Agenda de atención presencial' },
   { ruta: 'notificaciones', nombre: 'notificaciones', titulo: 'Notificaciones electrónicas', subtitulo: 'Envío y constancia de notificaciones' },
   { ruta: 'sede', nombre: 'sede', titulo: 'Sede Electrónica', subtitulo: 'Publicación del sitio público' },
@@ -62,7 +61,6 @@ const MODULOS: Array<{ ruta: string; nombre: string; titulo: string; subtitulo: 
   { ruta: 'gestion-documental', nombre: 'gestion-documental', titulo: 'Gestión Documental', subtitulo: 'Ciclo de vida del documento electrónico' },
   { ruta: 'sigmi', nombre: 'sigmi', titulo: 'Interoperabilidad SIGMI', subtitulo: 'Intercambio con el sistema distrital' },
   { ruta: 'integraciones', nombre: 'integraciones', titulo: 'Conectores externos', subtitulo: 'Servicios de terceros y pasarelas' },
-  { ruta: 'usuarios', nombre: 'usuarios', titulo: 'Usuarios y Roles', subtitulo: 'Cuentas, roles y permisos' },
   { ruta: 'auditoria', nombre: 'auditoria', titulo: 'Auditoría', subtitulo: 'Trazabilidad de la operación' },
   { ruta: 'reportes', nombre: 'reportes', titulo: 'Reportes', subtitulo: 'Informes y exportaciones' },
   { ruta: 'asignacion', nombre: 'asignacion', titulo: 'Motor de asignación', subtitulo: 'Reparto automático de casos' },
@@ -99,8 +97,14 @@ const rutas: RouteRecordRaw[] = [
       {
         path: 'configuracion/politicas',
         name: 'panel.politicas',
-        component: () => import('@/views/admin/PoliticasView.vue'),
+        component: () => import('@/views/admin/PoliticasListaView.vue'),
         meta: { requiereSesion: true, titulo: 'Políticas del sitio', permiso: PERMISO_POR_RUTA['/configuracion/politicas'] },
+      },
+      {
+        path: 'configuracion/politicas/:slug([a-z0-9-]+)',
+        name: 'panel.politicas.editar',
+        component: () => import('@/views/admin/PoliticaFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar política', permiso: PERMISO_POR_RUTA['/configuracion/politicas'] },
       },
       // Noticias del sitio (M01-6, RF-01-013): la lista es una tabla y crear/editar son
       // vistas propias. «nueva» va antes que «:uuid» y el uuid se restringe a su forma,
@@ -122,6 +126,81 @@ const rutas: RouteRecordRaw[] = [
         name: 'panel.noticias.editar',
         component: () => import('@/views/admin/NoticiaFormularioView.vue'),
         meta: { requiereSesion: true, titulo: 'Editar noticia', permiso: PERMISO_POR_RUTA['/contenidos/noticias'] },
+      },
+      // Carrusel de la portada (Fase 6): lista ordenable y vistas propias para crear y editar.
+      {
+        path: 'contenidos/carrusel',
+        name: 'panel.banners',
+        component: () => import('@/views/admin/BannersListaView.vue'),
+        meta: { requiereSesion: true, titulo: 'Carrusel de la portada', permiso: PERMISO_POR_RUTA['/contenidos/carrusel'] },
+      },
+      {
+        path: 'contenidos/carrusel/nueva',
+        name: 'panel.banners.nuevo',
+        component: () => import('@/views/admin/BannerFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Nueva diapositiva', permiso: PERMISO_POR_RUTA['/contenidos/carrusel'] },
+      },
+      {
+        path: 'contenidos/carrusel/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+        name: 'panel.banners.editar',
+        component: () => import('@/views/admin/BannerFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar diapositiva', permiso: PERMISO_POR_RUTA['/contenidos/carrusel'] },
+      },
+      // Trámites y servicios: lista en tabla; crear y editar son vistas propias (mismo patrón que noticias).
+      {
+        path: 'tramites',
+        name: 'tramites',
+        component: () => import('@/views/admin/TramitesListaView.vue'),
+        meta: { requiereSesion: true, titulo: 'Trámites', permiso: PERMISO_POR_RUTA['/tramites'] },
+      },
+      {
+        path: 'tramites/nuevo',
+        name: 'panel.tramites.nuevo',
+        component: () => import('@/views/admin/TramiteFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Nuevo trámite', permiso: PERMISO_POR_RUTA['/tramites'] },
+      },
+      {
+        path: 'tramites/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+        name: 'panel.tramites.editar',
+        component: () => import('@/views/admin/TramiteFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar trámite', permiso: PERMISO_POR_RUTA['/tramites'] },
+      },
+      // Usuarios y roles: dos listas en tabla (pestañas) y vistas propias para crear y editar.
+      {
+        path: 'usuarios',
+        name: 'usuarios',
+        component: () => import('@/views/admin/UsuariosListaView.vue'),
+        meta: { requiereSesion: true, titulo: 'Usuarios y roles', permiso: PERMISO_POR_RUTA['/usuarios'] },
+      },
+      {
+        path: 'usuarios/nuevo',
+        name: 'panel.usuarios.nuevo',
+        component: () => import('@/views/admin/UsuarioFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Nuevo usuario', permiso: PERMISO_POR_RUTA['/usuarios'] },
+      },
+      {
+        path: 'usuarios/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+        name: 'panel.usuarios.editar',
+        component: () => import('@/views/admin/UsuarioFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar usuario', permiso: PERMISO_POR_RUTA['/usuarios'] },
+      },
+      {
+        path: 'usuarios/roles',
+        name: 'panel.roles',
+        component: () => import('@/views/admin/RolesListaView.vue'),
+        meta: { requiereSesion: true, titulo: 'Roles y permisos', permiso: PERMISO_POR_RUTA['/usuarios'] },
+      },
+      {
+        path: 'usuarios/roles/nuevo',
+        name: 'panel.roles.nuevo',
+        component: () => import('@/views/admin/RolFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Nuevo rol', permiso: PERMISO_POR_RUTA['/usuarios'] },
+      },
+      {
+        path: 'usuarios/roles/:id(\\d+)',
+        name: 'panel.roles.editar',
+        component: () => import('@/views/admin/RolFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar rol', permiso: PERMISO_POR_RUTA['/usuarios'] },
       },
       ...MODULOS.map(
         (modulo): RouteRecordRaw => ({

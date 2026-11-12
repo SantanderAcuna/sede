@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 /**
  * Permisos del panel.
@@ -39,6 +40,8 @@ final class PermissionSeeder extends Seeder
         // Contenidos
         'cms.gestionar',
         'noticias.gestionar',
+        'tramites.gestionar',
+        'banners.gestionar',
         'portal.publicar',
         'transparencia.ver',
 
@@ -66,8 +69,22 @@ final class PermissionSeeder extends Seeder
 
     public function run(): void
     {
+        $nuevos = [];
         foreach (self::PERMISOS_PANEL as $nombre) {
-            Permission::findOrCreate($nombre, 'web');
+            if (Permission::findOrCreate($nombre, 'web')->wasRecentlyCreated) {
+                $nuevos[] = $nombre;
+            }
+        }
+
+        // El rol «admin» (administra usuarios y contenidos) se crea una sola vez con todos los
+        // permisos del panel; si ya existe no se toca, para no deshacer ajustes hechos desde el panel.
+        $admin = Role::findOrCreate('admin', 'web');
+        if ($admin->wasRecentlyCreated) {
+            $admin->syncPermissions(self::PERMISOS_PANEL);
+        } elseif ($nuevos !== []) {
+            // Un permiso que aparece por primera vez (un módulo nuevo) llega también al rol «admin»;
+            // los que ya existían no se tocan, así un permiso que se le quitó a propósito no vuelve.
+            $admin->givePermissionTo($nuevos);
         }
     }
 }

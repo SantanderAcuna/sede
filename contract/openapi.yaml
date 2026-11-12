@@ -71,6 +71,8 @@ tags:
     description: 10 subsecciones de Ley 1712, documentos, búsqueda
   - name: Buscar
     description: Búsqueda full-text unificada
+  - name: Panel — Imágenes del contenido
+    description: Imágenes que el editor del panel inserta en noticias, políticas y entidad
   - name: Panel — Noticias
     description: Alta, edición y publicación de noticias (permiso noticias.gestionar)
   - name: Panel — Auth
@@ -600,6 +602,61 @@ paths:
           in: path
           required: true
           schema: { type: string }
+      responses:
+        '200':
+          description: El archivo de imagen
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
+  /banners:
+    get:
+      tags: [Banners]
+      operationId: listarBanners
+      summary: Diapositivas vigentes del carrusel de la portada
+      description: |
+        Solo las activas y dentro de su vigencia (`vigente_desde` ≤ ahora < `vigente_hasta`), en el
+        orden elegido en el panel. Cada una trae su imagen con texto alternativo; nada interno
+        (ni identificador numérico, ni estado, ni fechas). Sin diapositivas, `data` es una lista vacía
+        y el sitio usa su portada de respaldo.
+      x-status: implemented
+      x-criterios: [CAG-02, CAG-04]
+      responses:
+        '200':
+          description: Diapositivas vigentes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/BannerPublico' }
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
+  /banners/{uuid}/imagen:
+    get:
+      tags: [Banners]
+      operationId: obtenerImagenBanner
+      summary: Imagen de una diapositiva vigente
+      description: "Dirección estable, con `ETag` y `Cache-Control public, max-age=300`. 404 si la diapositiva no está vigente o no tiene imagen."
+      x-status: implemented
+      x-criterios: [CAG-04]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
       responses:
         '200':
           description: El archivo de imagen
@@ -1393,6 +1450,851 @@ paths:
   # ══════════════════════════════════════════════════════════════════════════════
   # PANEL — NOTICIAS
   # ══════════════════════════════════════════════════════════════════════════════
+  /panel/tramites:
+    get:
+      tags: [Panel — Trámites]
+      operationId: listarTramitesPanel
+      summary: Todos los trámites, borradores incluidos
+      description: |
+        Requiere el permiso `tramites.gestionar`. Alimenta la tabla del panel: cada elemento
+        trae lo justo para listar (código, nombre, estado, origen y lo que falta para
+        publicarlo) y NO la ficha entera; ésa se pide con `GET /panel/tramites/{uuid}`.
+
+        Se busca por nombre (sin distinguir mayúsculas ni tildes) o por código (`q`), se
+        filtra por `estado` y se ordena. Sin parámetros, los editados más recientemente
+        primero. Un valor fuera de lo declarado es 422.
+      x-status: implemented
+      x-criterios: [RF-01-006]
+      parameters:
+        - $ref: '#/components/parameters/Pagina'
+        - name: per_page
+          in: query
+          required: false
+          description: Elementos por página. Por encima de 100 la respuesta es 422.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: q
+          in: query
+          required: false
+          description: Texto del nombre o del código. Hasta 100 caracteres; `%`, `_` y `\` cuentan como texto.
+          schema: { type: string, maxLength: 100 }
+        - name: estado
+          in: query
+          required: false
+          description: |
+            `publicado` (completo y publicado; el que el sitio muestra) o `borrador`
+            (todo lo demás).
+          schema: { $ref: '#/components/schemas/EstadoTramitePanel' }
+        - name: ordenar_por
+          in: query
+          required: false
+          schema: { type: string, enum: [nombre, actualizado_en], default: actualizado_en }
+        - name: direccion
+          in: query
+          required: false
+          description: Por omisión `asc` para el nombre y `desc` para la fecha.
+          schema: { type: string, enum: [asc, desc] }
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TramitePanelCollection'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Trámites]
+      operationId: crearTramite
+      summary: Crear un trámite (basta el nombre)
+      description: |
+        Requiere `tramites.gestionar`. Solo el nombre es obligatorio: el trámite nace como
+        borrador. El código (`P0001`, `P0002`…) y la dirección (`slug`) los asigna el sistema
+        y no cambian después. Pedir `publicado: true` en un trámite incompleto es 422 y el
+        mensaje dice qué falta.
+      x-status: implemented
+      x-criterios: [RF-01-006]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TramiteInput' }
+      responses:
+        '201':
+          description: Trámite creado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/TramitePanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/tramites/{uuid}:
+    get:
+      tags: [Panel — Trámites]
+      operationId: obtenerTramitePanel
+      summary: Un trámite completo, con su estado y lo que le falta
+      description: Requiere el permiso `tramites.gestionar`.
+      x-status: implemented
+      x-criterios: [RF-01-006]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: El trámite
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/TramitePanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    patch:
+      tags: [Panel — Trámites]
+      operationId: actualizarTramite
+      summary: Editar un trámite
+      description: |
+        Requiere `tramites.gestionar`. Acepta cualquier subconjunto de campos; una lista que
+        se envía reemplaza a la guardada (vacía, la borra). El código y la dirección no
+        cambian. Editar un trámite del catálogo oficial (SUIT) lo marca como del panel: la
+        carga automática deja de sobrescribirlo y la ficha pública lo declara en
+        `procedencia.fuente` y en `origen_por_campo`. Un trámite publicado debe seguir
+        completo; `publicado: false` lo retira del sitio.
+      x-status: implemented
+      x-criterios: [RF-01-006]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TramiteInput' }
+      responses:
+        '200':
+          description: Trámite actualizado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/TramitePanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    delete:
+      tags: [Panel — Trámites]
+      operationId: eliminarTramite
+      summary: Eliminar un trámite creado en el panel
+      description: |
+        Requiere `tramites.gestionar`. Solo se eliminan los trámites creados en el panel; los
+        del catálogo oficial responden 409 (la carga automática los traería de vuelta) y se
+        retiran del sitio con `PATCH` y `publicado: false`.
+      x-status: implemented
+      x-criterios: [RF-01-006]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Trámite eliminado
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: El trámite viene del catálogo oficial y no se puede eliminar.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+
+  /panel/usuarios:
+    get:
+      tags: [Panel — Usuarios]
+      operationId: listarUsuariosPanel
+      summary: Usuarios del panel con sus roles
+      description: |
+        Requiere `usuarios.gestionar`. Se busca por nombre o correo (`q`) y se filtra por `estado`
+        y por `rol`. Nunca devuelve la contraseña ni tokens.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - $ref: '#/components/parameters/Pagina'
+        - name: per_page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: q
+          in: query
+          required: false
+          schema: { type: string, maxLength: 100 }
+        - name: estado
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/EstadoUsuarioPanel' }
+        - name: rol
+          in: query
+          required: false
+          schema: { type: string, maxLength: 60 }
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsuarioPanelCollection' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `usuarios.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Usuarios]
+      operationId: crearUsuarioPanel
+      summary: Crear un usuario con contraseña temporal
+      description: |
+        Requiere `usuarios.gestionar`. La contraseña (mínimo 12 caracteres, con letras y números)
+        se guarda cifrada y nunca se devuelve ni se registra. Quien no es súper administrador solo
+        puede asignar roles cuyos permisos tiene todos, y nunca `super-admin` (403).
+      x-status: implemented
+      x-criterios: [SEG-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UsuarioPanelCrear' }
+      responses:
+        '201':
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UsuarioPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/usuarios/{uuid}:
+    get:
+      tags: [Panel — Usuarios]
+      operationId: obtenerUsuarioPanel
+      summary: Un usuario
+      description: Requiere `usuarios.gestionar`.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: El usuario
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UsuarioPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    patch:
+      tags: [Panel — Usuarios]
+      operationId: actualizarUsuarioPanel
+      summary: Cambiar nombre, correo, contraseña, estado o roles
+      description: |
+        Requiere `usuarios.gestionar`. Solo se envía lo que cambia. Reglas que aplica el servidor:
+        nadie cambia sus propios roles ni su estado (403); solo un súper administrador modifica a
+        otro (403); solo se agregan o quitan roles cuyos permisos se tienen (403); no se puede
+        desactivar ni quitar el rol al único súper administrador activo (422). Cambiar el estado a
+        uno distinto de `activo` o cambiar la contraseña cierra las sesiones abiertas del usuario.
+        Cada cambio queda en la auditoría sin la contraseña.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UsuarioPanelCambio' }
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UsuarioPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/permisos:
+    get:
+      tags: [Panel — Roles]
+      operationId: listarPermisosPanel
+      summary: Catálogo de permisos, agrupado y en lenguaje llano
+      description: Requiere `usuarios.gestionar`. Cada permiso trae su nombre técnico, una etiqueta y una descripción.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      responses:
+        '200':
+          description: Grupos de permisos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/GrupoPermisosPanel' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+
+  /panel/roles:
+    get:
+      tags: [Panel — Roles]
+      operationId: listarRolesPanel
+      summary: Roles con sus permisos y cuántos usuarios los tienen
+      description: Requiere `usuarios.gestionar`.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      responses:
+        '200':
+          description: Roles
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/RolPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Roles]
+      operationId: crearRolPanel
+      summary: Crear un rol con permisos
+      description: |
+        Requiere `usuarios.gestionar`. Quien no es súper administrador solo puede incluir permisos
+        que tiene (403). El nombre `super-admin` está reservado (422).
+      x-status: implemented
+      x-criterios: [SEG-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RolPanelEntrada' }
+      responses:
+        '201':
+          description: Rol creado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/RolPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/roles/{id}:
+    get:
+      tags: [Panel — Roles]
+      operationId: obtenerRolPanel
+      summary: Un rol
+      description: Requiere `usuarios.gestionar`.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: El rol
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/RolPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    patch:
+      tags: [Panel — Roles]
+      operationId: actualizarRolPanel
+      summary: Cambiar el nombre o los permisos de un rol
+      description: |
+        Requiere `usuarios.gestionar`. La lista de permisos reemplaza a la guardada. El rol
+        `super-admin` no se modifica (403). Quien no es súper administrador no puede agregar ni
+        quitar permisos que no tiene (403).
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RolPanelEntrada' }
+      responses:
+        '200':
+          description: Rol actualizado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/RolPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    delete:
+      tags: [Panel — Roles]
+      operationId: eliminarRolPanel
+      summary: Eliminar un rol sin usuarios
+      description: |
+        Requiere `usuarios.gestionar`. Un rol con usuarios asignados responde 409; `super-admin`
+        no se elimina (403).
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Rol eliminado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: El rol tiene usuarios asignados.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+
+  /panel/banners:
+    get:
+      tags: [Panel — Carrusel]
+      operationId: listarBannersPanel
+      summary: Todas las diapositivas del carrusel, en su orden
+      description: Requiere `banners.gestionar`. Incluye borradores, programadas y vencidas, con su estado en palabras y lo que les falta para publicarse.
+      x-status: implemented
+      x-criterios: [CAG-02]
+      responses:
+        '200':
+          description: Diapositivas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Carrusel]
+      operationId: crearBanner
+      summary: Crear una diapositiva (basta el título)
+      description: Requiere `banners.gestionar`. Nace como borrador y al final del carrusel. El enlace es una ruta del sitio o una dirección `https://`.
+      x-status: implemented
+      x-criterios: [CAG-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BannerEntrada' }
+      responses:
+        '201':
+          description: Diapositiva creada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/banners/orden:
+    put:
+      tags: [Panel — Carrusel]
+      operationId: ordenarBanners
+      summary: Fijar el orden del carrusel
+      description: Requiere `banners.gestionar`. La lista completa de diapositivas (sin repetidas ni desconocidas); la primera es la que se ve primero. Una lista incompleta es 422.
+      x-status: implemented
+      x-criterios: [CAG-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uuids]
+              properties:
+                uuids: { type: array, items: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Orden guardado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/banners/{uuid}:
+    get:
+      tags: [Panel — Carrusel]
+      operationId: obtenerBannerPanel
+      summary: Una diapositiva
+      description: Requiere `banners.gestionar`.
+      x-status: implemented
+      x-criterios: [CAG-02]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: La diapositiva
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    patch:
+      tags: [Panel — Carrusel]
+      operationId: actualizarBanner
+      summary: Cambiar una diapositiva
+      description: |
+        Requiere `banners.gestionar`. Solo se envía lo que cambia. `activo: true` la publica y exige imagen
+        con texto alternativo (422 con lo que falta). `imagen_alt` cambia el texto alternativo sin subir otra imagen.
+      x-status: implemented
+      x-criterios: [CAG-02, CAG-04]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BannerEntrada' }
+      responses:
+        '200':
+          description: Diapositiva actualizada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    delete:
+      tags: [Panel — Carrusel]
+      operationId: eliminarBanner
+      summary: Eliminar una diapositiva
+      description: "Requiere `banners.gestionar`. Borrado lógico: deja de verse en el sitio y en el panel; queda en la auditoría."
+      x-status: implemented
+      x-criterios: [CAG-02]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Eliminada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+
+  /panel/banners/{uuid}/imagen:
+    get:
+      tags: [Panel — Carrusel]
+      operationId: obtenerImagenBannerPanel
+      summary: Ver la imagen de una diapositiva, publicada o no
+      description: "Requiere `banners.gestionar`. Entrega también la de un borrador; `Cache-Control: private, no-store`."
+      x-status: implemented
+      x-criterios: [CAG-04]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: El archivo de imagen
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Carrusel]
+      operationId: subirImagenBanner
+      summary: Subir o reemplazar la imagen de una diapositiva
+      description: Requiere `banners.gestionar`. Imagen y texto alternativo (`alt`) van siempre juntos; sin `alt` es 422. PNG, JPG o WebP, hasta 5 MB.
+      x-status: implemented
+      x-criterios: [CAG-04]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [imagen, alt]
+              properties:
+                imagen: { type: string, format: binary }
+                alt: { type: string, maxLength: 250, description: Describe lo que muestra la imagen para quien no la ve. }
+      responses:
+        '200':
+          description: Imagen guardada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
   /panel/noticias:
     get:
       tags: [Panel — Noticias]
@@ -1655,6 +2557,87 @@ paths:
           $ref: '#/components/responses/NoAutenticado'
         '404':
           $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PANEL — IMÁGENES DEL CONTENIDO
+  # ══════════════════════════════════════════════════════════════════════════════
+  /contenido/imagenes/{uuid}:
+    get:
+      tags: [Panel — Imágenes del contenido]
+      operationId: obtenerImagenContenido
+      summary: Una imagen insertada en el contenido publicado
+      description: |
+        Pública, con límite de peticiones. Sólo sirve las imágenes subidas por el editor
+        del panel (colección «contenido»); cualquier otro archivo responde 404. Lleva
+        `Cache-Control: public, max-age=86400, immutable` y `X-Content-Type-Options: nosniff`.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: El archivo de imagen
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
+  /panel/contenido/imagenes:
+    post:
+      tags: [Panel — Imágenes del contenido]
+      operationId: subirImagenContenido
+      summary: Subir una imagen para insertarla en el contenido
+      description: |
+        Requiere `noticias.gestionar`, `politicas.gestionar` o `entidad.gestionar`. La
+        imagen y su texto alternativo (`alt`) van siempre juntos. PNG, JPG o WebP, hasta
+        5 MB y 4000 px por lado. Se re-codifica antes de guardarse (sin EXIF ni bytes
+        añadidos). Devuelve la URL pública con la que se inserta en el HTML.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [imagen, alt]
+              properties:
+                imagen: { type: string, format: binary }
+                alt:
+                  type: string
+                  maxLength: 250
+                  description: Describe lo que muestra la imagen para quien no la ve.
+      responses:
+        '201':
+          description: Imagen subida
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [uuid, url, alt]
+                        properties:
+                          uuid: { type: string, format: uuid }
+                          url: { type: string, example: /api/v1/contenido/imagenes/0b9e0a5e-3a52-4c43-9f0e-5a0f4a4e2c11 }
+                          alt: { type: string }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
         '422':
           $ref: '#/components/responses/ValidacionInvalida'
       security:
@@ -2578,7 +3561,11 @@ components:
                   description: Texto alternativo; obligatorio en una noticia publicada.
         contenido:
           type: string
-          description: Cuerpo en texto plano, párrafos separados por una línea en blanco. Sólo en el detalle.
+          description: |
+            Cuerpo en HTML saneado (lista blanca: h2, h3, p, br, strong, em, ul, ol, li,
+            blockquote, a con https/http/mailto/tel, e img propias con `alt`). Se sanea al
+            guardar y de nuevo al entregarlo; una noticia antigua en texto plano se entrega
+            como párrafos `<p>`. Sólo en el detalle.
 
     EstadoNoticia:
       type: string
@@ -2607,7 +3594,12 @@ components:
       properties:
         titulo: { type: string, maxLength: 150 }
         descripcion_corta: { type: string, maxLength: 200 }
-        contenido: { type: string }
+        contenido:
+          type: string
+          maxLength: 100000
+          description: |
+            HTML del editor o texto plano (párrafos separados por una línea en blanco). Se
+            sanea en el servidor al guardar: lo que no esté en la lista blanca se descarta.
         fecha_publicacion: { type: string, format: date-time }
         destacada: { type: boolean }
         activo: { type: boolean }
@@ -2635,6 +3627,240 @@ components:
             data:
               type: array
               items: { $ref: '#/components/schemas/NoticiaPanelItem' }
+
+    EstadoTramitePanel:
+      type: string
+      enum: [publicado, borrador]
+
+    TramitePanelItem:
+      allOf:
+        - $ref: '#/components/schemas/TramiteItem'
+        - type: object
+          required: [uuid, codigo, estado, origen, modificado_en_panel, completo, problemas]
+          properties:
+            uuid: { type: string, format: uuid }
+            codigo: { type: string, maxLength: 20 }
+            estado: { $ref: '#/components/schemas/EstadoTramitePanel' }
+            origen:
+              type: string
+              enum: [panel, fuente]
+              description: "`panel` si se creó aquí (se puede eliminar); `fuente` si viene del catálogo oficial, se haya corregido o no (solo se despublica)."
+            modificado_en_panel:
+              type: boolean
+              description: Un trámite del catálogo oficial que se corrigió aquí; la carga automática ya no lo sobrescribe.
+            completo: { type: boolean }
+            problemas:
+              type: array
+              description: Lo que falta para poder publicarlo, en español.
+              items: { type: string }
+
+    TramitePanelFila:
+      type: object
+      required: [id, uuid, type, codigo, slug, nombre, estado, origen, modificado_en_panel, completo, problemas]
+      properties:
+        id: { type: integer }
+        uuid: { type: string, format: uuid }
+        type: { type: string, const: tramites }
+        codigo: { type: string }
+        slug: { type: string }
+        nombre: { type: string }
+        modalidad: { type: [string, 'null'], enum: [en_linea, parcialmente_en_linea, presencial, null] }
+        estado: { $ref: '#/components/schemas/EstadoTramitePanel' }
+        origen: { type: string, enum: [panel, fuente] }
+        modificado_en_panel: { type: boolean }
+        completo: { type: boolean }
+        problemas:
+          type: array
+          items: { type: string }
+        publicado_en: { type: [string, 'null'], format: date-time }
+        actualizado_en: { type: [string, 'null'], format: date-time }
+
+    EstadoUsuarioPanel:
+      type: string
+      enum: [activo, inactivo, bloqueado, pendiente]
+
+    UsuarioPanelItem:
+      type: object
+      required: [uuid, name, email, estado, roles, es_super_admin]
+      properties:
+        uuid: { type: string, format: uuid }
+        type: { type: string, enum: [usuarios] }
+        name: { type: string }
+        email: { type: string, format: email }
+        estado: { $ref: '#/components/schemas/EstadoUsuarioPanel' }
+        mfa_habilitado: { type: boolean }
+        roles: { type: array, items: { type: string } }
+        es_super_admin: { type: boolean }
+        creado_en: { type: [string, 'null'], format: date-time }
+
+    UsuarioPanelCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/UsuarioPanelItem' }
+
+    UsuarioPanelCrear:
+      type: object
+      required: [name, email, password]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 190 }
+        password: { type: string, minLength: 12, maxLength: 128, writeOnly: true, description: "Con letras y números. Nunca se devuelve." }
+        estado: { $ref: '#/components/schemas/EstadoUsuarioPanel' }
+        roles: { type: array, items: { type: string } }
+
+    UsuarioPanelCambio:
+      type: object
+      description: Cualquier subconjunto de campos; solo viaja lo que cambia.
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 190 }
+        password: { type: string, minLength: 12, maxLength: 128, writeOnly: true }
+        estado: { $ref: '#/components/schemas/EstadoUsuarioPanel' }
+        roles: { type: array, items: { type: string } }
+
+    RolPanelItem:
+      type: object
+      required: [id, name, permisos, usuarios, protegido]
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [roles] }
+        name: { type: string }
+        permisos: { type: array, items: { type: string } }
+        usuarios: { type: integer, description: Cuántos usuarios tienen el rol. }
+        protegido: { type: boolean, description: "`true` para super-admin: no se edita ni se elimina." }
+
+    RolPanelEntrada:
+      type: object
+      properties:
+        name: { type: string, minLength: 3, maxLength: 60, description: "Letras, números, espacios y guiones." }
+        permisos: { type: array, items: { type: string } }
+
+    GrupoPermisosPanel:
+      type: object
+      required: [grupo, permisos]
+      properties:
+        grupo: { type: string }
+        permisos:
+          type: array
+          items:
+            type: object
+            required: [nombre, etiqueta, descripcion]
+            properties:
+              nombre: { type: string }
+              etiqueta: { type: string }
+              descripcion: { type: string }
+
+    BannerPublico:
+      type: object
+      required: [uuid, titulo, imagen]
+      properties:
+        uuid: { type: string, format: uuid }
+        titulo: { type: string }
+        descripcion: { type: [string, 'null'] }
+        enlace: { type: [string, 'null'], description: Ruta del sitio o dirección https. }
+        imagen:
+          type: object
+          required: [url, alt]
+          properties:
+            url: { type: string }
+            alt: { type: string }
+
+    EstadoBanner:
+      type: string
+      enum: [borrador, programado, vigente, vencido]
+
+    BannerPanelItem:
+      type: object
+      required: [uuid, titulo, orden, activo, estado, problemas]
+      properties:
+        uuid: { type: string, format: uuid }
+        type: { type: string, enum: [banners] }
+        titulo: { type: string }
+        descripcion: { type: [string, 'null'] }
+        enlace: { type: [string, 'null'] }
+        orden: { type: integer }
+        activo: { type: boolean }
+        estado: { $ref: '#/components/schemas/EstadoBanner' }
+        vigente_desde: { type: [string, 'null'], format: date-time }
+        vigente_hasta: { type: [string, 'null'], format: date-time }
+        imagen:
+          type: [object, 'null']
+          properties:
+            url: { type: string }
+            alt: { type: [string, 'null'] }
+        problemas: { type: array, items: { type: string } }
+        actualizado_en: { type: [string, 'null'], format: date-time }
+
+    BannerEntrada:
+      type: object
+      properties:
+        titulo: { type: string, minLength: 1, maxLength: 80 }
+        descripcion: { type: [string, 'null'], maxLength: 200 }
+        enlace: { type: [string, 'null'], maxLength: 500, description: "Ruta del sitio (/transparencia) o dirección https://." }
+        activo: { type: boolean }
+        vigente_desde: { type: [string, 'null'], format: date-time }
+        vigente_hasta: { type: [string, 'null'], format: date-time }
+        imagen_alt: { type: [string, 'null'], maxLength: 250 }
+
+    TramitePanelCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/TramitePanelFila' }
+
+    TramiteInput:
+      type: object
+      description: |
+        Datos de un trámite. En `POST` solo `nombre` es obligatorio. Los campos de las
+        listas (`requisitos`, `documentos`, `momentos`, `audiencias`, `perfiles`,
+        `medios_resultado`, `puntos_atencion`, `normativa`, `cuentas`,
+        `canales_consulta_estado`) tienen la misma forma que en `TramiteItem`; `slug` y
+        `codigo` se ignoran.
+      properties:
+        nombre: { type: string, minLength: 3, maxLength: 200 }
+        resumen: { type: [string, 'null'], maxLength: 500 }
+        url_ficha_gov_co: { type: [string, 'null'], format: uri, maxLength: 500 }
+        modalidad: { type: [string, 'null'], enum: [en_linea, parcialmente_en_linea, presencial, null] }
+        tiene_costo: { type: [string, 'null'], enum: [gratuito, con_costo, null] }
+        tiempo_solucion_dias: { type: [integer, 'null'], minimum: 0, maximum: 36500 }
+        canal_inicio: { type: [string, 'null'], enum: [propio, portal_nacional, null] }
+        url_inicio: { type: [string, 'null'], format: uri, maxLength: 500 }
+        url_manual_tramite_en_linea: { type: [string, 'null'], format: uri, maxLength: 500 }
+        consulta_estado: { type: [string, 'null'], maxLength: 500 }
+        resultado: { type: [string, 'null'], maxLength: 2000 }
+        producto_final: { type: [string, 'null'], maxLength: 500 }
+        observaciones_resultado: { type: [string, 'null'], maxLength: 2000 }
+        fecha_cualquiera: { type: [boolean, 'null'] }
+        cuando_se_puede_realizar: { type: [string, 'null'], maxLength: 1000 }
+        url_calendario: { type: [string, 'null'], format: uri, maxLength: 500 }
+        palabras_relacionadas: { type: [string, 'null'], maxLength: 1000 }
+        publicado: { type: boolean, description: "`true` publica (exige ficha completa); `false` retira del sitio." }
+        costo: { type: [object, 'null'], additionalProperties: true }
+        categoria:
+          type: [object, 'null']
+          properties:
+            slug: { type: string, pattern: '^[a-z0-9-]+$', maxLength: 120 }
+            nombre: { type: string, maxLength: 160 }
+        requisitos: { type: array, items: { type: object, additionalProperties: true }, maxItems: 100 }
+        documentos: { type: array, items: { type: object, additionalProperties: true }, maxItems: 100 }
+        momentos: { type: array, items: { type: object, additionalProperties: true }, maxItems: 30 }
+        audiencias: { type: array, items: { type: object, additionalProperties: true }, maxItems: 50 }
+        perfiles: { type: array, items: { type: string, maxLength: 60 }, maxItems: 30 }
+        medios_resultado: { type: array, items: { type: string, maxLength: 60 }, maxItems: 30 }
+        puntos_atencion: { type: array, items: { type: object, additionalProperties: true }, maxItems: 50 }
+        normativa: { type: array, items: { type: object, additionalProperties: true }, maxItems: 100 }
+        cuentas: { type: array, items: { type: object, additionalProperties: true }, maxItems: 20 }
+        canales_consulta_estado: { type: array, items: { type: object, additionalProperties: true }, maxItems: 20 }
+        seguimiento: { type: [object, 'null'], additionalProperties: true }
 
     # ─── Subsección Transparencia ──────────────────────────────────────────
     SubseccionTransparenciaItem:
@@ -3345,29 +4571,3 @@ components:
       properties:
         campo: { type: string, maxLength: 60 }
         regla: { type: string, maxLength: 500 }
-
-    TramiteInput:
-      type: object
-      required:
-        - nombre
-        - modalidad
-        - tiene_costo
-        - tiempo_solucion_dias
-        - canal_inicio
-        - consulta_estado
-        - url_ficha_gov_co
-      properties:
-        nombre: { type: string, maxLength: 200 }
-        slug: { type: string, maxLength: 160 }
-        resumen: { type: [string, 'null'], maxLength: 500 }
-        url_ficha_gov_co: { type: string, format: uri, maxLength: 500 }
-        modalidad: { type: string, enum: [en_linea, parcialmente_en_linea, presencial] }
-        tiene_costo: { type: string, enum: [gratuito, con_costo] }
-        costo:
-          oneOf:
-            - $ref: '#/components/schemas/TramiteCosto'
-            - type: 'null'
-        tiempo_solucion_dias: { type: integer, minimum: 0 }
-        canal_inicio: { type: string, enum: [propio, portal_nacional] }
-        url_inicio: { type: [string, 'null'], maxLength: 500 }
-        consulta_estado: { type: string, maxLength: 500 }

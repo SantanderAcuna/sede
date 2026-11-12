@@ -5,13 +5,19 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\ArchivoController;
 use App\Http\Controllers\Api\V1\AuditoriaController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BannerController;
 use App\Http\Controllers\Api\V1\BusquedaController;
 use App\Http\Controllers\Api\V1\ConsentimientoController;
 use App\Http\Controllers\Api\V1\EntidadController;
 use App\Http\Controllers\Api\V1\IdentidadController;
+use App\Http\Controllers\Api\V1\ImagenContenidoController;
 use App\Http\Controllers\Api\V1\NoticiaController;
+use App\Http\Controllers\Api\V1\PanelBannerController;
 use App\Http\Controllers\Api\V1\PanelNoticiaController;
 use App\Http\Controllers\Api\V1\PanelPoliticaController;
+use App\Http\Controllers\Api\V1\PanelRolController;
+use App\Http\Controllers\Api\V1\PanelTramiteController;
+use App\Http\Controllers\Api\V1\PanelUsuarioController;
 use App\Http\Controllers\Api\V1\PoliticaController;
 use App\Http\Controllers\Api\V1\TramiteController;
 use Illuminate\Support\Facades\Route;
@@ -86,8 +92,26 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         ->name('noticias.mostrar')
         ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
         ->middleware('throttle:lecturas-publicas');
+    // Carrusel de la portada: solo diapositivas vigentes. Misma política de lectura pública que las noticias.
+    Route::get('/banners', [BannerController::class, 'listar'])
+        ->name('banners.listar')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:lecturas-publicas');
+    Route::get('/banners/{uuid}/imagen', [BannerController::class, 'imagen'])
+        ->name('banners.imagen')
+        ->whereUuid('uuid')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:imagenes-publicas');
+
     Route::get('/noticias/{slug}/imagen', [NoticiaController::class, 'imagen'])
         ->name('noticias.imagen')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:imagenes-publicas');
+
+    // Imágenes insertadas en el contenido editado en el panel: públicas, con su propio límite.
+    Route::get('/contenido/imagenes/{uuid}', [ImagenContenidoController::class, 'show'])
+        ->whereUuid('uuid')
+        ->name('contenido.imagenes.ver')
         ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
         ->middleware('throttle:imagenes-publicas');
 
@@ -150,6 +174,41 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             ->middleware('auth:sanctum')
             ->middleware('can:politicas.gestionar');
 
+        // Trámites — alta, edición y publicación (requiere autenticación + permiso)
+        Route::middleware(['auth:sanctum', 'can:tramites.gestionar'])->group(function (): void {
+            Route::get('/tramites', [PanelTramiteController::class, 'index'])->name('panel.tramites.index');
+            Route::post('/tramites', [PanelTramiteController::class, 'store'])->name('panel.tramites.store');
+            Route::get('/tramites/{uuid}', [PanelTramiteController::class, 'show'])->name('panel.tramites.show');
+            Route::patch('/tramites/{uuid}', [PanelTramiteController::class, 'update'])->name('panel.tramites.update');
+            Route::delete('/tramites/{uuid}', [PanelTramiteController::class, 'destroy'])->name('panel.tramites.destroy');
+        });
+
+        // Carrusel de la portada (banners).
+        Route::middleware(['auth:sanctum', 'can:banners.gestionar'])->group(function (): void {
+            Route::get('/banners', [PanelBannerController::class, 'index'])->name('panel.banners.index');
+            Route::post('/banners', [PanelBannerController::class, 'store'])->name('panel.banners.store');
+            Route::put('/banners/orden', [PanelBannerController::class, 'ordenar'])->name('panel.banners.orden');
+            Route::get('/banners/{uuid}', [PanelBannerController::class, 'show'])->name('panel.banners.show');
+            Route::patch('/banners/{uuid}', [PanelBannerController::class, 'update'])->name('panel.banners.update');
+            Route::delete('/banners/{uuid}', [PanelBannerController::class, 'destroy'])->name('panel.banners.destroy');
+            Route::post('/banners/{uuid}/imagen', [PanelBannerController::class, 'subirImagen'])->name('panel.banners.imagen.subir');
+            Route::get('/banners/{uuid}/imagen', [PanelBannerController::class, 'imagen'])->name('panel.banners.imagen');
+        });
+
+        // Usuarios, roles y permisos. Las reglas contra la escalada de privilegios viven en los servicios.
+        Route::middleware(['auth:sanctum', 'can:usuarios.gestionar'])->group(function (): void {
+            Route::get('/usuarios', [PanelUsuarioController::class, 'index'])->name('panel.usuarios.index');
+            Route::post('/usuarios', [PanelUsuarioController::class, 'store'])->name('panel.usuarios.store');
+            Route::get('/usuarios/{uuid}', [PanelUsuarioController::class, 'show'])->name('panel.usuarios.show');
+            Route::patch('/usuarios/{uuid}', [PanelUsuarioController::class, 'update'])->name('panel.usuarios.update');
+            Route::get('/permisos', [PanelRolController::class, 'permisos'])->name('panel.permisos.index');
+            Route::get('/roles', [PanelRolController::class, 'index'])->name('panel.roles.index');
+            Route::post('/roles', [PanelRolController::class, 'store'])->name('panel.roles.store');
+            Route::get('/roles/{id}', [PanelRolController::class, 'show'])->whereNumber('id')->name('panel.roles.show');
+            Route::patch('/roles/{id}', [PanelRolController::class, 'update'])->whereNumber('id')->name('panel.roles.update');
+            Route::delete('/roles/{id}', [PanelRolController::class, 'destroy'])->whereNumber('id')->name('panel.roles.destroy');
+        });
+
         // Noticias — alta, edición y publicación (requiere autenticación + permiso)
         Route::middleware(['auth:sanctum', 'can:noticias.gestionar'])->group(function (): void {
             Route::get('/noticias', [PanelNoticiaController::class, 'index'])->name('noticias.index');
@@ -160,6 +219,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'imagen'])->name('noticias.imagen.ver');
             Route::post('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'subirImagen'])->name('noticias.imagen');
         });
+
+        // Imágenes del editor (noticias, políticas o entidad: lo valida la petición).
+        Route::post('/contenido/imagenes', [ImagenContenidoController::class, 'store'])
+            ->middleware('auth:sanctum')
+            ->name('contenido.imagenes.store');
 
         // Archivos — gestión de archivos subidos (requiere autenticación + permiso)
         Route::middleware('auth:sanctum')->group(function (): void {

@@ -20,7 +20,7 @@ export const PERMISO_POR_RUTA: Record<string, string> = {
 
   // Atención al ciudadano
   '/pqrsd': 'pqrsd.ver',
-  '/tramites': 'tramites.ver',
+  '/tramites': 'tramites.gestionar',
   '/citas': 'citas.ver',
   '/notificaciones': 'notificaciones.ver',
 
@@ -36,6 +36,7 @@ export const PERMISO_POR_RUTA: Record<string, string> = {
 
   // Contenidos del sitio
   '/contenidos/noticias': 'noticias.gestionar',
+  '/contenidos/carrusel': 'banners.gestionar',
 
   // Gestión documental e integraciones
   '/gestion-documental': 'documental.gestionar',

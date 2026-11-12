@@ -65,6 +65,7 @@ const grupos: GrupoNavegacion[] = [
     items: [
       { label: 'CMS', ruta: '/cms', icono: 'pen-to-square' },
       { label: 'Noticias', ruta: '/contenidos/noticias', icono: 'newspaper' },
+      { label: 'Carrusel de la portada', ruta: '/contenidos/carrusel', icono: 'image' },
       { label: 'Portal Ciudadano', ruta: '/portal', icono: 'display' },
       { label: 'Transparencia', ruta: '/transparencia', icono: 'landmark' },
     ],
@@ -527,7 +528,7 @@ const migas = computed(() =>
         </div>
       </header>
 
-      <main id="contenido-principal" tabindex="-1" class="flex-1 overflow-y-auto p-6 focus:outline-none">
+      <main id="contenido-principal" tabindex="-1" class="flex-1 overflow-y-auto p-6 pr-14 focus:outline-none">
         <RouterView />
       </main>
     </div>

@@ -19,7 +19,6 @@ import {
   TEXTO_SIN_NOTICIAS,
   estadoDeNoticias,
   fechaLarga,
-  parrafosDeNoticia,
   urlDeImagen,
 } from '../app/utils/noticias'
 import { violacionesAxe } from './ayudas/axe'
@@ -52,13 +51,6 @@ describe('fecha', () => {
 
   it('una fecha ilegible no inventa nada', () => {
     expect(fechaLarga('no es una fecha')).toBe('')
-  })
-})
-
-describe('cuerpo', () => {
-  it('separa los párrafos por línea en blanco y descarta lo vacío', () => {
-    expect(parrafosDeNoticia('Uno.\n\nDos.\r\n\r\n\n  \nTres.')).toEqual(['Uno.', 'Dos.', 'Tres.'])
-    expect(parrafosDeNoticia('  ')).toEqual([])
   })
 })
 

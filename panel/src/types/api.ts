@@ -31,6 +31,12 @@ export type TramiteRequisito = Esquemas['TramiteRequisito']
 export type TramiteDocumento = Esquemas['TramiteDocumento']
 export type TramitePaso = Esquemas['TramitePaso']
 export type TramiteInput = Esquemas['TramiteInput']
+export type TramitePanelItem = Esquemas['TramitePanelItem']
+export type TramitePanelFila = Esquemas['TramitePanelFila']
+export type BannerPanelItem = Esquemas['BannerPanelItem']
+export type BannerEntrada = Esquemas['BannerEntrada']
+export type EstadoBanner = Esquemas['EstadoBanner']
+export type BannerPublico = Esquemas['BannerPublico']
 export type PageMeta = Esquemas['PageMeta']
 export type CollectionLinks = Esquemas['CollectionLinks']
 
@@ -56,4 +62,46 @@ export interface PaginatedEnvelope<T = unknown> {
   meta: PageMeta
   links: CollectionLinks
   errors: Record<string, string[]> | null
+}
+
+// --- Usuarios, roles y permisos (Fase 5) -------------------------------------
+export type EstadoUsuarioPanel = 'activo' | 'inactivo' | 'bloqueado' | 'pendiente'
+
+export interface UsuarioPanelItem {
+  uuid: string
+  type: 'usuarios'
+  name: string
+  email: string
+  estado: EstadoUsuarioPanel
+  mfa_habilitado: boolean
+  roles: string[]
+  es_super_admin: boolean
+  creado_en: string | null
+}
+
+export interface UsuarioPanelEntrada {
+  name?: string
+  email?: string
+  password?: string
+  estado?: EstadoUsuarioPanel
+  roles?: string[]
+}
+
+export interface RolPanelItem {
+  id: number
+  type: 'roles'
+  name: string
+  permisos: string[]
+  usuarios: number
+  protegido: boolean
+}
+
+export interface RolPanelEntrada {
+  name?: string
+  permisos?: string[]
+}
+
+export interface GrupoPermisosPanel {
+  grupo: string
+  permisos: Array<{ nombre: string; etiqueta: string; descripcion: string }>
 }

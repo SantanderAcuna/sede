@@ -2039,20 +2039,6 @@ a:not(.btn):not([class*="btn-"]):visited:hover {
   }
 }
 
-/* «Ver la ficha completa» de cada trámite del listado: un enlace de bloque que
-   sólo medía el alto de su línea (24 px). */
-.enlace-ficha-tramite {
-  display: inline-flex;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-@media (max-width: 767px), (pointer: coarse) {
-  .enlace-ficha-tramite {
-    min-height: 2.75rem;
-  }
-}
-
 /*
  * Una palabra sin espacios más larga que la línea —un correo, una dirección web—
  * no se parte por sí sola y empuja el ancho de la página: en la declaración de

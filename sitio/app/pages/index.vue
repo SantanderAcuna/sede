@@ -33,6 +33,7 @@ import type { DiapositivaCarrusel } from '~/components/govco/CarruselGovco.vue'
 import type { components } from '~~/types/openapi'
 import { diapositivasDePortada } from '~/utils/banners'
 import { TEXTO_SIN_NOTICIAS, estadoDeNoticias, type NoticiaResumen } from '~/utils/noticias'
+import { enlaceTramite } from '~/utils/enlace-tramite'
 
 useHead({
   title: 'Sede Electrónica · Alcaldía Distrital de Santa Marta',
@@ -183,6 +184,8 @@ const tramitesDestacados = computed(() =>
     nombre: tramite.nombre,
     slug: tramite.slug,
     resumen: tramite.resumen ?? null,
+    // Adónde lleva la tarjeta: la ficha de GOV.CO si el trámite la tiene, la propia si no.
+    enlace: enlaceTramite(tramite),
   })),
 )
 </script>
@@ -229,7 +232,17 @@ const tramitesDestacados = computed(() =>
           <li v-for="tramite in tramitesDestacados" :key="tramite.id" class="col-md-6 col-lg-4">
             <article class="tarjeta-tramite">
               <h3 class="tarjeta-tramite__titulo">
-                <NuxtLink :to="`/tramites/${tramite.slug}`" class="stretched-link">
+                <a
+                  v-if="tramite.enlace.externo"
+                  :href="tramite.enlace.href"
+                  class="stretched-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{ tramite.nombre }}
+                  <span class="visually-hidden">(abre la ficha en GOV.CO, en una pestaña nueva)</span>
+                </a>
+                <NuxtLink v-else :to="tramite.enlace.href" class="stretched-link">
                   {{ tramite.nombre }}
                 </NuxtLink>
               </h3>

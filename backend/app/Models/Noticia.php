@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\EstadoNoticia;
 use App\Models\Traits\HasUuids;
+use App\Support\Noticias\ContenidoNoticia;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -42,6 +43,9 @@ final class Noticia extends Model
 
     /** El texto alternativo describe la imagen; más de esto ya no es «alternativo». */
     public const ALT_MAX = 250;
+
+    /** Tope del cuerpo, contando las etiquetas del formato. */
+    public const CONTENIDO_MAX = 100000;
 
     /** @var list<string> */
     protected $fillable = [
@@ -129,7 +133,7 @@ final class Noticia extends Model
         if (trim($this->descripcion_corta) === '' || mb_strlen($this->descripcion_corta) > self::DESCRIPCION_MAX) {
             $problemas[] = 'La descripción debe tener entre 1 y '.self::DESCRIPCION_MAX.' caracteres.';
         }
-        if (trim($this->contenido) === '') {
+        if (ContenidoNoticia::sinTexto($this->contenido)) {
             $problemas[] = 'La noticia no tiene contenido.';
         }
         if ($this->imagenPrincipal === null) {

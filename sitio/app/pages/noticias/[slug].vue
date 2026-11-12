@@ -2,9 +2,12 @@
 /**
  * Una noticia — `/noticias/{slug}` (M01-6, RF-01-013).
  *
- * Título, fecha, imagen con su `alt` y el cuerpo en párrafos. El cuerpo es **texto
- * plano**: se pinta párrafo a párrafo con interpolación, nunca como HTML, así que
- * nada de lo que se escriba en el panel puede ejecutarse en el sitio.
+ * Título, fecha, imagen con su `alt` y el cuerpo. El cuerpo es **HTML del editor del
+ * panel** y es el único lugar del sitio donde se usa `v-html`. Por eso pasa por TRES
+ * defensas independientes: el editor solo conoce un esquema mínimo; el servidor sanea al
+ * guardar y al entregar; y aquí se sanea otra vez, con otra biblioteca, ANTES de que el
+ * dato entre al estado de la página (así la biblioteca no viaja al navegador en la
+ * primera carga: el HTML ya llega saneado dentro de la página renderizada).
  *
  * Como en la ficha de trámite, el `404` y el fallo de la API se distinguen: una
  * noticia que no existe (o aún no se publica) responde `404` de verdad; que la API
@@ -13,7 +16,7 @@
 import { useMetadatosComparticion } from '~/composables/useMetadatosComparticion'
 import { useFichaPrecargada, leerFicha } from '~/composables/useFichaPrecargada'
 import { fichaDeRuta } from '~/utils/miga'
-import { fechaLarga, parrafosDeNoticia, urlDeImagen, type NoticiaResumen } from '~/utils/noticias'
+import { fechaLarga, urlDeImagen, type NoticiaResumen } from '~/utils/noticias'
 
 const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
 const traer = useRequestFetch()
@@ -30,13 +33,19 @@ const ficha = fichaDeRuta(useRoute().path)
 const { data, status, error } = await useAsyncData<{ data: NoticiaResumen } | null>(
   `noticia-${slug}`,
   async () => {
-    if (precargada.value?.clave === `noticia-${slug}`) {
-      return precargada.value.respuesta as { data: NoticiaResumen } | null
-    }
-    if (!ficha) return null
-    return await leerFicha<{ data: NoticiaResumen }>(traer as never, urlApi, ficha)
+    const respuesta = precargada.value?.clave === `noticia-${slug}`
+      ? (precargada.value.respuesta as { data: NoticiaResumen } | null)
+      : ficha ? await leerFicha<{ data: NoticiaResumen }>(traer as never, urlApi, ficha) : null
+    return await conCuerpoSaneado(respuesta)
   },
 )
+
+/** Segundo saneado del cuerpo; la biblioteca se carga solo cuando hace falta. */
+async function conCuerpoSaneado(respuesta: { data: NoticiaResumen } | null): Promise<{ data: NoticiaResumen } | null> {
+  if (respuesta === null || typeof respuesta.data.contenido !== 'string') return respuesta
+  const { sanitizarHtmlDeNoticia } = await import('~/utils/sanitizar-html')
+  return { ...respuesta, data: { ...respuesta.data, contenido: sanitizarHtmlDeNoticia(respuesta.data.contenido) } }
+}
 
 const noticia = computed(() => data.value?.data ?? null)
 
@@ -46,7 +55,6 @@ if (!error.value && status.value === 'success' && noticia.value === null) {
 
 const imagen = computed(() => (noticia.value ? urlDeImagen(noticia.value.imagen) : null))
 const fecha = computed(() => (noticia.value ? fechaLarga(noticia.value.fecha_publicacion) : ''))
-const parrafos = computed(() => parrafosDeNoticia(noticia.value?.contenido ?? ''))
 
 useMetadatosComparticion({
   titulo: () => noticia.value?.titulo ?? 'Noticias',
@@ -78,7 +86,9 @@ useHead({
         decoding="async"
       >
       <p class="lead">{{ noticia.descripcion_corta }}</p>
-      <p v-for="(parrafo, i) in parrafos" :key="i">{{ parrafo }}</p>
+      <!-- El HTML llega saneado por el servidor y otra vez por `conCuerpoSaneado`. -->
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <div class="noticia__cuerpo" v-html="noticia.contenido ?? ''" />
       <p class="mt-4 mb-0"><NuxtLink to="/noticias">Volver a las noticias</NuxtLink></p>
     </article>
   </div>
@@ -102,6 +112,33 @@ useHead({
   aspect-ratio: 16 / 9;
   object-fit: cover;
   margin-bottom: var(--espacio-4);
+  border-radius: var(--radio-md);
+}
+
+/* El cuerpo viene del editor del panel; `:deep` porque su HTML no lleva el atributo de este componente. */
+.noticia__cuerpo :deep(h2),
+.noticia__cuerpo :deep(h3) {
+  margin: var(--espacio-6, 1.5rem) 0 var(--espacio-2, 0.5rem);
+  line-height: 1.25;
+}
+
+.noticia__cuerpo :deep(ul),
+.noticia__cuerpo :deep(ol) {
+  padding-inline-start: 1.5rem;
+}
+
+.noticia__cuerpo :deep(blockquote) {
+  margin-inline: 0;
+  padding-inline-start: var(--espacio-4);
+  border-inline-start: 4px solid var(--color-borde, #cbd5e1);
+  font-style: italic;
+}
+
+.noticia__cuerpo :deep(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-block: var(--espacio-4);
   border-radius: var(--radio-md);
 }
 </style>

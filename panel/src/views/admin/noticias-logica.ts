@@ -115,6 +115,16 @@ export function caracteresRestantes(texto: string, maximo: number): number {
   return maximo - texto.length
 }
 
+/**
+ * ¿Hay algo que leer? El contenido es HTML del editor: `<p></p>`, saltos de línea o una
+ * imagen sola no cuentan (el servidor aplica la misma regla y no deja publicar así).
+ */
+export function tieneTexto(html: string): boolean {
+  const sinImagenes = html.replace(/<img\b[^>]*>/gi, '')
+  const texto = sinImagenes.replace(/<[^>]*>/g, '').replace(/&nbsp;|&#160;/gi, ' ')
+  return texto.trim() !== ''
+}
+
 export type CampoNoticia = 'titulo' | 'descripcion_corta' | 'contenido' | 'imagen' | 'imagen_alt'
 
 export interface ProblemaDeCampo {
@@ -142,7 +152,7 @@ export function problemasPorCampo(formulario: FormularioNoticia, imagen: Context
     )
   }
 
-  if (formulario.contenido.trim() === '') agregar('contenido', 'Falta el contenido de la noticia.')
+  if (!tieneTexto(formulario.contenido)) agregar('contenido', 'Falta el contenido de la noticia.')
 
   const hayImagen = imagen.tieneImagen || imagen.imagenNueva
   if (formulario.activo && !hayImagen) agregar('imagen', 'Para publicar la noticia hace falta una imagen.')

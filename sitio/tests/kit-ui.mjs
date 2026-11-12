@@ -114,15 +114,17 @@ console.log('Trámites · paginación a 390 px')
 // 3. Acordeón en la ficha de un trámite --------------------------------------
 console.log('Ficha de un trámite · acordeón de pasos')
 {
-  const p = await abrir('/tramites')
-  const enlace = p.locator('a[href^="/tramites/"]').first()
-  if ((await enlace.count()) === 0) {
-    omite('el catálogo no tiene trámites publicados, no hay ficha que abrir')
+  // Las tarjetas del catálogo llevan a GOV.CO, así que ya no sirven para llegar a la ficha propia:
+  // el slug se toma del sitemap, que lista cada `/tramites/{slug}` publicado.
+  const sitemap = await fetch(`${BASE}/sitemap.xml`).then((r) => (r.ok ? r.text() : '')).catch(() => '')
+  const ruta = /<loc>[^<]*?(\/tramites\/[^<\s/]+)<\/loc>/.exec(sitemap)?.[1]
+  if (!ruta) {
+    omite('el sitemap no lista ningún trámite publicado, no hay ficha propia que abrir')
   } else {
-    await p.goto(`${BASE}${await enlace.getAttribute('href')}`, { waitUntil: 'networkidle' })
+    const p = await abrir(ruta)
     const botones = p.locator('.acordeon-govco button[aria-expanded]')
     if ((await botones.count()) === 0) {
-      omite('esa ficha no tiene pasos (momentos) que mostrar como acordeón')
+      omite('la ficha propia muestra los pasos como lista ordenada, no como acordeón del Kit: no hay acordeón que probar')
     } else {
       ok(`${await botones.count()} paso(s) como acordeón`)
       // Busca uno cerrado para probar que el foco no lo abre.
@@ -146,8 +148,8 @@ console.log('Ficha de un trámite · acordeón de pasos')
         else falla('Espacio no cerró el panel')
       }
     }
+    await p.close()
   }
-  await p.close()
 }
 
 // 4. Aviso emergente ------------------------------------------------------------

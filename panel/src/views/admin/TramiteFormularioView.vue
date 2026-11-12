@@ -119,7 +119,7 @@ const errorDe = (campo: string): string | undefined => erroresServidor.value[cam
 
 function aplicar(guardado: TramitePanelItem): void {
   tramite.value = guardado
-  uuid.value = guardado.uuid
+  uuid.value = guardado.uuid ?? null
   formulario.value = formularioDesde(guardado)
   original = formularioDesde(guardado)
 }

@@ -202,9 +202,11 @@ final class TramiteSeederTest extends TestCase
 
         // Los dos requisitos iguales quedan en uno.
         $this->assertCount(1, $tramite->requisitos);
-        $this->assertSame('Cédula de ciudadanía', $tramite->requisitos->first()?->descripcion);
+        $primerRequisito = $tramite->requisitos->first();
+        $this->assertNotNull($primerRequisito);
+        $this->assertSame('Cédula de ciudadanía', $primerRequisito->descripcion);
         // Una de las copias lo declaraba obligatorio: quitar una obligación es peor que añadirla.
-        $this->assertTrue($tramite->requisitos->first()?->obligatorio);
+        $this->assertTrue($primerRequisito->obligatorio);
         // Las dos audiencias del trámite se reúnen (no se pierde ninguna).
         $grupos = $tramite->audiencias->pluck('grupo')->sort()->values()->all();
         $this->assertSame(['ciudadano', 'extranjeros'], $grupos);

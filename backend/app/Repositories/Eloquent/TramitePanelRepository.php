@@ -82,6 +82,18 @@ final class TramitePanelRepository implements TramitePanelRepositoryInterface
         return $prefijo.str_pad((string) ($ultimo + 1), 4, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * @param  array{
+     *     pasos: list<array{orden: int, titulo: string, descripcion: string|null}>,
+     *     requisitos: list<array{orden: int, tipo: string, descripcion: string, obligatorio: bool, nota: string|null, url: string|null, paso: int|null}>,
+     *     documentos: list<array<string, mixed>>,
+     *     puntos_atencion: list<array<string, mixed>>,
+     *     normativa: list<array<string, mixed>>,
+     *     canales_consulta_estado: list<array<string, mixed>>,
+     *     cuentas: list<array<string, mixed>>,
+     *     audiencias: list<string>
+     * }|null  $ficha
+     */
     public function guardar(Tramite $tramite, ?array $ficha = null): Tramite
     {
         return DB::transaction(function () use ($tramite, $ficha): Tramite {

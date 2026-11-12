@@ -38,7 +38,7 @@ final class TemaDeTramite
         $temas = array_map(static fn (array $t): array => ['slug' => $t['slug'], 'nombre' => $t['nombre']], self::TEMAS);
         $temas[] = ['slug' => self::COMODIN, 'nombre' => 'Otros trámites'];
 
-        return $temas;
+        return array_values($temas);
     }
 
     public static function slugPara(string $nombre): string

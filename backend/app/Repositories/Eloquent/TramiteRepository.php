@@ -108,7 +108,7 @@ final class TramiteRepository implements TramiteRepositoryInterface
      */
     private function contarPorColumna(Builder $consulta, string $columna): array
     {
-        return $consulta
+        return array_values($consulta
             ->getQuery()
             ->select($columna, DB::raw('count(*) as total'))
             ->whereNotNull($columna)
@@ -119,7 +119,7 @@ final class TramiteRepository implements TramiteRepositoryInterface
                 'valor' => (string) $fila->{$columna},
                 'total' => (int) $fila->total,
             ])
-            ->all();
+            ->all());
     }
 
     /**
@@ -128,7 +128,7 @@ final class TramiteRepository implements TramiteRepositoryInterface
      */
     private function contarCategorias(Builder $consulta): array
     {
-        return $consulta
+        return array_values($consulta
             ->getQuery()
             ->join('tramite_categorias', 'tramites.categoria_id', '=', 'tramite_categorias.id')
             ->select('tramite_categorias.slug', 'tramite_categorias.nombre', DB::raw('count(*) as total'))
@@ -140,7 +140,7 @@ final class TramiteRepository implements TramiteRepositoryInterface
                 'nombre' => (string) $fila->nombre,
                 'total' => (int) $fila->total,
             ])
-            ->all();
+            ->all());
     }
 
     /**
@@ -149,7 +149,7 @@ final class TramiteRepository implements TramiteRepositoryInterface
      */
     private function contarDependencias(Builder $consulta): array
     {
-        return $consulta
+        return array_values($consulta
             ->getQuery()
             ->join('dependencias', 'tramites.dependencia_id', '=', 'dependencias.id')
             ->select('dependencias.id', 'dependencias.nombre', DB::raw('count(*) as total'))
@@ -161,7 +161,7 @@ final class TramiteRepository implements TramiteRepositoryInterface
                 'nombre' => (string) $fila->nombre,
                 'total' => (int) $fila->total,
             ])
-            ->all();
+            ->all());
     }
 
     /**
@@ -173,7 +173,7 @@ final class TramiteRepository implements TramiteRepositoryInterface
      */
     private function contarSolicitantes(Builder $consulta): array
     {
-        return $consulta
+        return array_values($consulta
             ->getQuery()
             ->join('tramite_audiencias', 'tramites.id', '=', 'tramite_audiencias.tramite_id')
             ->select('tramite_audiencias.grupo', DB::raw('count(distinct tramites.id) as total'))
@@ -184,6 +184,6 @@ final class TramiteRepository implements TramiteRepositoryInterface
                 'valor' => (string) $fila->grupo,
                 'total' => (int) $fila->total,
             ])
-            ->all();
+            ->all());
     }
 }

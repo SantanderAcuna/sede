@@ -3353,7 +3353,7 @@ components:
         mfa_habilitado: { type: boolean }
         roles: { type: array, items: { type: string } }
         es_super_admin: { type: boolean }
-        creado_en: { type: string, format: date-time, nullable: true }
+        creado_en: { type: [string, 'null'], format: date-time }
 
     UsuarioPanelCollection:
       allOf:
@@ -3371,7 +3371,7 @@ components:
       properties:
         name: { type: string, minLength: 3, maxLength: 120 }
         email: { type: string, format: email, maxLength: 190 }
-        password: { type: string, minLength: 12, maxLength: 128, writeOnly: true, description: Con letras y números. Nunca se devuelve. }
+        password: { type: string, minLength: 12, maxLength: 128, writeOnly: true, description: "Con letras y números. Nunca se devuelve." }
         estado: { $ref: '#/components/schemas/EstadoUsuarioPanel' }
         roles: { type: array, items: { type: string } }
 
@@ -3399,7 +3399,7 @@ components:
     RolPanelEntrada:
       type: object
       properties:
-        name: { type: string, minLength: 3, maxLength: 60, description: Letras, números, espacios y guiones. }
+        name: { type: string, minLength: 3, maxLength: 60, description: "Letras, números, espacios y guiones." }
         permisos: { type: array, items: { type: string } }
 
     GrupoPermisosPanel:

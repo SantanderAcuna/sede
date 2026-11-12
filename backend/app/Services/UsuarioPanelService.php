@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Support\Acceso\Huella;
 use App\Support\Acceso\ReglasDeAcceso;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 
@@ -157,9 +158,9 @@ final class UsuarioPanelService implements UsuarioPanelServiceInterface
 
     /**
      * @param  list<string>  $nombres
-     * @return \Illuminate\Support\Collection<int, Role>
+     * @return Collection<int, Role>
      */
-    private function rolesPorNombre(array $nombres): \Illuminate\Support\Collection
+    private function rolesPorNombre(array $nombres): Collection
     {
         return Role::query()->whereIn('name', $nombres)->where('guard_name', 'web')->get();
     }

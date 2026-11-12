@@ -1587,6 +1587,376 @@ paths:
       security:
         - cookieSesion: []
 
+  /panel/usuarios:
+    get:
+      tags: [Panel — Usuarios]
+      operationId: listarUsuariosPanel
+      summary: Usuarios del panel con sus roles
+      description: |
+        Requiere `usuarios.gestionar`. Se busca por nombre o correo (`q`) y se filtra por `estado`
+        y por `rol`. Nunca devuelve la contraseña ni tokens.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - $ref: '#/components/parameters/Pagina'
+        - name: per_page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: q
+          in: query
+          required: false
+          schema: { type: string, maxLength: 100 }
+        - name: estado
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/EstadoUsuarioPanel' }
+        - name: rol
+          in: query
+          required: false
+          schema: { type: string, maxLength: 60 }
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsuarioPanelCollection' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `usuarios.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Usuarios]
+      operationId: crearUsuarioPanel
+      summary: Crear un usuario con contraseña temporal
+      description: |
+        Requiere `usuarios.gestionar`. La contraseña (mínimo 12 caracteres, con letras y números)
+        se guarda cifrada y nunca se devuelve ni se registra. Quien no es súper administrador solo
+        puede asignar roles cuyos permisos tiene todos, y nunca `super-admin` (403).
+      x-status: implemented
+      x-criterios: [SEG-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UsuarioPanelCrear' }
+      responses:
+        '201':
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UsuarioPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/usuarios/{uuid}:
+    get:
+      tags: [Panel — Usuarios]
+      operationId: obtenerUsuarioPanel
+      summary: Un usuario
+      description: Requiere `usuarios.gestionar`.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: El usuario
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UsuarioPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    patch:
+      tags: [Panel — Usuarios]
+      operationId: actualizarUsuarioPanel
+      summary: Cambiar nombre, correo, contraseña, estado o roles
+      description: |
+        Requiere `usuarios.gestionar`. Solo se envía lo que cambia. Reglas que aplica el servidor:
+        nadie cambia sus propios roles ni su estado (403); solo un súper administrador modifica a
+        otro (403); solo se agregan o quitan roles cuyos permisos se tienen (403); no se puede
+        desactivar ni quitar el rol al único súper administrador activo (422). Cambiar el estado a
+        uno distinto de `activo` o cambiar la contraseña cierra las sesiones abiertas del usuario.
+        Cada cambio queda en la auditoría sin la contraseña.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UsuarioPanelCambio' }
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UsuarioPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/permisos:
+    get:
+      tags: [Panel — Roles]
+      operationId: listarPermisosPanel
+      summary: Catálogo de permisos, agrupado y en lenguaje llano
+      description: Requiere `usuarios.gestionar`. Cada permiso trae su nombre técnico, una etiqueta y una descripción.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      responses:
+        '200':
+          description: Grupos de permisos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/GrupoPermisosPanel' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+
+  /panel/roles:
+    get:
+      tags: [Panel — Roles]
+      operationId: listarRolesPanel
+      summary: Roles con sus permisos y cuántos usuarios los tienen
+      description: Requiere `usuarios.gestionar`.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      responses:
+        '200':
+          description: Roles
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/RolPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Roles]
+      operationId: crearRolPanel
+      summary: Crear un rol con permisos
+      description: |
+        Requiere `usuarios.gestionar`. Quien no es súper administrador solo puede incluir permisos
+        que tiene (403). El nombre `super-admin` está reservado (422).
+      x-status: implemented
+      x-criterios: [SEG-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RolPanelEntrada' }
+      responses:
+        '201':
+          description: Rol creado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/RolPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/roles/{id}:
+    get:
+      tags: [Panel — Roles]
+      operationId: obtenerRolPanel
+      summary: Un rol
+      description: Requiere `usuarios.gestionar`.
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: El rol
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/RolPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    patch:
+      tags: [Panel — Roles]
+      operationId: actualizarRolPanel
+      summary: Cambiar el nombre o los permisos de un rol
+      description: |
+        Requiere `usuarios.gestionar`. La lista de permisos reemplaza a la guardada. El rol
+        `super-admin` no se modifica (403). Quien no es súper administrador no puede agregar ni
+        quitar permisos que no tiene (403).
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RolPanelEntrada' }
+      responses:
+        '200':
+          description: Rol actualizado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/RolPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    delete:
+      tags: [Panel — Roles]
+      operationId: eliminarRolPanel
+      summary: Eliminar un rol sin usuarios
+      description: |
+        Requiere `usuarios.gestionar`. Un rol con usuarios asignados responde 409; `super-admin`
+        no se elimina (403).
+      x-status: implemented
+      x-criterios: [SEG-02]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Rol eliminado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: La regla de acceso lo impide (escalada de privilegios, uno mismo, súper administrador).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: El rol tiene usuarios asignados.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+
   /panel/noticias:
     get:
       tags: [Panel — Noticias]
@@ -2966,6 +3336,86 @@ components:
           items: { type: string }
         publicado_en: { type: [string, 'null'], format: date-time }
         actualizado_en: { type: [string, 'null'], format: date-time }
+
+    EstadoUsuarioPanel:
+      type: string
+      enum: [activo, inactivo, bloqueado, pendiente]
+
+    UsuarioPanelItem:
+      type: object
+      required: [uuid, name, email, estado, roles, es_super_admin]
+      properties:
+        uuid: { type: string, format: uuid }
+        type: { type: string, enum: [usuarios] }
+        name: { type: string }
+        email: { type: string, format: email }
+        estado: { $ref: '#/components/schemas/EstadoUsuarioPanel' }
+        mfa_habilitado: { type: boolean }
+        roles: { type: array, items: { type: string } }
+        es_super_admin: { type: boolean }
+        creado_en: { type: string, format: date-time, nullable: true }
+
+    UsuarioPanelCollection:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedEnvelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/UsuarioPanelItem' }
+
+    UsuarioPanelCrear:
+      type: object
+      required: [name, email, password]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 190 }
+        password: { type: string, minLength: 12, maxLength: 128, writeOnly: true, description: Con letras y números. Nunca se devuelve. }
+        estado: { $ref: '#/components/schemas/EstadoUsuarioPanel' }
+        roles: { type: array, items: { type: string } }
+
+    UsuarioPanelCambio:
+      type: object
+      description: Cualquier subconjunto de campos; solo viaja lo que cambia.
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 190 }
+        password: { type: string, minLength: 12, maxLength: 128, writeOnly: true }
+        estado: { $ref: '#/components/schemas/EstadoUsuarioPanel' }
+        roles: { type: array, items: { type: string } }
+
+    RolPanelItem:
+      type: object
+      required: [id, name, permisos, usuarios, protegido]
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [roles] }
+        name: { type: string }
+        permisos: { type: array, items: { type: string } }
+        usuarios: { type: integer, description: Cuántos usuarios tienen el rol. }
+        protegido: { type: boolean, description: "`true` para super-admin: no se edita ni se elimina." }
+
+    RolPanelEntrada:
+      type: object
+      properties:
+        name: { type: string, minLength: 3, maxLength: 60, description: Letras, números, espacios y guiones. }
+        permisos: { type: array, items: { type: string } }
+
+    GrupoPermisosPanel:
+      type: object
+      required: [grupo, permisos]
+      properties:
+        grupo: { type: string }
+        permisos:
+          type: array
+          items:
+            type: object
+            required: [nombre, etiqueta, descripcion]
+            properties:
+              nombre: { type: string }
+              etiqueta: { type: string }
+              descripcion: { type: string }
 
     TramitePanelCollection:
       allOf:

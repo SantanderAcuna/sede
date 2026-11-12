@@ -81,6 +81,8 @@ class AppServiceProvider extends ServiceProvider
         // Trámites en el panel
         $this->app->bind(TramitePanelRepositoryInterface::class, TramitePanelRepository::class);
         $this->app->bind(TramitePanelServiceInterface::class, TramitePanelService::class);
+        $this->app->bind(\App\Contracts\Services\UsuarioPanelServiceInterface::class, \App\Services\UsuarioPanelService::class);
+        $this->app->bind(\App\Contracts\Services\RolPanelServiceInterface::class, \App\Services\RolPanelService::class);
 
         // Entidad: datos institucionales para cabecera y pie de página
         $this->app->bind(EntidadRepositoryInterface::class, EntidadRepository::class);

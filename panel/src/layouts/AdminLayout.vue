@@ -63,6 +63,7 @@ const grupos: GrupoNavegacion[] = [
     label: 'Contenidos',
     items: [
       { label: 'CMS', ruta: '/cms', icono: 'pen-to-square' },
+      { label: 'Noticias', ruta: '/contenidos/noticias', icono: 'newspaper' },
       { label: 'Portal Ciudadano', ruta: '/portal', icono: 'display' },
       { label: 'Transparencia', ruta: '/transparencia', icono: 'landmark' },
     ],

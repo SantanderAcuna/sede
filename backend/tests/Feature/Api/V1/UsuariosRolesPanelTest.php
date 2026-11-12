@@ -320,12 +320,16 @@ final class UsuariosRolesPanelTest extends TestCase
     public function test_el_listado_de_roles_trae_cuantos_usuarios_tiene_cada_uno(): void
     {
         $rol = $this->rolEditor();
-        User::factory()->count(2)->create()->each(fn (User $u) => $u->assignRole($rol));
+        foreach (User::factory()->count(2)->create() as $usuario) {
+            $usuario->assignRole($rol);
+        }
 
         $respuesta = $this->actingAs($this->superAdmin())->getJson('/api/v1/panel/roles')->assertOk();
-        $fila = collect($respuesta->json('data'))->firstWhere('name', 'editor');
-        $this->assertSame(2, $fila['usuarios']);
-        $this->assertFalse($fila['protegido']);
+        /** @var list<array<string, mixed>> $datos */
+        $datos = $respuesta->json('data');
+        $filas = array_column($datos, null, 'name');
+        $this->assertSame(2, $filas['editor']['usuarios']);
+        $this->assertFalse($filas['editor']['protegido']);
     }
 
     public function test_la_siembra_crea_el_rol_admin_con_gestion_de_usuarios_y_no_pisa_sus_cambios(): void

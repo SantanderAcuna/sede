@@ -197,7 +197,7 @@ final class UsuariosRolesPanelTest extends TestCase
         $huella = AuditLog::query()->where('accion', 'usuario_actualizado')->first();
         $this->assertNotNull($huella);
         $this->assertStringNotContainsString('Otra-Clave', json_encode($huella->cambios, JSON_THROW_ON_ERROR));
-        $this->assertContains('clave', $huella->cambios['campos']);
+        $this->assertContains('clave', (array) ($huella->cambios['campos'] ?? []));
     }
 
     public function test_desactivar_cierra_las_sesiones_abiertas_del_usuario(): void

@@ -9,7 +9,7 @@
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { AxiosError } from 'axios'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 vi.mock('../src/services/noticias', () => ({
@@ -23,6 +23,7 @@ vi.mock('../src/services/noticias', () => ({
 
 import * as servicio from '../src/services/noticias'
 import NoticiaFormularioView from '../src/views/admin/NoticiaFormularioView.vue'
+import EditorTexto from '../src/components/base/EditorTexto.vue'
 import type { NoticiaPanelItem } from '../src/types/api'
 
 const m = vi.mocked(servicio)
@@ -58,6 +59,14 @@ const enrutador = () =>
     ],
   })
 
+// jsdom no calcula geometría; ProseMirror la pide al enfocar.
+beforeAll(() => {
+  const vacio = { length: 0, item: () => null, [Symbol.iterator]: function* () {} } as unknown as DOMRectList
+  Range.prototype.getClientRects = () => vacio
+  Range.prototype.getBoundingClientRect = () => new DOMRect()
+  Element.prototype.getClientRects = () => vacio
+})
+
 const montados: Array<{ unmount: () => void }> = []
 // Conectada al documento: jsdom no envía un formulario que no lo está.
 afterEach(() => {
@@ -85,6 +94,13 @@ function boton(wrapper: Montado, texto: string) {
 }
 
 async function escribir(wrapper: Montado, etiqueta: string, valor: string) {
+  // El contenido ya no es un <textarea>: es el editor, que se maneja por su instancia.
+  if (etiqueta === 'Contenido') {
+    const editor = (wrapper.findComponent(EditorTexto).vm as unknown as { editor: import('@tiptap/core').Editor }).editor
+    editor.commands.setContent(valor.startsWith('<') ? valor : `<p>${valor}</p>`, { emitUpdate: true })
+    await flushPromises()
+    return
+  }
   const campo = wrapper.findAll('label').find((l) => l.text().includes(etiqueta))
   const destino = campo?.attributes('for')
   const control = destino ? wrapper.find(`[id="${destino}"]`) : campo?.find('input, textarea')
@@ -531,5 +547,43 @@ describe('contadores', () => {
     await escribir(wrapper, 'Título', 'x'.repeat(151))
 
     expect(wrapper.find('[data-contador="titulo"]').text()).toContain('-1')
+  })
+})
+
+
+describe('el contenido se escribe con el editor, no con un cuadro de texto plano', () => {
+  it('muestra el editor con su barra de formato y sin textarea para el contenido', async () => {
+    const { wrapper } = await montar()
+
+    expect(wrapper.find('[role="toolbar"]').exists()).toBe(true)
+    expect(wrapper.find('[role="textbox"][contenteditable="true"]').exists()).toBe(true)
+    // El único campo «Contenido» es el editor: no hay una etiqueta que apunte a un cuadro de texto.
+    expect(wrapper.findAll('label').filter((l) => l.text().startsWith('Contenido'))).toHaveLength(0)
+  })
+
+  it('envía el contenido como HTML', async () => {
+    m.crear.mockResolvedValue(noticia({ uuid: 'nueva' }))
+    const { wrapper } = await montar()
+    await rellenar(wrapper)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(m.crear).toHaveBeenCalled()
+    expect((m.crear.mock.calls[0]![0] as { contenido: string }).contenido).toBe('<p>Texto de la noticia.</p>')
+  })
+
+  it('carga el HTML que entrega la API', async () => {
+    m.obtener.mockResolvedValue(noticia({ contenido: '<h2>Titular</h2><p>Cuerpo</p>' }))
+    const { wrapper } = await montar(`/contenidos/noticias/${UUID}`)
+
+    expect(wrapper.find('[role="textbox"]').html()).toContain('<h2>Titular</h2>')
+  })
+
+  it('un contenido que solo tiene una imagen sigue contando como «Falta» en la lista', async () => {
+    const { wrapper } = await montar()
+    await escribir(wrapper, 'Contenido', '<p><img src="/api/v1/contenido/imagenes/0b9e0a5e-3a52-4c43-9f0e-5a0f4a4e2c11" alt="x"></p>')
+
+    const item = wrapper.find('[data-checklist]').findAll('li').find((li) => li.text().includes('Contenido'))
+    expect(item?.text()).toContain('Falta')
   })
 })

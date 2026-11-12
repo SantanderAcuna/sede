@@ -13,6 +13,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import BaseBadge from '@/components/base/BaseBadge.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import ConfirmModal from '@/components/base/ConfirmModal.vue'
+import EditorTexto from '@/components/base/EditorTexto.vue'
 import FormField from '@/components/base/FormField.vue'
 import SubirImagen from '@/components/base/SubirImagen.vue'
 import { actualizar, crear, eliminar, obtener, subirImagen } from '@/services/noticias'
@@ -28,6 +29,7 @@ import {
   formularioVacio,
   hayCambios as hayCambiosEn,
   problemasPorCampo,
+  tieneTexto,
   type CampoNoticia,
   type FormularioNoticia,
 } from './noticias-logica'
@@ -98,7 +100,7 @@ const lista = computed(() => {
   return [
     { texto: 'Título de la noticia', listo: f.titulo.trim() !== '' && f.titulo.length <= TITULO_MAX },
     { texto: 'Descripción corta', listo: f.descripcion_corta.trim() !== '' && f.descripcion_corta.length <= DESCRIPCION_MAX },
-    { texto: 'Contenido', listo: f.contenido.trim() !== '' },
+    { texto: 'Contenido', listo: tieneTexto(f.contenido) },
     { texto: 'Imagen de la noticia', listo: hayImagen },
     {
       texto: 'Descripción de la imagen (para quien no puede verla)',
@@ -399,7 +401,7 @@ watch(
             {{ caracteresRestantes(formulario.descripcion_corta, DESCRIPCION_MAX) }} caracteres disponibles (máximo {{ DESCRIPCION_MAX }})
           </p>
         </div>
-        <FormField v-model="formulario.contenido" type="textarea" :rows="10" label="Contenido" required :error="errorDe('contenido')" hint="Texto sin formato. Separe los párrafos con una línea en blanco." />
+        <EditorTexto v-model="formulario.contenido" label="Contenido" required :error="errorDe('contenido')" hint="Escriba el texto y use los botones de arriba para dar formato: títulos, negrita, listas, enlaces e imágenes." />
       </section>
 
       <section class="space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="noticia-imagen">

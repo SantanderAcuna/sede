@@ -206,3 +206,66 @@ describe('EditorTexto — imagen', () => {
     expect(w!.text()).toContain('No se pudo subir la imagen')
   })
 })
+
+describe('EditorTexto — barra de herramientas con teclado y ratón (patrón ARIA «toolbar»)', () => {
+  it('una sola parada con Tab: el botón activo tiene tabindex 0 y el resto -1', async () => {
+    await montar()
+    const botones = w!.findAll('[role="toolbar"] button')
+    expect(botones.filter((b) => b.attributes('tabindex') === '0')).toHaveLength(1)
+    expect(botones.filter((b) => b.attributes('tabindex') === '-1').length).toBe(botones.length - 1)
+  })
+
+  it('las flechas, Inicio y Fin mueven el foco entre botones habilitados', async () => {
+    await montar({ modelValue: '<p>x</p>' })
+    const barra = w!.get('[role="toolbar"]')
+    const nombres = () => (document.activeElement as HTMLElement | null)?.getAttribute('aria-label')
+    ;(w!.get('[aria-label="Negrita"]').element as HTMLElement).focus()
+
+    await barra.trigger('keydown', { key: 'ArrowRight' })
+    expect(nombres()).toBe('Cursiva')
+    await barra.trigger('keydown', { key: 'ArrowLeft' })
+    expect(nombres()).toBe('Negrita')
+    await barra.trigger('keydown', { key: 'End' })
+    expect(nombres()).toBe('Imagen') // Deshacer y Rehacer están deshabilitados: se saltan
+    await barra.trigger('keydown', { key: 'Home' })
+    expect(nombres()).toBe('Negrita')
+  })
+
+  it('al pulsar con el ratón no se pierde la selección: el botón no roba el foco', async () => {
+    await montar({ modelValue: '<p>texto</p>' })
+    const evento = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    w!.get('[aria-label="Negrita"]').element.dispatchEvent(evento)
+    expect(evento.defaultPrevented).toBe(true)
+  })
+
+  it('activar un formato con el teclado deja el foco en el botón (no salta al texto)', async () => {
+    await montar({ modelValue: '<p>texto</p>' })
+    editor().commands.selectAll()
+    const negrita = w!.get('[aria-label="Negrita"]').element as HTMLElement
+    negrita.focus()
+    await w!.get('[aria-label="Negrita"]').trigger('click')
+
+    expect(document.activeElement).toBe(negrita)
+    expect(html()).toBe('<p><strong>texto</strong></p>')
+  })
+
+  it('Escape cierra el panel abierto y devuelve el foco al texto', async () => {
+    await montar({ modelValue: '<p>texto</p>' })
+    await w!.get('[aria-label="Enlace"]').trigger('click')
+    expect(w!.find('input[type="url"]').exists()).toBe(true)
+
+    await w!.get('input[type="url"]').trigger('keydown', { key: 'Escape' })
+    expect(w!.find('input[type="url"]').exists()).toBe(false)
+    // Tiptap enfoca en el siguiente cuadro de animación.
+    await new Promise((r) => requestAnimationFrame(() => r(null)))
+    await new Promise((r) => setTimeout(r, 20))
+    expect(w!.get('[contenteditable="true"]').element).toBe(document.activeElement)
+  })
+
+  it('el botón Cancelar del panel de enlace cierra solo el panel', async () => {
+    await montar()
+    await w!.get('[aria-label="Enlace"]').trigger('click')
+    await w!.get('[data-accion="cancelar-panel"]').trigger('click')
+    expect(w!.find('input[type="url"]').exists()).toBe(false)
+  })
+})

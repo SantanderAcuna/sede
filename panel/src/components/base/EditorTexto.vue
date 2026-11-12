@@ -104,7 +104,9 @@ interface Boton { nombre: string; etiqueta: string; ejecutar: () => void; activo
 
 const botones = computed<Boton[]>(() => {
   void version.value
-  const c = () => editor.chain().focus()
+  // Con el ratón (el botón no toma el foco) se enfoca el texto; con el teclado el foco se
+  // queda en el botón y la persona no pierde su lugar en la barra.
+  const c = () => (barra.value?.contains(document.activeElement) ? editor.chain() : editor.chain().focus())
   return [
     { nombre: 'negrita', etiqueta: 'Negrita', ejecutar: () => c().toggleBold().run(), activo: () => activo('bold') },
     { nombre: 'cursiva', etiqueta: 'Cursiva', ejecutar: () => c().toggleItalic().run(), activo: () => activo('italic') },
@@ -121,9 +123,33 @@ const botones = computed<Boton[]>(() => {
 })
 
 // ── Enlace ────────────────────────────────────────────────────────────────────
+const barra = ref<HTMLElement | null>(null)
+const nombreActivo = ref('negrita')
 const panel = ref<'' | 'enlace' | 'imagen'>('')
 const urlEnlace = ref('')
 const errorEnlace = ref('')
+
+/** Cierra el panel abierto y devuelve el foco al texto. */
+function cerrarPanel() {
+  panel.value = ''
+  editor.commands.focus()
+}
+
+/** Patrón ARIA «toolbar»: una sola parada con Tab y flechas/Inicio/Fin entre botones. */
+function alTeclearEnBarra(e: KeyboardEvent) {
+  const teclas = ['ArrowRight', 'ArrowLeft', 'Home', 'End']
+  if (!teclas.includes(e.key) || !barra.value) return
+  const botonesDom = Array.from(barra.value.querySelectorAll<HTMLButtonElement>('button:not([disabled])'))
+  if (botonesDom.length === 0) return
+  const actual = botonesDom.indexOf(document.activeElement as HTMLButtonElement)
+  let destino: number
+  if (e.key === 'ArrowRight') destino = (actual + 1) % botonesDom.length
+  else if (e.key === 'ArrowLeft') destino = (actual - 1 + botonesDom.length) % botonesDom.length
+  else if (e.key === 'Home') destino = 0
+  else destino = botonesDom.length - 1
+  e.preventDefault()
+  botonesDom[destino]?.focus()
+}
 
 function abrirEnlace() {
   if (panel.value === 'enlace') { panel.value = ''; return }
@@ -191,7 +217,7 @@ defineExpose({ editor })
       class="mt-1 rounded-lg border bg-white focus-within:ring-2"
       :class="error ? 'border-red-300 focus-within:ring-red-200' : 'border-slate-300 focus-within:border-gov-blue focus-within:ring-gov-blue/30'"
     >
-      <div role="toolbar" aria-label="Formato del texto" class="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 p-2">
+      <div ref="barra" role="toolbar" aria-label="Formato del texto" class="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 p-2" @keydown="alTeclearEnBarra">
         <button
           v-for="b in botones"
           :key="b.nombre"
@@ -199,8 +225,11 @@ defineExpose({ editor })
           :aria-label="b.etiqueta"
           :aria-pressed="b.activo ? (b.activo() ? 'true' : 'false') : undefined"
           :disabled="disabled || b.deshabilitado?.()"
+          :tabindex="b.nombre === nombreActivo ? 0 : -1"
           class="min-h-10 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue disabled:cursor-not-allowed disabled:opacity-40"
           :class="b.activo?.() ? 'border-gov-blue bg-gov-blue text-white' : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'"
+          @mousedown.prevent
+          @focus="nombreActivo = b.nombre"
           @click="b.ejecutar()"
         >
           <span aria-hidden="true">{{ b.etiqueta }}</span>
@@ -217,23 +246,24 @@ defineExpose({ editor })
           placeholder="https://"
           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-gov-blue focus:outline-none focus:ring-2 focus:ring-gov-blue/30"
           @keydown.enter.prevent="aplicarEnlace"
+          @keydown.esc.prevent="cerrarPanel"
         >
         <p v-if="errorEnlace" data-error-enlace role="alert" class="text-sm font-medium text-red-700">{{ errorEnlace }}</p>
         <div class="flex flex-wrap gap-2">
           <button type="button" data-accion="aplicar-enlace" class="min-h-10 rounded-lg bg-gov-blue px-4 text-sm font-medium text-white hover:bg-gov-blue-dark" @click="aplicarEnlace">Aplicar enlace</button>
           <button type="button" data-accion="quitar-enlace" class="min-h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-100" @click="quitarEnlace">Quitar enlace</button>
-          <button type="button" class="min-h-10 rounded-lg px-4 text-sm font-medium text-slate-700 hover:bg-slate-100" @click="panel = ''">Cancelar</button>
+          <button type="button" data-accion="cancelar-panel" class="min-h-10 rounded-lg px-4 text-sm font-medium text-slate-700 hover:bg-slate-100" @click="cerrarPanel">Cancelar</button>
         </div>
       </div>
 
-      <div v-if="panel === 'imagen'" class="space-y-3 border-b border-slate-200 bg-slate-50 p-3">
+      <div v-if="panel === 'imagen'" class="space-y-3 border-b border-slate-200 bg-slate-50 p-3" @keydown.esc.prevent="cerrarPanel">
         <SubirImagen ref="selector" v-model:alt="altImagen" pedir-alt @seleccionada="imagenElegida = $event" />
         <p v-if="errorImagen" role="alert" class="text-sm font-medium text-red-700">{{ errorImagen }}</p>
         <div class="flex flex-wrap gap-2">
           <button type="button" data-accion="insertar-imagen" :disabled="subiendo" class="min-h-10 rounded-lg bg-gov-blue px-4 text-sm font-medium text-white hover:bg-gov-blue-dark disabled:opacity-60" @click="insertarImagen">
             {{ subiendo ? 'Subiendo…' : 'Insertar imagen' }}
           </button>
-          <button type="button" class="min-h-10 rounded-lg px-4 text-sm font-medium text-slate-700 hover:bg-slate-100" @click="panel = ''">Cancelar</button>
+          <button type="button" data-accion="cancelar-panel" class="min-h-10 rounded-lg px-4 text-sm font-medium text-slate-700 hover:bg-slate-100" @click="cerrarPanel">Cancelar</button>
         </div>
       </div>
 

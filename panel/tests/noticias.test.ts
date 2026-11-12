@@ -17,6 +17,7 @@ import {
   formularioVacio,
   hayCambios,
   problemasLocales,
+  tieneTexto,
 } from '../src/views/admin/noticias-logica'
 
 const noticia = (extra: Partial<NoticiaPanelItem> = {}): NoticiaPanelItem => ({
@@ -286,5 +287,26 @@ describe('permiso y ruta', () => {
       'panel.noticias.editar',
     )
     expect(enrutador.resolve('/contenidos/noticias/algo-que-no-es-uuid').name).toBe('no-encontrado')
+  })
+})
+
+describe('tieneTexto — el contenido del editor es HTML', () => {
+  it.each([
+    ['', false],
+    ['  ', false],
+    ['<p></p>', false],
+    ['<p> &nbsp; </p>', false],
+    ['<p><br></p>', false],
+    ['<p><img src="/api/v1/contenido/imagenes/x" alt="a"></p>', false],
+    ['<p>Hola</p>', true],
+    ['Hola', true],
+    ['<h2>Título</h2>', true],
+  ])('%j → %s', (html, esperado) => {
+    expect(tieneTexto(html)).toBe(esperado)
+  })
+
+  it('un contenido solo con una imagen falta en la lista de problemas locales', () => {
+    const f = { ...formularioVacio(), titulo: 'T', descripcion_corta: 'D', contenido: '<p><img src="/api/v1/contenido/imagenes/x" alt="a"></p>' }
+    expect(problemasLocales(f, { tieneImagen: false, imagenNueva: false })).toContain('Falta el contenido de la noticia.')
   })
 })

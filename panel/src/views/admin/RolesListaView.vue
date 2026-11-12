@@ -18,6 +18,7 @@ import { eliminar, listar } from '@/services/roles'
 import type { RolPanelItem } from '@/types/api'
 import { tomarAviso } from './avisos'
 import { motivosDeError } from './politicas-logica'
+import { resumenDePermisos } from './usuarios-logica'
 
 const filas = ref<RolPanelItem[]>([])
 const cargando = ref(true)
@@ -88,12 +89,7 @@ const columnas: ColumnDef<DataTableFeatures, RolPanelItem, unknown>[] = [
     header: 'Permisos',
     enableSorting: false,
     meta: { clase: 'hidden whitespace-nowrap sm:table-cell' },
-    cell: ({ row }) =>
-      row.original.protegido
-        ? 'Todos'
-        : row.original.permisos.length === 1
-          ? '1 permiso'
-          : `${row.original.permisos.length} permisos`,
+    cell: ({ row }) => resumenDePermisos(row.original),
   },
   {
     id: 'usuarios',

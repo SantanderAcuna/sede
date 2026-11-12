@@ -26,6 +26,7 @@ import {
   hayCambiosDeUsuario,
   problemasDeUsuario,
   requisitosDeClave,
+  resumenDePermisos,
   rolesAsignables,
   type FormularioUsuario,
 } from './usuarios-logica'
@@ -118,13 +119,15 @@ async function guardar(): Promise<void> {
   motivos.value = []
 
   guardando.value = true
+  // `aplicar` fija el uuid del guardado: lo que era un alta debe decidirse antes.
+  const eraNuevo = esNuevo.value
   try {
-    const guardado = esNuevo.value
+    const guardado = eraNuevo
       ? await crear(cambiosDeUsuario(formulario.value, null))
       : await actualizar(uuid.value as string, cambiosDeUsuario(formulario.value, original))
     aplicar(guardado)
     saliendo = true
-    dejarAviso(esNuevo.value ? 'Usuario creado.' : 'Cambios guardados.')
+    dejarAviso(eraNuevo ? 'Usuario creado.' : 'Cambios guardados.')
     await enrutador.push({ name: 'usuarios' })
   } catch (e) {
     erroresServidor.value = erroresPorCampo(e)
@@ -250,7 +253,7 @@ const tarjeta = 'space-y-4 rounded-xl bg-white p-5 ring-1 ring-slate-200 sm:p-6'
               class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 has-[:checked]:border-gov-blue has-[:checked]:bg-gov-blue-light has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
             >
               <input v-model="formulario.roles" type="checkbox" :value="r.name" class="mt-1 h-4 w-4">
-              <span class="text-sm text-slate-800"><strong>{{ r.name }}</strong><span class="block text-xs text-slate-600">{{ r.permisos.length }} permisos</span></span>
+              <span class="text-sm text-slate-800"><strong>{{ r.name }}</strong><span class="block text-xs text-slate-600">{{ resumenDePermisos(r) }}</span></span>
             </label>
           </div>
           <p v-if="fijos.length > 0" class="mt-3 text-sm text-slate-700">

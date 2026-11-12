@@ -17,6 +17,7 @@ vi.mock('../src/services/roles', () => ({ permisos: vi.fn(), listar: vi.fn(), ob
 import * as usuarios from '../src/services/usuarios'
 import * as roles from '../src/services/roles'
 import { useSesionStore } from '../src/stores/sesion'
+import { tomarAviso } from '../src/views/admin/avisos'
 import UsuariosListaView from '../src/views/admin/UsuariosListaView.vue'
 import UsuarioFormularioView from '../src/views/admin/UsuarioFormularioView.vue'
 import RolesListaView from '../src/views/admin/RolesListaView.vue'
@@ -150,6 +151,7 @@ describe('UsuarioFormularioView', () => {
     await flushPromises()
     expect(u.crear).toHaveBeenCalledWith({ name: 'Carla Gómez', email: 'carla@example.com', password: 'Clave-Segura-2026!', estado: 'activo', roles: ['editor'] })
     expect(router.currentRoute.value.name).toBe('usuarios')
+    expect(tomarAviso()).toBe('Usuario creado.')
   })
 
   it('solo ofrece los roles que quien administra puede asignar', async () => {

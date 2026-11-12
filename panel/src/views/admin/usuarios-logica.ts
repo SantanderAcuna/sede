@@ -122,3 +122,7 @@ export function cambiosDeRol(f: FormularioRol, original: FormularioRol | null): 
 
 export const hayCambiosDeRol = (f: FormularioRol, original: FormularioRol): boolean =>
   Object.keys(cambiosDeRol(f, original)).length > 0
+
+/** «1 permiso», «26 permisos»; el rol protegido (súper administrador) los tiene todos. */
+export const resumenDePermisos = (r: Pick<RolPanelItem, 'permisos' | 'protegido'>): string =>
+  r.protegido ? 'Todos los permisos' : r.permisos.length === 1 ? '1 permiso' : `${r.permisos.length} permisos`

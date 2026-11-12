@@ -11,6 +11,7 @@ import {
   formularioVacioDeUsuario,
   hayCambiosDeUsuario,
   problemasDeRol,
+  resumenDePermisos,
   problemasDeUsuario,
   puedeAdministrarA,
   requisitosDeClave,
@@ -105,5 +106,13 @@ describe('roles', () => {
     expect(cambiosDeRol({ name: 'r', permisos: ['a', 'b'] }, original)).toEqual({})
     expect(cambiosDeRol({ name: 'rr', permisos: ['a'] }, original)).toEqual({ name: 'rr', permisos: ['a'] })
     expect(cambiosDeRol({ name: 'r', permisos: ['a'] }, null)).toEqual({ name: 'r', permisos: ['a'] })
+  })
+})
+
+describe('resumenDePermisos', () => {
+  it('singular, plural y el rol protegido que lo tiene todo', () => {
+    expect(resumenDePermisos({ permisos: ['a'], protegido: false })).toBe('1 permiso')
+    expect(resumenDePermisos({ permisos: ['a', 'b'], protegido: false })).toBe('2 permisos')
+    expect(resumenDePermisos({ permisos: [], protegido: true })).toBe('Todos los permisos')
   })
 })

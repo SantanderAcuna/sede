@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { construirMiga } from '../app/utils/miga'
+import { construirMiga, fichaDeRuta, tituloDeFicha } from '../app/utils/miga'
 
 const destinos = [
   { ruta: '/noticias', etiqueta: 'Noticias' },
@@ -84,5 +84,55 @@ describe('construirMiga', () => {
     const titulo = { ruta: '/noticias/x', texto: '<b>x</b>' }
     const miga = construirMiga('/noticias/x', { ...base, titulo })
     expect(miga[miga.length - 1]?.etiqueta).toBe('<b>x</b>')
+  })
+})
+
+describe('fichaDeRuta', () => {
+  it('reconoce la ficha de una noticia y la de un trámite', () => {
+    expect(fichaDeRuta('/noticias/mi-noticia')).toEqual({
+      seccion: 'noticias',
+      slug: 'mi-noticia',
+      clave: 'noticia-mi-noticia',
+      endpoint: '/noticias/mi-noticia',
+    })
+    expect(fichaDeRuta('/tramites/certificado')).toEqual({
+      seccion: 'tramites',
+      slug: 'certificado',
+      clave: 'tramite-certificado',
+      endpoint: '/tramites/certificado',
+    })
+  })
+
+  it('la clave es la que ya usan las páginas, para que una sola lectura sirva a las dos', () => {
+    expect(fichaDeRuta('/noticias/x')?.clave).toBe('noticia-x')
+    expect(fichaDeRuta('/tramites/x')?.clave).toBe('tramite-x')
+  })
+
+  it('no reconoce los listados, la portada ni otras secciones', () => {
+    for (const ruta of ['/', '/noticias', '/tramites', '/noticias/', '/participa/consulta-ciudadana', '/politicas', '/noticias/a/b']) {
+      expect(fichaDeRuta(ruta), ruta).toBeNull()
+    }
+  })
+
+  it('decodifica el slug como lo hace el enrutador, y no revienta con uno mal codificado', () => {
+    expect(fichaDeRuta('/tramites/a%20b')?.slug).toBe('a b')
+    expect(fichaDeRuta('/tramites/%E0%A4%A')?.slug).toBe('%E0%A4%A')
+  })
+
+  it('el slug que va a la API queda codificado: no puede colar otra ruta', () => {
+    expect(fichaDeRuta('/noticias/a%2Fb')?.endpoint).toBe('/noticias/a%2Fb')
+  })
+})
+
+describe('tituloDeFicha', () => {
+  it('la noticia usa su título y el trámite su nombre', () => {
+    expect(tituloDeFicha('noticias', { data: { titulo: 'Una noticia' } })).toBe('Una noticia')
+    expect(tituloDeFicha('tramites', { data: { nombre: 'Certificado' } })).toBe('Certificado')
+  })
+
+  it('sin dato válido no hay título (no se inventa)', () => {
+    for (const r of [null, undefined, {}, { data: null }, { data: { titulo: '' } }, { data: { titulo: '   ' } }, { data: { titulo: 5 } }]) {
+      expect(tituloDeFicha('noticias', r), JSON.stringify(r)).toBeNull()
+    }
   })
 })

@@ -615,6 +615,61 @@ paths:
           $ref: '#/components/responses/DemasiadasSolicitudes'
       security: []
 
+  /banners:
+    get:
+      tags: [Banners]
+      operationId: listarBanners
+      summary: Diapositivas vigentes del carrusel de la portada
+      description: |
+        Solo las activas y dentro de su vigencia (`vigente_desde` ≤ ahora < `vigente_hasta`), en el
+        orden elegido en el panel. Cada una trae su imagen con texto alternativo; nada interno
+        (ni identificador numérico, ni estado, ni fechas). Sin diapositivas, `data` es una lista vacía
+        y el sitio usa su portada de respaldo.
+      x-status: implemented
+      x-criterios: [CAG-02, CAG-04]
+      responses:
+        '200':
+          description: Diapositivas vigentes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/BannerPublico' }
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
+  /banners/{uuid}/imagen:
+    get:
+      tags: [Banners]
+      operationId: obtenerImagenBanner
+      summary: Imagen de una diapositiva vigente
+      description: Dirección estable, con `ETag` y `Cache-Control: public, max-age=300`. 404 si la diapositiva no está vigente o no tiene imagen.
+      x-status: implemented
+      x-criterios: [CAG-04]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: El archivo de imagen
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
+      security: []
+
   # ══════════════════════════════════════════════════════════════════════════════
   # TRANSPARENCIA (Módulo 02)
   # ══════════════════════════════════════════════════════════════════════════════
@@ -1954,6 +2009,289 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+
+  /panel/banners:
+    get:
+      tags: [Panel — Carrusel]
+      operationId: listarBannersPanel
+      summary: Todas las diapositivas del carrusel, en su orden
+      description: Requiere `banners.gestionar`. Incluye borradores, programadas y vencidas, con su estado en palabras y lo que les falta para publicarse.
+      x-status: implemented
+      x-criterios: [CAG-02]
+      responses:
+        '200':
+          description: Diapositivas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Carrusel]
+      operationId: crearBanner
+      summary: Crear una diapositiva (basta el título)
+      description: Requiere `banners.gestionar`. Nace como borrador y al final del carrusel. El enlace es una ruta del sitio o una dirección `https://`.
+      x-status: implemented
+      x-criterios: [CAG-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BannerEntrada' }
+      responses:
+        '201':
+          description: Diapositiva creada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/banners/orden:
+    put:
+      tags: [Panel — Carrusel]
+      operationId: ordenarBanners
+      summary: Fijar el orden del carrusel
+      description: Requiere `banners.gestionar`. La lista completa de diapositivas (sin repetidas ni desconocidas); la primera es la que se ve primero. Una lista incompleta es 422.
+      x-status: implemented
+      x-criterios: [CAG-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uuids]
+              properties:
+                uuids: { type: array, items: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Orden guardado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+
+  /panel/banners/{uuid}:
+    get:
+      tags: [Panel — Carrusel]
+      operationId: obtenerBannerPanel
+      summary: Una diapositiva
+      description: Requiere `banners.gestionar`.
+      x-status: implemented
+      x-criterios: [CAG-02]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: La diapositiva
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    patch:
+      tags: [Panel — Carrusel]
+      operationId: actualizarBanner
+      summary: Cambiar una diapositiva
+      description: |
+        Requiere `banners.gestionar`. Solo se envía lo que cambia. `activo: true` la publica y exige imagen
+        con texto alternativo (422 con lo que falta). `imagen_alt` cambia el texto alternativo sin subir otra imagen.
+      x-status: implemented
+      x-criterios: [CAG-02, CAG-04]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BannerEntrada' }
+      responses:
+        '200':
+          description: Diapositiva actualizada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
+    delete:
+      tags: [Panel — Carrusel]
+      operationId: eliminarBanner
+      summary: Eliminar una diapositiva
+      description: Requiere `banners.gestionar`. Borrado lógico: deja de verse en el sitio y en el panel; queda en la auditoría.
+      x-status: implemented
+      x-criterios: [CAG-02]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Eliminada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+
+  /panel/banners/{uuid}/imagen:
+    get:
+      tags: [Panel — Carrusel]
+      operationId: obtenerImagenBannerPanel
+      summary: Ver la imagen de una diapositiva, publicada o no
+      description: Requiere `banners.gestionar`. Entrega también la de un borrador; `Cache-Control: private, no-store`.
+      x-status: implemented
+      x-criterios: [CAG-04]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: El archivo de imagen
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
+    post:
+      tags: [Panel — Carrusel]
+      operationId: subirImagenBanner
+      summary: Subir o reemplazar la imagen de una diapositiva
+      description: Requiere `banners.gestionar`. Imagen y texto alternativo (`alt`) van siempre juntos; sin `alt` es 422. PNG, JPG o WebP, hasta 5 MB.
+      x-status: implemented
+      x-criterios: [CAG-04]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [imagen, alt]
+              properties:
+                imagen: { type: string, format: binary }
+                alt: { type: string, maxLength: 250, description: Describe lo que muestra la imagen para quien no la ve. }
+      responses:
+        '200':
+          description: Imagen guardada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BannerPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `banners.gestionar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
       security:
         - cookieSesion: []
 
@@ -3416,6 +3754,58 @@ components:
               nombre: { type: string }
               etiqueta: { type: string }
               descripcion: { type: string }
+
+    BannerPublico:
+      type: object
+      required: [uuid, titulo, imagen]
+      properties:
+        uuid: { type: string, format: uuid }
+        titulo: { type: string }
+        descripcion: { type: [string, 'null'] }
+        enlace: { type: [string, 'null'], description: Ruta del sitio o dirección https. }
+        imagen:
+          type: object
+          required: [url, alt]
+          properties:
+            url: { type: string }
+            alt: { type: string }
+
+    EstadoBanner:
+      type: string
+      enum: [borrador, programado, vigente, vencido]
+
+    BannerPanelItem:
+      type: object
+      required: [uuid, titulo, orden, activo, estado, problemas]
+      properties:
+        uuid: { type: string, format: uuid }
+        type: { type: string, enum: [banners] }
+        titulo: { type: string }
+        descripcion: { type: [string, 'null'] }
+        enlace: { type: [string, 'null'] }
+        orden: { type: integer }
+        activo: { type: boolean }
+        estado: { $ref: '#/components/schemas/EstadoBanner' }
+        vigente_desde: { type: [string, 'null'], format: date-time }
+        vigente_hasta: { type: [string, 'null'], format: date-time }
+        imagen:
+          type: [object, 'null']
+          properties:
+            url: { type: string }
+            alt: { type: [string, 'null'] }
+        problemas: { type: array, items: { type: string } }
+        actualizado_en: { type: [string, 'null'], format: date-time }
+
+    BannerEntrada:
+      type: object
+      properties:
+        titulo: { type: string, minLength: 1, maxLength: 80 }
+        descripcion: { type: [string, 'null'], maxLength: 200 }
+        enlace: { type: [string, 'null'], maxLength: 500, description: "Ruta del sitio (/transparencia) o dirección https://." }
+        activo: { type: boolean }
+        vigente_desde: { type: [string, 'null'], format: date-time }
+        vigente_hasta: { type: [string, 'null'], format: date-time }
+        imagen_alt: { type: [string, 'null'], maxLength: 250 }
 
     TramitePanelCollection:
       allOf:

@@ -11,94 +11,102 @@ use App\Models\Traits\HasUuids;
 use App\Support\Busqueda\TextoBuscable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
- * Un trámite del catálogo de la Entidad.
+ * Un elemento del catálogo de la Entidad: un trámite, una OPA o una consulta de acceso a la
+ * información pública.
  *
- * El modelo guarda lo que el contrato publica, con los mismos nombres: la fila y
- * la respuesta dicen lo mismo, y una diferencia entre las dos se ve en un solo
- * sitio.
+ * **Contenido propio de la sede, con base relacional.** La ficha ya no viaja en bloques JSON ni
+ * se copia de un visor externo: cada parte —pasos, requisitos, documentos, puntos de atención,
+ * normas, canales y cuentas— vive en su tabla hija y se administra desde el panel. El código
+ * (`T41040`…) y el `slug` son estables porque ya circulan en enlaces; `url_ficha_gov_co` es un
+ * enlace de referencia **opcional**, no una dependencia.
  *
- * Lo que este modelo protege y no se lee en las columnas:
+ * Lo que este modelo protege:
  *
- * - **Lo que no tiene ficha en GOV.CO no se publica.** No lo decide el modelo
- *   al guardar, sino la consulta del repositorio, que es la única puerta por la
- *   que el ciudadano llega al catálogo. Guardar un trámite incompleto es
- *   legítimo —mientras la Entidad consigue la ficha—; publicarlo no lo es.
- * - **El texto buscable se calcula solo.** `busqueda` no es un dato del trámite
- *   sino un índice derivado de su nombre y su resumen, así que lo mantiene el
- *   modelo en cada escritura: si se rellena a mano, cualquier corrección
- *   posterior desde el panel dejaría el índice mintiendo, y la búsqueda fallaría
- *   justo en lo que se acaba de corregir.
- */
-/**
+ * - **Qué se publica lo decide el contenido propio, no una fuente externa.** La regla de
+ *   `scopePublicados` y `problemasParaPublicar` exige los datos que la Guía §5.1.3 pide de una
+ *   ficha (modalidad, costo, tiempo, canal, cómo consultar el estado y al menos un requisito).
+ *   La ficha de GOV.CO dejó de ser condición: un trámite propio sin registro nacional también se
+ *   publica.
+ * - **El texto buscable se calcula solo** en cada escritura, a partir del nombre y el resumen;
+ *   rellenarlo a mano dejaría el índice mintiendo tras la primera corrección.
+ * - **Nada es inborrable.** Todo elemento se edita y se envía a la papelera (soft delete); no hay
+ *   candado por origen porque ya no hay origen externo que proteger.
+ *
  * @property int $id
  * @property string $uuid
  * @property string $codigo
  * @property string $slug
  * @property string $nombre
  * @property string|null $resumen
- *                                Los seis atributos obligatorios son anulables en la base y **no lo son para
- *                                publicarse**. La distinción es la misma que ya valía para `url_ficha_gov_co`: un
- *                                trámite al que la fuente no le declara la modalidad puede existir mientras la
- *                                Entidad lo arregla, y no puede salir al catálogo. Quien lo comprueba es el
- *                                repositorio, que es la única puerta por la que el ciudadano llega al catálogo.
+ * @property string $type tramites | opa | consultas
  * @property ModalidadTramite|null $modalidad
  * @property CostoTramite|null $tiene_costo
  * @property string|null $costo
  * @property int|null $tiempo_solucion_dias
  * @property CanalInicioTramite|null $canal_inicio
  * @property string|null $url_inicio
+ * @property string|null $url_manual_tramite_en_linea
  * @property string|null $consulta_estado
- * @property list<array{descripcion: string, obligatorio?: bool}>|null $requisitos
- * @property list<array{nombre: string, url?: string|null, formato?: string|null}>|null $documentos
  * @property string|null $costo_tipo_valor
  * @property string|null $costo_moneda
  * @property string|null $costo_url_pago
  * @property string|null $costo_descripcion
- * @property list<array<string, string|null>> $costo_cuentas
  * @property string|null $resultado
- * @property string|null $producto_final
  * @property string|null $observaciones_resultado
  * @property bool|null $fecha_cualquiera
  * @property string|null $cuando_se_puede_realizar
  * @property string|null $url_calendario
  * @property string|null $palabras_relacionadas
- * @property string|null $url_manual_tramite_en_linea
- * @property list<array<string, mixed>> $momentos
  * @property list<string> $medios_resultado
- * @property list<array<string, mixed>> $audiencias
- * @property list<array<string, mixed>> $cuentas
- * @property list<string> $perfiles
- * @property list<array<string, mixed>> $puntos_atencion
- * @property list<array<string, mixed>> $normativa
- * @property list<array<string, mixed>> $canales_consulta_estado
- * @property array<string, mixed>|null $seguimiento
- * @property string|null $categoria_slug
- * @property string|null $categoria_nombre
+ * @property int|null $categoria_id
+ * @property int|null $dependencia_id
+ * @property int|null $nivel_transformacion
+ * @property string $estado_estandarizado
+ * @property string $nivel_autenticacion_requerido
+ * @property bool $aplica_sap
+ * @property int|null $termino_sap_dias
+ * @property string $tipo_silencio_administrativo
+ * @property bool $requiere_concepto_dafp
+ * @property int|null $solicitudes_por_anio
+ * @property int|null $bloque_digitalizacion
+ * @property string|null $fase_digitalizacion
+ * @property int $version_ficha
+ * @property int $suit_version
+ * @property Carbon|null $fecha_ultima_actualizacion_suit
  * @property string|null $url_ficha_gov_co
  * @property string $busqueda
  * @property string $busqueda_titulo
- * @property string|null $procedencia_fuente
- * @property string|null $procedencia_url
- * @property Carbon|null $procedencia_obtenido_en
- * @property string|null $procedencia_nota
- * @property string|null $procedencia_api
- * @property array<string, string> $procedencia_origen_por_campo
- * @property list<array{campo: string, regla: string}> $procedencia_derivados
- * @property list<string> $procedencia_faltantes
  * @property Carbon|null $publicado_en
  * @property Carbon $created_at
  * @property Carbon $updated_at
+ * @property Carbon|null $deleted_at
+ * @property-read TramiteCategoria|null $categoria
+ * @property-read Dependencia|null $dependencia
+ * @property-read Collection<int, TramitePaso> $pasos
+ * @property-read Collection<int, TramiteRequisito> $requisitos
+ * @property-read Collection<int, TramiteDocumento> $documentos
+ * @property-read Collection<int, TramitePuntoAtencion> $puntosAtencion
+ * @property-read Collection<int, TramiteNorma> $normas
+ * @property-read Collection<int, TramiteCanal> $canales
+ * @property-read Collection<int, TramiteAudiencia> $audiencias
+ * @property-read Collection<int, TramiteCuenta> $cuentas
+ * @property-read Collection<int, TramiteValoracion> $valoraciones
  */
 #[Fillable([
     'codigo',
     'slug',
     'nombre',
     'resumen',
+    'type',
     'modalidad',
     'tiene_costo',
     'costo',
@@ -107,40 +115,30 @@ use Illuminate\Support\Carbon;
     'url_inicio',
     'url_manual_tramite_en_linea',
     'consulta_estado',
-    'requisitos',
-    'documentos',
-    'momentos',
+    'costo_tipo_valor',
+    'costo_moneda',
+    'costo_url_pago',
+    'costo_descripcion',
     'resultado',
-    'producto_final',
     'observaciones_resultado',
     'fecha_cualquiera',
     'cuando_se_puede_realizar',
     'url_calendario',
     'palabras_relacionadas',
     'medios_resultado',
-    'perfiles',
-    'audiencias',
-    'puntos_atencion',
-    'normativa',
-    'canales_consulta_estado',
-    'seguimiento',
-    'costo_tipo_valor',
-    'costo_moneda',
-    'costo_url_pago',
-    'costo_descripcion',
-    'costo_cuentas',
-    'cuentas',
-    'categoria_slug',
-    'categoria_nombre',
+    'categoria_id',
+    'dependencia_id',
+    'nivel_transformacion',
+    'estado_estandarizado',
+    'nivel_autenticacion_requerido',
+    'aplica_sap',
+    'termino_sap_dias',
+    'tipo_silencio_administrativo',
+    'requiere_concepto_dafp',
+    'solicitudes_por_anio',
+    'bloque_digitalizacion',
+    'fase_digitalizacion',
     'url_ficha_gov_co',
-    'procedencia_fuente',
-    'procedencia_url',
-    'procedencia_obtenido_en',
-    'procedencia_nota',
-    'procedencia_api',
-    'procedencia_origen_por_campo',
-    'procedencia_derivados',
-    'procedencia_faltantes',
     'publicado_en',
 ])]
 /**
@@ -148,40 +146,170 @@ use Illuminate\Support\Carbon;
  */
 final class Tramite extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, SoftDeletes;
+
+    /** Los tres grupos del Anexo 2.1 que la sección publica. */
+    public const TIPOS = ['tramites', 'opa', 'consultas'];
+
+    /** El prefijo del código por tipo, para la generación automática al crear. */
+    public const PREFIJO_CODIGO = ['tramites' => 'T', 'opa' => 'O', 'consultas' => 'C'];
 
     /**
      * Cuántas palabras caben en el resumen.
      *
-     * El resumen sale del propósito oficial, que puede ser bastante más largo;
-     * se recorta a lo que el contrato admite al escribir (`TramiteInput`) para
-     * que lo publicado se pueda volver a escribir sin perder texto.
+     * El resumen sale del propósito oficial, que puede ser bastante más largo; se recorta a lo
+     * que el contrato admite al escribir para que lo publicado se pueda volver a escribir sin
+     * perder texto.
      */
     public const MAXIMO_RESUMEN = 500;
 
     /**
-     * La fuente que declara un trámite creado o corregido en el panel.
-     *
-     * Es distinta de `FuenteSuit::NOMBRE` a propósito: la ingesta automática solo
-     * reescribe los trámites cuya fuente sea la oficial, así que esta marca es lo que
-     * impide que la siguiente ingesta pise lo que una persona de la Entidad corrigió.
+     * @return array<string, string>
      */
-    public const FUENTE_PANEL = 'Alcaldía Distrital de Santa Marta (panel de gestión)';
-
-    /** Prefijo del código de los trámites creados en el panel: `P0001`, `P0002`… */
-    public const PREFIJO_CODIGO_PANEL = 'P';
-
-    /** ¿Lo creó una persona en el panel (y no la carga desde la fuente oficial)? */
-    public function esDelPanel(): bool
+    protected function casts(): array
     {
-        return str_starts_with($this->codigo, self::PREFIJO_CODIGO_PANEL)
-            && ctype_digit(substr($this->codigo, strlen(self::PREFIJO_CODIGO_PANEL)));
+        return [
+            'modalidad' => ModalidadTramite::class,
+            'tiene_costo' => CostoTramite::class,
+            'canal_inicio' => CanalInicioTramite::class,
+            'tiempo_solucion_dias' => 'integer',
+            'costo' => 'decimal:2',
+            'medios_resultado' => 'array',
+            'fecha_cualquiera' => 'boolean',
+            'aplica_sap' => 'boolean',
+            'requiere_concepto_dafp' => 'boolean',
+            'nivel_transformacion' => 'integer',
+            'termino_sap_dias' => 'integer',
+            'solicitudes_por_anio' => 'integer',
+            'bloque_digitalizacion' => 'integer',
+            'version_ficha' => 'integer',
+            'suit_version' => 'integer',
+            'fecha_ultima_actualizacion_suit' => 'date',
+            'publicado_en' => 'datetime',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        self::saving(function (Tramite $tramite): void {
+            $tramite->busqueda = self::textoBuscable($tramite->nombre, $tramite->resumen);
+            // Sólo el nombre, aparte: un término que coincide con el título pesa más que uno que
+            // aparece en el resumen (ver `docs/busqueda.md`).
+            $tramite->busqueda_titulo = TextoBuscable::normalizar($tramite->nombre);
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Relaciones
+    // -------------------------------------------------------------------------
+
+    /** @return BelongsTo<TramiteCategoria, $this> */
+    public function categoria(): BelongsTo
+    {
+        return $this->belongsTo(TramiteCategoria::class);
+    }
+
+    /** @return BelongsTo<Dependencia, $this> */
+    public function dependencia(): BelongsTo
+    {
+        return $this->belongsTo(Dependencia::class);
+    }
+
+    /** @return HasMany<TramitePaso, $this> */
+    public function pasos(): HasMany
+    {
+        return $this->hasMany(TramitePaso::class)->orderBy('orden');
+    }
+
+    /** @return HasMany<TramiteRequisito, $this> */
+    public function requisitos(): HasMany
+    {
+        return $this->hasMany(TramiteRequisito::class)->orderBy('orden');
+    }
+
+    /** @return HasMany<TramiteDocumento, $this> */
+    public function documentos(): HasMany
+    {
+        return $this->hasMany(TramiteDocumento::class)->orderBy('orden');
+    }
+
+    /** @return HasMany<TramitePuntoAtencion, $this> */
+    public function puntosAtencion(): HasMany
+    {
+        return $this->hasMany(TramitePuntoAtencion::class)->orderBy('orden');
+    }
+
+    /** @return HasMany<TramiteNorma, $this> */
+    public function normas(): HasMany
+    {
+        return $this->hasMany(TramiteNorma::class)->orderBy('orden');
+    }
+
+    /** @return HasMany<TramiteCanal, $this> */
+    public function canales(): HasMany
+    {
+        return $this->hasMany(TramiteCanal::class)->orderBy('orden');
+    }
+
+    /** @return HasMany<TramiteAudiencia, $this> */
+    public function audiencias(): HasMany
+    {
+        return $this->hasMany(TramiteAudiencia::class);
+    }
+
+    /** @return HasMany<TramiteCuenta, $this> */
+    public function cuentas(): HasMany
+    {
+        return $this->hasMany(TramiteCuenta::class)->orderBy('orden');
+    }
+
+    /** @return HasMany<TramiteValoracion, $this> */
+    public function valoraciones(): HasMany
+    {
+        return $this->hasMany(TramiteValoracion::class);
+    }
+
+    /** Las relaciones hijas que componen la ficha, para cargar y copiar en bloque. */
+    public const RELACIONES_FICHA = [
+        'pasos', 'requisitos', 'documentos', 'puntosAtencion', 'normas', 'canales', 'audiencias', 'cuentas',
+    ];
+
+    // -------------------------------------------------------------------------
+    // Publicación
+    // -------------------------------------------------------------------------
+
+    /** ¿Este elemento exige ficha en GOV.CO para publicarse? Trámites y OPA sí; consultas no. */
+    public function exigeFichaGovCo(): bool
+    {
+        // Las consultas de acceso a información pública no son trámites y se suprimen del SUIT
+        // (RN-B2-002): no tienen ficha nacional. Trámites y OPA sí la tienen (RF-B1-021).
+        return $this->type !== 'consultas';
     }
 
     /**
-     * Qué le falta para publicarse: la ficha GOV.CO y los seis atributos obligatorios
-     * de la Guía §5.1.3. Lista vacía = se puede publicar. Es la misma regla de
-     * `scopePublicados`, dicha con palabras para quien edita.
+     * ¿Tiene al menos un requisito? Usa el conteo ya cargado (`withCount`) o la relación cargada
+     * cuando están, para no disparar una consulta por fila en los listados.
+     */
+    public function tieneRequisitos(): bool
+    {
+        if ($this->relationLoaded('requisitos')) {
+            return $this->requisitos->isNotEmpty();
+        }
+        $contado = $this->getAttribute('requisitos_count');
+        if ($contado !== null) {
+            return (int) $contado > 0;
+        }
+
+        return $this->requisitos()->exists();
+    }
+
+    /**
+     * Qué le falta para publicarse. Lista vacía = se puede publicar.
+     *
+     * La regla mezcla el **contenido propio** de la ficha (Guía §5.1.3: modalidad, costo, tiempo,
+     * canal, cómo se consulta el estado y al menos un requisito) con la **integración GOV.CO**: un
+     * trámite o una OPA se publica con su ficha nacional (RF-B1-021); una consulta no la exige. Es
+     * la misma regla de `scopePublicados`, dicha con palabras para quien edita.
      *
      * @return list<string>
      */
@@ -189,8 +317,8 @@ final class Tramite extends Model
     {
         $problemas = [];
 
-        if (trim((string) $this->url_ficha_gov_co) === '') {
-            $problemas[] = 'Falta la dirección de la ficha en GOV.CO.';
+        if (trim((string) $this->resumen) === '') {
+            $problemas[] = 'Falta un resumen de qué es el trámite.';
         }
         if ($this->modalidad === null) {
             $problemas[] = 'Falta la modalidad (en línea, parcialmente en línea o presencial).';
@@ -207,7 +335,10 @@ final class Tramite extends Model
         if (trim((string) $this->consulta_estado) === '') {
             $problemas[] = 'Falta cómo se consulta el estado del trámite.';
         }
-        if ($this->requisitos === null || $this->requisitos === []) {
+        if ($this->exigeFichaGovCo() && trim((string) $this->url_ficha_gov_co) === '') {
+            $problemas[] = 'Falta la dirección de la ficha en GOV.CO (obligatoria para trámites y OPA).';
+        }
+        if (! $this->tieneRequisitos()) {
             $problemas[] = 'Falta al menos un requisito.';
         }
 
@@ -215,68 +346,11 @@ final class Tramite extends Model
     }
 
     /**
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'modalidad' => ModalidadTramite::class,
-            'tiene_costo' => CostoTramite::class,
-            'canal_inicio' => CanalInicioTramite::class,
-            'tiempo_solucion_dias' => 'integer',
-            'costo' => 'decimal:2',
-            'requisitos' => 'array',
-            'documentos' => 'array',
-            'momentos' => 'array',
-            'medios_resultado' => 'array',
-            'fecha_cualquiera' => 'boolean',
-            'perfiles' => 'array',
-            'audiencias' => 'array',
-            'puntos_atencion' => 'array',
-            'normativa' => 'array',
-            'canales_consulta_estado' => 'array',
-            'seguimiento' => 'array',
-            'costo_cuentas' => 'array',
-            'cuentas' => 'array',
-            'procedencia_origen_por_campo' => 'array',
-            'procedencia_derivados' => 'array',
-            'procedencia_faltantes' => 'array',
-            'publicado_en' => 'datetime',
-            'procedencia_obtenido_en' => 'date',
-        ];
-    }
-
-    protected static function booted(): void
-    {
-        self::saving(function (Tramite $tramite): void {
-            $tramite->busqueda = self::textoBuscable($tramite->nombre, $tramite->resumen);
-            // Sólo el nombre, aparte: un término que coincide con el título pesa
-            // más que uno que aparece en el resumen (ver `docs/busqueda.md`).
-            $tramite->busqueda_titulo = TextoBuscable::normalizar($tramite->nombre);
-        });
-    }
-
-    /**
-     * Los trámites que el ciudadano puede ver.
+     * Los elementos del catálogo que el ciudadano puede ver.
      *
-     * La regla es la del §5.1.3 de la Guía: **no se publica un trámite al que le
-     * falte uno de sus seis atributos obligatorios**. Vive en el modelo, y no repartida
-     * entre quienes consultan, porque por ella pasan las dos puertas del ciudadano al
-     * catálogo —el listado y la búsqueda—: si cada una escribiera su copia, bastaría
-     * con que una se olvidara de una condición para publicar un trámite incompleto sin
-     * que nada fallara.
-     *
-     * Las condiciones son la misma regla vista desde tres lados:
-     *
-     * - `publicado_en`: la Entidad lo ha dado de alta.
-     * - `url_ficha_gov_co`: tiene ficha en GOV.CO, que es el destino del clic en el
-     *   nombre según el Anexo 2.1. Un trámite sin ficha puede estar guardado mientras
-     *   la Entidad la consigue; mientras tanto no se ofrece.
-     * - los seis atributos: desde que la ingesta de la ficha oficial puede guardar un
-     *   trámite incompleto —para que la Entidad vea qué le falta en vez de perderlo—,
-     *   la comprobación dejó de ser implícita en el esquema y tiene que ser explícita.
-     *   Sin ella, un trámite al que la fuente no le declara la modalidad se publicaría
-     *   con la modalidad en nulo, que es justo lo que la Guía prohíbe.
+     * La regla vive en el modelo —y no repartida entre quienes consultan— porque por ella pasan las
+     * dos puertas del ciudadano al catálogo (el listado y la búsqueda): si cada una escribiera su
+     * copia, bastaría con que una olvidara una condición para publicar un elemento incompleto.
      *
      * @param  Builder<Tramite>  $consulta
      */
@@ -284,26 +358,31 @@ final class Tramite extends Model
     {
         $consulta
             ->whereNotNull('publicado_en')
-            ->whereNotNull('url_ficha_gov_co')
             ->whereNotNull('modalidad')
             ->whereNotNull('tiene_costo')
             ->whereNotNull('tiempo_solucion_dias')
             ->whereNotNull('canal_inicio')
             ->whereNotNull('consulta_estado')
-            ->whereNotNull('requisitos');
+            ->where('consulta_estado', '!=', '')
+            ->whereHas('requisitos')
+            // Integración GOV.CO: trámites y OPA se publican con su ficha nacional; las consultas de
+            // acceso a información pública no están en el SUIT (RN-B2-002), así que no la exigen.
+            ->where(function (Builder $q): void {
+                $q->where(function (Builder $w): void {
+                    $w->whereNotNull('url_ficha_gov_co')->where('url_ficha_gov_co', '!=', '');
+                })->orWhere('type', 'consultas');
+            });
     }
+
+    // -------------------------------------------------------------------------
+    // Búsqueda
+    // -------------------------------------------------------------------------
 
     /**
      * El texto contra el que se compara el término de búsqueda.
      *
-     * Se usa `Str::ascii` y no `Normalizer` porque la extensión `intl` no está
-     * garantizada en todos los entornos donde corre esto, y una búsqueda que
-     * funciona en un servidor y no en otro es peor que una que falla en los dos.
-     *
-     * Los comodines de `LIKE` —`%` y `_`— se quitan en los dos lados: un `%`
-     * suelto en el buscador devolvería el catálogo entero haciéndolo pasar por el
-     * resultado de una búsqueda. Fuera de eso, el término del ciudadano y el
-     * texto guardado pasan por la misma función, que es lo que garantiza que la
+     * Se usa la normalización de `TextoBuscable` (sin tildes, en minúsculas, sin comodines de
+     * `LIKE`), la misma por la que pasa el término del ciudadano, que es lo que garantiza que la
      * comparación sea justa.
      */
     public static function normalizar(string $texto): string
@@ -320,9 +399,8 @@ final class Tramite extends Model
     /**
      * Recorta un texto largo sin partir la última palabra.
      *
-     * Se corta en el último espacio anterior al límite y se marca con puntos
-     * suspensivos, para que se lea que el texto continúa en la ficha oficial en
-     * vez de parecer una frase terminada a la mitad.
+     * Se corta en el último espacio anterior al límite y se marca con puntos suspensivos, para que
+     * se lea que el texto continúa en vez de parecer una frase terminada a la mitad.
      */
     public static function recortarResumen(?string $texto): ?string
     {

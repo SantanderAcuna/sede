@@ -183,21 +183,40 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Pagina'
         - $ref: '#/components/parameters/PorPagina'
-        - name: categoria
-          in: query
-          required: false
-          description: Slug de la categoría por la que filtrar
-          schema: { type: string, maxLength: 120 }
         - name: type
           in: query
           required: false
           description: |
-            Tipo de procedimiento: `tramites`, `opa` o `consultas`. Filtra el
-            catálogo a una de las tres modalidades que el Anexo 2.1 expone.
-            Sin valor, devuelve los tres.
+            Grupo del catálogo: `tramites`, `opa` o `consultas` (Anexo 2.1). Sin valor se toma
+            `tramites`, que es el grupo por defecto.
           schema:
             type: string
             enum: [tramites, opa, consultas]
+        - name: categoria
+          in: query
+          required: false
+          description: Slug de la temática por la que filtrar
+          schema: { type: string, maxLength: 120 }
+        - name: modalidad
+          in: query
+          required: false
+          description: Modalidad del trámite
+          schema: { type: string, enum: [en_linea, parcialmente_en_linea, presencial] }
+        - name: costo
+          in: query
+          required: false
+          description: Si el trámite es gratuito o tiene costo
+          schema: { type: string, enum: [gratuito, con_costo] }
+        - name: dependencia
+          in: query
+          required: false
+          description: Id de la dependencia responsable
+          schema: { type: integer, minimum: 1 }
+        - name: solicitante
+          in: query
+          required: false
+          description: Tipo de solicitante (grupo de audiencia)
+          schema: { type: string, maxLength: 40 }
         - name: buscar
           in: query
           required: false
@@ -218,112 +237,19 @@ paths:
                     message: null
                     data:
                       - id: 1
+                        uuid: 9e5cacbb-949b-4bfd-9132-61cc457d5c73
                         type: tramites
                         slug: impuesto-predial-unificado
+                        codigo: T2621
                         nombre: Impuesto predial unificado
-                        resumen: Pago que todo propietario, poseedor o quien disfrute del bien ajeno debe realizar sobre los bienes inmuebles ubicados en la jurisdicción del Distrito.
-                        url_ficha_gov_co: https://www.gov.co/ficha-tramites-y-servicios/T2621
+                        resumen: Pago sobre los bienes inmuebles ubicados en la jurisdicción del Distrito.
                         modalidad: parcialmente_en_linea
                         tiene_costo: con_costo
-                        costo:
-                          tiene_costo: con_costo
-                          tipo_valor: avaluo_liquidacion
-                          valor: null
-                          moneda: "Pesos ($)"
-                          url_pago: https://impuestos.santamarta.gov.co:8443/autoservicios.jsf
-                          descripcion: De acuerdo con el avalúo catastral del predio y el Estatuto Tributario Distrital del Acuerdo 004 del 2016.
-                          cuentas:
-                            - entidad: Banco de Bogotá
-                              tipo_cuenta: AHORROS
-                              titular: "D.T.C.H Santa Marta"
-                              numero_cuenta: "070091897"
-                              codigo_recaudo: null
                         tiempo_solucion_dias: 1
-                        canal_inicio: propio
+                        dependencia: { id: 7, nombre: Hacienda }
+                        categoria: { slug: hacienda-e-impuestos, nombre: Hacienda e impuestos }
+                        url_ficha_gov_co: https://www.gov.co/ficha-tramites-y-servicios/T2621
                         url_inicio: https://impuestos.santamarta.gov.co:8443/autoservicios.jsf
-                        consulta_estado: /seguimiento?radicado=…
-                        resultado: Formulario o factura del impuesto predial con sello de pago
-                        perfiles: [Ciudadano, Extranjero, Empresa privada, Entidad pública]
-                        requisitos:
-                          - tipo: solicitud
-                            descripcion: Presentar la solicitud por la web o en la ventanilla.
-                            obligatorio: true
-                            canal: web
-                            url: https://impuestos.santamarta.gov.co:8443/autoservicios.jsf
-                          - tipo: verificacion_institucional
-                            descripcion: Ser propietario o poseedor de un bien inmueble en el Municipio de Santa Marta.
-                            obligatorio: true
-                          - tipo: documento
-                            descripcion: Cédula de ciudadanía
-                            obligatorio: true
-                            cantidad: 1
-                            unidad_cantidad: Original(es)
-                          - tipo: pago
-                            descripcion: Pagar el impuesto liquidado sobre el avalúo del predio.
-                            obligatorio: true
-                            nota: El importe se calcula con el avalúo catastral y el Acuerdo 004 de 2016.
-                        documentos:
-                          - nombre: Ficha oficial del trámite en GOV.CO (SUIT)
-                            url: https://www.gov.co/ficha-tramites-y-servicios/T2621
-                            formato: HTML
-                        puntos_atencion:
-                          - nombre: Dirección de Impuestos
-                            direccion: "Calle 14 No. 2-49 Primer Piso"
-                            horario: "Lunes a viernes de 8:00 a 11:30 am y 2:00 a 5:30 pm"
-                            telefono: null
-                            municipio: Santa Marta
-                            departamento: Magdalena
-                            latitud: null
-                            longitud: null
-                        normativa:
-                          - tipo: Acuerdo
-                            numero: "004"
-                            anio: 2016
-                            articulos: "articulo 27, 40"
-                            url: null
-                            url_descarga: https://tramites1.suit.gov.co/registro-web/suit_descargar_archivo?A=79463
-                        canales_consulta_estado:
-                          - canal: sede
-                            habilitado: false
-                            nombre: Seguimiento de la Sede Electrónica
-                            url: /seguimiento
-                            correo: null
-                            telefono: null
-                            horario: null
-                          - canal: presencial
-                            habilitado: true
-                            nombre: Dirección de Impuestos
-                            url: null
-                            correo: null
-                            telefono: null
-                            horario: "Lunes a viernes de 8:00 a 11:30 am y 2:00 a 5:30 pm"
-                        categoria: null
-                        procedencia:
-                          fuente: "SUIT — Función Pública (entidad 0043)"
-                          url: https://www.funcionpublica.gov.co/es/suit/buscador-de-tramites
-                          obtenido_en: "2026-09-30"
-                          nota: null
-                          api: https://api-interno.www.gov.co/api/ficha-tramites-y-servicios/
-                          origen_por_campo:
-                            nombre: fuente
-                            resumen: fuente
-                            modalidad: fuente
-                            tiene_costo: fuente
-                            costo: fuente
-                            tiempo_solucion_dias: derivado
-                            canal_inicio: derivado
-                            consulta_estado: entidad
-                            requisitos: fuente
-                            normativa: fuente
-                            puntos_atencion: fuente
-                          derivados:
-                            - campo: tiempo_solucion_dias
-                              regla: "El término lo declara la fuente como «2 HORA(S)» y se publica en 1 día hábil."
-                            - campo: canal_inicio
-                              regla: "El trámite en línea vive en un dominio de la Entidad, así que el canal de inicio es propio."
-                          faltantes: []
-                        publicado_en: "2026-09-30T00:00:00.000000Z"
-                        actualizado_en: "2026-09-30T14:30:00.000000Z"
                     meta:
                       current_page: 1
                       from: 1
@@ -332,6 +258,22 @@ paths:
                       per_page: 15
                       to: 1
                       total: 31
+                      facetas:
+                        tipos:
+                          - { valor: tramites, total: 31 }
+                        modalidades:
+                          - { valor: en_linea, total: 4 }
+                          - { valor: parcialmente_en_linea, total: 12 }
+                          - { valor: presencial, total: 15 }
+                        costos:
+                          - { valor: gratuito, total: 25 }
+                          - { valor: con_costo, total: 6 }
+                        categorias:
+                          - { slug: hacienda-e-impuestos, nombre: Hacienda e impuestos, total: 6 }
+                        dependencias:
+                          - { id: 7, nombre: Hacienda, total: 6 }
+                        solicitantes:
+                          - { valor: ciudadano, total: 28 }
                     links:
                       first: https://staging.santamarta.gov.co/api/v1/tramites?page=1
                       last: https://staging.santamarta.gov.co/api/v1/tramites?page=3
@@ -348,9 +290,9 @@ paths:
       operationId: obtenerTramite
       summary: Ficha completa de un trámite
       description: |
-        La ficha declara siempre sus seis atributos obligatorios: modalidad,
-        costo, tiempo de solución, canal de inicio, mecanismo de consulta del
-        estado y documentos o requisitos.
+        La ficha completa del elemento, por partes relacionales: pasos, requisitos, documentos,
+        puntos de atención con georreferenciación, normas, canales de consulta, solicitantes y
+        costo.
       x-status: implemented
       x-criterios: [FUN-021, FUN-023, FUN-024, CAG-20]
       parameters:
@@ -360,7 +302,7 @@ paths:
           schema: { type: string, maxLength: 160 }
       responses:
         '200':
-          description: Ficha del trámite con sus seis atributos
+          description: Ficha completa del trámite
           content:
             application/json:
               schema:
@@ -370,9 +312,49 @@ paths:
                     required: [data]
                     properties:
                       data:
-                        $ref: '#/components/schemas/TramiteItem'
+                        $ref: '#/components/schemas/TramiteFichaDetalle'
         '404':
           $ref: '#/components/responses/NoEncontrado'
+      security: []
+
+  /tramites/{slug}/valoracion:
+    post:
+      tags: [Trámites]
+      operationId: valorarTramite
+      summary: Valorar una ficha (¿cómo fue tu experiencia?)
+      description: |
+        Escritura pública. La valoración rápida FÁCIL/DIFÍCIL (RF-B2-033/034) y/o la encuesta de 1 a
+        5 estrellas (RF-B1-094), con un comentario opcional. Al menos una de las dos (valor o
+        estrellas) es obligatoria. Límite propio por IP.
+      x-status: implemented
+      x-criterios: [FUN-033, FUN-034]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, maxLength: 160 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                valor: { type: [string, 'null'], enum: [facil, dificil, null] }
+                estrellas: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+                comentario: { type: [string, 'null'], maxLength: 1000 }
+      responses:
+        '201':
+          description: Valoración registrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+        '429':
+          $ref: '#/components/responses/DemasiadasSolicitudes'
       security: []
 
   # ══════════════════════════════════════════════════════════════════════════════
@@ -1636,6 +1618,41 @@ paths:
           $ref: '#/components/responses/NoEncontrado'
         '409':
           description: El trámite viene del catálogo oficial y no se puede eliminar.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+      security:
+        - cookieSesion: []
+
+  /panel/dependencias:
+    get:
+      tags: [Panel — Trámites]
+      operationId: listarDependencias
+      summary: Dependencias responsables, para el selector del formulario
+      description: Requiere `tramites.gestionar`. Lista las dependencias de la Alcaldía (id y nombre), en su orden.
+      x-status: implemented
+      responses:
+        '200':
+          description: Dependencias
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, nombre]
+                          properties:
+                            id: { type: integer }
+                            nombre: { type: string }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: No tiene el permiso para gestionar trámites.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }
@@ -3320,6 +3337,8 @@ components:
         per_page: { type: integer, minimum: 1 }
         to: { type: [integer, 'null'], minimum: 1 }
         total: { type: integer, minimum: 0 }
+        # Sólo el catálogo de trámites lo trae: los recuentos de las facetas del directorio.
+        facetas: { $ref: '#/components/schemas/TramiteFacetas' }
 
     CollectionLinks:
       type: object
@@ -3634,20 +3653,12 @@ components:
 
     TramitePanelItem:
       allOf:
-        - $ref: '#/components/schemas/TramiteItem'
+        - $ref: '#/components/schemas/TramiteFichaDetalle'
         - type: object
-          required: [uuid, codigo, estado, origen, modificado_en_panel, completo, problemas]
+          required: [uuid, codigo, estado, completo, problemas]
           properties:
-            uuid: { type: string, format: uuid }
-            codigo: { type: string, maxLength: 20 }
             estado: { $ref: '#/components/schemas/EstadoTramitePanel' }
-            origen:
-              type: string
-              enum: [panel, fuente]
-              description: "`panel` si se creó aquí (se puede eliminar); `fuente` si viene del catálogo oficial, se haya corregido o no (solo se despublica)."
-            modificado_en_panel:
-              type: boolean
-              description: Un trámite del catálogo oficial que se corrigió aquí; la carga automática ya no lo sobrescribe.
+            dependencia_id: { type: [integer, 'null'] }
             completo: { type: boolean }
             problemas:
               type: array
@@ -3656,18 +3667,20 @@ components:
 
     TramitePanelFila:
       type: object
-      required: [id, uuid, type, codigo, slug, nombre, estado, origen, modificado_en_panel, completo, problemas]
+      required: [id, uuid, type, codigo, slug, nombre, estado, completo, problemas]
       properties:
         id: { type: integer }
         uuid: { type: string, format: uuid }
-        type: { type: string, const: tramites }
+        type: { type: string, enum: [tramites, opa, consultas] }
         codigo: { type: string }
         slug: { type: string }
         nombre: { type: string }
         modalidad: { type: [string, 'null'], enum: [en_linea, parcialmente_en_linea, presencial, null] }
+        dependencia:
+          oneOf:
+            - $ref: '#/components/schemas/TramiteDependencia'
+            - type: 'null'
         estado: { $ref: '#/components/schemas/EstadoTramitePanel' }
-        origen: { type: string, enum: [panel, fuente] }
-        modificado_en_panel: { type: boolean }
         completo: { type: boolean }
         problemas:
           type: array
@@ -3820,13 +3833,14 @@ components:
     TramiteInput:
       type: object
       description: |
-        Datos de un trámite. En `POST` solo `nombre` es obligatorio. Los campos de las
-        listas (`requisitos`, `documentos`, `momentos`, `audiencias`, `perfiles`,
-        `medios_resultado`, `puntos_atencion`, `normativa`, `cuentas`,
-        `canales_consulta_estado`) tienen la misma forma que en `TramiteItem`; `slug` y
+        Datos de un trámite, OPA o consulta. En `POST` solo `nombre` es obligatorio. La ficha se
+        envía con la **misma forma relacional** con la que la devuelve `TramiteFichaDetalle`
+        (`pasos`, `requisitos` con su `paso`, `documentos`, `puntos_atencion`, `normativa`,
+        `canales_consulta_estado`, `solicitantes`, y las `cuentas` dentro de `costo`); `slug` y
         `codigo` se ignoran.
       properties:
         nombre: { type: string, minLength: 3, maxLength: 200 }
+        type: { type: string, enum: [tramites, opa, consultas] }
         resumen: { type: [string, 'null'], maxLength: 500 }
         url_ficha_gov_co: { type: [string, 'null'], format: uri, maxLength: 500 }
         modalidad: { type: [string, 'null'], enum: [en_linea, parcialmente_en_linea, presencial, null] }
@@ -3836,31 +3850,40 @@ components:
         url_inicio: { type: [string, 'null'], format: uri, maxLength: 500 }
         url_manual_tramite_en_linea: { type: [string, 'null'], format: uri, maxLength: 500 }
         consulta_estado: { type: [string, 'null'], maxLength: 500 }
-        resultado: { type: [string, 'null'], maxLength: 2000 }
-        producto_final: { type: [string, 'null'], maxLength: 500 }
+        resultado: { type: [string, 'null'], maxLength: 5000 }
         observaciones_resultado: { type: [string, 'null'], maxLength: 2000 }
         fecha_cualquiera: { type: [boolean, 'null'] }
         cuando_se_puede_realizar: { type: [string, 'null'], maxLength: 1000 }
         url_calendario: { type: [string, 'null'], format: uri, maxLength: 500 }
         palabras_relacionadas: { type: [string, 'null'], maxLength: 1000 }
+        dependencia_id: { type: [integer, 'null'] }
+        medios_resultado: { type: array, items: { type: string, maxLength: 120 }, maxItems: 30 }
         publicado: { type: boolean, description: "`true` publica (exige ficha completa); `false` retira del sitio." }
-        costo: { type: [object, 'null'], additionalProperties: true }
+        costo:
+          type: [object, 'null']
+          properties:
+            tiene_costo: { type: [string, 'null'], enum: [gratuito, con_costo, null] }
+            tipo_valor: { type: [string, 'null'], maxLength: 40 }
+            valor: { type: [number, 'null'] }
+            moneda: { type: [string, 'null'], maxLength: 20 }
+            url_pago: { type: [string, 'null'], format: uri }
+            descripcion: { type: [string, 'null'], maxLength: 1000 }
+            cuentas:
+              type: array
+              items: { $ref: '#/components/schemas/TramiteCuenta' }
+              maxItems: 20
         categoria:
           type: [object, 'null']
           properties:
             slug: { type: string, pattern: '^[a-z0-9-]+$', maxLength: 120 }
             nombre: { type: string, maxLength: 160 }
-        requisitos: { type: array, items: { type: object, additionalProperties: true }, maxItems: 100 }
-        documentos: { type: array, items: { type: object, additionalProperties: true }, maxItems: 100 }
-        momentos: { type: array, items: { type: object, additionalProperties: true }, maxItems: 30 }
-        audiencias: { type: array, items: { type: object, additionalProperties: true }, maxItems: 50 }
-        perfiles: { type: array, items: { type: string, maxLength: 60 }, maxItems: 30 }
-        medios_resultado: { type: array, items: { type: string, maxLength: 60 }, maxItems: 30 }
-        puntos_atencion: { type: array, items: { type: object, additionalProperties: true }, maxItems: 50 }
-        normativa: { type: array, items: { type: object, additionalProperties: true }, maxItems: 100 }
-        cuentas: { type: array, items: { type: object, additionalProperties: true }, maxItems: 20 }
-        canales_consulta_estado: { type: array, items: { type: object, additionalProperties: true }, maxItems: 20 }
-        seguimiento: { type: [object, 'null'], additionalProperties: true }
+        pasos: { type: array, items: { $ref: '#/components/schemas/TramitePaso' }, maxItems: 30 }
+        requisitos: { type: array, items: { $ref: '#/components/schemas/TramiteRequisito' }, maxItems: 150 }
+        documentos: { type: array, items: { $ref: '#/components/schemas/TramiteDocumento' }, maxItems: 100 }
+        puntos_atencion: { type: array, items: { $ref: '#/components/schemas/TramitePuntoAtencion' }, maxItems: 500 }
+        normativa: { type: array, items: { $ref: '#/components/schemas/TramiteNorma' }, maxItems: 100 }
+        canales_consulta_estado: { type: array, items: { $ref: '#/components/schemas/TramiteCanalConsulta' }, maxItems: 20 }
+        solicitantes: { type: array, items: { type: string, maxLength: 30 }, maxItems: 20 }
 
     # ─── Subsección Transparencia ──────────────────────────────────────────
     SubseccionTransparenciaItem:
@@ -4156,107 +4179,178 @@ components:
 
     # ─── Trámites (completo) ───────────────────────────────────────────────
     TramiteItem:
+      description: |
+        La tarjeta de un elemento del catálogo en el listado (directorio): lo justo para compararlo
+        de un vistazo. La ficha completa, con pasos, requisitos y puntos de atención, la sirve el
+        detalle (`GET /tramites/{slug}`) en `TramiteFichaDetalle`.
       type: object
       required:
         - id
         - type
         - slug
+        - codigo
         - nombre
         - modalidad
         - tiene_costo
-        - costo
         - tiempo_solucion_dias
-        - canal_inicio
-        - consulta_estado
-        - requisitos
         - url_ficha_gov_co
       properties:
         id: { type: integer }
-        type: { type: string, const: tramites }
+        uuid: { type: string, format: uuid }
+        type: { type: string, enum: [tramites, opa, consultas] }
         slug: { type: string }
+        codigo: { type: string }
         nombre: { type: string }
         resumen: { type: [string, 'null'] }
-        url_ficha_gov_co: { type: string, format: uri }
-        procedencia: { $ref: '#/components/schemas/TramiteProcedencia' }
         modalidad:
-          type: string
-          enum: [en_linea, parcialmente_en_linea, presencial]
+          type: [string, 'null']
+          enum: [en_linea, parcialmente_en_linea, presencial, null]
         tiene_costo:
-          type: string
-          enum: [gratuito, con_costo]
-        costo:
-          $ref: '#/components/schemas/TramiteCosto'
-        tiempo_solucion_dias: { type: integer, minimum: 0 }
-        canal_inicio:
-          type: string
-          enum: [propio, portal_nacional]
+          type: [string, 'null']
+          enum: [gratuito, con_costo, null]
+        tiempo_solucion_dias: { type: [integer, 'null'], minimum: 0 }
+        dependencia:
+          oneOf:
+            - $ref: '#/components/schemas/TramiteDependencia'
+            - type: 'null'
+        categoria:
+          oneOf:
+            - $ref: '#/components/schemas/TramiteCategoria'
+            - type: 'null'
+        # La ficha nacional (integración GOV.CO). Obligatoria para trámites y OPA; las consultas no
+        # la tienen (RN-B2-002), así que puede venir nula.
+        url_ficha_gov_co: { type: [string, 'null'], format: uri }
         url_inicio: { type: [string, 'null'] }
-        url_manual_tramite_en_linea: { type: [string, 'null'], format: uri, maxLength: 500 }
-        consulta_estado: { type: string }
+
+    TramiteDependencia:
+      type: object
+      required: [id, nombre]
+      properties:
+        id: { type: integer }
+        nombre: { type: string, maxLength: 160 }
+
+    TramiteFacetas:
+      description: |
+        El recuento de cada faceta dentro del grupo y la búsqueda vigentes, para la barra de
+        filtros del directorio.
+      type: object
+      required: [tipos, modalidades, costos, categorias, dependencias, solicitantes]
+      properties:
+        tipos:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteFacetaValor' }
+        modalidades:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteFacetaValor' }
+        costos:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteFacetaValor' }
+        categorias:
+          type: array
+          items:
+            type: object
+            required: [slug, nombre, total]
+            properties:
+              slug: { type: string }
+              nombre: { type: string }
+              total: { type: integer, minimum: 0 }
+        dependencias:
+          type: array
+          items:
+            type: object
+            required: [id, nombre, total]
+            properties:
+              id: { type: integer }
+              nombre: { type: string }
+              total: { type: integer, minimum: 0 }
+        solicitantes:
+          type: array
+          items: { $ref: '#/components/schemas/TramiteFacetaValor' }
+
+    TramiteFacetaValor:
+      type: object
+      required: [valor, total]
+      properties:
+        valor: { type: string }
+        total: { type: integer, minimum: 0 }
+
+    TramiteFichaDetalle:
+      description: |
+        La ficha completa de un elemento del catálogo (el detalle). Trae lo de la tarjeta más todo
+        lo que la Guía §5.1.3 pide, ya por partes relacionales.
+      type: object
+      required:
+        - id
+        - type
+        - slug
+        - codigo
+        - nombre
+      properties:
+        id: { type: integer }
+        uuid: { type: string, format: uuid }
+        type: { type: string, enum: [tramites, opa, consultas] }
+        slug: { type: string }
+        codigo: { type: string }
+        nombre: { type: string }
+        resumen: { type: [string, 'null'] }
+        modalidad:
+          type: [string, 'null']
+          enum: [en_linea, parcialmente_en_linea, presencial, null]
+        tiene_costo:
+          type: [string, 'null']
+          enum: [gratuito, con_costo, null]
+        tiempo_solucion_dias: { type: [integer, 'null'], minimum: 0 }
+        canal_inicio:
+          type: [string, 'null']
+          enum: [propio, portal_nacional, null]
+        consulta_estado: { type: [string, 'null'] }
+        dependencia:
+          oneOf:
+            - $ref: '#/components/schemas/TramiteDependencia'
+            - type: 'null'
+        categoria:
+          oneOf:
+            - $ref: '#/components/schemas/TramiteCategoria'
+            - type: 'null'
+        costo: { $ref: '#/components/schemas/TramiteCosto' }
+        pasos:
+          type: array
+          items: { $ref: '#/components/schemas/TramitePaso' }
         requisitos:
           type: array
           items: { $ref: '#/components/schemas/TramiteRequisito' }
         documentos:
           type: array
           items: { $ref: '#/components/schemas/TramiteDocumento' }
-        # Momentos del trámite: los pasos oficiales del visor de SUIT
-        # (Reunir documentos, Radicar la documentación, etc.) con sus
-        # requisitos dentro. Cada momento es narrativo, no un ítem de
-        # checklist, y conserva el orden oficial.
-        momentos:
-          type: array
-          items: { $ref: '#/components/schemas/TramiteMomento' }
-        # Resultado y medios por los que se entrega (correo, presencial, etc.)
-        resultado: { type: [string, 'null'] }
-        producto_final: { type: [string, 'null'], maxLength: 500 }
-        # La aclaración que el visor publica bajo el resultado: de qué depende
-        # el plazo. Nula cuando la fuente no la declara (107 de 123 trámites).
-        observaciones_resultado: { type: [string, 'null'] }
-        # «¿Cuándo se puede realizar?». El visor lo responde con tres hechos y
-        # no con una frase: el booleano que cubre casi todos los trámites, la
-        # condición en prosa de unos pocos y el calendario externo de uno.
-        fecha_cualquiera: { type: [boolean, 'null'] }
-        cuando_se_puede_realizar: { type: [string, 'null'] }
-        url_calendario: { type: [string, 'null'], maxLength: 500 }
-        medios_resultado:
-          type: array
-          items: { type: string, maxLength: 60 }
-        # Palabras clave secundarias del visor, separadas por comas.
-        palabras_relacionadas: { type: [string, 'null'] }
-        # Audiencias (perfiles) declaradas por el visor, con descripción.
-        audiencias:
-          type: array
-          items: { $ref: '#/components/schemas/TramiteAudiencia' }
-        perfiles:
-          type: array
-          items: { type: string, maxLength: 60 }
         puntos_atencion:
           type: array
           items: { $ref: '#/components/schemas/TramitePuntoAtencion' }
         normativa:
           type: array
           items: { $ref: '#/components/schemas/TramiteNorma' }
-        # Cuentas de recaudo declaradas por el visor. Distintas de
-        # `costo.cuentas` porque el visor las publica a nivel de trámite
-        # (no a nivel de requisito de pago), y porque su forma es la del
-        # visor: `banco`/`tipo`/`numero`/`titular` en vez de
-        # `entidad`/`tipo_cuenta`/`numero_cuenta`/`titular`.
-        cuentas:
-          type: array
-          items: { $ref: '#/components/schemas/TramiteCuentaVisor' }
         canales_consulta_estado:
           type: array
           items: { $ref: '#/components/schemas/TramiteCanalConsulta' }
-        # Bloque de seguimiento del visor: teléfono, email, presencial, web.
-        # Cada sub-bloque puede traer varios registros.
-        seguimiento: { $ref: '#/components/schemas/TramiteSeguimiento' }
-        categoria:
-          oneOf:
-            - $ref: '#/components/schemas/TramiteCategoria'
-            - type: 'null'
-        pasos:
+        solicitantes:
           type: array
-          items: { $ref: '#/components/schemas/TramitePaso' }
+          items: { type: string, maxLength: 30 }
+        resultado: { type: [string, 'null'] }
+        observaciones_resultado: { type: [string, 'null'] }
+        medios_resultado:
+          type: array
+          items: { type: string, maxLength: 120 }
+        fecha_cualquiera: { type: [boolean, 'null'] }
+        cuando_se_puede_realizar: { type: [string, 'null'] }
+        url_calendario: { type: [string, 'null'], maxLength: 500 }
+        palabras_relacionadas: { type: [string, 'null'] }
+        url_inicio: { type: [string, 'null'] }
+        url_manual_tramite_en_linea: { type: [string, 'null'], format: uri, maxLength: 500 }
+        url_ficha_gov_co: { type: [string, 'null'], format: uri }
+        nivel_transformacion: { type: [integer, 'null'] }
+        estado_estandarizado: { type: [string, 'null'] }
+        nivel_autenticacion_requerido: { type: [string, 'null'] }
+        aplica_sap: { type: [boolean, 'null'] }
+        tipo_silencio_administrativo: { type: [string, 'null'] }
         publicado_en: { type: [string, 'null'], format: date-time, readOnly: true }
         actualizado_en: { type: [string, 'null'], format: date-time, readOnly: true }
 
@@ -4284,34 +4378,13 @@ components:
         tipo:
           type: string
           enum: [documento, verificacion_institucional, solicitud, formulario, pago]
-        descripcion: { type: string, maxLength: 500 }
+        descripcion: { type: string, maxLength: 2000 }
         obligatorio: { type: boolean, default: true }
-        cantidad: { type: [integer, 'null'], minimum: 0 }
-        unidad_cantidad: { type: [string, 'null'], maxLength: 40 }
-        nota: { type: [string, 'null'], maxLength: 500 }
-        canal: { type: [string, 'null'], enum: [web, presencial, correo, telefonico, null] }
+        nota: { type: [string, 'null'], maxLength: 2000 }
         url: { type: [string, 'null'], format: uri }
-        correo: { type: [string, 'null'], format: email }
-        # Campos adicionales del visor de SUIT (opcional). En el listado
-        # de `requisitos[]` (que es una mezcla de los momentos) la Sede
-        # aplana el requisito del momento y conserva su `documento`,
-        # `formulario`, `pago[]` y `cuentas[]` cuando los trae.
         orden: { type: [integer, 'null'], minimum: 1 }
-        tipos_audiencia:
-          type: array
-          items:
-            type: string
-            enum: [Ciudadano, Extranjeros, Organizaciones, "Instituciones o dependencias públicas"]
-        documento: { type: [string, 'null'] }
-        formulario: { type: [string, 'null'] }
-        formulario_url: { type: [string, 'null'], format: uri }
-        url_pago: { type: [string, 'null'], format: uri }
-        pago:
-          type: array
-          items: { $ref: '#/components/schemas/TramitePagoValor' }
-        cuentas:
-          type: array
-          items: { $ref: '#/components/schemas/TramiteCuentaVisor' }
+        # El paso al que pertenece el requisito, por su número de orden; nulo si es general.
+        paso: { type: [integer, 'null'], minimum: 1 }
 
     TramiteCosto:
       type: object
@@ -4329,25 +4402,24 @@ components:
         descripcion: { type: [string, 'null'], maxLength: 1000 }
         cuentas:
           type: array
-          items: { $ref: '#/components/schemas/TramiteCuentaBancaria' }
+          items: { $ref: '#/components/schemas/TramiteCuenta' }
 
-    TramiteCuentaBancaria:
+    TramiteCuenta:
       type: object
-      required: [entidad, numero_cuenta]
+      description: Una cuenta de recaudo, en la forma relacional de la Sede.
       properties:
-        entidad: { type: string, maxLength: 120 }
-        tipo_cuenta: { type: [string, 'null'], maxLength: 40 }
+        banco: { type: [string, 'null'], maxLength: 120 }
+        tipo: { type: [string, 'null'], maxLength: 40 }
+        numero: { type: [string, 'null'], maxLength: 40 }
         titular: { type: [string, 'null'], maxLength: 120 }
-        numero_cuenta: { type: string, maxLength: 40 }
-        codigo_recaudo: { type: [string, 'null'], maxLength: 40 }
 
     TramitePuntoAtencion:
       type: object
       required: [nombre, direccion]
       properties:
         nombre: { type: string, maxLength: 160 }
-        direccion: { type: string, maxLength: 240 }
-        horario: { type: [string, 'null'], maxLength: 240 }
+        direccion: { type: string, maxLength: 500 }
+        horario: { type: [string, 'null'], maxLength: 1000 }
         telefono: { type: [string, 'null'], maxLength: 40 }
         municipio: { type: [string, 'null'], maxLength: 120 }
         departamento: { type: [string, 'null'], maxLength: 120 }
@@ -4358,12 +4430,11 @@ components:
       type: object
       required: [tipo]
       properties:
-        tipo: { type: string, maxLength: 120 }
-        numero: { type: [string, 'null'], maxLength: 40 }
+        tipo: { type: string, maxLength: 200 }
+        numero: { type: [string, 'null'], maxLength: 200 }
         anio: { type: [integer, 'null'], minimum: 1800, maximum: 2200 }
-        articulos: { type: [string, 'null'], maxLength: 240 }
+        articulos: { type: [string, 'null'], maxLength: 1000 }
         url: { type: [string, 'null'], format: uri }
-        url_descarga: { type: [string, 'null'], format: uri }
 
     TramiteCanalConsulta:
       type: object

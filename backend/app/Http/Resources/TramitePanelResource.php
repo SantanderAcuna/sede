@@ -9,8 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * Un trámite tal como lo ve quien lo gestiona: la misma ficha que publica el sitio más lo que
- * hace falta para editarla (código, estado, origen y qué le falta para publicarse).
+ * Un elemento tal como lo ve quien lo gestiona: la ficha completa (la misma que publica el sitio)
+ * más lo que hace falta para editarla: su estado y qué le falta para publicarse.
  *
  * @mixin Tramite
  */
@@ -25,12 +25,9 @@ final class TramitePanelResource extends JsonResource
         $problemas = $tramite->problemasParaPublicar();
         $publico = Tramite::query()->publicados()->whereKey($tramite->getKey())->exists();
 
-        return (new TramiteResource($tramite))->toArray($request) + [
-            'codigo' => $tramite->codigo,
+        return (new TramiteFichaResource($tramite))->toArray($request) + [
             'estado' => $publico ? 'publicado' : 'borrador',
-            // `panel` = lo creó una persona aquí; `fuente` = viene del catálogo oficial, se haya corregido o no.
-            'origen' => $tramite->esDelPanel() ? 'panel' : 'fuente',
-            'modificado_en_panel' => ! $tramite->esDelPanel() && $tramite->procedencia_fuente === Tramite::FUENTE_PANEL,
+            'dependencia_id' => $tramite->dependencia_id,
             'completo' => $problemas === [],
             'problemas' => $problemas,
         ];

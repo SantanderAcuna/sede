@@ -23,6 +23,11 @@ final class TramiteService implements TramiteServiceInterface
         return $this->tramites->paginar($filtros);
     }
 
+    public function facetas(FiltrosTramite $filtros): array
+    {
+        return $this->tramites->facetas($filtros);
+    }
+
     public function porSlug(string $slug): Tramite
     {
         return $this->tramites->porSlug($slug) ?? throw TramiteNoEncontrado::porSlug($slug);

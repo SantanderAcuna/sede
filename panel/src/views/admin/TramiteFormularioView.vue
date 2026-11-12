@@ -18,29 +18,25 @@ import ConfirmModal from '@/components/base/ConfirmModal.vue'
 import FormField from '@/components/base/FormField.vue'
 import ListaEditable from '@/components/base/ListaEditable.vue'
 import SelectField from '@/components/base/SelectField.vue'
-import { actualizar, crear, eliminar, obtener } from '@/services/tramites'
+import { actualizar, crear, dependencias as cargarDependencias, eliminar, obtener, type DependenciaOpcion } from '@/services/tramites'
 import type { TramitePanelItem } from '@/types/api'
 import { dejarAviso } from './avisos'
 import { motivosDeError } from './politicas-logica'
 import {
-  CAMPOS_AUDIENCIA,
   CAMPOS_CANAL_CONSULTA,
-  CAMPOS_CORREO,
   CAMPOS_CUENTA,
   CAMPOS_DOCUMENTO,
-  CAMPOS_MOMENTO,
   CAMPOS_NORMA,
-  CAMPOS_PRESENCIAL,
+  CAMPOS_PASO,
   CAMPOS_PUNTO,
   CAMPOS_REQUISITO,
-  CAMPOS_TELEFONO,
   CAMPOS_TEXTO,
-  CAMPOS_WEB,
   CANALES_INICIO,
   COSTOS,
   FECHA_CUALQUIERA,
   MODALIDADES,
   NUEVO_REQUISITO,
+  TIPOS,
   TIPOS_VALOR,
 } from './tramites-campos'
 import {
@@ -51,6 +47,7 @@ import {
   hayCambios as hayCambiosEn,
   motivosLegibles,
   problemasLocales,
+  SOLICITANTES,
   type FormularioTramite,
 } from './tramites-logica'
 
@@ -79,24 +76,34 @@ let saliendo = false
 let resumenLocal = false
 
 const esNuevo = computed(() => uuid.value === null)
-const esDelCatalogo = computed(() => tramite.value?.origen === 'fuente')
 const hayCambios = computed(() => hayCambiosEn(formulario.value, original))
 const faltantes = computed(() => faltaParaPublicar(formulario.value))
 const conCosto = computed(() => formulario.value.tiene_costo === 'con_costo')
+
+/** Las dependencias para el selector; se cargan una vez al montar. */
+const dependencias = ref<DependenciaOpcion[]>([])
+const opcionesDependencia = computed(() =>
+  dependencias.value.map((d) => ({ valor: String(d.id), etiqueta: d.nombre })),
+)
+
+/** Alterna un grupo de solicitante (checkbox) en el modelo. */
+function alternarSolicitante(valor: string, marcado: boolean): void {
+  const actuales = formulario.value.solicitantes.filter((s) => s !== valor)
+  formulario.value.solicitantes = marcado ? [...actuales, valor] : actuales
+}
 
 const SECCIONES = [
   ['t-datos', 'Datos principales'],
   ['t-como', 'Cómo y cuándo se hace'],
   ['t-costo', 'Costo'],
   ['t-requisitos', 'Requisitos'],
-  ['t-momentos', 'Pasos'],
+  ['t-pasos', 'Pasos'],
   ['t-documentos', 'Documentos'],
   ['t-resultado', 'Resultado'],
-  ['t-audiencias', 'Para quién es'],
+  ['t-solicitantes', 'Para quién es'],
   ['t-puntos', 'Dónde se atiende'],
   ['t-normativa', 'Normativa'],
-  ['t-cuentas', 'Cuentas de recaudo'],
-  ['t-seguimiento', 'Consulta y seguimiento'],
+  ['t-seguimiento', 'Consulta del estado'],
   ['t-publicacion', 'Publicación'],
 ] as const
 
@@ -112,7 +119,7 @@ const errorDe = (campo: string): string | undefined => erroresServidor.value[cam
 
 function aplicar(guardado: TramitePanelItem): void {
   tramite.value = guardado
-  uuid.value = guardado.uuid
+  uuid.value = guardado.uuid ?? null
   formulario.value = formularioDesde(guardado)
   original = formularioDesde(guardado)
 }
@@ -234,6 +241,7 @@ function avisarAlCerrarPestana(evento: BeforeUnloadEvent): void {
 
 onMounted(() => {
   void cargar()
+  void cargarDependencias().then((lista) => { dependencias.value = lista }).catch(() => { dependencias.value = [] })
   window.addEventListener('beforeunload', avisarAlCerrarPestana)
   quitarGuardia = enrutador.beforeEach(() => {
     if (saliendo || !hayCambios.value || guardando.value) return true
@@ -336,16 +344,6 @@ const tarjeta = 'space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-
         </ul>
       </div>
 
-      <p
-        v-if="esDelCatalogo"
-        class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"
-        data-aviso-catalogo
-      >
-        <strong>Este trámite viene del catálogo oficial (SUIT).</strong> Si lo corrige aquí, el sitio mostrará su
-        versión y la carga automática ya no lo sobrescribirá. No se puede eliminar; para retirarlo del sitio,
-        elija «Guardar como borrador».
-      </p>
-
       <nav aria-label="Secciones del formulario" class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
         <p class="text-sm font-medium text-slate-700">Ir a una sección</p>
         <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
@@ -357,11 +355,28 @@ const tarjeta = 'space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-
 
       <section id="t-datos" :class="tarjeta" aria-labelledby="t-datos-h">
         <h2 id="t-datos-h" class="font-medium text-slate-900">Datos principales</h2>
-        <FormField v-model="formulario.nombre" label="Nombre del trámite" required :error="errorDe('nombre')" hint="Como lo busca la ciudadanía. Máximo 200 letras." />
-        <FormField v-model="formulario.resumen" type="textarea" :rows="3" label="Resumen" :error="errorDe('resumen')" hint="Una o dos frases que expliquen para qué sirve. Máximo 500 letras." />
         <div class="grid gap-4 sm:grid-cols-2">
-          <FormField v-model="formulario.categoria_nombre" label="Categoría (nombre)" :error="errorDe('categoria.nombre')" hint="Por ejemplo: Impuestos." />
-          <FormField v-model="formulario.categoria_slug" label="Categoría (identificador)" :error="errorDe('categoria.slug')" hint="Solo minúsculas, números y guiones. Por ejemplo: impuestos." />
+          <SelectField
+            v-model="formulario.type"
+            label="Qué es"
+            :opciones="TIPOS"
+            :error="errorDe('type')"
+            :disabled="!esNuevo"
+            :hint="esNuevo ? 'Un trámite, una OPA o una consulta de acceso a información pública.' : 'No se cambia después de crear (de él depende el código).'"
+          />
+          <SelectField
+            v-model="formulario.dependencia_id"
+            label="Dependencia responsable"
+            :opciones="opcionesDependencia"
+            vacio="Sin asignar"
+            :error="errorDe('dependencia_id')"
+          />
+        </div>
+        <FormField v-model="formulario.nombre" label="Nombre" required :error="errorDe('nombre')" hint="Como lo busca la ciudadanía. Máximo 200 letras." />
+        <FormField v-model="formulario.resumen" type="textarea" :rows="3" label="Resumen" :error="errorDe('resumen')" hint="Una o dos frases que expliquen para qué sirve. Máximo 500 letras. Obligatorio para publicar." />
+        <div class="grid gap-4 sm:grid-cols-2">
+          <FormField v-model="formulario.categoria_nombre" label="Tema (nombre)" :error="errorDe('categoria.nombre')" hint="Por ejemplo: Hacienda e impuestos." />
+          <FormField v-model="formulario.categoria_slug" label="Tema (identificador)" :error="errorDe('categoria.slug')" hint="Solo minúsculas, números y guiones. Por ejemplo: hacienda-e-impuestos." />
         </div>
         <FormField v-model="formulario.palabras_relacionadas" label="Palabras relacionadas" :error="errorDe('palabras_relacionadas')" hint="Separadas por comas. Ayudan a encontrar el trámite en el buscador." />
       </section>
@@ -425,17 +440,20 @@ const tarjeta = 'space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-
         />
       </section>
 
-      <section id="t-momentos" :class="tarjeta" aria-labelledby="t-momentos-h">
-        <h2 id="t-momentos-h" class="font-medium text-slate-900">Pasos del trámite</h2>
-        <p class="text-sm text-slate-600">Opcional. Los pasos en el orden en que se hacen; cada uno con sus requisitos.</p>
+      <section id="t-pasos" :class="tarjeta" aria-labelledby="t-pasos-h">
+        <h2 id="t-pasos-h" class="font-medium text-slate-900">Pasos del trámite</h2>
+        <p class="text-sm text-slate-600">
+          Opcional. Los pasos en el orden en que se hacen. Para ligar un requisito a un paso, escriba el número del
+          paso en el campo «Paso al que pertenece» del requisito.
+        </p>
         <ListaEditable
-          v-model="formulario.momentos"
-          :campos="CAMPOS_MOMENTO"
+          v-model="formulario.pasos"
+          :campos="CAMPOS_PASO"
           etiqueta-item="Paso"
-          prefijo-error="momentos"
+          prefijo-error="pasos"
           :errores="erroresServidor"
           campo-titulo="titulo"
-          :nuevo="() => ({ orden: formulario.momentos.length + 1 })"
+          :nuevo="() => ({ orden: formulario.pasos.length + 1 })"
           plural="pasos"
         />
       </section>
@@ -455,8 +473,7 @@ const tarjeta = 'space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-
 
       <section id="t-resultado" :class="tarjeta" aria-labelledby="t-resultado-h">
         <h2 id="t-resultado-h" class="font-medium text-slate-900">Resultado</h2>
-        <FormField v-model="formulario.resultado" type="textarea" :rows="2" label="Qué recibe la persona" :error="errorDe('resultado')" />
-        <FormField v-model="formulario.producto_final" label="Producto final" :error="errorDe('producto_final')" hint="Por ejemplo: «Certificado»." />
+        <FormField v-model="formulario.resultado" type="textarea" :rows="2" label="Qué recibe la persona" :error="errorDe('resultado')" hint="Por ejemplo: «Certificado de paz y salvo»." />
         <FormField v-model="formulario.observaciones_resultado" type="textarea" :rows="2" label="Aclaración sobre el resultado" :error="errorDe('observaciones_resultado')" hint="De qué depende el plazo, si aplica." />
         <div>
           <h3 class="text-sm font-medium text-slate-700">Por qué medios se entrega</h3>
@@ -466,20 +483,26 @@ const tarjeta = 'space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-
         </div>
       </section>
 
-      <section id="t-audiencias" :class="tarjeta" aria-labelledby="t-audiencias-h">
-        <h2 id="t-audiencias-h" class="font-medium text-slate-900">Para quién es</h2>
-        <div>
-          <h3 class="text-sm font-medium text-slate-700">Perfiles</h3>
-          <div class="mt-2">
-            <ListaEditable v-model="formulario.perfiles" :campos="CAMPOS_TEXTO" etiqueta-item="Perfil" prefijo-error="perfiles" :errores="erroresServidor" campo-titulo="valor" plural="perfiles" />
+      <section id="t-solicitantes" :class="tarjeta" aria-labelledby="t-solicitantes-h">
+        <h2 id="t-solicitantes-h" class="font-medium text-slate-900">Para quién es</h2>
+        <fieldset>
+          <legend class="text-sm text-slate-600">Marque los tipos de solicitante a los que aplica. Es una de las facetas por las que se filtra en el sitio.</legend>
+          <div class="mt-2 grid gap-2 sm:grid-cols-2">
+            <label
+              v-for="s in SOLICITANTES"
+              :key="s.valor"
+              class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 p-3 has-[:checked]:border-gov-blue has-[:checked]:bg-gov-blue-light"
+            >
+              <input
+                type="checkbox"
+                class="h-4 w-4"
+                :checked="formulario.solicitantes.includes(s.valor)"
+                @change="alternarSolicitante(s.valor, ($event.target as HTMLInputElement).checked)"
+              >
+              <span class="text-sm text-slate-800">{{ s.etiqueta }}</span>
+            </label>
           </div>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-slate-700">Audiencias</h3>
-          <div class="mt-2">
-            <ListaEditable v-model="formulario.audiencias" :campos="CAMPOS_AUDIENCIA" etiqueta-item="Audiencia" prefijo-error="audiencias" :errores="erroresServidor" campo-titulo="nombre" plural="audiencias" />
-          </div>
-        </div>
+        </fieldset>
       </section>
 
       <section id="t-puntos" :class="tarjeta" aria-labelledby="t-puntos-h">
@@ -492,44 +515,10 @@ const tarjeta = 'space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-
         <ListaEditable v-model="formulario.normativa" :campos="CAMPOS_NORMA" etiqueta-item="Norma" prefijo-error="normativa" :errores="erroresServidor" campo-titulo="tipo" plural="normas" />
       </section>
 
-      <section id="t-cuentas" :class="tarjeta" aria-labelledby="t-cuentas-h">
-        <h2 id="t-cuentas-h" class="font-medium text-slate-900">Cuentas de recaudo</h2>
-        <p class="text-sm text-slate-600">Cuentas bancarias del trámite en general (distintas de las del costo).</p>
-        <ListaEditable v-model="formulario.cuentas" :campos="CAMPOS_CUENTA" etiqueta-item="Cuenta" prefijo-error="cuentas" :errores="erroresServidor" campo-titulo="banco" plural="cuentas" />
-      </section>
-
       <section id="t-seguimiento" :class="tarjeta" aria-labelledby="t-seguimiento-h">
-        <h2 id="t-seguimiento-h" class="font-medium text-slate-900">Consulta y seguimiento</h2>
-        <div>
-          <h3 class="text-sm font-medium text-slate-700">Canales para consultar el estado</h3>
-          <div class="mt-2">
-            <ListaEditable v-model="formulario.canales_consulta_estado" :campos="CAMPOS_CANAL_CONSULTA" etiqueta-item="Canal" prefijo-error="canales_consulta_estado" :errores="erroresServidor" campo-titulo="nombre" plural="canales" />
-          </div>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-slate-700">Teléfonos de seguimiento</h3>
-          <div class="mt-2">
-            <ListaEditable v-model="formulario.seg_telefono" :campos="CAMPOS_TELEFONO" etiqueta-item="Teléfono" prefijo-error="seguimiento.telefono" :errores="erroresServidor" campo-titulo="numero" plural="teléfonos" />
-          </div>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-slate-700">Correos de seguimiento</h3>
-          <div class="mt-2">
-            <ListaEditable v-model="formulario.seg_email" :campos="CAMPOS_CORREO" etiqueta-item="Correo" prefijo-error="seguimiento.email" :errores="erroresServidor" campo-titulo="email" plural="correos" />
-          </div>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-slate-700">Páginas web de seguimiento</h3>
-          <div class="mt-2">
-            <ListaEditable v-model="formulario.seg_web" :campos="CAMPOS_WEB" etiqueta-item="Página" prefijo-error="seguimiento.web" :errores="erroresServidor" campo-titulo="url" plural="páginas" />
-          </div>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-slate-700">Lugares de seguimiento presencial</h3>
-          <div class="mt-2">
-            <ListaEditable v-model="formulario.seg_presencial" :campos="CAMPOS_PRESENCIAL" etiqueta-item="Lugar" prefijo-error="seguimiento.presencial" :errores="erroresServidor" campo-titulo="nombre" plural="lugares" :max="500" />
-          </div>
-        </div>
+        <h2 id="t-seguimiento-h" class="font-medium text-slate-900">Consulta del estado</h2>
+        <p class="text-sm text-slate-600">Los canales por los que la persona puede consultar en qué va su solicitud.</p>
+        <ListaEditable v-model="formulario.canales_consulta_estado" :campos="CAMPOS_CANAL_CONSULTA" etiqueta-item="Canal" prefijo-error="canales_consulta_estado" :errores="erroresServidor" campo-titulo="nombre" plural="canales" />
       </section>
 
       <section id="t-publicacion" :class="tarjeta" aria-labelledby="t-publicacion-h">
@@ -562,7 +551,7 @@ const tarjeta = 'space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-
         </fieldset>
       </section>
 
-      <section v-if="!esNuevo && tramite && !esDelCatalogo" class="rounded-xl border border-red-200 bg-white p-5 sm:p-6" aria-labelledby="t-peligro-h">
+      <section v-if="!esNuevo && tramite" class="rounded-xl border border-red-200 bg-white p-5 sm:p-6" aria-labelledby="t-peligro-h">
         <h2 id="t-peligro-h" class="font-medium text-red-800">Zona de peligro</h2>
         <p class="mt-1 text-sm text-slate-600">Eliminar quita el trámite del sitio y de este listado. No se puede deshacer desde el panel.</p>
         <BaseButton class="mt-3" variant="danger" @click="confirmandoEliminar = true">Eliminar trámite</BaseButton>

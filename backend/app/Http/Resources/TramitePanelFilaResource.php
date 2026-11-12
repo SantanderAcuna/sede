@@ -25,15 +25,15 @@ final class TramitePanelFilaResource extends JsonResource
         return [
             'id' => $tramite->id,
             'uuid' => $tramite->uuid,
-            'type' => 'tramites',
+            'type' => $tramite->type,
             'codigo' => $tramite->codigo,
             'slug' => $tramite->slug,
             'nombre' => $tramite->nombre,
             'modalidad' => $tramite->modalidad?->value,
+            'dependencia' => $tramite->dependencia === null
+                ? null
+                : ['id' => $tramite->dependencia->id, 'nombre' => $tramite->dependencia->nombre],
             'estado' => $tramite->publicado_en !== null && $problemas === [] ? 'publicado' : 'borrador',
-            // `panel` = lo creó una persona aquí; `fuente` = viene del catálogo oficial, se haya corregido o no.
-            'origen' => $tramite->esDelPanel() ? 'panel' : 'fuente',
-            'modificado_en_panel' => ! $tramite->esDelPanel() && $tramite->procedencia_fuente === Tramite::FUENTE_PANEL,
             'completo' => $problemas === [],
             'problemas' => $problemas,
             'publicado_en' => $tramite->publicado_en?->toIso8601String(),

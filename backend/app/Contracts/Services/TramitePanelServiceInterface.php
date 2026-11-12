@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Contracts\Services;
 
 use App\Exceptions\TramiteIncompleto;
-use App\Exceptions\TramiteNoSePuedeEliminar;
 use App\Models\Tramite;
 use App\Support\Tramites\FiltrosTramitePanel;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -31,6 +30,6 @@ interface TramitePanelServiceInterface
      */
     public function actualizar(Tramite $tramite, array $datos): Tramite;
 
-    /** @throws TramiteNoSePuedeEliminar */
+    /** Envía el elemento a la papelera (soft delete). Todo elemento es borrable. */
     public function eliminar(Tramite $tramite): void;
 }

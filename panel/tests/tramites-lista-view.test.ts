@@ -31,7 +31,6 @@ function tramite(extra: Partial<TramitePanelFila> = {}): TramitePanelFila {
     nombre: 'Un trámite',
     modalidad: 'presencial',
     estado: 'borrador',
-    origen: 'panel',
     completo: false,
     problemas: ['Falta al menos un requisito.'],
     publicado_en: null,
@@ -77,24 +76,28 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers())
 
 describe('tabla', () => {
-  it('lista los trámites en una tabla con código, estado, origen y acciones', async () => {
-    m.listar.mockResolvedValue(pagina([tramite({ nombre: 'Uno', uuid: 'a' }), tramite({ nombre: 'Dos', uuid: 'b', codigo: 'T100', origen: 'fuente', estado: 'publicado', completo: true, problemas: [] })]))
+  it('lista los elementos en una tabla con código, estado, tipo y acciones', async () => {
+    m.listar.mockResolvedValue(pagina([tramite({ nombre: 'Uno', uuid: 'a' }), tramite({ nombre: 'Dos', uuid: 'b', codigo: 'T100', estado: 'publicado', completo: true, problemas: [] })]))
     const { wrapper } = await montar()
     const encabezados = wrapper.findAll('th').map((t) => t.text())
-    for (const n of ['Nombre', 'Código', 'Estado', 'Origen', 'Actualizado', 'Acciones']) expect(encabezados.some((t) => t.includes(n))).toBe(true)
+    for (const n of ['Nombre', 'Código', 'Estado', 'Tipo', 'Actualizado', 'Acciones']) expect(encabezados.some((t) => t.includes(n))).toBe(true)
     const filas = wrapper.findAll('tbody tr').map((f) => f.text())
     expect(filas).toHaveLength(2)
     expect(filas[0]).toContain('Borrador')
-    expect(filas[0]).toContain('Creado en el panel')
     expect(filas[1]).toContain('Publicado')
-    expect(filas[1]).toContain('Catálogo oficial')
   })
 
-  it('un trámite oficial corregido aquí lo dice y sigue sin poder eliminarse', async () => {
-    m.listar.mockResolvedValue(pagina([tramite({ origen: 'fuente', modificado_en_panel: true, codigo: 'T5', nombre: 'Corregido' } as never)]))
+  it('la columna de tipo distingue trámite, OPA y consulta', async () => {
+    m.listar.mockResolvedValue(pagina([
+      tramite({ uuid: 'a', nombre: 'Trámite', type: 'tramites' }),
+      tramite({ uuid: 'b', nombre: 'OPA', type: 'opa', codigo: 'O1' } as never),
+      tramite({ uuid: 'c', nombre: 'Consulta', type: 'consultas', codigo: 'C1' } as never),
+    ]))
     const { wrapper } = await montar()
-    expect(wrapper.find('tbody').text()).toContain('Catálogo oficial (corregido aquí)')
-    expect(wrapper.find('tbody button[aria-label*="Eliminar"]').exists()).toBe(false)
+    const cuerpo = wrapper.find('tbody').text()
+    expect(cuerpo).toContain('Trámite')
+    expect(cuerpo).toContain('OPA')
+    expect(cuerpo).toContain('Consulta')
   })
 
   it('un borrador dice qué le falta', async () => {
@@ -110,12 +113,11 @@ describe('tabla', () => {
     expect(wrapper.find('tbody a[aria-label^="Editar"]').attributes('aria-label')).toContain('Licencia')
   })
 
-  it('«Eliminar» solo existe en los trámites creados en el panel', async () => {
-    m.listar.mockResolvedValue(pagina([tramite({ uuid: 'a', nombre: 'Propio' }), tramite({ uuid: 'b', nombre: 'Oficial', origen: 'fuente', codigo: 'T1' })]))
+  it('«Eliminar» existe en todos los elementos (todos son borrables)', async () => {
+    m.listar.mockResolvedValue(pagina([tramite({ uuid: 'a', nombre: 'Uno' }), tramite({ uuid: 'b', nombre: 'Dos', codigo: 'T1' })]))
     const { wrapper } = await montar()
     const botones = wrapper.findAll('tbody button[aria-label*="Eliminar"]')
-    expect(botones).toHaveLength(1)
-    expect(botones[0]!.attributes('aria-label')).toContain('Propio')
+    expect(botones).toHaveLength(2)
   })
 
   it('«Nuevo trámite» lleva a la vista de creación', async () => {

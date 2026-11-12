@@ -25,7 +25,7 @@ final class UuidsFaltantesTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const TABLAS = ['users', 'entidads', 'menus', 'tramites', 'ingesta_tramites'];
+    private const TABLAS = ['users', 'entidads', 'menus', 'tramites'];
 
     private function poblar(): void
     {

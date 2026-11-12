@@ -207,16 +207,11 @@ const columnas: ColumnDef<DataTableFeatures, TramitePanelFila, unknown>[] = [
     cell: ({ row }) => insigniaDe(row.original),
   },
   {
-    id: 'origen',
-    header: 'Origen',
+    id: 'tipo',
+    header: 'Tipo',
     enableSorting: false,
     meta: { clase: 'hidden whitespace-nowrap lg:table-cell' },
-    cell: ({ row }) =>
-      row.original.origen === 'panel'
-        ? 'Creado en el panel'
-        : row.original.modificado_en_panel
-          ? 'Catálogo oficial (corregido aquí)'
-          : 'Catálogo oficial',
+    cell: ({ row }) => ({ tramites: 'Trámite', opa: 'OPA', consultas: 'Consulta' })[row.original.type] ?? 'Trámite',
   },
   {
     id: 'actualizado_en',
@@ -241,21 +236,19 @@ const columnas: ColumnDef<DataTableFeatures, TramitePanelFila, unknown>[] = [
           },
           () => 'Editar',
         ),
-        // Los del catálogo oficial no se eliminan (la carga automática los traería de vuelta): se despublican.
-        row.original.origen === 'panel'
-          ? h(
-              'button',
-              {
-                type: 'button',
-                'aria-label': `Eliminar «${row.original.nombre}»`,
-                class: `${claseAccion} text-red-700 hover:bg-red-50 focus-visible:ring-red-600`,
-                onClick: () => {
-                  porEliminar.value = row.original
-                },
-              },
-              'Eliminar',
-            )
-          : null,
+        // Todo elemento es borrable: va a la papelera (soft delete).
+        h(
+          'button',
+          {
+            type: 'button',
+            'aria-label': `Eliminar «${row.original.nombre}»`,
+            class: `${claseAccion} text-red-700 hover:bg-red-50 focus-visible:ring-red-600`,
+            onClick: () => {
+              porEliminar.value = row.original
+            },
+          },
+          'Eliminar',
+        ),
       ]),
   },
 ]

@@ -52,6 +52,8 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/noticias` | RF-01-013 | implemented |
 | GET | `/noticias/{slug}` | RF-01-013 | implemented |
 | GET | `/noticias/{slug}/imagen` | RF-01-013 | implemented |
+| GET | `/banners` | CAG-02, CAG-04 | implemented |
+| GET | `/banners/{uuid}/imagen` | CAG-04 | implemented |
 | GET | `/transparencia/subsecciones` | RF-02-001, RN-02 | pending |
 | GET | `/transparencia/documentos` | RF-02-002, RF-02-028 | pending |
 | GET | `/transparencia/documentos/{slug}` | RF-02-004, RF-02-024 | pending |
@@ -83,6 +85,14 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/panel/roles/{id}` | SEG-02 | implemented |
 | PATCH | `/panel/roles/{id}` | SEG-02 | implemented |
 | DELETE | `/panel/roles/{id}` | SEG-02 | implemented |
+| GET | `/panel/banners` | CAG-02 | implemented |
+| POST | `/panel/banners` | CAG-02 | implemented |
+| PUT | `/panel/banners/orden` | CAG-02 | implemented |
+| GET | `/panel/banners/{uuid}` | CAG-02 | implemented |
+| PATCH | `/panel/banners/{uuid}` | CAG-02, CAG-04 | implemented |
+| DELETE | `/panel/banners/{uuid}` | CAG-02 | implemented |
+| GET | `/panel/banners/{uuid}/imagen` | CAG-04 | implemented |
+| POST | `/panel/banners/{uuid}/imagen` | CAG-04 | implemented |
 | GET | `/panel/noticias` | RF-01-013 | implemented |
 | POST | `/panel/noticias` | RF-01-013 | implemented |
 | GET | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
@@ -106,7 +116,7 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/panel/ita/tablero` | RF-02-029 | pending |
 | GET | `/panel/auditoria` | — | pending |
 
-El contrato declara **62 operaciones**, de las cuales **55** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
+El contrato declara **72 operaciones**, de las cuales **65** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
 
 ## CAG — Diseño
 
@@ -115,9 +125,9 @@ Enunciados en `docs/Sección 2 §2.4`.
 | Criterio | Estado | Evidencia (fichero:línea) |
 |---|---|---|
 | **CAG-01** | desviación declarada | `sitio/app/components/govco/CarruselGovco.vue:25` · `sitio/tests/diseno.mjs:2` · `sitio/tests/puerta-visual.test.ts:6` |
-| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` |
+| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:629` |
 | **CAG-03** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:29` · `sitio/tests/diseno.mjs:272` |
-| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/tests/diseno.mjs:233` |
+| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:629` |
 | **CAG-05** | **prueba** | `sitio/tests/ayudas/api-simulada.mjs:38` · `sitio/tests/diseno.mjs:309` |
 | **CAG-06** | desviación declarada | `sitio/app/components/govco/BarraSuperior.vue:19` · `sitio/scripts/trazabilidad.mjs:251` · `sitio/tests/diseno.mjs:81` |
 | **CAG-07** | **prueba** | `sitio/app/components/govco/BotonAccesibilidad.vue:51` · `sitio/app/components/govco/PanelAccesibilidad.vue:38` · `sitio/tests/diseno.mjs:319` · `sitio/tests/movil.mjs:15` |

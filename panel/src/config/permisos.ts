@@ -36,6 +36,7 @@ export const PERMISO_POR_RUTA: Record<string, string> = {
 
   // Contenidos del sitio
   '/contenidos/noticias': 'noticias.gestionar',
+  '/contenidos/carrusel': 'banners.gestionar',
 
   // Gestión documental e integraciones
   '/gestion-documental': 'documental.gestionar',

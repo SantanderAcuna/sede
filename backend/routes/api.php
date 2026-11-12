@@ -5,12 +5,14 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\ArchivoController;
 use App\Http\Controllers\Api\V1\AuditoriaController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BannerController;
 use App\Http\Controllers\Api\V1\BusquedaController;
 use App\Http\Controllers\Api\V1\ConsentimientoController;
 use App\Http\Controllers\Api\V1\EntidadController;
 use App\Http\Controllers\Api\V1\IdentidadController;
 use App\Http\Controllers\Api\V1\ImagenContenidoController;
 use App\Http\Controllers\Api\V1\NoticiaController;
+use App\Http\Controllers\Api\V1\PanelBannerController;
 use App\Http\Controllers\Api\V1\PanelNoticiaController;
 use App\Http\Controllers\Api\V1\PanelPoliticaController;
 use App\Http\Controllers\Api\V1\PanelRolController;
@@ -90,6 +92,17 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         ->name('noticias.mostrar')
         ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
         ->middleware('throttle:lecturas-publicas');
+    // Carrusel de la portada: solo diapositivas vigentes. Misma política de lectura pública que las noticias.
+    Route::get('/banners', [BannerController::class, 'listar'])
+        ->name('banners.listar')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:lecturas-publicas');
+    Route::get('/banners/{uuid}/imagen', [BannerController::class, 'imagen'])
+        ->name('banners.imagen')
+        ->whereUuid('uuid')
+        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+        ->middleware('throttle:imagenes-publicas');
+
     Route::get('/noticias/{slug}/imagen', [NoticiaController::class, 'imagen'])
         ->name('noticias.imagen')
         ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
@@ -168,6 +181,18 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/tramites/{uuid}', [PanelTramiteController::class, 'show'])->name('panel.tramites.show');
             Route::patch('/tramites/{uuid}', [PanelTramiteController::class, 'update'])->name('panel.tramites.update');
             Route::delete('/tramites/{uuid}', [PanelTramiteController::class, 'destroy'])->name('panel.tramites.destroy');
+        });
+
+        // Carrusel de la portada (banners).
+        Route::middleware(['auth:sanctum', 'can:banners.gestionar'])->group(function (): void {
+            Route::get('/banners', [PanelBannerController::class, 'index'])->name('panel.banners.index');
+            Route::post('/banners', [PanelBannerController::class, 'store'])->name('panel.banners.store');
+            Route::put('/banners/orden', [PanelBannerController::class, 'ordenar'])->name('panel.banners.orden');
+            Route::get('/banners/{uuid}', [PanelBannerController::class, 'show'])->name('panel.banners.show');
+            Route::patch('/banners/{uuid}', [PanelBannerController::class, 'update'])->name('panel.banners.update');
+            Route::delete('/banners/{uuid}', [PanelBannerController::class, 'destroy'])->name('panel.banners.destroy');
+            Route::post('/banners/{uuid}/imagen', [PanelBannerController::class, 'subirImagen'])->name('panel.banners.imagen.subir');
+            Route::get('/banners/{uuid}/imagen', [PanelBannerController::class, 'imagen'])->name('panel.banners.imagen');
         });
 
         // Usuarios, roles y permisos. Las reglas contra la escalada de privilegios viven en los servicios.

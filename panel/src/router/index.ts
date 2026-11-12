@@ -127,6 +127,25 @@ const rutas: RouteRecordRaw[] = [
         component: () => import('@/views/admin/NoticiaFormularioView.vue'),
         meta: { requiereSesion: true, titulo: 'Editar noticia', permiso: PERMISO_POR_RUTA['/contenidos/noticias'] },
       },
+      // Carrusel de la portada (Fase 6): lista ordenable y vistas propias para crear y editar.
+      {
+        path: 'contenidos/carrusel',
+        name: 'panel.banners',
+        component: () => import('@/views/admin/BannersListaView.vue'),
+        meta: { requiereSesion: true, titulo: 'Carrusel de la portada', permiso: PERMISO_POR_RUTA['/contenidos/carrusel'] },
+      },
+      {
+        path: 'contenidos/carrusel/nueva',
+        name: 'panel.banners.nuevo',
+        component: () => import('@/views/admin/BannerFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Nueva diapositiva', permiso: PERMISO_POR_RUTA['/contenidos/carrusel'] },
+      },
+      {
+        path: 'contenidos/carrusel/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+        name: 'panel.banners.editar',
+        component: () => import('@/views/admin/BannerFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar diapositiva', permiso: PERMISO_POR_RUTA['/contenidos/carrusel'] },
+      },
       // Trámites y servicios: lista en tabla; crear y editar son vistas propias (mismo patrón que noticias).
       {
         path: 'tramites',

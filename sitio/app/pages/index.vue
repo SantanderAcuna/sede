@@ -31,6 +31,7 @@
  */
 import type { DiapositivaCarrusel } from '~/components/govco/CarruselGovco.vue'
 import type { components } from '~~/types/openapi'
+import { diapositivasDePortada } from '~/utils/banners'
 import { TEXTO_SIN_NOTICIAS, estadoDeNoticias, type NoticiaResumen } from '~/utils/noticias'
 
 useHead({
@@ -53,7 +54,7 @@ useHead({
  * **La primera diapositiva lleva la marca «Sede Electrónica»**; el `<h1>` oculto de la
  * plantilla es quien cumple el rol de encabezado principal.
  */
-const diapositivas: DiapositivaCarrusel[] = [
+const diapositivasPorDefecto: DiapositivaCarrusel[] = [
   {
     id: 'sede-electronica',
     imagen: '/govco/assets/images/fondo-gris-carrusel.jpg',
@@ -143,6 +144,19 @@ const { data: tramitesPortada } = await useAsyncData('portada-tramites', async (
     return null
   }
 })
+
+/**
+ * Diapositivas que publica la Entidad desde el panel. Si la API no contesta, no hay ninguna
+ * publicada o llegan incompletas, la portada conserva las de por defecto.
+ */
+const { data: bannersPortada } = await useAsyncData('portada-banners', async () => {
+  try {
+    return await traer<{ data: unknown }>(`${urlApi}/banners`)
+  } catch {
+    return null
+  }
+})
+const diapositivas = computed(() => diapositivasDePortada(bannersPortada.value ?? null, diapositivasPorDefecto))
 
 /**
  * Noticias de la portada (M01-6, RF-01-013): las 6 más recientes, de la más nueva

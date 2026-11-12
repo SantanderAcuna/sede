@@ -14,6 +14,7 @@ use App\Contracts\Repositories\NoticiaRepositoryInterface;
 use App\Contracts\Repositories\TramitePanelRepositoryInterface;
 use App\Contracts\Repositories\TramiteRepositoryInterface;
 use App\Contracts\Services\AuthServiceInterface;
+use App\Contracts\Services\BannerServiceInterface;
 use App\Contracts\Services\BusquedaServiceInterface;
 use App\Contracts\Services\EntidadServiceInterface;
 use App\Contracts\Services\FilesMediaServiceInterface;
@@ -25,12 +26,14 @@ use App\Contracts\Services\RolPanelServiceInterface;
 use App\Contracts\Services\TramitePanelServiceInterface;
 use App\Contracts\Services\TramiteServiceInterface;
 use App\Contracts\Services\UsuarioPanelServiceInterface;
+use App\Models\Banner;
 use App\Models\Entidad;
 use App\Models\FileMedia;
 use App\Models\Noticia;
 use App\Models\Tramite;
 use App\Models\User;
 use App\Policies\ArchivoPolicy;
+use App\Policies\BannerPolicy;
 use App\Policies\EntidadPolicy;
 use App\Policies\NoticiaPolicy;
 use App\Policies\TramitePolicy;
@@ -43,6 +46,7 @@ use App\Repositories\Eloquent\NoticiaRepository;
 use App\Repositories\Eloquent\TramitePanelRepository;
 use App\Repositories\Eloquent\TramiteRepository;
 use App\Services\AuthService;
+use App\Services\BannerService;
 use App\Services\BusquedaService;
 use App\Services\EntidadService;
 use App\Services\FilesMediaService;
@@ -81,6 +85,7 @@ class AppServiceProvider extends ServiceProvider
         // Noticias del home (M01-6)
         $this->app->bind(NoticiaRepositoryInterface::class, NoticiaRepository::class);
         $this->app->bind(NoticiaServiceInterface::class, NoticiaService::class);
+        $this->app->bind(BannerServiceInterface::class, BannerService::class);
 
         // Trámites en el panel
         $this->app->bind(TramitePanelRepositoryInterface::class, TramitePanelRepository::class);
@@ -142,6 +147,7 @@ class AppServiceProvider extends ServiceProvider
         // el registro explícito es más legible y no depende de la convención.
         Gate::policy(Entidad::class, EntidadPolicy::class);
         Gate::policy(Noticia::class, NoticiaPolicy::class);
+        Gate::policy(Banner::class, BannerPolicy::class);
         Gate::policy(Tramite::class, TramitePolicy::class);
         Gate::policy(FileMedia::class, ArchivoPolicy::class);
 

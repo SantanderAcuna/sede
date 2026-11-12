@@ -57,8 +57,8 @@ describe('el mapa de permisos y las rutas', () => {
     expect(rutas.find((ruta) => ruta.path === '/')?.meta.permiso).toBe('panel-administrative')
   })
 
-  it('hay veintidós módulos declarados, incluida la portada', () => {
-    expect(Object.keys(PERMISO_POR_RUTA)).toHaveLength(22)
+  it('hay veintitrés módulos declarados, incluida la portada', () => {
+    expect(Object.keys(PERMISO_POR_RUTA)).toHaveLength(23)
     expect(modulos.filter((ruta) => ruta.path !== '/').length).toBeGreaterThanOrEqual(20)
   })
 })

@@ -385,7 +385,9 @@ final class NoticiasTest extends TestCase
 
     public function test_editar_el_titulo_no_cambia_la_direccion_de_la_noticia(): void
     {
+        // Una noticia publicada siempre tiene imagen con alt: sin ella ni siquiera se puede editar.
         $id = $this->noticia(['slug' => 'direccion-fija', 'titulo' => 'Antes']);
+        $this->conImagen($id);
         $uuid = (string) DB::table('noticias')->where('id', $id)->value('uuid');
 
         $this->actingAs($this->editor(), 'web')

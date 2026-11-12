@@ -1545,6 +1545,36 @@ paths:
         - cookieSesion: []
 
   /panel/noticias/{uuid}/imagen:
+    get:
+      tags: [Panel — Noticias]
+      operationId: obtenerImagenNoticiaPanel
+      summary: Ver la imagen de una noticia, publicada o no
+      description: |
+        Requiere `noticias.gestionar`. A diferencia de `GET /noticias/{slug}/imagen`,
+        entrega también la imagen de un borrador o de una noticia programada, para que
+        el panel la muestre al editarla. Va con `Cache-Control: private, no-store`: un
+        borrador no debe quedar en una caché compartida. 404 si la noticia no existe o
+        no tiene imagen.
+      x-status: implemented
+      x-criterios: [RF-01-013]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: El archivo de imagen
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+      security:
+        - cookieSesion: []
     post:
       tags: [Panel — Noticias]
       operationId: subirImagenNoticia
@@ -2502,6 +2532,10 @@ components:
               properties:
                 url:
                   type: string
+                  description: |
+                    En el sitio, la ruta pública (`/api/v1/noticias/{slug}/imagen`, sólo
+                    publicadas). En las respuestas del panel, la del panel
+                    (`/api/v1/panel/noticias/{uuid}/imagen`), que también sirve borradores.
                   example: /api/v1/noticias/inauguracion-del-parque/imagen
                 alt:
                   type: [string, 'null']

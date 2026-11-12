@@ -12,9 +12,11 @@ use App\Http\Requests\SubirImagenNoticiaRequest;
 use App\Http\Resources\NoticiaResource;
 use App\Models\Noticia;
 use App\Support\Api\ApiResponse;
+use App\Support\Api\RespuestaDeImagen;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Gestión de las noticias desde el panel (M01-6). Requiere `noticias.gestionar`.
@@ -41,7 +43,14 @@ final class PanelNoticiaController extends Controller
 
         $pagina = $this->noticias->todas(max(1, min(100, (int) $peticion->query('per_page', 20))));
 
-        return ApiResponse::coleccion(NoticiaResource::collection($pagina), $pagina);
+        $coleccion = NoticiaResource::collection($pagina);
+        foreach ($coleccion->collection ?? [] as $elemento) {
+            if ($elemento instanceof NoticiaResource) {
+                $elemento->paraPanel();
+            }
+        }
+
+        return ApiResponse::coleccion($coleccion, $pagina);
     }
 
     /**
@@ -125,6 +134,27 @@ final class PanelNoticiaController extends Controller
     }
 
     /**
+     * La imagen de una noticia, esté publicada o no.
+     *
+     * La ruta pública sólo entrega las publicadas; el panel necesita ver también la de
+     * un borrador. Va con sesión y permiso, y sin caché compartida (`private, no-store`):
+     * un borrador no debe quedar en una caché intermedia.
+     *
+     * @operationId obtenerImagenNoticiaPanel
+     */
+    public function imagen(string $uuid): Response
+    {
+        $noticia = $this->noticias->porUuid($uuid);
+        abort_if($noticia === null, 404);
+        Gate::authorize('view', $noticia);
+
+        $imagen = $noticia->imagenPrincipal;
+        abort_if($imagen === null, 404);
+
+        return RespuestaDeImagen::desde($imagen, 'private, no-store');
+    }
+
+    /**
      * Elimina una noticia. Se archiva (borrado lógico), no se destruye.
      *
      * @operationId eliminarNoticia
@@ -153,7 +183,7 @@ final class PanelNoticiaController extends Controller
         $noticia->unsetRelation('imagenPrincipal')->load('imagenPrincipal');
         $problemas = $noticia->problemas();
 
-        return (new NoticiaResource($noticia))->conCuerpo()->resolve() + [
+        return (new NoticiaResource($noticia))->conCuerpo()->paraPanel()->resolve() + [
             'uuid' => $noticia->uuid,
             'activo' => $noticia->activo,
             'completa' => $problemas === [],

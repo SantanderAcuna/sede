@@ -73,6 +73,7 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
 | PATCH | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
 | DELETE | `/panel/noticias/{uuid}` | RF-01-013 | implemented |
+| GET | `/panel/noticias/{uuid}/imagen` | RF-01-013 | implemented |
 | POST | `/panel/noticias/{uuid}/imagen` | RF-01-013 | implemented |
 | GET | `/panel/politicas` | RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010 | implemented |
 | PATCH | `/panel/politicas/{slug}` | RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010, RN-01-D01 | implemented |

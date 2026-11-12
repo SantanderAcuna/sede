@@ -142,7 +142,7 @@ async function guardar(): Promise<void> {
   const archivo = imagenElegida.value
   const quiereActivo = formulario.value.activo
   try {
-    const entrada = entradaDesde(formulario.value, original)
+    const entrada = entradaDesde(formulario.value, original, { completa: abierta.value === 'nueva' })
     // Con imagen nueva, el texto alternativo viaja con la imagen; y para publicar la
     // imagen debe existir primero, así que se guarda como borrador y se publica al final.
     if (archivo !== null) {

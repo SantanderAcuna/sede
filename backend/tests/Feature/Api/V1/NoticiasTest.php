@@ -383,6 +383,63 @@ final class NoticiasTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_el_panel_ve_la_imagen_de_un_borrador_por_una_ruta_con_sesion(): void
+    {
+        $id = $this->noticia(['slug' => 'borrador-con-foto', 'activo' => false]);
+        $this->conImagen($id);
+        $uuid = (string) DB::table('noticias')->where('id', $id)->value('uuid');
+
+        // La ruta pública no sirve borradores; el panel necesita ver la suya.
+        $this->get('/api/v1/noticias/borrador-con-foto/imagen')->assertNotFound();
+
+        $respuesta = $this->actingAs($this->editor(), 'web')->get("/api/v1/panel/noticias/{$uuid}/imagen")->assertOk();
+        $this->assertStringStartsWith('image/png', (string) $respuesta->headers->get('Content-Type'));
+        $this->assertStringNotContainsString('public', (string) $respuesta->headers->get('Cache-Control'), 'Un borrador no se guarda en cachés compartidas.');
+        $this->assertSame('nosniff', $respuesta->headers->get('X-Content-Type-Options'));
+    }
+
+    public function test_la_imagen_del_panel_exige_sesion_y_permiso(): void
+    {
+        $id = $this->noticia(['slug' => 'borrador-privado', 'activo' => false]);
+        $this->conImagen($id);
+        $uuid = (string) DB::table('noticias')->where('id', $id)->value('uuid');
+
+        $this->getJson("/api/v1/panel/noticias/{$uuid}/imagen")->assertUnauthorized();
+        $this->actingAs(User::factory()->create(), 'web')->get("/api/v1/panel/noticias/{$uuid}/imagen")->assertForbidden();
+    }
+
+    public function test_la_imagen_del_panel_responde_404_sin_imagen_o_sin_noticia(): void
+    {
+        $sinFoto = $this->noticia(['slug' => 'sin-foto-panel', 'activo' => false]);
+        $uuid = (string) DB::table('noticias')->where('id', $sinFoto)->value('uuid');
+        $editor = $this->editor();
+
+        $this->actingAs($editor, 'web')->get("/api/v1/panel/noticias/{$uuid}/imagen")->assertNotFound();
+        $this->actingAs($editor, 'web')->get('/api/v1/panel/noticias/'.Str::uuid().'/imagen')->assertNotFound();
+    }
+
+    public function test_el_panel_recibe_la_direccion_de_imagen_del_panel_y_el_sitio_la_publica(): void
+    {
+        $id = $this->noticia(['slug' => 'dos-rutas', 'activo' => false]);
+        $uuid = (string) DB::table('noticias')->where('id', $id)->value('uuid');
+        $editor = $this->editor();
+
+        $this->actingAs($editor, 'web')
+            ->post("/api/v1/panel/noticias/{$uuid}/imagen", ['imagen' => $this->png(), 'alt' => 'Descripción'], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.imagen.url', "/api/v1/panel/noticias/{$uuid}/imagen");
+
+        $this->actingAs($editor, 'web')->getJson("/api/v1/panel/noticias/{$uuid}")
+            ->assertJsonPath('data.imagen.url', "/api/v1/panel/noticias/{$uuid}/imagen");
+
+        // También el listado del panel entrega la dirección del panel (la recorre cada elemento).
+        $this->actingAs($editor, 'web')->getJson('/api/v1/panel/noticias')
+            ->assertJsonPath('data.0.imagen.url', "/api/v1/panel/noticias/{$uuid}/imagen");
+
+        DB::table('noticias')->where('id', $id)->update(['activo' => true]);
+        $this->getJson('/api/v1/noticias/dos-rutas')->assertJsonPath('data.imagen.url', '/api/v1/noticias/dos-rutas/imagen');
+    }
+
     public function test_editar_el_titulo_no_cambia_la_direccion_de_la_noticia(): void
     {
         // Una noticia publicada siempre tiene imagen con alt: sin ella ni siquiera se puede editar.

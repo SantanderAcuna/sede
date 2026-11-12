@@ -25,6 +25,7 @@ final class LimiteLecturasPublicasTest extends TestCase
 
     /** Las lecturas que el sitio hace para pintar una página pública. */
     private const LECTURAS = [
+        'v1.banners.listar',
         'v1.entidad.mostrar',
         'v1.politicas.index',
         'v1.politicas.show',

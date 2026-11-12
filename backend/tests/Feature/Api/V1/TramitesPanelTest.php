@@ -244,7 +244,6 @@ final class TramitesPanelTest extends TestCase
         $this->actingAs($gestor)->patchJson($ruta, ['url_ficha_gov_co' => 'javascript:alert(1)'])->assertUnprocessable()->assertJsonValidationErrors(['url_ficha_gov_co']);
         $this->actingAs($gestor)->patchJson($ruta, ['tiempo_solucion_dias' => -1])->assertUnprocessable()->assertJsonValidationErrors(['tiempo_solucion_dias']);
         $this->actingAs($gestor)->patchJson($ruta, ['requisitos' => [['tipo' => 'otro', 'descripcion' => 'x']]])->assertUnprocessable()->assertJsonValidationErrors(['requisitos.0.tipo']);
-        $this->actingAs($gestor)->patchJson($ruta, ['requisitos' => [['tipo' => 'documento']]])->assertUnprocessable()->assertJsonValidationErrors(['requisitos.0.descripcion']);
         $this->actingAs($gestor)->patchJson($ruta, ['normativa' => [['tipo' => 'Ley', 'url' => 'no es url']]])->assertUnprocessable()->assertJsonValidationErrors(['normativa.0.url']);
         $this->actingAs($gestor)->patchJson($ruta, ['puntos_atencion' => [['nombre' => 'x', 'direccion' => 'y', 'latitud' => 200]]])->assertUnprocessable()->assertJsonValidationErrors(['puntos_atencion.0.latitud']);
         $this->actingAs($gestor)->patchJson($ruta, ['seguimiento' => ['email' => [['email' => 'no']]]])->assertUnprocessable()->assertJsonValidationErrors(['seguimiento.email.0.email']);

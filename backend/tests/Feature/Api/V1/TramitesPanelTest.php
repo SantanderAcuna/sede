@@ -74,12 +74,14 @@ final class TramitesPanelTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.total', 2);
 
-        $filas = collect($respuesta->json('data'));
-        $this->assertSame('publicado', $filas->firstWhere('codigo', 'T1')['estado']);
-        $this->assertSame('fuente', $filas->firstWhere('codigo', 'T1')['origen']);
-        $this->assertSame('borrador', $filas->firstWhere('codigo', 'P0001')['estado']);
-        $this->assertSame('panel', $filas->firstWhere('codigo', 'P0001')['origen']);
-        $this->assertNotEmpty($filas->firstWhere('codigo', 'P0001')['problemas']);
+        /** @var list<array<string, mixed>> $datos */
+        $datos = $respuesta->json('data');
+        $filas = array_column($datos, null, 'codigo');
+        $this->assertSame('publicado', $filas['T1']['estado']);
+        $this->assertSame('fuente', $filas['T1']['origen']);
+        $this->assertSame('borrador', $filas['P0001']['estado']);
+        $this->assertSame('panel', $filas['P0001']['origen']);
+        $this->assertNotEmpty($filas['P0001']['problemas']);
     }
 
     public function test_buscar_y_filtrar_por_estado_se_hace_en_el_servidor(): void

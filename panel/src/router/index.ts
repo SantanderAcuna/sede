@@ -99,8 +99,14 @@ const rutas: RouteRecordRaw[] = [
       {
         path: 'configuracion/politicas',
         name: 'panel.politicas',
-        component: () => import('@/views/admin/PoliticasView.vue'),
+        component: () => import('@/views/admin/PoliticasListaView.vue'),
         meta: { requiereSesion: true, titulo: 'Políticas del sitio', permiso: PERMISO_POR_RUTA['/configuracion/politicas'] },
+      },
+      {
+        path: 'configuracion/politicas/:slug([a-z0-9-]+)',
+        name: 'panel.politicas.editar',
+        component: () => import('@/views/admin/PoliticaFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Editar política', permiso: PERMISO_POR_RUTA['/configuracion/politicas'] },
       },
       // Noticias del sitio (M01-6, RF-01-013): la lista es una tabla y crear/editar son
       // vistas propias. «nueva» va antes que «:uuid» y el uuid se restringe a su forma,

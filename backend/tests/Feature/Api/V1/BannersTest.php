@@ -6,6 +6,7 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -37,7 +38,7 @@ final class BannersTest extends TestCase
     private function gestor(): User
     {
         $usuario = User::factory()->create();
-        $usuario->givePermissionTo('banners.gestionar');
+        $usuario->givePermissionTo(CatalogoPermisos::de('banners'));
 
         return $usuario;
     }
@@ -71,7 +72,7 @@ final class BannersTest extends TestCase
         $this->getJson('/api/v1/panel/banners')->assertUnauthorized();
 
         $sinPermiso = User::factory()->create();
-        $sinPermiso->givePermissionTo('noticias.gestionar');
+        $sinPermiso->givePermissionTo(CatalogoPermisos::de('noticias'));
         $this->actingAs($sinPermiso)->getJson('/api/v1/panel/banners')->assertForbidden();
         $this->actingAs($sinPermiso)->postJson('/api/v1/panel/banners', ['titulo' => 'x'])->assertForbidden();
     }

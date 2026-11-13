@@ -9,6 +9,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { AxiosError } from 'axios'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 vi.mock('../src/services/tramites', () => ({
@@ -100,6 +101,7 @@ const rechazo422 = (errors: Record<string, string[]>) =>
   Object.assign(new AxiosError('x'), { response: { status: 422, data: { message: 'No válido', errors } } })
 
 beforeEach(() => {
+  conSesion()
   vi.clearAllMocks()
   m.dependencias.mockResolvedValue([{ id: 7, nombre: 'Hacienda' }])
 })

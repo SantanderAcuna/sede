@@ -162,96 +162,108 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth:sanctum');
         Route::get('/perfil', [AuthController::class, 'perfil'])->name('perfil')->middleware('auth:sanctum');
 
-        // Auditoría — log de auditoría (requiere autenticación + permiso). Sin el
-        // permiso, cualquier cuenta autenticada podía leer quién hizo qué (H-07).
-        Route::get('/auditoria', [AuditoriaController::class, 'index'])
-            ->name('auditoria.index')
-            ->middleware('auth:sanctum')
-            ->middleware('can:auditoria.ver');
-
-        // Entidad — gestión de datos institucionales (requiere autenticación + permiso)
-        Route::patch('/entidad', [EntidadController::class, 'actualizar'])
-            ->name('entidad.actualizar')
-            ->middleware('auth:sanctum')
-            ->middleware('can:entidad.gestionar');
-
-        // Políticas — edición del texto (requiere autenticación + permiso)
-        Route::get('/politicas', [PanelPoliticaController::class, 'index'])
-            ->name('politicas.index')
-            ->middleware('auth:sanctum')
-            ->middleware('can:politicas.gestionar');
-        Route::patch('/politicas/{slug}', [PanelPoliticaController::class, 'update'])
-            ->name('politicas.update')
-            ->middleware('auth:sanctum')
-            ->middleware('can:politicas.gestionar');
-
-        // Trámites — alta, edición y publicación (requiere autenticación + permiso)
-        Route::middleware(['auth:sanctum', 'can:tramites.gestionar'])->group(function (): void {
-            Route::get('/tramites', [PanelTramiteController::class, 'index'])->name('panel.tramites.index');
-            Route::post('/tramites', [PanelTramiteController::class, 'store'])->name('panel.tramites.store');
-            Route::get('/tramites/{uuid}', [PanelTramiteController::class, 'show'])->name('panel.tramites.show');
-            Route::patch('/tramites/{uuid}', [PanelTramiteController::class, 'update'])->name('panel.tramites.update');
-            Route::delete('/tramites/{uuid}', [PanelTramiteController::class, 'destroy'])->name('panel.tramites.destroy');
-            // Las dependencias responsables, para el selector del formulario.
-            Route::get('/dependencias', [PanelTramiteController::class, 'dependencias'])->name('panel.tramites.dependencias');
-        });
-
-        // Carrusel de la portada (banners).
-        Route::middleware(['auth:sanctum', 'can:banners.gestionar'])->group(function (): void {
-            Route::get('/banners', [PanelBannerController::class, 'index'])->name('panel.banners.index');
-            Route::post('/banners', [PanelBannerController::class, 'store'])->name('panel.banners.store');
-            Route::put('/banners/orden', [PanelBannerController::class, 'ordenar'])->name('panel.banners.orden');
-            Route::get('/banners/{uuid}', [PanelBannerController::class, 'show'])->name('panel.banners.show');
-            Route::patch('/banners/{uuid}', [PanelBannerController::class, 'update'])->name('panel.banners.update');
-            Route::delete('/banners/{uuid}', [PanelBannerController::class, 'destroy'])->name('panel.banners.destroy');
-            Route::post('/banners/{uuid}/imagen', [PanelBannerController::class, 'subirImagen'])->name('panel.banners.imagen.subir');
-            Route::get('/banners/{uuid}/imagen', [PanelBannerController::class, 'imagen'])->name('panel.banners.imagen');
-        });
-
-        // Usuarios, roles y permisos. Las reglas contra la escalada de privilegios viven en los servicios.
-        Route::middleware(['auth:sanctum', 'can:usuarios.gestionar'])->group(function (): void {
-            Route::get('/usuarios', [PanelUsuarioController::class, 'index'])->name('panel.usuarios.index');
-            Route::post('/usuarios', [PanelUsuarioController::class, 'store'])->name('panel.usuarios.store');
-            Route::get('/usuarios/{uuid}', [PanelUsuarioController::class, 'show'])->name('panel.usuarios.show');
-            Route::patch('/usuarios/{uuid}', [PanelUsuarioController::class, 'update'])->name('panel.usuarios.update');
-            Route::get('/permisos', [PanelRolController::class, 'permisos'])->name('panel.permisos.index');
-            Route::get('/roles', [PanelRolController::class, 'index'])->name('panel.roles.index');
-            Route::post('/roles', [PanelRolController::class, 'store'])->name('panel.roles.store');
-            Route::get('/roles/{id}', [PanelRolController::class, 'show'])->whereNumber('id')->name('panel.roles.show');
-            Route::patch('/roles/{id}', [PanelRolController::class, 'update'])->whereNumber('id')->name('panel.roles.update');
-            Route::delete('/roles/{id}', [PanelRolController::class, 'destroy'])->whereNumber('id')->name('panel.roles.destroy');
-        });
-
-        // Noticias — alta, edición y publicación (requiere autenticación + permiso)
-        Route::middleware(['auth:sanctum', 'can:noticias.gestionar'])->group(function (): void {
-            Route::get('/noticias', [PanelNoticiaController::class, 'index'])->name('noticias.index');
-            Route::post('/noticias', [PanelNoticiaController::class, 'store'])->name('noticias.store');
-            Route::get('/noticias/{uuid}', [PanelNoticiaController::class, 'show'])->name('noticias.show');
-            Route::patch('/noticias/{uuid}', [PanelNoticiaController::class, 'update'])->name('noticias.update');
-            Route::delete('/noticias/{uuid}', [PanelNoticiaController::class, 'destroy'])->name('noticias.destroy');
-            Route::get('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'imagen'])->name('noticias.imagen.ver');
-            Route::post('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'subirImagen'])->name('noticias.imagen');
-        });
-
-        // Imágenes del editor (noticias, políticas o entidad: lo valida la petición).
-        Route::post('/contenido/imagenes', [ImagenContenidoController::class, 'store'])
-            ->middleware('auth:sanctum')
-            ->name('contenido.imagenes.store');
-
-        // Archivos — gestión de archivos subidos (requiere autenticación + permiso)
+        // Cada ruta exige el permiso de SU acción (`modulo.accion`): «ver» no da «editar» ni «eliminar».
+        // Las Policies de cada modelo lo vuelven a comprobar en el controlador.
         Route::middleware('auth:sanctum')->group(function (): void {
+            // Auditoría — quién hizo qué (H-07: sin el permiso, cualquier cuenta lo leía).
+            Route::get('/auditoria', [AuditoriaController::class, 'index'])
+                ->name('auditoria.index')->middleware('can:auditoria.ver');
+
+            // Entidad — datos institucionales.
+            Route::patch('/entidad', [EntidadController::class, 'actualizar'])
+                ->name('entidad.actualizar')->middleware('can:entidad.editar');
+
+            // Políticas — edición del texto.
+            Route::get('/politicas', [PanelPoliticaController::class, 'index'])
+                ->name('politicas.index')->middleware('can:politicas.ver');
+            Route::patch('/politicas/{slug}', [PanelPoliticaController::class, 'update'])
+                ->name('politicas.update')->middleware('can:politicas.editar');
+
+            // Trámites — alta, edición, eliminación y publicación.
+            Route::get('/tramites', [PanelTramiteController::class, 'index'])
+                ->name('panel.tramites.index')->middleware('can:tramites.ver');
+            Route::post('/tramites', [PanelTramiteController::class, 'store'])
+                ->name('panel.tramites.store')->middleware('can:tramites.crear');
+            Route::get('/tramites/{uuid}', [PanelTramiteController::class, 'show'])
+                ->name('panel.tramites.show')->middleware('can:tramites.ver');
+            Route::patch('/tramites/{uuid}', [PanelTramiteController::class, 'update'])
+                ->name('panel.tramites.update')->middleware('can:tramites.editar');
+            Route::delete('/tramites/{uuid}', [PanelTramiteController::class, 'destroy'])
+                ->name('panel.tramites.destroy')->middleware('can:tramites.eliminar');
+            // Las dependencias responsables, para el selector del formulario de trámites.
+            Route::get('/dependencias', [PanelTramiteController::class, 'dependencias'])
+                ->name('panel.tramites.dependencias')->middleware('can:tramites.ver');
+
+            // Carrusel de la portada (banners).
+            Route::get('/banners', [PanelBannerController::class, 'index'])
+                ->name('panel.banners.index')->middleware('can:banners.ver');
+            Route::post('/banners', [PanelBannerController::class, 'store'])
+                ->name('panel.banners.store')->middleware('can:banners.crear');
+            Route::put('/banners/orden', [PanelBannerController::class, 'ordenar'])
+                ->name('panel.banners.orden')->middleware('can:banners.editar');
+            Route::get('/banners/{uuid}', [PanelBannerController::class, 'show'])
+                ->name('panel.banners.show')->middleware('can:banners.ver');
+            Route::patch('/banners/{uuid}', [PanelBannerController::class, 'update'])
+                ->name('panel.banners.update')->middleware('can:banners.editar');
+            Route::delete('/banners/{uuid}', [PanelBannerController::class, 'destroy'])
+                ->name('panel.banners.destroy')->middleware('can:banners.eliminar');
+            Route::post('/banners/{uuid}/imagen', [PanelBannerController::class, 'subirImagen'])
+                ->name('panel.banners.imagen.subir')->middleware('can:banners.editar');
+            Route::get('/banners/{uuid}/imagen', [PanelBannerController::class, 'imagen'])
+                ->name('panel.banners.imagen')->middleware('can:banners.ver');
+
+            // Usuarios, roles y permisos. Las reglas contra la escalada de privilegios viven en los servicios.
+            Route::get('/usuarios', [PanelUsuarioController::class, 'index'])
+                ->name('panel.usuarios.index')->middleware('can:usuarios.ver');
+            Route::post('/usuarios', [PanelUsuarioController::class, 'store'])
+                ->name('panel.usuarios.store')->middleware('can:usuarios.crear');
+            Route::get('/usuarios/{uuid}', [PanelUsuarioController::class, 'show'])
+                ->name('panel.usuarios.show')->middleware('can:usuarios.ver');
+            Route::patch('/usuarios/{uuid}', [PanelUsuarioController::class, 'update'])
+                ->name('panel.usuarios.update')->middleware('can:usuarios.editar');
+            Route::get('/permisos', [PanelRolController::class, 'permisos'])
+                ->name('panel.permisos.index')->middleware('can:roles.ver');
+            Route::get('/roles', [PanelRolController::class, 'index'])
+                ->name('panel.roles.index')->middleware('can:roles.ver');
+            Route::post('/roles', [PanelRolController::class, 'store'])
+                ->name('panel.roles.store')->middleware('can:roles.crear');
+            Route::get('/roles/{id}', [PanelRolController::class, 'show'])->whereNumber('id')
+                ->name('panel.roles.show')->middleware('can:roles.ver');
+            Route::patch('/roles/{id}', [PanelRolController::class, 'update'])->whereNumber('id')
+                ->name('panel.roles.update')->middleware('can:roles.editar');
+            Route::delete('/roles/{id}', [PanelRolController::class, 'destroy'])->whereNumber('id')
+                ->name('panel.roles.destroy')->middleware('can:roles.eliminar');
+
+            // Noticias — alta, edición, eliminación y publicación.
+            Route::get('/noticias', [PanelNoticiaController::class, 'index'])
+                ->name('noticias.index')->middleware('can:noticias.ver');
+            Route::post('/noticias', [PanelNoticiaController::class, 'store'])
+                ->name('noticias.store')->middleware('can:noticias.crear');
+            Route::get('/noticias/{uuid}', [PanelNoticiaController::class, 'show'])
+                ->name('noticias.show')->middleware('can:noticias.ver');
+            Route::patch('/noticias/{uuid}', [PanelNoticiaController::class, 'update'])
+                ->name('noticias.update')->middleware('can:noticias.editar');
+            Route::delete('/noticias/{uuid}', [PanelNoticiaController::class, 'destroy'])
+                ->name('noticias.destroy')->middleware('can:noticias.eliminar');
+            Route::get('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'imagen'])
+                ->name('noticias.imagen.ver')->middleware('can:noticias.ver');
+            Route::post('/noticias/{uuid}/imagen', [PanelNoticiaController::class, 'subirImagen'])
+                ->name('noticias.imagen')->middleware('can:noticias.editar');
+
+            // Imágenes del editor (noticias, políticas o entidad: la petición valida que quien sube
+            // pueda editar el contenido al que va la imagen).
+            Route::post('/contenido/imagenes', [ImagenContenidoController::class, 'store'])
+                ->name('contenido.imagenes.store');
+
+            // Archivos — gestión de archivos subidos.
             Route::get('/entidad/{modelUuid}/archivos', [ArchivoController::class, 'index'])
-                ->name('archivos.index')
-                ->middleware('can:archivos.ver');
+                ->name('archivos.index')->middleware('can:archivos.ver');
             Route::post('/entidad/{modelUuid}/archivos', [ArchivoController::class, 'store'])
-                ->name('archivos.store')
-                ->middleware('can:archivos.crear');
+                ->name('archivos.store')->middleware('can:archivos.crear');
             Route::get('/archivos/{uuid}', [ArchivoController::class, 'show'])
-                ->name('archivos.show')
-                ->middleware('can:archivos.ver');
+                ->name('archivos.show')->middleware('can:archivos.ver');
             Route::delete('/archivos/{uuid}', [ArchivoController::class, 'destroy'])
-                ->name('archivos.destroy')
-                ->middleware('can:archivos.eliminar');
+                ->name('archivos.destroy')->middleware('can:archivos.eliminar');
         });
     });
 });

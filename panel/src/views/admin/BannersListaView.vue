@@ -9,6 +9,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import BaseBadge from '@/components/base/BaseBadge.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
+import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
 import { listar, ordenar } from '@/services/banners'
 import type { BannerPanelItem, EstadoBanner } from '@/types/api'
 import { tomarAviso } from './avisos'
@@ -19,6 +20,7 @@ const filas = ref<BannerPanelItem[]>([])
 const cargando = ref(true)
 const errorCarga = ref<string | null>(null)
 const aviso = ref<string | null>(tomarAviso())
+const { puedeCrear, puedeEditar } = usePermisosDeModulo('banners')
 const errorOrden = ref<string | null>(null)
 const guardandoOrden = ref(false)
 const anuncio = ref('')
@@ -78,11 +80,12 @@ const claseBoton =
       <div>
         <h1 class="text-xl font-semibold text-slate-900">Carrusel de la portada</h1>
         <p class="mt-1 max-w-2xl text-sm text-slate-600">
-          Las diapositivas se muestran en este orden, de arriba hacia abajo. Use «Subir» y «Bajar» para cambiarlo.
+          Las diapositivas se muestran en este orden, de arriba hacia abajo. {{ puedeEditar ? 'Use «Subir» y «Bajar» para cambiarlo.' : '' }}
           Solo se ven en el sitio las que están publicadas y dentro de sus fechas.
         </p>
       </div>
       <RouterLink
+        v-if="puedeCrear"
         :to="{ name: 'panel.banners.nuevo' }"
         class="inline-flex h-10 items-center gap-2 rounded-lg bg-gov-blue px-4 text-sm font-medium text-white hover:bg-gov-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue focus-visible:ring-offset-2"
       >
@@ -144,6 +147,7 @@ const claseBoton =
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <button
+            v-if="puedeEditar"
             type="button"
             :class="claseBoton"
             :disabled="i === 0 || guardandoOrden"
@@ -153,6 +157,7 @@ const claseBoton =
             <FaIcon icon="arrow-up" class="h-4 w-4" aria-hidden="true" />
           </button>
           <button
+            v-if="puedeEditar"
             type="button"
             :class="claseBoton"
             :disabled="i === filas.length - 1 || guardandoOrden"
@@ -163,10 +168,10 @@ const claseBoton =
           </button>
           <RouterLink
             :to="{ name: 'panel.banners.editar', params: { uuid: b.uuid } }"
-            :aria-label="`Editar «${b.titulo}»`"
+            :aria-label="`${puedeEditar ? 'Editar' : 'Ver'} «${b.titulo}»`"
             class="inline-flex h-10 items-center rounded-lg px-3 text-sm font-medium text-gov-blue ring-1 ring-slate-300 hover:bg-gov-blue-light focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue"
           >
-            Editar
+            {{ puedeEditar ? 'Editar' : 'Ver' }}
           </RouterLink>
         </div>
       </li>

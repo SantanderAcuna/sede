@@ -10,6 +10,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { AxiosError } from 'axios'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 vi.mock('../src/services/noticias', () => ({
@@ -127,6 +128,7 @@ async function rellenar(wrapper: Montado) {
 const PNG = new File([new Uint8Array([137, 80, 78, 71])], 'foto.png', { type: 'image/png' })
 
 beforeEach(() => {
+  conSesion()
   vi.clearAllMocks()
   vi.stubGlobal('confirm', vi.fn(() => true))
   URL.createObjectURL = vi.fn(() => 'blob:prueba')

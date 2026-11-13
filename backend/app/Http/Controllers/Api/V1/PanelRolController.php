@@ -14,10 +14,12 @@ use App\Models\User;
 use App\Support\Acceso\CatalogoPermisos;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Gate;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 /**
- * Roles y el catálogo de permisos. Requiere `usuarios.gestionar`.
+ * Roles y el catálogo de permisos. Cada acción exige su permiso (ver `CatalogoPermisos`).
  *
  * @tags Panel — Roles
  */
@@ -32,6 +34,8 @@ final class PanelRolController extends Controller
      */
     public function index(): JsonResponse
     {
+        Gate::authorize('viewAny', Role::class);
+
         return ApiResponse::ok(RolPanelResource::collection($this->roles->listar())->resolve());
     }
 
@@ -42,6 +46,8 @@ final class PanelRolController extends Controller
      */
     public function permisos(): JsonResponse
     {
+        Gate::authorize('viewAny', Role::class);
+
         /** @var list<string> $nombres */
         $nombres = Permission::query()->where('guard_name', 'web')->orderBy('name')->pluck('name')->all();
 
@@ -56,10 +62,12 @@ final class PanelRolController extends Controller
     public function show(int $id): JsonResponse
     {
         $rol = $this->roles->porId($id);
+        if ($rol === null) {
+            return ApiResponse::notFound('El rol no existe.');
+        }
+        Gate::authorize('view', $rol);
 
-        return $rol === null
-            ? ApiResponse::notFound('El rol no existe.')
-            : ApiResponse::ok((new RolPanelResource($rol))->resolve());
+        return ApiResponse::ok((new RolPanelResource($rol))->resolve());
     }
 
     /**
@@ -69,6 +77,8 @@ final class PanelRolController extends Controller
      */
     public function store(GuardarRolRequest $peticion): JsonResponse
     {
+        Gate::authorize('create', Role::class);
+
         try {
             /** @var list<string> $permisos */
             $permisos = $peticion->validated('permisos', []);
@@ -91,6 +101,7 @@ final class PanelRolController extends Controller
         if ($rol === null) {
             return ApiResponse::notFound('El rol no existe.');
         }
+        Gate::authorize('update', $rol);
 
         try {
             /** @var list<string>|null $permisos */
@@ -114,6 +125,7 @@ final class PanelRolController extends Controller
         if ($rol === null) {
             return ApiResponse::notFound('El rol no existe.');
         }
+        Gate::authorize('delete', $rol);
 
         try {
             $this->roles->eliminar($this->actor(), $rol);

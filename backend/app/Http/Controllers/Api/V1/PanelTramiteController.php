@@ -19,7 +19,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * Gestión de los trámites desde el panel. Requiere `tramites.gestionar`.
+ * Gestión de los trámites desde el panel. Cada acción exige su permiso (ver `CatalogoPermisos`).
  *
  * Un trámite puede existir incompleto (borrador); solo se publica con la ficha de GOV.CO y los
  * seis atributos que el sitio exige. Al editar uno del catálogo oficial queda marcado como
@@ -70,6 +70,10 @@ final class PanelTramiteController extends Controller
     public function store(GuardarTramiteRequest $peticion): JsonResponse
     {
         Gate::authorize('create', Tramite::class);
+        // Publicar es un permiso aparte: crear no basta para dejar un trámite a la vista del público.
+        if ($peticion->boolean('publicado')) {
+            Gate::authorize('publish', Tramite::class);
+        }
 
         try {
             $tramite = $this->tramites->crear($peticion->datos());
@@ -92,6 +96,10 @@ final class PanelTramiteController extends Controller
             return ApiResponse::notFound('El trámite no existe.');
         }
         Gate::authorize('update', $tramite);
+        // Publicar o retirar exige el permiso de publicar; guardar igual que está, no.
+        if ($peticion->has('publicado') && $peticion->boolean('publicado') !== ($tramite->publicado_en !== null)) {
+            Gate::authorize('publish', $tramite);
+        }
 
         try {
             $tramite = $this->tramites->actualizar($tramite, $peticion->datos());

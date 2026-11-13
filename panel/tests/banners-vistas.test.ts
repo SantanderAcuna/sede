@@ -7,6 +7,7 @@
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 vi.mock('../src/services/banners', () => ({
@@ -71,16 +72,20 @@ async function montarForm(uuid?: string) {
   return { wrapper, router }
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  conSesion()
+})
 
 describe('permiso y rutas', () => {
-  it('el módulo exige banners.gestionar', () => {
-    expect(PERMISO_POR_RUTA['/contenidos/carrusel']).toBe('banners.gestionar')
+  it('el módulo se abre con banners.ver', () => {
+    expect(PERMISO_POR_RUTA['/contenidos/carrusel']).toBe('banners.ver')
   })
-  it('las tres rutas existen con ese permiso', () => {
-    for (const nombre of ['panel.banners', 'panel.banners.nuevo', 'panel.banners.editar']) {
+  it('las tres rutas existen: lista y edición piden «ver», y la de nueva pide «crear»', () => {
+    const esperado = { 'panel.banners': 'banners.ver', 'panel.banners.nuevo': 'banners.crear', 'panel.banners.editar': 'banners.ver' }
+    for (const [nombre, permiso] of Object.entries(esperado)) {
       const r = enrutadorReal.getRoutes().find((x) => x.name === nombre)
-      expect(r?.meta.permiso).toBe('banners.gestionar')
+      expect(r?.meta.permiso).toBe(permiso)
     }
   })
 })

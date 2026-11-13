@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Support\Acceso\CatalogoPermisos;
 use App\Support\Acceso\ReglasDeAcceso;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /** Alta (POST) y cambio (PATCH) de un rol con sus permisos. */
 final class GuardarRolRequest extends FormRequest
@@ -31,6 +33,24 @@ final class GuardarRolRequest extends FormRequest
             'permisos' => ['sometimes', 'array'],
             'permisos.*' => ['string', Rule::exists('permissions', 'name')],
         ];
+    }
+
+    /**
+     * Toda acción distinta de «ver» exige «ver» del mismo módulo: sin poder abrir el registro no hay
+     * dónde actuar. El panel marca «ver» solo; esto es la comprobación del servidor.
+     *
+     * @return array<int, callable>
+     */
+    public function after(): array
+    {
+        return [function (Validator $validador): void {
+            /** @var list<string> $permisos */
+            $permisos = array_values(array_filter((array) $this->input('permisos', []), 'is_string'));
+            $faltan = CatalogoPermisos::faltantes($permisos);
+            if ($faltan !== []) {
+                $validador->errors()->add('permisos', 'Para dar una acción de un módulo hay que dar también «Ver» de ese módulo. Falta: '.implode(', ', $faltan).'.');
+            }
+        }];
     }
 
     /** @return array<string, string> */

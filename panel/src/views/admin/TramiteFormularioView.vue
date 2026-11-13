@@ -50,6 +50,7 @@ import {
   SOLICITANTES,
   type FormularioTramite,
 } from './tramites-logica'
+import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
 
 const ruta = useRoute()
 const enrutador = useRouter()
@@ -76,6 +77,9 @@ let saliendo = false
 let resumenLocal = false
 
 const esNuevo = computed(() => uuid.value === null)
+const { puedeEditar, puedePublicar, puedeEliminar } = usePermisosDeModulo('tramites')
+/** Solo puede consultar: tiene «ver» pero no «editar». Al crear uno nuevo se exige «crear» en la ruta. */
+const soloLectura = computed(() => !esNuevo.value && !puedeEditar.value)
 const hayCambios = computed(() => hayCambiosEn(formulario.value, original))
 const faltantes = computed(() => faltaParaPublicar(formulario.value))
 const conCosto = computed(() => formulario.value.tiene_costo === 'con_costo')
@@ -328,6 +332,11 @@ const tarjeta = 'space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-
     </div>
 
     <form v-else class="space-y-6" novalidate @submit.prevent="guardar">
+      <p v-if="soloLectura" class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900" data-solo-lectura>
+        Está en modo de consulta: su rol puede ver este registro pero no modificarlo.
+      </p>
+
+      <fieldset :disabled="soloLectura" class="m-0 min-w-0 space-y-6 border-0 p-0">
       <div
         v-if="motivos.length > 0"
         ref="resumen"
@@ -538,26 +547,29 @@ const tarjeta = 'space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-
         </div>
         <fieldset>
           <legend class="text-sm font-medium text-slate-700">¿Qué quiere hacer con este trámite?</legend>
+          <p v-if="!puedePublicar" class="mt-1 text-xs text-amber-800" data-sin-publicar>Su rol no puede publicar ni retirar: el contenido sigue en el estado en que está.</p>
           <div class="mt-2 space-y-2">
             <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 has-[:checked]:border-gov-blue has-[:checked]:bg-gov-blue-light">
-              <input v-model="publicar" type="radio" name="estado-tramite" value="borrador" class="mt-1 h-4 w-4">
+              <input v-model="publicar" type="radio" :disabled="!puedePublicar" name="estado-tramite" value="borrador" class="mt-1 h-4 w-4">
               <span class="text-sm text-slate-800"><strong>Guardar como borrador.</strong> No se ve en el sitio; si ya estaba publicado, se retira.</span>
             </label>
             <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 has-[:checked]:border-gov-blue has-[:checked]:bg-gov-blue-light">
-              <input v-model="publicar" type="radio" name="estado-tramite" value="publicar" class="mt-1 h-4 w-4">
+              <input v-model="publicar" type="radio" :disabled="!puedePublicar" name="estado-tramite" value="publicar" class="mt-1 h-4 w-4">
               <span class="text-sm text-slate-800"><strong>Publicar.</strong> Se ve en el sitio con su ficha. Necesita todo lo de la lista de arriba.</span>
             </label>
           </div>
         </fieldset>
       </section>
 
-      <section v-if="!esNuevo && tramite" class="rounded-xl border border-red-200 bg-white p-5 sm:p-6" aria-labelledby="t-peligro-h">
+      </fieldset>
+
+      <section v-if="!esNuevo && tramite && puedeEliminar" class="rounded-xl border border-red-200 bg-white p-5 sm:p-6" aria-labelledby="t-peligro-h">
         <h2 id="t-peligro-h" class="font-medium text-red-800">Zona de peligro</h2>
         <p class="mt-1 text-sm text-slate-600">Eliminar quita el trámite del sitio y de este listado. No se puede deshacer desde el panel.</p>
         <BaseButton class="mt-3" variant="danger" @click="confirmandoEliminar = true">Eliminar trámite</BaseButton>
       </section>
 
-      <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:sticky lg:inset-x-auto lg:rounded-xl lg:border">
+      <div v-if="!soloLectura" class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:sticky lg:inset-x-auto lg:rounded-xl lg:border">
         <div class="mx-auto flex max-w-4xl flex-wrap items-center justify-end gap-3">
           <span v-if="hayCambios" class="mr-auto text-sm font-medium text-amber-700">Hay cambios sin guardar</span>
           <RouterLink :to="{ name: 'tramites' }" class="inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50">

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Api\V1;
 
 use App\Models\User;
+use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,7 @@ final class NoticiasContenidoHtmlTest extends TestCase
     private function editor(): User
     {
         $u = User::factory()->create();
-        $u->givePermissionTo('noticias.gestionar');
+        $u->givePermissionTo(CatalogoPermisos::de('noticias'));
 
         return $u;
     }

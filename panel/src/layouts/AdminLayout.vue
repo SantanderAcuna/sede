@@ -87,7 +87,8 @@ const grupos: GrupoNavegacion[] = [
     id: 'admin',
     label: 'Administración',
     items: [
-      { label: 'Usuarios y Roles', ruta: '/usuarios', icono: 'users' },
+      { label: 'Usuarios', ruta: '/usuarios', icono: 'users' },
+      { label: 'Roles y permisos', ruta: '/usuarios/roles', icono: 'shield-halved' },
       { label: 'Auditoría', ruta: '/auditoria', icono: 'magnifying-glass' },
       { label: 'Reportes', ruta: '/reportes', icono: 'chart-line' },
       { label: 'Motor de asignación', ruta: '/asignacion', icono: 'sliders' },
@@ -163,7 +164,11 @@ const sesion = useSesionStore()
 
 /** Una ruta está activa cuando la actual es ella o cuelga de ella. */
 function estaActiva(destino: string): boolean {
-  return destino === '/' ? ruta.path === '/' : ruta.path.startsWith(destino)
+  if (destino === '/') return ruta.path === '/'
+  const coincide = (r: string): boolean => ruta.path === r || ruta.path.startsWith(`${r}/`)
+  if (!coincide(destino)) return false
+  // «/usuarios/roles» cuelga de «/usuarios», pero solo el item más específico se marca activo.
+  return !grupos.some((g) => g.items.some((i) => i.ruta.length > destino.length && coincide(i.ruta)))
 }
 
 function grupoAbierto(id: string): boolean {

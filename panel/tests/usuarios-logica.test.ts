@@ -78,15 +78,15 @@ describe('cambiosDeUsuario', () => {
 })
 
 describe('lo que la interfaz ofrece según quien administra', () => {
-  const editor = rol('editor', ['noticias.gestionar'])
-  const poderoso = rol('poderoso', ['noticias.gestionar', 'entidad.gestionar'])
+  const editor = rol('editor', ['noticias.ver'])
+  const poderoso = rol('poderoso', ['noticias.ver', 'entidad.ver'])
   const sup = rol('super-admin', [], { protegido: true })
 
   it('un súper administrador asigna cualquier rol', () => {
     expect(rolesAsignables([editor, poderoso, sup], { esSuper: true, permisos: [] }).map((r) => r.name)).toEqual(['editor', 'poderoso', 'super-admin'])
   })
   it('los demás solo roles dentro de sus permisos y nunca super-admin', () => {
-    const ofrecidos = rolesAsignables([editor, poderoso, sup], { esSuper: false, permisos: ['noticias.gestionar', 'usuarios.gestionar'] })
+    const ofrecidos = rolesAsignables([editor, poderoso, sup], { esSuper: false, permisos: ['noticias.ver', 'usuarios.ver'] })
     expect(ofrecidos.map((r) => r.name)).toEqual(['editor'])
   })
   it('solo un súper administrador administra a otro', () => {

@@ -34,6 +34,7 @@ import {
   type FormularioNoticia,
 } from './noticias-logica'
 import { motivosDeError } from './politicas-logica'
+import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
 
 const ruta = useRoute()
 const enrutador = useRouter()
@@ -67,6 +68,9 @@ const errorEliminar = ref<string | null>(null)
 let saliendo = false
 
 const esNueva = computed(() => uuid.value === null)
+const { puedeEditar, puedePublicar, puedeEliminar } = usePermisosDeModulo('noticias')
+/** Solo puede consultar: tiene «ver» pero no «editar». Al crear uno nuevo se exige «crear» en la ruta. */
+const soloLectura = computed(() => !esNueva.value && !puedeEditar.value)
 const tieneImagen = computed(() => noticia.value?.imagen != null)
 const mostrarAlt = computed(() => tieneImagen.value || imagenElegida.value !== null)
 const hayCambios = computed(() => hayCambiosEn(formulario.value, original) || imagenElegida.value !== null)
@@ -353,6 +357,11 @@ watch(
     </div>
 
     <form v-else class="space-y-6" novalidate @submit.prevent="guardar">
+      <p v-if="soloLectura" class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900" data-solo-lectura>
+        Está en modo de consulta: su rol puede ver este registro pero no modificarlo.
+      </p>
+
+      <fieldset :disabled="soloLectura" class="m-0 min-w-0 space-y-6 border-0 p-0">
       <div
         v-if="motivos.length > 0"
         ref="resumen"
@@ -401,7 +410,7 @@ watch(
             {{ caracteresRestantes(formulario.descripcion_corta, DESCRIPCION_MAX) }} caracteres disponibles (máximo {{ DESCRIPCION_MAX }})
           </p>
         </div>
-        <EditorTexto v-model="formulario.contenido" label="Contenido" required :error="errorDe('contenido')" hint="Escriba el texto y use los botones de arriba para dar formato: títulos, negrita, listas, enlaces e imágenes." />
+        <EditorTexto v-model="formulario.contenido" :disabled="soloLectura" label="Contenido" required :error="errorDe('contenido')" hint="Escriba el texto y use los botones de arriba para dar formato: títulos, negrita, listas, enlaces e imágenes." />
       </section>
 
       <section class="space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="noticia-imagen">
@@ -435,13 +444,14 @@ watch(
         </div>
         <fieldset>
           <legend class="text-sm font-medium text-slate-700">¿Qué quiere hacer con esta noticia?</legend>
+          <p v-if="!puedePublicar" class="mt-1 text-xs text-amber-800" data-sin-publicar>Su rol no puede publicar ni retirar: el contenido sigue en el estado en que está.</p>
           <div class="mt-2 space-y-2">
             <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 has-[:checked]:border-gov-blue has-[:checked]:bg-gov-blue-light">
-              <input v-model="publicar" type="radio" name="estado-noticia" value="borrador" class="mt-1 h-4 w-4">
+              <input v-model="publicar" type="radio" :disabled="!puedePublicar" name="estado-noticia" value="borrador" class="mt-1 h-4 w-4">
               <span class="text-sm text-slate-800"><strong>Guardar como borrador.</strong> No se ve en el sitio. Puede seguir editándola.</span>
             </label>
             <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 has-[:checked]:border-gov-blue has-[:checked]:bg-gov-blue-light">
-              <input v-model="publicar" type="radio" name="estado-noticia" value="publicar" class="mt-1 h-4 w-4">
+              <input v-model="publicar" type="radio" :disabled="!puedePublicar" name="estado-noticia" value="publicar" class="mt-1 h-4 w-4">
               <span class="text-sm text-slate-800"><strong>Publicar.</strong> Se ve en el sitio desde la fecha indicada. Necesita imagen y su descripción.</span>
             </label>
           </div>
@@ -451,13 +461,15 @@ watch(
         </fieldset>
       </section>
 
-      <section v-if="!esNueva && noticia" class="rounded-xl border border-red-200 bg-white p-5 sm:p-6" aria-labelledby="noticia-peligro">
+      </fieldset>
+
+      <section v-if="!esNueva && noticia && puedeEliminar" class="rounded-xl border border-red-200 bg-white p-5 sm:p-6" aria-labelledby="noticia-peligro">
         <h2 id="noticia-peligro" class="font-medium text-red-800">Zona de peligro</h2>
         <p class="mt-1 text-sm text-slate-600">Eliminar quita la noticia del sitio. No se puede deshacer desde el panel.</p>
         <BaseButton class="mt-3" variant="danger" @click="confirmandoEliminar = true">Eliminar noticia</BaseButton>
       </section>
 
-      <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:left-auto lg:sticky lg:inset-x-auto lg:rounded-xl lg:border">
+      <div v-if="!soloLectura" class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:left-auto lg:sticky lg:inset-x-auto lg:rounded-xl lg:border">
         <div class="mx-auto flex max-w-3xl flex-wrap items-center justify-end gap-3">
           <span v-if="hayCambios" class="mr-auto text-sm font-medium text-amber-700">Hay cambios sin guardar</span>
           <RouterLink :to="{ name: 'panel.noticias' }" class="inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50">

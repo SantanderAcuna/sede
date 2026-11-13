@@ -268,8 +268,8 @@ services:
       # mount/volume» y SE NIEGA A ARRANCAR: el mensaje lo explica, pero hay que
       # leerlo entero para ver que no es un problema de datos.
       - datos-postgres:/var/lib/postgresql
-      - ./docker/postgres/entrypoint-tls.sh:/usr/local/bin/entrypoint-tls.sh:ro
-      - ${SEDE_DB_CERTS_DIR:-./docker/postgres/certs}:/tls:ro
+      - ./docker/postgres/entrypoint-tls.sh:/usr/local/bin/entrypoint-tls.sh:ro,z
+      - ${SEDE_DB_CERTS_DIR:-./docker/postgres/certs}:/tls:ro,z
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]

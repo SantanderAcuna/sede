@@ -151,6 +151,18 @@ pila: ## Comprueba que la pila se resuelve sin levantar nada
 arriba: ## Levanta la pila de desarrollo
 	docker compose up -d
 
+.PHONY: local
+local: ## Pila completa en Docker con roles de BD, migrada y sembrada (scripts/local.sh)
+	bash scripts/local.sh arriba
+
+.PHONY: local-abajo
+local-abajo: ## Detiene la pila local (conserva los datos)
+	bash scripts/local.sh abajo
+
+.PHONY: local-limpio
+local-limpio: ## Detiene la pila local y BORRA sus datos
+	bash scripts/local.sh limpio
+
 .PHONY: abajo
 abajo: ## Detiene la pila de desarrollo
 	docker compose down

@@ -15,6 +15,8 @@ Dónde corre cada comando: **[SERVIDOR]** dentro de `ssh -t` al servidor de stag
 | `pg_dump` 18 | `docker/app/Dockerfile` | Cliente de PostgreSQL de la misma serie que el servidor; la construcción falla si no es la 18 |
 | Quién ejecuta | servicio `scheduler` | Es el único proceso con la agenda (`schedule:work`) |
 | Vía manual | servicio `copia` (perfil `copias`) | `docker compose --profile copias run --rm copia` |
+| Rol de la base | `backend/config/database.php` (`pgsql_copia`) | La copia lee con el rol **`sede_lectura`** (sólo SELECT), no con el dueño ni con la aplicación. Verificado: `pg_dump -Fc` completo funciona con este rol (ADR-0004) |
+
 
 El orden de la agenda es deliberado: se limpia **antes** de copiar para que la limpieza no borre la copia recién hecha por un límite de espacio, y se vigila **después**, cuando la de la noche ya debió terminar.
 

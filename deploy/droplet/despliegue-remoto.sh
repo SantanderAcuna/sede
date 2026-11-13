@@ -161,7 +161,7 @@ SECRETOS="/etc/sede/$ENTORNO.secretos.env"
 # guarda de la canalización lo comprueba. Obligatorio = tiene que estar y no puede
 # estar vacío; reconocido = puede faltar, y entonces se renderiza vacío (así declara la
 # plantilla una integración apagada).
-SECRETOS_OBLIGATORIOS="APP_KEY DB_PASSWORD REDIS_PASSWORD BACKUP_PASSPHRASE"
+SECRETOS_OBLIGATORIOS="APP_KEY DB_PASSWORD DB_APP_PASSWORD DB_LECTURA_PASSWORD REDIS_PASSWORD BACKUP_PASSPHRASE"
 SECRETOS_RECONOCIDOS="SUPER_ADMIN_EMAIL SUPER_ADMIN_NAME SUPER_ADMIN_PASSWORD
 S3_ACCESS_KEY S3_SECRET_KEY MAIL_USERNAME MAIL_PASSWORD IDENTIDAD_CLIENTE_ID
 IDENTIDAD_CLIENTE_SECRETO SEDE_PAGOS_SECRETO SEDE_CORREO_CERTIFICADO_SECRETO
@@ -464,7 +464,9 @@ verde "  imágenes traídas"
 
 # Las migraciones van ANTES de servir: una aplicación nueva contra un esquema
 # viejo falla en la primera petición del ciudadano.
-if ! $COMPOSE run --rm app php artisan migrate --force; then
+# Con el rol DUEÑO (servicio `migrar`): la aplicación usa `sede_app`, que no puede
+# alterar el esquema (Fase 0A, D-0.1). También crea/actualiza los roles de la base.
+if ! $COMPOSE --profile migrar run --rm migrar; then
   rojo "Fallaron las migraciones."
   volver_atras || true
   exit 1

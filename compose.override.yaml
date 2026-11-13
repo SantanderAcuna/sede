@@ -7,6 +7,11 @@
 services:
 
   nginx:
+    # La imagen de nginx recibe el panel como contexto con nombre (ver su Dockerfile). En
+    # local es la imagen `sede-panel:dev` que construye `scripts/local.sh` antes de levantar.
+    build:
+      additional_contexts:
+        panel: docker-image://sede-panel:dev
     # Se remapan los puertos porque el 80 y el 443 del anfitrión pueden estar
     # ocupados. Los puertos INTERNOS de los contenedores no cambian.
     ports:
@@ -14,7 +19,7 @@ services:
       - "8443:443"
     volumes:
       # La SPA servida desde disco, montada en vivo.
-      - ./panel/dist:/usr/share/nginx/panel:ro
+      - ./panel/dist:/usr/share/nginx/panel:ro,z
 
   app:
     build:
@@ -26,11 +31,11 @@ services:
 
   postgres:
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PUERTO_LOCAL:-5432}:5432"
 
   redis:
     ports:
-      - "6379:6379"
+      - "${REDIS_PUERTO_LOCAL:-6379}:6379"
 
   # Las colas y el programador no arrancan por defecto en desarrollo: se
   # levantan sólo cuando se trabaja con ellas.

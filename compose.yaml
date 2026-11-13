@@ -27,6 +27,11 @@ x-comun-app: &comun-app
   # arrancar: un fallo tardío y sin nombre se descubre en producción.
   environment:
     APP_KEY: ${APP_KEY:?La clave de la aplicación es obligatoria}
+    # La aplicación NO usa al dueño de la base (Fase 0A, D-0.1): `DB_USERNAME`/`DB_PASSWORD`
+    # del `.env` son del dueño y aquí se SUSTITUYEN por el rol de DML. Así el entorno del
+    # contenedor nunca lleva la clave del dueño. `environment` gana sobre `env_file`.
+    DB_USERNAME: ${DB_APP_USERNAME:-sede_app}
+    DB_PASSWORD: ${DB_APP_PASSWORD:?La clave del rol de la aplicación (DB_APP_PASSWORD) es obligatoria}
   env_file:
     # El archivo se deja OPCIONAL a propósito. Los valores también pueden llegar
     # por el entorno del proceso, que es como los inyecta la canalización. Exigir
@@ -75,7 +80,7 @@ services:
     volumes:
       # Los certificados se montan en sólo lectura: el contenedor no debe poder
       # modificarlos ni ver la clave de la autoridad.
-      - ${SEDE_CERTS_DIR:-./docker/nginx/certs}:/etc/nginx/certs:ro
+      - ${SEDE_CERTS_DIR:-./docker/nginx/certs}:/etc/nginx/certs:ro,z
       - certbot-webroot:/var/www/certbot:ro
     read_only: true
     tmpfs:
@@ -126,6 +131,13 @@ services:
   scheduler:
     <<: *comun-app
     command: ["php", "artisan", "schedule:work"]
+    # La copia nocturna se hace con el rol de SÓLO LECTURA (conexión `pgsql_copia`).
+    environment:
+      APP_KEY: ${APP_KEY:?La clave de la aplicación es obligatoria}
+      DB_USERNAME: ${DB_APP_USERNAME:-sede_app}
+      DB_PASSWORD: ${DB_APP_PASSWORD:?La clave del rol de la aplicación (DB_APP_PASSWORD) es obligatoria}
+      DB_COPIA_USERNAME: ${DB_LECTURA_USERNAME:-sede_lectura}
+      DB_COPIA_PASSWORD: ${DB_LECTURA_PASSWORD:?La clave del rol de lectura (DB_LECTURA_PASSWORD) es obligatoria}
     mem_limit: 256m
     pids_limit: 128
     # Además de lo común, monta las copias de seguridad: ESTE es el proceso que
@@ -238,11 +250,12 @@ services:
       - "log_checkpoints=on"
       - -c
       - "log_lock_waits=on"
-      - -c
-      - "ssl=off"
+    # `ssl` lo decide el guion según POSTGRES_SSL (por defecto, apagado).
+    entrypoint: ["/usr/local/bin/entrypoint-tls.sh"]
     restart: unless-stopped
     networks: [data]
     environment:
+      POSTGRES_SSL: ${POSTGRES_SSL:-off}
       POSTGRES_DB: ${DB_DATABASE:-sede}
       POSTGRES_USER: ${DB_USERNAME:-sede}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?La contraseña de la base es obligatoria}
@@ -255,6 +268,8 @@ services:
       # mount/volume» y SE NIEGA A ARRANCAR: el mensaje lo explica, pero hay que
       # leerlo entero para ver que no es un problema de datos.
       - datos-postgres:/var/lib/postgresql
+      - ./docker/postgres/entrypoint-tls.sh:/usr/local/bin/entrypoint-tls.sh:ro,z
+      - ${SEDE_DB_CERTS_DIR:-./docker/postgres/certs}:/tls:ro,z
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
@@ -332,10 +347,31 @@ services:
     environment:
       APP_KEY: ${APP_KEY:?La clave de la aplicación es obligatoria}
       BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:?La frase de paso de las copias es obligatoria}
+      DB_USERNAME: ${DB_APP_USERNAME:-sede_app}
+      DB_PASSWORD: ${DB_APP_PASSWORD:?La clave del rol de la aplicación (DB_APP_PASSWORD) es obligatoria}
+      DB_COPIA_USERNAME: ${DB_LECTURA_USERNAME:-sede_lectura}
+      DB_COPIA_PASSWORD: ${DB_LECTURA_PASSWORD:?La clave del rol de lectura (DB_LECTURA_PASSWORD) es obligatoria}
     volumes:
       - almacenamiento-app:/app/storage
       - cache-app:/app/bootstrap/cache
       - copias:/copias
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # Migraciones, con el rol DUEÑO (Fase 0A, D-0.1). Es el ÚNICO servicio que lleva la
+  # clave del dueño. `docker compose --profile migrar run --rm migrar`. Crea o
+  # actualiza además los roles `sede_app` y `sede_lectura` (migración de roles).
+  # ---------------------------------------------------------------------------
+  migrar:
+    <<: *comun-app
+    profiles: ["migrar"]
+    command: ["sh", "-c", "php artisan migrate --database=pgsql_migracion --force && php artisan bd:sincronizar-roles --database=pgsql_migracion"]
+    environment:
+      APP_KEY: ${APP_KEY:?La clave de la aplicación es obligatoria}
+      DB_MIGRATION_USERNAME: ${DB_USERNAME:-sede}
+      DB_MIGRATION_PASSWORD: ${DB_PASSWORD:?La clave del dueño de la base es obligatoria}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?La clave del rol de la aplicación (DB_APP_PASSWORD) es obligatoria}
+      DB_LECTURA_PASSWORD: ${DB_LECTURA_PASSWORD:?La clave del rol de lectura (DB_LECTURA_PASSWORD) es obligatoria}
     restart: "no"
 
 networks:

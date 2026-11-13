@@ -158,3 +158,37 @@ export function slugsAdoptados(crudo: unknown, conocidos: readonly string[]): st
   }
   return adoptados
 }
+
+/** Una política propia de la Entidad, publicada, tal como se enlaza (pie, índice, mapa, sitemap). */
+export interface PoliticaPropia {
+  slug: string
+  nombre: string
+}
+
+const SLUG_VALIDO = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+/**
+ * Las políticas publicadas que **no** son de las cinco obligatorias, a partir de la respuesta de
+ * `GET /politicas` (una lista en `data`) o de `GET /identidad/footer` (`data.politicas`).
+ *
+ * La API solo entrega las publicadas —y una propia solo se publica adoptada—, así que aquí no se
+ * vuelve a juzgar su estado. Es lectura defensiva: lo que no tiene slug válido o nombre se descarta
+ * y una respuesta rara no anuncia nada.
+ */
+export function politicasPropiasDesdeApi(crudo: unknown, conocidos: readonly string[]): PoliticaPropia[] {
+  if (typeof crudo !== 'object' || crudo === null) return []
+  const datos = (crudo as { data?: unknown }).data
+  const lista = Array.isArray(datos) ? datos : (datos as { politicas?: unknown } | null)?.politicas
+  if (!Array.isArray(lista)) return []
+
+  const propias: PoliticaPropia[] = []
+  for (const elemento of lista) {
+    if (typeof elemento !== 'object' || elemento === null) continue
+    const { slug, nombre } = elemento as Record<string, unknown>
+    if (typeof slug !== 'string' || !SLUG_VALIDO.test(slug) || conocidos.includes(slug)) continue
+    if (typeof nombre !== 'string' || nombre.trim() === '') continue
+    if (propias.some((p) => p.slug === slug)) continue
+    propias.push({ slug, nombre: nombre.trim() })
+  }
+  return propias
+}

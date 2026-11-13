@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\Entidad;
+use App\Models\Politica;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -44,7 +45,7 @@ final class EntidadResource extends JsonResource
             'dominio' => $this->dominio,
             'logo' => $this->logo,
             'redes' => $this->redes ?? [],
-            'politicas' => $this->politicas ?? [],
+            'politicas' => [...($this->politicas ?? []), ...Politica::enlacesExtraDelPie()],
             'datos_por_confirmar' => $this->datos_por_confirmar ?? [],
         ];
     }

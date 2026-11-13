@@ -16,7 +16,8 @@
 import type { MenuPrincipal } from '~/types/menu'
 import type { NivelMigaDePan } from '~/components/govco/MigaDePanGovco.vue'
 import { redesDesdeApi, REDES_RESPALDO, type RedDeApi } from '~/config/redes-sociales'
-import { etiquetaFueraDelMenu, menuPrincipal } from '~/config/sitemap'
+import { politicasPropiasDesdeApi, type PoliticaPropia } from '~/config/politicas-contenido'
+import { etiquetaFueraDelMenu, menuPrincipal, POLITICAS } from '~/config/sitemap'
 import { useFichaPrecargada } from '~/composables/useFichaPrecargada'
 import { construirMiga, tituloDeFicha } from '~/utils/miga'
 
@@ -46,15 +47,20 @@ const traer = useRequestFetch()
 const { data: pieDeApi } = await useAsyncData('pie-redes', async () => {
   try {
     const respuesta = await traer<{ data?: { redes?: RedDeApi[] } }>(`${urlApi}/identidad/footer`)
-    return respuesta.data?.redes ?? []
+    return {
+      redes: respuesta.data?.redes ?? [],
+      // Las cinco obligatorias son fijas; el pie suma las que la Entidad haya publicado.
+      politicas: politicasPropiasDesdeApi(respuesta, POLITICAS.map((p) => p.slug)),
+    }
   } catch {
-    return []
+    return { redes: [] as RedDeApi[], politicas: [] as PoliticaPropia[] }
   }
 })
 const redesDelPie = computed(() => {
-  const redes = redesDesdeApi(pieDeApi.value)
+  const redes = redesDesdeApi(pieDeApi.value?.redes)
   return redes.length > 0 ? redes : REDES_RESPALDO
 })
+const politicasPropiasDelPie = computed(() => pieDeApi.value?.politicas ?? [])
 
 // Estado del modal de aviso de salida a sitio externo
 const { visible, enlacePendiente, origenDelAviso, confirmarNavegacion, cancelarNavegacion } =
@@ -292,7 +298,7 @@ const aplicacionesGaleria = [
         <slot />
       </main>
 
-      <PiePaginaGovco :redes-sociales="redesDelPie" />
+      <PiePaginaGovco :redes-sociales="redesDelPie" :politicas-propias="politicasPropiasDelPie" />
     </div>
 
     <VolverArriba />

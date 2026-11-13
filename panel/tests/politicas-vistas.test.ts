@@ -14,7 +14,9 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 vi.mock('../src/services/politicas', () => ({
   COLECCION_DOCUMENTO: 'documento-oficial',
   listar: vi.fn(),
+  crear: vi.fn(),
   actualizar: vi.fn(),
+  eliminar: vi.fn(),
   documentosAdjuntos: vi.fn(),
   adjuntarDocumento: vi.fn(),
   quitarArchivo: vi.fn(),
@@ -37,6 +39,8 @@ function politica(extra: Partial<PoliticaPanelItem> = {}): PoliticaPanelItem {
     vigente_desde: null,
     acto: { tipo: null, numero: null, fecha: null },
     es_ejemplo: true,
+    publicada: true,
+    es_base: true,
     documento_oficial: null,
     actualizada_en: '2026-10-29',
     secciones: [{ id: 'finalidad', titulo: 'Finalidad', parrafos: ['Uno.', 'Dos.'] }],
@@ -53,6 +57,7 @@ const enrutador = () =>
     history: createMemoryHistory(),
     routes: [
       { path: '/configuracion/politicas', name: 'panel.politicas', component: { template: '<i/>' } },
+      { path: '/configuracion/politicas/nueva', name: 'panel.politicas.nueva', component: { template: '<i/>' } },
       { path: '/configuracion/politicas/:slug', name: 'panel.politicas.editar', component: { template: '<i/>' } },
     ],
   })
@@ -132,9 +137,9 @@ describe('lista de políticas', () => {
     expect(editar.attributes('href')).toBe('/configuracion/politicas/uso-de-cookies')
   })
 
-  it('no ofrece crear ni eliminar: las cinco políticas son fijas', async () => {
+  it('las cinco obligatorias no ofrecen eliminar (crear está en politicas-crud.test.ts)', async () => {
     const { wrapper } = await montarLista()
-    expect(wrapper.text()).not.toMatch(/Nueva política|Eliminar/)
+    expect(wrapper.find('tbody button[aria-label*="Eliminar"]').exists()).toBe(false)
   })
 
   it('sin políticas cargadas dice qué pasa, no «Sin resultados»', async () => {

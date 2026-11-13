@@ -17,7 +17,7 @@ use Illuminate\Http\JsonResponse;
 final class PoliticaController extends Controller
 {
     /**
-     * Lista las cinco políticas, en el orden del pie de página, sin el texto.
+     * Lista las políticas publicadas (las cinco obligatorias y las propias), en el orden del pie de página, sin el texto.
      *
      * @operationId listarPoliticas
      */
@@ -25,8 +25,12 @@ final class PoliticaController extends Controller
     {
         $orden = array_keys(Politica::COMPONENTES);
 
-        $politicas = Politica::query()->get()
-            ->sortBy(static fn (Politica $p): int => (int) array_search($p->slug, $orden, true))
+        $politicas = Politica::query()->publicadas()->orderBy('id')->get()
+            ->sortBy(static function (Politica $p) use ($orden): int {
+                $posicion = array_search($p->slug, $orden, true);
+
+                return $posicion === false ? count($orden) + $p->id : $posicion;
+            })
             ->values()
             ->map(static function (Politica $p): array {
                 $doc = $p->comoArreglo();
@@ -46,7 +50,7 @@ final class PoliticaController extends Controller
      */
     public function show(string $slug): JsonResponse
     {
-        $politica = Politica::query()->where('slug', $slug)->first();
+        $politica = Politica::query()->publicadas()->where('slug', $slug)->first();
 
         return $politica === null
             ? ApiResponse::notFound('La política no existe.')

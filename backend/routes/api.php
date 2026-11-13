@@ -176,8 +176,12 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             // Políticas — edición del texto.
             Route::get('/politicas', [PanelPoliticaController::class, 'index'])
                 ->name('politicas.index')->middleware('can:politicas.ver');
+            Route::post('/politicas', [PanelPoliticaController::class, 'store'])
+                ->name('politicas.store')->middleware('can:politicas.crear');
             Route::patch('/politicas/{slug}', [PanelPoliticaController::class, 'update'])
                 ->name('politicas.update')->middleware('can:politicas.editar');
+            Route::delete('/politicas/{slug}', [PanelPoliticaController::class, 'destroy'])
+                ->name('politicas.destroy')->middleware('can:politicas.eliminar');
 
             // Trámites — alta, edición, eliminación y publicación.
             Route::get('/tramites', [PanelTramiteController::class, 'index'])

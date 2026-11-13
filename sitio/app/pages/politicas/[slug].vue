@@ -29,6 +29,9 @@ import {
 } from '~/config/politicas-contenido'
 import { POLITICAS as POLITICAS_DEL_SITIO } from '~/config/sitemap'
 import { useMetadatosComparticion } from '~/composables/useMetadatosComparticion'
+import { leerFicha, useFichaPrecargada } from '~/composables/useFichaPrecargada'
+import { usePoliticasPropias } from '~/composables/usePoliticasPropias'
+import { fichaDeRuta } from '~/utils/miga'
 
 interface Politica {
   /** Nombre con el que la política se publica y se enlaza desde el pie. */
@@ -90,9 +93,42 @@ function primerValor(valor: string | string[] | undefined): string {
 
 const slug = computed<string>(() => primerValor(ruta.params.slug))
 
-const politica = computed<Politica | null>(() => POLITICAS[slug.value] ?? null)
+/*
+ * El texto de la política, de la API. `useRequestFetch` por la misma razón que en el pie: en el
+ * servidor la URL relativa de la API se resuelve contra la petición en curso.
+ *
+ * Si el middleware de la miga de pan ya la leyó (`ficha-miga.global.ts`), se reutiliza esa lectura:
+ * una sola consulta por visita. Un `404` de la API (`null`) significa que no existe o que no está
+ * publicada (una política propia en borrador): para las cinco obligatorias no puede pasar, así que
+ * ahí se trata como fallo; para cualquier otro slug es una dirección inventada y responde 404 de verdad.
+ */
+const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
+const traer = useRequestFetch()
+const precargada = useFichaPrecargada()
+const ficha = fichaDeRuta(ruta.path)
+const esObligatoria = slug.value in POLITICAS
 
-if (politica.value === null) {
+const { data: lectura } = await useAsyncData<{ documento: PoliticaDelSitio | null; noExiste: boolean }>(
+  `politica-${slug.value}`,
+  async () => {
+    try {
+      const respuesta =
+        precargada.value?.clave === `politica-${slug.value}`
+          ? (precargada.value.respuesta as { data?: unknown } | null)
+          : ficha
+            ? await leerFicha<{ data?: unknown }>(traer as never, urlApi, ficha)
+            : null
+      if (respuesta === null) return { documento: null, noExiste: true }
+      return { documento: politicaDesdeApi(respuesta.data), noExiste: false }
+    } catch {
+      return { documento: null, noExiste: false }
+    }
+  },
+)
+
+const documento = computed(() => lectura.value?.documento ?? null)
+
+if (!esObligatoria && lectura.value?.noExiste !== false) {
   throw createError({
     statusCode: 404,
     // La frase viaja en la línea de estado del protocolo, que sólo admite ASCII
@@ -102,29 +138,20 @@ if (politica.value === null) {
   })
 }
 
-/*
- * El texto de la política, de la API. `useRequestFetch` por la misma razón que en
- * el pie: en el servidor la URL relativa de la API se resuelve contra la petición
- * en curso. Si la API no responde se avisa con un 503 y no con una página vacía
- * que parezca correcta.
- */
-const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-const traer = useRequestFetch()
-const { data: documento } = await useAsyncData<PoliticaDelSitio | null>(
-  `politica-${slug.value}`,
-  async () => {
-    try {
-      const respuesta = await traer<{ data?: unknown }>(`${urlApi}/politicas/${slug.value}`)
-      return politicaDesdeApi(respuesta.data)
-    } catch {
-      return null
-    }
-  },
-)
-
 if (import.meta.server && !documento.value) {
   setResponseStatus(useRequestEvent()!, 503)
 }
+
+/** Las cinco obligatorias llevan su propósito; una propia, el nombre que le dio la Entidad. */
+const politica = computed<Politica | null>(() => {
+  const obligatoria = POLITICAS[slug.value]
+  if (obligatoria) return obligatoria
+  if (!documento.value) return { titulo: 'Política', proposito: '' }
+  return {
+    titulo: documento.value.nombre,
+    proposito: 'Política adoptada por la Entidad, con su versión, su vigencia y su acto administrativo.',
+  }
+})
 
 const vigencia = computed(() => documento.value?.vigenteDesde ?? null)
 const acto = computed(() => (documento.value ? actoEnUnaLinea(documento.value.acto) : null))
@@ -157,11 +184,11 @@ useMetadatosComparticion({
  * Las demás políticas, para que quien llega a una pueda pasar a las otras. Se
  * excluye la actual: un enlace a la página en la que ya se está no ayuda a nadie.
  */
-const otras = computed(() =>
-  Object.entries(POLITICAS)
-    .filter(([clave]) => clave !== slug.value)
-    .map(([clave, valor]) => ({ slug: clave, titulo: valor.titulo })),
-)
+const propias = await usePoliticasPropias()
+const otras = computed(() => [
+  ...Object.entries(POLITICAS).map(([clave, valor]) => ({ slug: clave, titulo: valor.titulo })),
+  ...propias.value.map((p) => ({ slug: p.slug, titulo: p.nombre })),
+].filter((otra) => otra.slug !== slug.value))
 </script>
 
 <template>

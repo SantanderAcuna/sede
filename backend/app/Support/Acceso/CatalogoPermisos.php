@@ -44,7 +44,7 @@ final class CatalogoPermisos
             'noticias' => ['Noticias', ['ver', 'crear', 'editar', 'eliminar', 'publicar']],
             'tramites' => ['Trámites y servicios', ['ver', 'crear', 'editar', 'eliminar', 'publicar']],
             'banners' => ['Carrusel de la portada', ['ver', 'crear', 'editar', 'eliminar', 'publicar']],
-            'politicas' => ['Políticas del sitio', ['ver', 'editar']],
+            'politicas' => ['Políticas del sitio', ['ver', 'crear', 'editar', 'eliminar', 'publicar']],
             'entidad' => ['Datos de la entidad', ['ver', 'editar']],
             'menus' => ['Menús', ['ver', 'crear', 'editar', 'eliminar']],
             'temas' => ['Temas de trámites', ['ver', 'crear', 'editar', 'eliminar']],

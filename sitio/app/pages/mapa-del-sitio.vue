@@ -10,7 +10,10 @@
  * "(en preparación)" para que el ciudadano sepa que existen pero aún no
  * están activas.
  */
+import { usePoliticasPropias } from '~/composables/usePoliticasPropias'
 import { configRutas, todasLasRutas } from '~/config/sitemap'
+
+const politicasPropias = await usePoliticasPropias()
 
 interface Entrada {
   texto: string
@@ -77,7 +80,11 @@ const grupos = computed<Grupo[]>(() => {
         texto: ruta.etiqueta,
         ruta: ruta.ruta,
         publicada: true,
-      })),
+      }))
+      // Las que la Entidad agregó y ya publicó (la API solo entrega las publicadas).
+      .concat(
+        politicasPropias.value.map((p) => ({ texto: p.nombre, ruta: `/politicas/${p.slug}`, publicada: true })),
+      ),
   })
 
   return resultado

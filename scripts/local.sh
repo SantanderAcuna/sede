@@ -73,6 +73,7 @@ ENV
 
 crear_certificado() {
   mkdir -p docker/nginx/certs
+  chmod 755 docker/nginx/certs   # el contenedor de nginx no es tu usuario: tiene que poder entrar
   if [ -f docker/nginx/certs/sede.crt ] && [ -f docker/nginx/certs/sede.key ]; then
     echo "  certificado ya existe: no se toca."
     return
@@ -88,6 +89,7 @@ crear_certificado() {
 
 crear_certificado_bd() {
   mkdir -p docker/postgres/certs
+  chmod 755 docker/postgres/certs
   if [ -f docker/postgres/certs/server.crt ] && [ -f docker/postgres/certs/server.key ]; then
     echo "  certificado de la base ya existe: no se toca."
     return

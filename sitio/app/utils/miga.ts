@@ -77,7 +77,7 @@ export function construirMiga(path: string, opciones: OpcionesMiga): NivelMiga[]
   return niveles
 }
 
-export type SeccionConFicha = 'noticias' | 'tramites'
+export type SeccionConFicha = 'noticias' | 'tramites' | 'politicas'
 
 export interface FichaDeRuta {
   seccion: SeccionConFicha
@@ -89,7 +89,7 @@ export interface FichaDeRuta {
   endpoint: string
 }
 
-const CLAVE_POR_SECCION: Record<SeccionConFicha, string> = { noticias: 'noticia', tramites: 'tramite' }
+const CLAVE_POR_SECCION: Record<SeccionConFicha, string> = { noticias: 'noticia', tramites: 'tramite', politicas: 'politica' }
 
 function decodificar(segmento: string): string {
   try {
@@ -99,9 +99,9 @@ function decodificar(segmento: string): string {
   }
 }
 
-/** Si la ruta es la ficha de una noticia o de un trámite, de cuál; si no, `null`. */
+/** Si la ruta es la ficha de una noticia, un trámite o una política, de cuál; si no, `null`. */
 export function fichaDeRuta(path: string): FichaDeRuta | null {
-  const coincide = /^\/(noticias|tramites)\/([^/]+)$/.exec(path)
+  const coincide = /^\/(noticias|tramites|politicas)\/([^/]+)$/.exec(path)
   if (!coincide) return null
 
   const seccion = coincide[1] as SeccionConFicha

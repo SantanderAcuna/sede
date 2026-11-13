@@ -55,6 +55,7 @@
 import { computed } from 'vue'
 
 import { REDES_RESPALDO, type RedSocial } from '~/config/redes-sociales'
+import type { PoliticaPropia } from '~/config/politicas-contenido'
 import { POLITICAS } from '~/config/sitemap'
 
 /**
@@ -146,6 +147,8 @@ interface Props {
    * cuanto existan.
    */
   enlacesPie?: EnlacePie[]
+  /** Políticas que la Entidad agregó y ya publicó: van tras las cinco obligatorias. */
+  politicasPropias?: PoliticaPropia[]
   /**
    * Texto del bloque de políticas mientras los documentos no estén publicados.
    * Sólo se muestra si todos los `enlacesPie` siguen apuntando al ancla.
@@ -208,6 +211,7 @@ const props = withDefaults(defineProps<Props>(), {
    * Los otros dos no son políticas y van escritos aquí, que es donde se decide
    * qué más lleva el pie: la declaración de accesibilidad y el mapa del sitio.
    */
+  politicasPropias: () => [],
   enlacesPie: () => [
     ...POLITICAS.map((politica) => ({
       texto: politica.etiqueta,
@@ -225,6 +229,16 @@ const props = withDefaults(defineProps<Props>(), {
  * ancla del contenido. Cuando quien monte el pie sustituya las rutas por las
  * reales, la condición deja de cumplirse y el aviso desaparece solo.
  */
+/** Los enlaces del pie con las políticas propias justo después de la última política obligatoria. */
+const enlacesDelPie = computed<EnlacePie[]>(() => {
+  const enlaces = [...props.enlacesPie]
+  if (props.politicasPropias.length === 0) return enlaces
+  const ultima = enlaces.map((e) => e.a.startsWith('/politicas/')).lastIndexOf(true)
+  const propias = props.politicasPropias.map((p) => ({ texto: p.nombre, a: `/politicas/${p.slug}` }))
+  enlaces.splice(ultima + 1, 0, ...propias)
+  return enlaces
+})
+
 const enlacesPendientes = computed(() =>
   props.enlacesPie.every((enlace) => enlace.a.startsWith('#')),
 )
@@ -331,7 +345,7 @@ const contacto = computed<DatoContacto[]>(() => {
 
       <nav class="end-links-container" aria-label="Políticas y enlaces de la sede">
         <a
-          v-for="enlace in enlacesPie"
+          v-for="enlace in enlacesDelPie"
           :key="enlace.texto"
           class="btn-govco link-btn-govco"
           :href="enlace.a"

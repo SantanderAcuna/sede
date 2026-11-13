@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\Tramites;
 
+use Illuminate\Support\Str;
+
 /**
  * Convierte la ficha que antes se guardaba como bloques JSON dentro de `tramites` en las filas
  * de las tablas propias (pasos, requisitos, documentos, puntos de atención, normas, canales y
@@ -384,6 +386,9 @@ final class ConversorFichaJson
     {
         $texto = self::texto($valor, 500);
 
-        return $texto !== null && preg_match('#^https?://\S+$#i', $texto) === 1 ? $texto : null;
+        // La misma regla que aplica el panel al guardar (`url:http,https`): una URL que el panel
+        // rechazaría —p. ej. `http://file:///C:/…`, una ruta del PC de quien cargó el dato— dejaría
+        // la ficha imposible de guardar para el gestor.
+        return $texto !== null && Str::isUrl($texto, ['http', 'https']) ? $texto : null;
     }
 }

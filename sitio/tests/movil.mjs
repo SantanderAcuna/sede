@@ -23,7 +23,7 @@
  *  4. Ninguna ruta pública se sale del ancho a 320 ni a 390 px.
  *  5. Áreas táctiles de ≥ 44 px: botón del menú GOV.CO, indicadores del carrusel
  *     (comprobado con `elementFromPoint` en las esquinas del área), «Reproducir»,
- *     enlaces del listado de trámites (título y «Detalle») y enlaces de la página 404.
+ *     filas del listado de trámites (cada una es un enlace) y enlaces de la página 404.
  *  6. Miga de pan alineada con el contenido (sangría ≤ 16 px a 390 px) y «Inicio»
  *     en una sola línea (se partía en «Inici / o»).
  *  7. Buscador (RF-B1-005). La lupa se dibuja (lleva el filtro de color del Kit;
@@ -331,8 +331,8 @@ console.log('Áreas táctiles (390 px)')
   const cupo = await esperarCupoApi(sonda, BASE)
   console.log(`  · cupo de la API antes de /tramites: ${cupo.restantes ?? 'sin dato'} (${cupo.consultas} consulta(s)${cupo.listo ? '' : ', NO se recuperó'})`)
   const p = await abrirResuelta(ctx, '/tramites')
-  // Cada fila ofrece dos enlaces (el título, que lleva a GOV.CO, y «Detalle», a la ficha propia): se mide
-  // cada ENLACE, que es el área que se toca, y que su punto central le pertenezca (que nada lo tape).
+  // Cada fila del listado es un solo enlace (el `::after` del título la cubre): se mide la FILA, que es el
+  // área que se toca, y que el punto central de la fila pertenezca de verdad al enlace.
   const enlaces = p.locator('main .fila-enlace')
   // `count()` no espera: es una foto del instante. Se aguarda a que aparezca el primer enlace
   // (o se agote el tiempo) y, si no hay ninguno, se dice QUÉ mostró la página, porque «0 enlaces»
@@ -344,17 +344,17 @@ console.log('Áreas táctiles (390 px)')
   let corto = 0
   for (let i = 0; i < n; i++) {
     const enlace = enlaces.nth(i)
-    const { alto, alCentro } = await enlace.evaluate((a) => {
-      // `elementFromPoint` devuelve null fuera de la pantalla: se centra el enlace antes de medirlo
+    const { alto, cubreLaFila } = await enlace.evaluate((a) => {
+      // `elementFromPoint` devuelve null fuera de la pantalla: se centra la fila antes de medirla
       // (instantáneo: con `smooth` mediría antes de que termine de desplazarse).
-      a.scrollIntoView({ block: 'center', behavior: 'instant' })
-      const r = a.getBoundingClientRect()
-      const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
-      return { alto: r.height, alCentro: e !== null && (a === e || a.contains(e)) }
+      a.closest('li').scrollIntoView({ block: 'center', behavior: 'instant' })
+      const fila = a.closest('li').getBoundingClientRect()
+      const alCentro = document.elementFromPoint(fila.left + fila.width / 2, fila.top + fila.height / 2)
+      return { alto: fila.height, cubreLaFila: alCentro !== null && (a === alCentro || a.contains(alCentro)) }
     })
-    if (alto < MIN - 0.5 || !alCentro) corto += 1
+    if (alto < MIN - 0.5 || !cubreLaFila) corto += 1
   }
-  comprobar(n > 0 && corto === 0, `enlaces del listado de trámites (título y «Detalle»): ${n} de ≥ 44 px, sin nada encima`, n === 0 ? `no hay enlaces de ficha; la página muestra: «${estadoPagina}»; la API responde ahora: ${apiAhora}` : `enlaces del listado: ${corto} de ${n} bajo 44 px o tapados por otro elemento`)
+  comprobar(n > 0 && corto === 0, `filas del listado de trámites: ${n} de ≥ 44 px, cubiertas por su enlace`, n === 0 ? `no hay enlaces de ficha; la página muestra: «${estadoPagina}»; la API responde ahora: ${apiAhora}` : `filas del listado: ${corto} de ${n} bajo 44 px o sin que el enlace las cubra`)
 
   // 6. Miga de pan
   const miga = await p.locator('.breadcrumb-govco .breadcrumb-item-govco').first().boundingBox()

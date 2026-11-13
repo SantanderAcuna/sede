@@ -12,6 +12,7 @@ use Database\Seeders\EntidadSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\PoliticaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -40,7 +41,22 @@ final class PoliticasCrudTest extends TestCase
         return $u;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @param  mixed  $filas  lista de políticas tal como la entrega la API
+     * @return Collection<int, string>
+     */
+    private function slugsDe(mixed $filas): Collection
+    {
+        /** @var list<array{slug: string}> $lista */
+        $lista = is_array($filas) ? $filas : [];
+
+        return collect(array_map(static fn (array $f): string => $f['slug'], $lista));
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
     private function nueva(array $extra = []): array
     {
         return $extra + [
@@ -157,7 +173,7 @@ final class PoliticasCrudTest extends TestCase
         $this->patchJson("/api/v1/panel/politicas/{$visible}", $this->adoptada() + ['publicada' => true])->assertOk();
 
         $this->app['auth']->forgetGuards();
-        $slugs = collect($this->getJson('/api/v1/politicas')->assertOk()->json('data'))->pluck('slug');
+        $slugs = $this->slugsDe($this->getJson('/api/v1/politicas')->assertOk()->json('data'));
         $this->assertTrue($slugs->contains($visible));
         $this->assertFalse($slugs->contains($oculta));
         $this->assertCount(6, $slugs);
@@ -171,7 +187,7 @@ final class PoliticasCrudTest extends TestCase
     {
         $this->con(...CatalogoPermisos::de('politicas'));
         $this->postJson('/api/v1/panel/politicas', $this->nueva())->assertCreated();
-        $slugs = collect($this->getJson('/api/v1/panel/politicas')->json('data'))->pluck('slug')->all();
+        $slugs = array_values($this->slugsDe($this->getJson('/api/v1/panel/politicas')->json('data'))->all());
         $this->assertSame(array_keys(Politica::COMPONENTES), array_slice($slugs, 0, 5));
         $this->assertSame('politica-de-accesibilidad', $slugs[5]);
     }
@@ -229,7 +245,7 @@ final class PoliticasCrudTest extends TestCase
         $this->patchJson("/api/v1/panel/politicas/{$v}", $this->adoptada() + ['publicada' => true])->assertOk();
         $this->app['auth']->forgetGuards();
 
-        $slugs = collect($this->getJson('/api/v1/identidad/footer')->assertOk()->json('data.politicas'))->pluck('slug');
+        $slugs = $this->slugsDe($this->getJson('/api/v1/identidad/footer')->assertOk()->json('data.politicas'));
         $this->assertTrue($slugs->contains('visible-dos'));
         $this->assertFalse($slugs->contains('oculta-uno'));
     }

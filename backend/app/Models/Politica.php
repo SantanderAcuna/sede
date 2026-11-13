@@ -165,12 +165,12 @@ final class Politica extends Model
      */
     public static function enlacesExtraDelPie(): array
     {
-        return self::query()->publicadas()
+        return array_values(self::query()->publicadas()
             ->whereNotIn('slug', array_keys(self::COMPONENTES))
             ->orderBy('nombre')
             ->get(['slug', 'nombre'])
             ->map(static fn (Politica $p): array => ['slug' => $p->slug, 'nombre' => $p->nombre])
-            ->all();
+            ->all());
     }
 
     /**

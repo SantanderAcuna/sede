@@ -80,7 +80,7 @@ services:
     volumes:
       # Los certificados se montan en sólo lectura: el contenedor no debe poder
       # modificarlos ni ver la clave de la autoridad.
-      - ${SEDE_CERTS_DIR:-./docker/nginx/certs}:/etc/nginx/certs:ro
+      - ${SEDE_CERTS_DIR:-./docker/nginx/certs}:/etc/nginx/certs:ro,z
       - certbot-webroot:/var/www/certbot:ro
     read_only: true
     tmpfs:

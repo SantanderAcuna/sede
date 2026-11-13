@@ -19,7 +19,7 @@ services:
       - "8443:443"
     volumes:
       # La SPA servida desde disco, montada en vivo.
-      - ./panel/dist:/usr/share/nginx/panel:ro
+      - ./panel/dist:/usr/share/nginx/panel:ro,z
 
   app:
     build:

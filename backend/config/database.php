@@ -32,6 +32,15 @@ return [
     |
     */
 
+    /*
+    | Claves de los roles de base de datos que crea la migración de roles (Fase 0A).
+    | Sin valor por defecto: ver la migración.
+    */
+    'roles' => [
+        'app_password' => env('DB_APP_PASSWORD'),
+        'lectura_password' => env('DB_LECTURA_PASSWORD'),
+    ],
+
     'connections' => [
 
         'sqlite' => [

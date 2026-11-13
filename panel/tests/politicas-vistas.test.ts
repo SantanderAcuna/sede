@@ -8,6 +8,7 @@
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 vi.mock('../src/services/politicas', () => ({
@@ -78,6 +79,7 @@ async function montarFormulario(slug = 'uso-de-cookies') {
 }
 
 beforeEach(() => {
+  conSesion()
   vi.clearAllMocks()
   m.listar.mockResolvedValue([politica()])
   m.documentosAdjuntos.mockResolvedValue([])

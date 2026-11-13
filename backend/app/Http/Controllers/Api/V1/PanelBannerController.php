@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Gestión del carrusel de la portada desde el panel. Requiere `banners.gestionar`.
+ * Gestión del carrusel de la portada desde el panel. Cada acción exige su permiso (ver `CatalogoPermisos`).
  *
  * Una diapositiva puede existir como borrador con solo el título; para publicarla hace falta
  * imagen con texto alternativo (lo decide el servicio).
@@ -67,6 +67,10 @@ final class PanelBannerController extends Controller
     public function store(GuardarBannerRequest $peticion): JsonResponse
     {
         Gate::authorize('create', Banner::class);
+        // Publicar es un permiso aparte: crear no basta para dejar una diapositiva a la vista del público.
+        if ($peticion->boolean('activo')) {
+            Gate::authorize('publish', Banner::class);
+        }
 
         try {
             $banner = $this->banners->crear($this->actor(), $peticion->validated());
@@ -89,6 +93,10 @@ final class PanelBannerController extends Controller
             return ApiResponse::notFound('La diapositiva no existe.');
         }
         Gate::authorize('update', $banner);
+        // Publicar o retirar (cambiar `activo`) exige el permiso de publicar; guardar igual que está, no.
+        if ($peticion->has('activo') && $peticion->boolean('activo') !== (bool) $banner->activo) {
+            Gate::authorize('publish', $banner);
+        }
 
         try {
             $banner = $this->banners->actualizar($this->actor(), $banner, $peticion->validated());

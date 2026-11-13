@@ -8,36 +8,44 @@ use App\Models\Noticia;
 use App\Models\User;
 
 /**
- * Quién gestiona las noticias: quien tenga el permiso `noticias.gestionar`.
+ * Quién gestiona las noticias del sitio, acción por acción.
  *
- * Es el mismo permiso para ver el listado del panel, crear, editar, publicar,
- * subir la imagen y eliminar: publicar y editar no se separan hoy porque no hay
- * dos roles que lo pidan, y no se inventa una distinción que nadie ha decidido.
+ * Cada acción es un permiso propio del módulo `noticias` (ver `CatalogoPermisos`).
  */
-final class NoticiaPolicy
+final class NoticiaPolicy extends PoliticaDeModulo
 {
+    protected function modulo(): string
+    {
+        return 'noticias';
+    }
+
     public function viewAny(User $user): bool
     {
-        return $user->can('noticias.gestionar');
+        return $this->puede($user, 'ver');
     }
 
     public function view(User $user, Noticia $noticia): bool
     {
-        return $user->can('noticias.gestionar');
+        return $this->puede($user, 'ver');
     }
 
     public function create(User $user): bool
     {
-        return $user->can('noticias.gestionar');
+        return $this->puede($user, 'crear');
     }
 
     public function update(User $user, Noticia $noticia): bool
     {
-        return $user->can('noticias.gestionar');
+        return $this->puede($user, 'editar');
     }
 
     public function delete(User $user, Noticia $noticia): bool
     {
-        return $user->can('noticias.gestionar');
+        return $this->puede($user, 'eliminar');
+    }
+
+    public function publish(User $user, ?Noticia $noticia = null): bool
+    {
+        return $this->puede($user, 'publicar');
     }
 }

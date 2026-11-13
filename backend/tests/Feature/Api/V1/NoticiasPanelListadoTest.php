@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Api\V1;
 
 use App\Models\User;
+use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,7 @@ final class NoticiasPanelListadoTest extends TestCase
     private function editor(): User
     {
         $usuario = User::factory()->create();
-        $usuario->givePermissionTo('noticias.gestionar');
+        $usuario->givePermissionTo(CatalogoPermisos::de('noticias'));
 
         return $usuario;
     }

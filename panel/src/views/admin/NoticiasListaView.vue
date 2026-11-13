@@ -14,12 +14,15 @@ import BaseButton from '@/components/base/BaseButton.vue'
 import ConfirmModal from '@/components/base/ConfirmModal.vue'
 import DataTable from '@/components/base/DataTable.vue'
 import type { DataTableFeatures } from '@/components/base/dataTableFeatures'
+import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
 import { POR_PAGINA, eliminar, listar, type EstadoNoticiaFiltro } from '@/services/noticias'
 import type { NoticiaPanelItem } from '@/types/api'
 import { tomarAviso } from './avisos'
 import { motivosDeError } from './politicas-logica'
 
 const ESPERA_BUSQUEDA_MS = 400
+
+const { puedeCrear, puedeEditar, puedeEliminar } = usePermisosDeModulo('noticias')
 
 const filas = ref<NoticiaPanelItem[]>([])
 const total = ref(0)
@@ -221,12 +224,13 @@ const columnas: ColumnDef<DataTableFeatures, NoticiaPanelItem, unknown>[] = [
           RouterLink,
           {
             to: { name: 'panel.noticias.editar', params: { uuid: row.original.uuid } },
-            'aria-label': `Editar «${row.original.titulo}»`,
+            'aria-label': `${puedeEditar.value ? 'Editar' : 'Ver'} «${row.original.titulo}»`,
             class:
               'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium text-gov-blue ring-1 ring-slate-200 hover:bg-gov-blue-light focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue',
           },
-          () => 'Editar',
+          () => (puedeEditar.value ? 'Editar' : 'Ver'),
         ),
+        puedeEliminar.value &&
         h(
           'button',
           {
@@ -256,6 +260,7 @@ const columnas: ColumnDef<DataTableFeatures, NoticiaPanelItem, unknown>[] = [
         </p>
       </div>
       <RouterLink
+        v-if="puedeCrear"
         :to="{ name: 'panel.noticias.nueva' }"
         class="inline-flex h-10 items-center gap-2 rounded-lg bg-gov-blue px-4 text-sm font-medium text-white hover:bg-gov-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue focus-visible:ring-offset-2"
       >
@@ -322,6 +327,7 @@ const columnas: ColumnDef<DataTableFeatures, NoticiaPanelItem, unknown>[] = [
         Cuando cree la primera, aparecerá aquí. Empiece como borrador: no se verá en el sitio hasta que usted la publique.
       </p>
       <RouterLink
+        v-if="puedeCrear"
         :to="{ name: 'panel.noticias.nueva' }"
         class="mt-4 inline-flex h-10 items-center rounded-lg bg-gov-blue px-4 text-sm font-medium text-white hover:bg-gov-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue focus-visible:ring-offset-2"
       >

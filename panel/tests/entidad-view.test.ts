@@ -7,6 +7,7 @@
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 vi.mock('../src/services/entidad', () => ({
@@ -65,6 +66,7 @@ const campo = (w: ReturnType<typeof mount>, etiqueta: string) => {
 }
 
 beforeEach(() => {
+  conSesion()
   vi.clearAllMocks()
   m.obtener.mockResolvedValue(entidad())
   m.politicasDisponibles.mockResolvedValue([

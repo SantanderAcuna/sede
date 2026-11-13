@@ -22,6 +22,11 @@ import {
   problemasPorCampo,
   type FormularioEntidad,
 } from './entidad-logica'
+import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
+
+const { puedeEditar } = usePermisosDeModulo('entidad')
+/** Solo puede consultar: tiene «ver» pero no «editar». Al crear uno nuevo se exige «crear» en la ruta. */
+const soloLectura = computed(() => !puedeEditar.value)
 
 const idBase = useId()
 const enrutador = useRouter()
@@ -205,6 +210,11 @@ onBeforeUnmount(() => {
     </div>
 
     <form v-else-if="formulario" class="space-y-6" novalidate @submit.prevent="guardar">
+      <p v-if="soloLectura" class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900" data-solo-lectura>
+        Está en modo de consulta: su rol puede ver este registro pero no modificarlo.
+      </p>
+
+      <fieldset :disabled="soloLectura" class="m-0 min-w-0 space-y-6 border-0 p-0">
       <div
         v-if="motivos.length > 0"
         ref="resumen"
@@ -361,7 +371,9 @@ onBeforeUnmount(() => {
         </ul>
       </section>
 
-      <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:left-auto lg:sticky lg:inset-x-auto lg:rounded-xl lg:border">
+      </fieldset>
+
+      <div v-if="!soloLectura" class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:left-auto lg:sticky lg:inset-x-auto lg:rounded-xl lg:border">
         <div class="mx-auto flex max-w-3xl flex-wrap items-center justify-end gap-3">
           <span v-if="hayCambios" class="mr-auto text-sm font-medium text-amber-700">Hay cambios sin guardar</span>
           <BaseButton type="submit" variant="primary" :loading="guardando" :disabled="guardando">

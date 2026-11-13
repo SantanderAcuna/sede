@@ -25,7 +25,7 @@
  */
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
-import { PERMISO_POR_RUTA } from '@/config/permisos'
+import { PERMISO_POR_RUTA, permisoDe } from '@/config/permisos'
 import { useSesionStore } from '@/stores/sesion'
 
 declare module 'vue-router' {
@@ -119,7 +119,7 @@ const rutas: RouteRecordRaw[] = [
         path: 'contenidos/noticias/nueva',
         name: 'panel.noticias.nueva',
         component: () => import('@/views/admin/NoticiaFormularioView.vue'),
-        meta: { requiereSesion: true, titulo: 'Nueva noticia', permiso: PERMISO_POR_RUTA['/contenidos/noticias'] },
+        meta: { requiereSesion: true, titulo: 'Nueva noticia', permiso: permisoDe('noticias', 'crear') },
       },
       {
         path: 'contenidos/noticias/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
@@ -138,7 +138,7 @@ const rutas: RouteRecordRaw[] = [
         path: 'contenidos/carrusel/nueva',
         name: 'panel.banners.nuevo',
         component: () => import('@/views/admin/BannerFormularioView.vue'),
-        meta: { requiereSesion: true, titulo: 'Nueva diapositiva', permiso: PERMISO_POR_RUTA['/contenidos/carrusel'] },
+        meta: { requiereSesion: true, titulo: 'Nueva diapositiva', permiso: permisoDe('banners', 'crear') },
       },
       {
         path: 'contenidos/carrusel/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
@@ -157,7 +157,7 @@ const rutas: RouteRecordRaw[] = [
         path: 'tramites/nuevo',
         name: 'panel.tramites.nuevo',
         component: () => import('@/views/admin/TramiteFormularioView.vue'),
-        meta: { requiereSesion: true, titulo: 'Nuevo trámite', permiso: PERMISO_POR_RUTA['/tramites'] },
+        meta: { requiereSesion: true, titulo: 'Nuevo trámite', permiso: permisoDe('tramites', 'crear') },
       },
       {
         path: 'tramites/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
@@ -176,7 +176,7 @@ const rutas: RouteRecordRaw[] = [
         path: 'usuarios/nuevo',
         name: 'panel.usuarios.nuevo',
         component: () => import('@/views/admin/UsuarioFormularioView.vue'),
-        meta: { requiereSesion: true, titulo: 'Nuevo usuario', permiso: PERMISO_POR_RUTA['/usuarios'] },
+        meta: { requiereSesion: true, titulo: 'Nuevo usuario', permiso: permisoDe('usuarios', 'crear') },
       },
       {
         path: 'usuarios/:uuid([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
@@ -188,19 +188,19 @@ const rutas: RouteRecordRaw[] = [
         path: 'usuarios/roles',
         name: 'panel.roles',
         component: () => import('@/views/admin/RolesListaView.vue'),
-        meta: { requiereSesion: true, titulo: 'Roles y permisos', permiso: PERMISO_POR_RUTA['/usuarios'] },
+        meta: { requiereSesion: true, titulo: 'Roles y permisos', permiso: PERMISO_POR_RUTA['/usuarios/roles'] },
       },
       {
         path: 'usuarios/roles/nuevo',
         name: 'panel.roles.nuevo',
         component: () => import('@/views/admin/RolFormularioView.vue'),
-        meta: { requiereSesion: true, titulo: 'Nuevo rol', permiso: PERMISO_POR_RUTA['/usuarios'] },
+        meta: { requiereSesion: true, titulo: 'Nuevo rol', permiso: permisoDe('roles', 'crear') },
       },
       {
         path: 'usuarios/roles/:id(\\d+)',
         name: 'panel.roles.editar',
         component: () => import('@/views/admin/RolFormularioView.vue'),
-        meta: { requiereSesion: true, titulo: 'Editar rol', permiso: PERMISO_POR_RUTA['/usuarios'] },
+        meta: { requiereSesion: true, titulo: 'Editar rol', permiso: PERMISO_POR_RUTA['/usuarios/roles'] },
       },
       ...MODULOS.map(
         (modulo): RouteRecordRaw => ({

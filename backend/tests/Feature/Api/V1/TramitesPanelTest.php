@@ -6,6 +6,7 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\Tramite;
 use App\Models\User;
+use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TramiteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -33,7 +34,7 @@ final class TramitesPanelTest extends TestCase
     private function gestor(): User
     {
         $usuario = User::factory()->create();
-        $usuario->givePermissionTo('tramites.gestionar');
+        $usuario->givePermissionTo(CatalogoPermisos::de('tramites'));
 
         return $usuario;
     }

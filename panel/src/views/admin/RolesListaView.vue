@@ -14,6 +14,7 @@ import ConfirmModal from '@/components/base/ConfirmModal.vue'
 import DataTable from '@/components/base/DataTable.vue'
 import type { DataTableFeatures } from '@/components/base/dataTableFeatures'
 import UsuariosPestanas from '@/components/base/UsuariosPestanas.vue'
+import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
 import { eliminar, listar } from '@/services/roles'
 import type { RolPanelItem } from '@/types/api'
 import { tomarAviso } from './avisos'
@@ -40,6 +41,7 @@ onMounted(cargar)
 
 const vacio = computed(() => !cargando.value && !errorCarga.value && filas.value.length === 0)
 
+const { puedeCrear, puedeEditar, puedeEliminar } = usePermisosDeModulo('roles')
 const porEliminar = ref<RolPanelItem | null>(null)
 const eliminando = ref(false)
 const errorEliminar = ref<string | null>(null)
@@ -109,12 +111,12 @@ const columnas: ColumnDef<DataTableFeatures, RolPanelItem, unknown>[] = [
           RouterLink,
           {
             to: { name: 'panel.roles.editar', params: { id: row.original.id } },
-            'aria-label': `Editar «${row.original.name}»`,
+            'aria-label': `${puedeEditar.value ? 'Editar' : 'Ver'} «${row.original.name}»`,
             class: `${claseAccion} text-gov-blue hover:bg-gov-blue-light focus-visible:ring-gov-blue`,
           },
-          () => 'Editar',
+          () => (puedeEditar.value ? 'Editar' : 'Ver'),
         ),
-        row.original.usuarios === 0
+        puedeEliminar.value && row.original.usuarios === 0
           ? h(
               'button',
               {
@@ -145,6 +147,7 @@ const columnas: ColumnDef<DataTableFeatures, RolPanelItem, unknown>[] = [
         </p>
       </div>
       <RouterLink
+        v-if="puedeCrear"
         :to="{ name: 'panel.roles.nuevo' }"
         class="inline-flex h-10 items-center gap-2 rounded-lg bg-gov-blue px-4 text-sm font-medium text-white hover:bg-gov-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue focus-visible:ring-offset-2"
       >

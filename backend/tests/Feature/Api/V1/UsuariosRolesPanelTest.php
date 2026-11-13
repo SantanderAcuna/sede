@@ -6,6 +6,7 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -44,7 +45,7 @@ final class UsuariosRolesPanelTest extends TestCase
     private function admin(): User
     {
         $usuario = User::factory()->create(['estado' => 'activo']);
-        $usuario->givePermissionTo(['usuarios.gestionar', 'noticias.gestionar']);
+        $usuario->givePermissionTo(CatalogoPermisos::de('usuarios', 'roles', 'noticias'));
 
         return $usuario;
     }
@@ -58,7 +59,7 @@ final class UsuariosRolesPanelTest extends TestCase
     {
         /** @var Role $rol */
         $rol = Role::findOrCreate('editor', 'web');
-        $rol->syncPermissions(['noticias.gestionar']);
+        $rol->syncPermissions(CatalogoPermisos::de('noticias'));
 
         return $rol;
     }
@@ -70,7 +71,7 @@ final class UsuariosRolesPanelTest extends TestCase
         }
 
         $sinPermiso = User::factory()->create();
-        $sinPermiso->givePermissionTo('noticias.gestionar');
+        $sinPermiso->givePermissionTo(CatalogoPermisos::de('noticias'));
 
         foreach (['usuarios', 'roles', 'permisos'] as $recurso) {
             $this->actingAs($sinPermiso)->getJson("/api/v1/panel/{$recurso}")->assertForbidden();
@@ -139,7 +140,7 @@ final class UsuariosRolesPanelTest extends TestCase
     {
         Role::findOrCreate('super-admin', 'web');
         $rolPoderoso = Role::findOrCreate('poderoso', 'web');
-        $rolPoderoso->syncPermissions(['noticias.gestionar', 'entidad.gestionar']);
+        $rolPoderoso->syncPermissions(CatalogoPermisos::de('noticias', 'entidad'));
 
         $admin = $this->admin();
 
@@ -250,8 +251,10 @@ final class UsuariosRolesPanelTest extends TestCase
                 $todos[] = $permiso['nombre'];
             }
         }
-        $this->assertContains('noticias.gestionar', $todos);
-        $this->assertContains('tramites.gestionar', $todos);
+        foreach (['noticias.ver', 'noticias.editar', 'tramites.publicar', 'roles.eliminar', 'usuarios.crear'] as $esperado) {
+            $this->assertContains($esperado, $todos);
+        }
+        $this->assertNotContains('noticias.gestionar', $todos);
     }
 
     public function test_crea_un_rol_con_permisos_y_el_admin_solo_otorga_los_que_tiene(): void
@@ -259,11 +262,11 @@ final class UsuariosRolesPanelTest extends TestCase
         $admin = $this->admin();
 
         $this->actingAs($admin)->postJson('/api/v1/panel/roles', [
-            'name' => 'redactor', 'permisos' => ['noticias.gestionar'],
-        ])->assertCreated()->assertJsonPath('data.permisos.0', 'noticias.gestionar');
+            'name' => 'redactor', 'permisos' => ['noticias.ver', 'noticias.editar'],
+        ])->assertCreated()->assertJsonPath('data.permisos', ['noticias.editar', 'noticias.ver']);
 
         $this->actingAs($admin)->postJson('/api/v1/panel/roles', [
-            'name' => 'demasiado', 'permisos' => ['entidad.gestionar'],
+            'name' => 'demasiado', 'permisos' => ['entidad.ver', 'entidad.editar'],
         ])->assertForbidden();
 
         $this->assertDatabaseMissing('roles', ['name' => 'demasiado']);
@@ -292,17 +295,17 @@ final class UsuariosRolesPanelTest extends TestCase
     public function test_actualiza_permisos_de_un_rol_y_el_admin_no_puede_quitar_lo_que_no_tiene(): void
     {
         $rol = Role::findOrCreate('mixto', 'web');
-        $rol->syncPermissions(['noticias.gestionar', 'entidad.gestionar']);
+        $rol->syncPermissions(['noticias.ver', 'entidad.ver']);
         $admin = $this->admin();
 
-        // Quitar `entidad.gestionar` sin tenerlo también es tocar poder ajeno.
+        // Quitar `entidad.ver` sin tenerlo también es tocar poder ajeno.
         $this->actingAs($admin)->patchJson("/api/v1/panel/roles/{$rol->id}", [
-            'permisos' => ['noticias.gestionar'],
+            'permisos' => ['noticias.ver'],
         ])->assertForbidden();
 
         $this->actingAs($this->superAdmin())->patchJson("/api/v1/panel/roles/{$rol->id}", [
-            'permisos' => ['noticias.gestionar'],
-        ])->assertOk()->assertJsonPath('data.permisos', ['noticias.gestionar']);
+            'permisos' => ['noticias.ver'],
+        ])->assertOk()->assertJsonPath('data.permisos', ['noticias.ver']);
 
         $this->assertNotNull(AuditLog::query()->where('accion', 'rol_actualizado')->first());
     }
@@ -341,7 +344,9 @@ final class UsuariosRolesPanelTest extends TestCase
     public function test_la_siembra_crea_el_rol_admin_con_gestion_de_usuarios_y_no_pisa_sus_cambios(): void
     {
         $admin = Role::findByName('admin', 'web');
-        $this->assertTrue($admin->hasPermissionTo('usuarios.gestionar'));
+        foreach (CatalogoPermisos::nombres() as $nombre) {
+            $this->assertTrue($admin->hasPermissionTo($nombre), $nombre);
+        }
         $this->assertFalse($admin->name === 'super-admin');
 
         $admin->revokePermissionTo('reportes.ver');

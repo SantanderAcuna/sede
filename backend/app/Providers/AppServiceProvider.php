@@ -23,17 +23,33 @@ use App\Contracts\Services\RolPanelServiceInterface;
 use App\Contracts\Services\TramitePanelServiceInterface;
 use App\Contracts\Services\TramiteServiceInterface;
 use App\Contracts\Services\UsuarioPanelServiceInterface;
+use App\Models\AuditLog;
 use App\Models\Banner;
+use App\Models\Consentimiento;
+use App\Models\Dependencia;
 use App\Models\Entidad;
 use App\Models\FileMedia;
+use App\Models\Menu;
 use App\Models\Noticia;
+use App\Models\Politica;
 use App\Models\Tramite;
+use App\Models\TramiteCategoria;
+use App\Models\TramiteValoracion;
 use App\Models\User;
 use App\Policies\ArchivoPolicy;
+use App\Policies\AuditoriaPolicy;
 use App\Policies\BannerPolicy;
+use App\Policies\ConsentimientoPolicy;
+use App\Policies\DependenciaPolicy;
 use App\Policies\EntidadPolicy;
+use App\Policies\MenuPolicy;
 use App\Policies\NoticiaPolicy;
+use App\Policies\PoliticaPolicy;
+use App\Policies\RolPolicy;
+use App\Policies\TemaTramitePolicy;
 use App\Policies\TramitePolicy;
+use App\Policies\UsuarioPolicy;
+use App\Policies\ValoracionPolicy;
 use App\Repositories\Eloquent\AuthRepository;
 use App\Repositories\Eloquent\BusquedaRepository;
 use App\Repositories\Eloquent\EntidadRepository;
@@ -59,6 +75,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -141,6 +158,15 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Banner::class, BannerPolicy::class);
         Gate::policy(Tramite::class, TramitePolicy::class);
         Gate::policy(FileMedia::class, ArchivoPolicy::class);
+        Gate::policy(Politica::class, PoliticaPolicy::class);
+        Gate::policy(Dependencia::class, DependenciaPolicy::class);
+        Gate::policy(TramiteCategoria::class, TemaTramitePolicy::class);
+        Gate::policy(Menu::class, MenuPolicy::class);
+        Gate::policy(TramiteValoracion::class, ValoracionPolicy::class);
+        Gate::policy(Consentimiento::class, ConsentimientoPolicy::class);
+        Gate::policy(AuditLog::class, AuditoriaPolicy::class);
+        Gate::policy(User::class, UsuarioPolicy::class);
+        Gate::policy(Role::class, RolPolicy::class);
 
         // El acceso se limita por correo y por IP a la vez: el primer límite frena
         // el ataque contra una cuenta concreta —cinco intentos— y el segundo frena

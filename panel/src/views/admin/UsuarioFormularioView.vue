@@ -30,6 +30,7 @@ import {
   rolesAsignables,
   type FormularioUsuario,
 } from './usuarios-logica'
+import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
 
 const ruta = useRoute()
 const enrutador = useRouter()
@@ -50,6 +51,9 @@ const resumen = ref<HTMLElement | null>(null)
 let saliendo = false
 
 const esNuevo = computed(() => uuid.value === null)
+const { puedeEditar } = usePermisosDeModulo('usuarios')
+/** Solo puede consultar: tiene «ver» pero no «editar». Al crear uno nuevo se exige «crear» en la ruta. */
+const soloLectura = computed(() => !esNuevo.value && !puedeEditar.value)
 const quien = computed(() => administradorDe(sesion.usuario?.permisos ?? []))
 const esMiCuenta = computed(() => !esNuevo.value && usuario.value !== null && usuario.value.email === sesion.usuario?.email)
 const ofrecidos = computed(() => rolesAsignables(roles.value, quien.value))
@@ -68,7 +72,8 @@ function aplicar(guardado: UsuarioPanelItem): void {
 }
 
 async function cargar(): Promise<void> {
-  listarRoles().then((r) => (roles.value = r)).catch(() => undefined)
+  // Sin «ver roles» el servidor rechaza la consulta: no se hace, y abajo se explica por qué no hay roles que elegir.
+  if (sesion.tienePermiso('roles.ver')) listarRoles().then((r) => (roles.value = r)).catch(() => undefined)
   if (uuid.value === null) return
   cargando.value = true
   errorCarga.value = null
@@ -190,6 +195,11 @@ const tarjeta = 'space-y-4 rounded-xl bg-white p-5 ring-1 ring-slate-200 sm:p-6'
     </div>
 
     <form v-else class="space-y-5" novalidate @submit.prevent="guardar">
+      <p v-if="soloLectura" class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900" data-solo-lectura>
+        Está en modo de consulta: su rol puede ver este registro pero no modificarlo.
+      </p>
+
+      <fieldset :disabled="soloLectura" class="m-0 min-w-0 space-y-6 border-0 p-0">
       <div v-if="motivos.length > 0" ref="resumen" role="alert" tabindex="-1" class="rounded-xl border border-red-200 bg-red-50 p-4">
         <p class="flex items-center gap-2 text-sm font-medium text-red-800">
           <FaIcon icon="triangle-exclamation" class="h-4 w-4" aria-hidden="true" />
@@ -245,6 +255,7 @@ const tarjeta = 'space-y-4 rounded-xl bg-white p-5 ring-1 ring-slate-200 sm:p-6'
         <fieldset :disabled="esMiCuenta">
           <legend class="text-sm font-medium text-slate-700">Roles</legend>
           <p class="mt-1 text-xs text-slate-600">Cada rol reúne permisos. Puede dar varios. Solo ve los roles que usted puede asignar.</p>
+          <p v-if="!sesion.tienePermiso('roles.ver')" class="mt-2 text-sm text-amber-800" data-sin-ver-roles>Para elegir roles necesita el permiso «Ver» en Roles y permisos.</p>
           <p v-if="ofrecidos.length === 0 && roles.length > 0" class="mt-2 text-sm text-slate-600">No hay roles que usted pueda asignar.</p>
           <div class="mt-2 grid gap-2 sm:grid-cols-2">
             <label
@@ -263,7 +274,9 @@ const tarjeta = 'space-y-4 rounded-xl bg-white p-5 ring-1 ring-slate-200 sm:p-6'
         </fieldset>
       </section>
 
-      <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:sticky lg:inset-x-auto lg:rounded-xl lg:border">
+      </fieldset>
+
+      <div v-if="!soloLectura" class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:sticky lg:inset-x-auto lg:rounded-xl lg:border">
         <div class="mx-auto flex max-w-4xl flex-wrap items-center justify-end gap-3">
           <span v-if="hayCambios" class="mr-auto text-sm font-medium text-amber-700">Hay cambios sin guardar</span>
           <RouterLink :to="{ name: 'usuarios' }" class="inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50">

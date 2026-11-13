@@ -15,7 +15,8 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 final class SubirImagenContenidoRequest extends FormRequest
 {
-    public const PERMISOS = ['noticias.gestionar', 'politicas.gestionar', 'entidad.gestionar'];
+    /** Quien puede escribir contenido (crear o editar noticias, o editar políticas o la entidad) puede insertar imágenes. */
+    public const PERMISOS = ['noticias.crear', 'noticias.editar', 'politicas.editar', 'entidad.editar'];
 
     public function authorize(): bool
     {

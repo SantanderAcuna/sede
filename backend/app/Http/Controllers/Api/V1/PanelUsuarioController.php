@@ -14,9 +14,10 @@ use App\Http\Resources\UsuarioPanelResource;
 use App\Models\User;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Gate;
 
 /**
- * Usuarios del panel. Requiere `usuarios.gestionar`; las reglas contra la escalada de
+ * Usuarios del panel. Cada acción exige su permiso (ver `CatalogoPermisos`); las reglas contra la escalada de
  * privilegios las aplica el servicio, no la interfaz.
  *
  * @tags Panel — Usuarios
@@ -32,6 +33,8 @@ final class PanelUsuarioController extends Controller
      */
     public function index(ListarUsuariosPanelRequest $peticion): JsonResponse
     {
+        Gate::authorize('viewAny', User::class);
+
         $pagina = $this->usuarios->listar(
             (int) $peticion->validated('per_page', 20),
             $peticion->validated('q'),
@@ -50,10 +53,12 @@ final class PanelUsuarioController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $usuario = $this->usuarios->porUuid($uuid);
+        if ($usuario === null) {
+            return ApiResponse::notFound('El usuario no existe.');
+        }
+        Gate::authorize('view', $usuario);
 
-        return $usuario === null
-            ? ApiResponse::notFound('El usuario no existe.')
-            : ApiResponse::ok((new UsuarioPanelResource($usuario))->resolve());
+        return ApiResponse::ok((new UsuarioPanelResource($usuario))->resolve());
     }
 
     /**
@@ -63,6 +68,8 @@ final class PanelUsuarioController extends Controller
      */
     public function store(GuardarUsuarioRequest $peticion): JsonResponse
     {
+        Gate::authorize('create', User::class);
+
         try {
             /** @var array{name: string, email: string, password: string, estado?: string, roles?: list<string>} $datos */
             $datos = $peticion->datos();
@@ -85,6 +92,7 @@ final class PanelUsuarioController extends Controller
         if ($objetivo === null) {
             return ApiResponse::notFound('El usuario no existe.');
         }
+        Gate::authorize('update', $objetivo);
 
         try {
             $usuario = $this->usuarios->actualizar($this->actor(), $objetivo, $peticion->datos());

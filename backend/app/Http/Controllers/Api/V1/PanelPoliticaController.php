@@ -9,9 +9,10 @@ use App\Http\Requests\ActualizarPoliticaRequest;
 use App\Models\Politica;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Gate;
 
 /**
- * Edición de las políticas desde el panel (T-20). Requiere `politicas.gestionar`.
+ * Edición de las políticas desde el panel (T-20). Cada acción exige su permiso (ver `CatalogoPermisos`).
  *
  * @tags Panel — Políticas
  */
@@ -24,6 +25,8 @@ final class PanelPoliticaController extends Controller
      */
     public function index(): JsonResponse
     {
+        Gate::authorize('viewAny', Politica::class);
+
         $orden = array_keys(Politica::COMPONENTES);
 
         $politicas = Politica::query()->get()
@@ -51,6 +54,7 @@ final class PanelPoliticaController extends Controller
         if ($politica === null) {
             return ApiResponse::notFound('La política no existe.');
         }
+        Gate::authorize('update', $politica);
 
         $datos = $peticion->validated();
         $textoAntes = json_encode($politica->secciones, JSON_THROW_ON_ERROR);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Api\V1;
 
 use App\Models\User;
+use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -41,7 +42,7 @@ final class NoticiasTest extends TestCase
     private function editor(): User
     {
         $usuario = User::factory()->create();
-        $usuario->givePermissionTo('noticias.gestionar');
+        $usuario->givePermissionTo(CatalogoPermisos::de('noticias'));
 
         return $usuario;
     }
@@ -243,9 +244,12 @@ final class NoticiasTest extends TestCase
         $sinPermiso->postJson('/api/v1/panel/noticias', ['titulo' => 'X'])->assertForbidden();
     }
 
-    public function test_el_permiso_de_noticias_se_siembra(): void
+    public function test_los_permisos_de_noticias_se_siembran_uno_por_accion(): void
     {
-        $this->assertTrue(DB::table('permissions')->where('name', 'noticias.gestionar')->exists());
+        foreach (['ver', 'crear', 'editar', 'eliminar', 'publicar'] as $accion) {
+            $this->assertTrue(DB::table('permissions')->where('name', "noticias.{$accion}")->exists(), $accion);
+        }
+        $this->assertFalse(DB::table('permissions')->where('name', 'noticias.gestionar')->exists());
     }
 
     public function test_crea_un_borrador_con_slug_unico_y_el_autor_de_la_sesion(): void

@@ -16,6 +16,7 @@ import type { DataTableFeatures } from '@/components/base/dataTableFeatures'
 import UsuariosPestanas from '@/components/base/UsuariosPestanas.vue'
 import { listar as listarRoles } from '@/services/roles'
 import { POR_PAGINA, listar } from '@/services/usuarios'
+import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
 import { useSesionStore } from '@/stores/sesion'
 import type { RolPanelItem, UsuarioPanelItem } from '@/types/api'
 import { tomarAviso } from './avisos'
@@ -25,6 +26,7 @@ import { ESTADOS, administradorDe, etiquetaEstado, puedeAdministrarA } from './u
 const ESPERA_BUSQUEDA_MS = 400
 
 const sesion = useSesionStore()
+const { puedeCrear, puedeEditar } = usePermisosDeModulo('usuarios')
 const quien = computed(() => administradorDe(sesion.usuario?.permisos ?? []))
 
 const filas = ref<UsuarioPanelItem[]>([])
@@ -64,7 +66,8 @@ async function cargar(): Promise<void> {
 onMounted(() => {
   void cargar()
   // Los roles solo alimentan el filtro: si fallan, la lista sigue funcionando sin él.
-  listarRoles().then((r) => (rolesDisponibles.value = r)).catch(() => undefined)
+  // Sin «ver roles» el servidor rechazaría la consulta: no se hace y el filtro por rol no se ofrece.
+  if (sesion.tienePermiso('roles.ver')) listarRoles().then((r) => (rolesDisponibles.value = r)).catch(() => undefined)
 })
 
 let temporizador: ReturnType<typeof setTimeout> | undefined
@@ -148,10 +151,10 @@ const columnas: ColumnDef<DataTableFeatures, UsuarioPanelItem, unknown>[] = [
             RouterLink,
             {
               to: { name: 'panel.usuarios.editar', params: { uuid: row.original.uuid } },
-              'aria-label': `Editar a ${row.original.name}`,
+              'aria-label': `${puedeEditar.value ? 'Editar a' : 'Ver a'} ${row.original.name}`,
               class: `${claseAccion} text-gov-blue hover:bg-gov-blue-light focus-visible:ring-gov-blue`,
             },
-            () => 'Editar',
+            () => (puedeEditar.value ? 'Editar' : 'Ver'),
           )
         : h('span', { class: 'text-xs text-slate-600' }, 'Solo un súper administrador puede modificarlo'),
   },
@@ -169,6 +172,7 @@ const columnas: ColumnDef<DataTableFeatures, UsuarioPanelItem, unknown>[] = [
         </p>
       </div>
       <RouterLink
+        v-if="puedeCrear"
         :to="{ name: 'panel.usuarios.nuevo' }"
         class="inline-flex h-10 items-center gap-2 rounded-lg bg-gov-blue px-4 text-sm font-medium text-white hover:bg-gov-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue focus-visible:ring-offset-2"
       >

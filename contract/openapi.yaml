@@ -74,7 +74,7 @@ tags:
   - name: Panel — Imágenes del contenido
     description: Imágenes que el editor del panel inserta en noticias, políticas y entidad
   - name: Panel — Noticias
-    description: Alta, edición y publicación de noticias (permiso noticias.gestionar)
+    description: Alta, edición, eliminación y publicación de noticias (permisos noticias.ver, crear, editar, eliminar y publicar)
   - name: Panel — Auth
     description: Autenticación del panel (Sanctum)
   - name: Panel — Transparencia
@@ -1438,7 +1438,7 @@ paths:
       operationId: listarTramitesPanel
       summary: Todos los trámites, borradores incluidos
       description: |
-        Requiere el permiso `tramites.gestionar`. Alimenta la tabla del panel: cada elemento
+        Requiere el permiso `tramites.ver`. Alimenta la tabla del panel: cada elemento
         trae lo justo para listar (código, nombre, estado, origen y lo que falta para
         publicarlo) y NO la ficha entera; ésa se pide con `GET /panel/tramites/{uuid}`.
 
@@ -1493,7 +1493,7 @@ paths:
       operationId: crearTramite
       summary: Crear un trámite (basta el nombre)
       description: |
-        Requiere `tramites.gestionar`. Solo el nombre es obligatorio: el trámite nace como
+        Requiere `tramites.crear` (y `tramites.publicar` si cambia `publicado`; publicar o retirar es un permiso aparte). Solo el nombre es obligatorio: el trámite nace como
         borrador. El código (`P0001`, `P0002`…) y la dirección (`slug`) los asigna el sistema
         y no cambian después. Pedir `publicado: true` en un trámite incompleto es 422 y el
         mensaje dice qué falta.
@@ -1527,7 +1527,7 @@ paths:
       tags: [Panel — Trámites]
       operationId: obtenerTramitePanel
       summary: Un trámite completo, con su estado y lo que le falta
-      description: Requiere el permiso `tramites.gestionar`.
+      description: Requiere el permiso `tramites.ver`.
       x-status: implemented
       x-criterios: [RF-01-006]
       parameters:
@@ -1557,7 +1557,7 @@ paths:
       operationId: actualizarTramite
       summary: Editar un trámite
       description: |
-        Requiere `tramites.gestionar`. Acepta cualquier subconjunto de campos; una lista que
+        Requiere `tramites.editar` (y `tramites.publicar` si cambia `publicado`; publicar o retirar es un permiso aparte). Acepta cualquier subconjunto de campos; una lista que
         se envía reemplaza a la guardada (vacía, la borra). El código y la dirección no
         cambian. Editar un trámite del catálogo oficial (SUIT) lo marca como del panel: la
         carga automática deja de sobrescribirlo y la ficha pública lo declara en
@@ -1599,7 +1599,7 @@ paths:
       operationId: eliminarTramite
       summary: Eliminar un trámite creado en el panel
       description: |
-        Requiere `tramites.gestionar`. Solo se eliminan los trámites creados en el panel; los
+        Requiere `tramites.eliminar`. Solo se eliminan los trámites creados en el panel; los
         del catálogo oficial responden 409 (la carga automática los traería de vuelta) y se
         retiran del sitio con `PATCH` y `publicado: false`.
       x-status: implemented
@@ -1629,7 +1629,7 @@ paths:
       tags: [Panel — Trámites]
       operationId: listarDependencias
       summary: Dependencias responsables, para el selector del formulario
-      description: Requiere `tramites.gestionar`. Lista las dependencias de la Alcaldía (id y nombre), en su orden.
+      description: Requiere `tramites.ver`. Lista las dependencias de la Alcaldía (id y nombre), en su orden.
       x-status: implemented
       responses:
         '200':
@@ -1665,7 +1665,7 @@ paths:
       operationId: listarUsuariosPanel
       summary: Usuarios del panel con sus roles
       description: |
-        Requiere `usuarios.gestionar`. Se busca por nombre o correo (`q`) y se filtra por `estado`
+        Requiere `usuarios.ver`. Se busca por nombre o correo (`q`) y se filtra por `estado`
         y por `rol`. Nunca devuelve la contraseña ni tokens.
       x-status: implemented
       x-criterios: [SEG-02]
@@ -1696,7 +1696,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '403':
-          description: Falta el permiso `usuarios.gestionar`.
+          description: Falta el permiso `usuarios.ver`.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }
@@ -1709,7 +1709,7 @@ paths:
       operationId: crearUsuarioPanel
       summary: Crear un usuario con contraseña temporal
       description: |
-        Requiere `usuarios.gestionar`. La contraseña (mínimo 12 caracteres, con letras y números)
+        Requiere `usuarios.crear`. La contraseña (mínimo 12 caracteres, con letras y números)
         se guarda cifrada y nunca se devuelve ni se registra. Quien no es súper administrador solo
         puede asignar roles cuyos permisos tiene todos, y nunca `super-admin` (403).
       x-status: implemented
@@ -1747,7 +1747,7 @@ paths:
       tags: [Panel — Usuarios]
       operationId: obtenerUsuarioPanel
       summary: Un usuario
-      description: Requiere `usuarios.gestionar`.
+      description: Requiere `usuarios.ver`.
       x-status: implemented
       x-criterios: [SEG-02]
       parameters:
@@ -1777,7 +1777,7 @@ paths:
       operationId: actualizarUsuarioPanel
       summary: Cambiar nombre, correo, contraseña, estado o roles
       description: |
-        Requiere `usuarios.gestionar`. Solo se envía lo que cambia. Reglas que aplica el servidor:
+        Requiere `usuarios.editar`. Solo se envía lo que cambia. Reglas que aplica el servidor:
         nadie cambia sus propios roles ni su estado (403); solo un súper administrador modifica a
         otro (403); solo se agregan o quitan roles cuyos permisos se tienen (403); no se puede
         desactivar ni quitar el rol al único súper administrador activo (422). Cambiar el estado a
@@ -1825,7 +1825,7 @@ paths:
       tags: [Panel — Roles]
       operationId: listarPermisosPanel
       summary: Catálogo de permisos, agrupado y en lenguaje llano
-      description: Requiere `usuarios.gestionar`. Cada permiso trae su nombre técnico, una etiqueta y una descripción.
+      description: Requiere `roles.ver`. Cada permiso trae su nombre técnico (`modulo.accion`), una etiqueta, una descripción, su módulo y acción, y los permisos que exige.
       x-status: implemented
       x-criterios: [SEG-02]
       responses:
@@ -1856,7 +1856,7 @@ paths:
       tags: [Panel — Roles]
       operationId: listarRolesPanel
       summary: Roles con sus permisos y cuántos usuarios los tienen
-      description: Requiere `usuarios.gestionar`.
+      description: Requiere `roles.ver`.
       x-status: implemented
       x-criterios: [SEG-02]
       responses:
@@ -1886,7 +1886,7 @@ paths:
       operationId: crearRolPanel
       summary: Crear un rol con permisos
       description: |
-        Requiere `usuarios.gestionar`. Quien no es súper administrador solo puede incluir permisos
+        Requiere `roles.crear`. Quien no es súper administrador solo puede incluir permisos
         que tiene (403). El nombre `super-admin` está reservado (422).
       x-status: implemented
       x-criterios: [SEG-02]
@@ -1923,7 +1923,7 @@ paths:
       tags: [Panel — Roles]
       operationId: obtenerRolPanel
       summary: Un rol
-      description: Requiere `usuarios.gestionar`.
+      description: Requiere `roles.ver`.
       x-status: implemented
       x-criterios: [SEG-02]
       parameters:
@@ -1953,7 +1953,7 @@ paths:
       operationId: actualizarRolPanel
       summary: Cambiar el nombre o los permisos de un rol
       description: |
-        Requiere `usuarios.gestionar`. La lista de permisos reemplaza a la guardada. El rol
+        Requiere `roles.editar`. La lista de permisos reemplaza a la guardada. El rol
         `super-admin` no se modifica (403). Quien no es súper administrador no puede agregar ni
         quitar permisos que no tiene (403).
       x-status: implemented
@@ -1997,7 +1997,7 @@ paths:
       operationId: eliminarRolPanel
       summary: Eliminar un rol sin usuarios
       description: |
-        Requiere `usuarios.gestionar`. Un rol con usuarios asignados responde 409; `super-admin`
+        Requiere `roles.eliminar`. Un rol con usuarios asignados responde 409; `super-admin`
         no se elimina (403).
       x-status: implemented
       x-criterios: [SEG-02]
@@ -2034,7 +2034,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: listarBannersPanel
       summary: Todas las diapositivas del carrusel, en su orden
-      description: Requiere `banners.gestionar`. Incluye borradores, programadas y vencidas, con su estado en palabras y lo que les falta para publicarse.
+      description: Requiere `banners.ver`. Incluye borradores, programadas y vencidas, con su estado en palabras y lo que les falta para publicarse.
       x-status: implemented
       x-criterios: [CAG-02]
       responses:
@@ -2053,7 +2053,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '403':
-          description: Falta el permiso `banners.gestionar`.
+          description: Falta el permiso `banners.ver`.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }
@@ -2063,7 +2063,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: crearBanner
       summary: Crear una diapositiva (basta el título)
-      description: Requiere `banners.gestionar`. Nace como borrador y al final del carrusel. El enlace es una ruta del sitio o una dirección `https://`.
+      description: Requiere `banners.crear` (y `banners.publicar` si cambia `activo`; publicar o retirar es un permiso aparte). Nace como borrador y al final del carrusel. El enlace es una ruta del sitio o una dirección `https://`.
       x-status: implemented
       x-criterios: [CAG-02]
       requestBody:
@@ -2085,7 +2085,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '403':
-          description: Falta el permiso `banners.gestionar`.
+          description: Falta el permiso `banners.crear`.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }
@@ -2099,7 +2099,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: ordenarBanners
       summary: Fijar el orden del carrusel
-      description: Requiere `banners.gestionar`. La lista completa de diapositivas (sin repetidas ni desconocidas); la primera es la que se ve primero. Una lista incompleta es 422.
+      description: Requiere `banners.editar`. La lista completa de diapositivas (sin repetidas ni desconocidas); la primera es la que se ve primero. Una lista incompleta es 422.
       x-status: implemented
       x-criterios: [CAG-02]
       requestBody:
@@ -2127,7 +2127,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '403':
-          description: Falta el permiso `banners.gestionar`.
+          description: Falta el permiso `banners.editar`.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }
@@ -2141,7 +2141,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: obtenerBannerPanel
       summary: Una diapositiva
-      description: Requiere `banners.gestionar`.
+      description: Requiere `banners.ver`.
       x-status: implemented
       x-criterios: [CAG-02]
       parameters:
@@ -2171,7 +2171,7 @@ paths:
       operationId: actualizarBanner
       summary: Cambiar una diapositiva
       description: |
-        Requiere `banners.gestionar`. Solo se envía lo que cambia. `activo: true` la publica y exige imagen
+        Requiere `banners.editar` (y `banners.publicar` si cambia `activo`; publicar o retirar es un permiso aparte). Solo se envía lo que cambia. `activo: true` la publica y exige imagen
         con texto alternativo (422 con lo que falta). `imagen_alt` cambia el texto alternativo sin subir otra imagen.
       x-status: implemented
       x-criterios: [CAG-02, CAG-04]
@@ -2199,7 +2199,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '403':
-          description: Falta el permiso `banners.gestionar`.
+          description: Falta el permiso `banners.editar`.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }
@@ -2213,7 +2213,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: eliminarBanner
       summary: Eliminar una diapositiva
-      description: "Requiere `banners.gestionar`. Borrado lógico: deja de verse en el sitio y en el panel; queda en la auditoría."
+      description: "Requiere `banners.eliminar`. Borrado lógico: deja de verse en el sitio y en el panel; queda en la auditoría."
       x-status: implemented
       x-criterios: [CAG-02]
       parameters:
@@ -2230,7 +2230,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '403':
-          description: Falta el permiso `banners.gestionar`.
+          description: Falta el permiso `banners.eliminar`.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }
@@ -2244,7 +2244,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: obtenerImagenBannerPanel
       summary: Ver la imagen de una diapositiva, publicada o no
-      description: "Requiere `banners.gestionar`. Entrega también la de un borrador; `Cache-Control: private, no-store`."
+      description: "Requiere `banners.ver`. Entrega también la de un borrador; `Cache-Control: private, no-store`."
       x-status: implemented
       x-criterios: [CAG-04]
       parameters:
@@ -2269,7 +2269,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: subirImagenBanner
       summary: Subir o reemplazar la imagen de una diapositiva
-      description: Requiere `banners.gestionar`. Imagen y texto alternativo (`alt`) van siempre juntos; sin `alt` es 422. PNG, JPG o WebP, hasta 5 MB.
+      description: Requiere `banners.editar`. Imagen y texto alternativo (`alt`) van siempre juntos; sin `alt` es 422. PNG, JPG o WebP, hasta 5 MB.
       x-status: implemented
       x-criterios: [CAG-04]
       parameters:
@@ -2301,7 +2301,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '403':
-          description: Falta el permiso `banners.gestionar`.
+          description: Falta el permiso `banners.editar`.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }
@@ -2318,7 +2318,7 @@ paths:
       operationId: listarNoticiasPanel
       summary: Todas las noticias, borradores incluidos
       description: |
-        Requiere el permiso `noticias.gestionar`. Alimenta la tabla del panel: cada
+        Requiere el permiso `noticias.ver`. Alimenta la tabla del panel: cada
         elemento trae lo necesario para listar y abrir la noticia (`uuid`, `estado`,
         `activo`, `fecha_publicacion`, la imagen y lo que falta para publicarla) y NO trae
         el cuerpo (`contenido`); ése se pide al abrirla, con `GET /panel/noticias/{uuid}`.
@@ -2375,7 +2375,7 @@ paths:
       operationId: crearNoticia
       summary: Crear una noticia (nace como borrador)
       description: |
-        Requiere `noticias.gestionar`. Título hasta 150 caracteres y descripción hasta
+        Requiere `noticias.crear` (y `noticias.publicar` si cambia `activo`; publicar o retirar es un permiso aparte). Título hasta 150 caracteres y descripción hasta
         200 (RF-01-013). La dirección (`slug`) se genera del título y no cambia después.
         La imagen se sube aparte, con `POST /panel/noticias/{uuid}/imagen`.
       x-status: implemented
@@ -2408,7 +2408,7 @@ paths:
       tags: [Panel — Noticias]
       operationId: obtenerNoticiaPanel
       summary: Una noticia con su estado de publicación
-      description: Requiere el permiso `noticias.gestionar`.
+      description: Requiere el permiso `noticias.ver`.
       x-status: implemented
       x-criterios: [RF-01-013]
       parameters:
@@ -2438,7 +2438,7 @@ paths:
       operationId: actualizarNoticia
       summary: Editar o publicar una noticia
       description: |
-        Actualización parcial. Requiere `noticias.gestionar`. Para pasar `activo` a
+        Actualización parcial. Requiere `noticias.editar` (y `noticias.publicar` si cambia `activo`; publicar o retirar es un permiso aparte). Para pasar `activo` a
         `true` la noticia debe estar completa: título, descripción, contenido, imagen
         y texto alternativo de la imagen no vacío (Res. MinTIC 1519/2020, Anexo 2); si
         no, `422` con `errors.noticia`. `imagen_alt` cambia el texto alternativo de la
@@ -2478,7 +2478,7 @@ paths:
       tags: [Panel — Noticias]
       operationId: eliminarNoticia
       summary: Eliminar una noticia (borrado lógico)
-      description: Requiere `noticias.gestionar`. La noticia se archiva y deja de verse en el sitio.
+      description: Requiere `noticias.eliminar`. La noticia se archiva y deja de verse en el sitio.
       x-status: implemented
       x-criterios: [RF-01-013]
       parameters:
@@ -2505,7 +2505,7 @@ paths:
       operationId: obtenerImagenNoticiaPanel
       summary: Ver la imagen de una noticia, publicada o no
       description: |
-        Requiere `noticias.gestionar`. A diferencia de `GET /noticias/{slug}/imagen`,
+        Requiere `noticias.ver`. A diferencia de `GET /noticias/{slug}/imagen`,
         entrega también la imagen de un borrador o de una noticia programada, para que
         el panel la muestre al editarla. Va con `Cache-Control: private, no-store`: un
         borrador no debe quedar en una caché compartida. 404 si la noticia no existe o
@@ -2535,7 +2535,7 @@ paths:
       operationId: subirImagenNoticia
       summary: Subir o reemplazar la imagen de una noticia
       description: |
-        Requiere `noticias.gestionar`. La imagen y su texto alternativo (`alt`) van
+        Requiere `noticias.editar`. La imagen y su texto alternativo (`alt`) van
         siempre juntos: sin `alt` (o con sólo espacios) no se guarda nada y la
         respuesta es `422`. PNG, JPG o WebP, hasta 5 MB. La nueva reemplaza a la
         anterior: una noticia tiene una sola imagen.
@@ -2617,7 +2617,7 @@ paths:
       operationId: subirImagenContenido
       summary: Subir una imagen para insertarla en el contenido
       description: |
-        Requiere `noticias.gestionar`, `politicas.gestionar` o `entidad.gestionar`. La
+        Requiere `noticias.crear`, `noticias.editar`, `politicas.editar` o `entidad.editar`. La
         imagen y su texto alternativo (`alt`) van siempre juntos. PNG, JPG o WebP, hasta
         5 MB y 4000 px por lado. Se re-codifica antes de guardarse (sin EXIF ni bytes
         añadidos). Devuelve la URL pública con la que se inserta en el HTML.
@@ -2668,7 +2668,7 @@ paths:
       tags: [Panel — Políticas]
       operationId: listarPoliticasPanel
       summary: Las políticas con su estado de completitud
-      description: Requiere el permiso `politicas.gestionar`.
+      description: Requiere el permiso `politicas.ver`.
       x-status: implemented
       x-criterios: [RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010]
       responses:
@@ -2696,7 +2696,7 @@ paths:
       summary: Editar una política
       description: |
         Actualización parcial; los campos no enviados conservan su valor. Requiere el
-        permiso `politicas.gestionar`.
+        permiso `politicas.editar`.
 
         Si cambia el texto y no se envía `version`, la versión sube sola. La política
         debe quedar completa: todos sus apartados con texto y sin «en preparación». Para
@@ -3764,9 +3764,13 @@ components:
             type: object
             required: [nombre, etiqueta, descripcion]
             properties:
-              nombre: { type: string }
+              nombre: { type: string, description: 'Nombre técnico, `modulo.accion` (p. ej. `noticias.editar`).' }
               etiqueta: { type: string }
               descripcion: { type: string }
+              modulo: { type: string, description: Clave del módulo (p. ej. `noticias`); sirve para pintar la matriz módulo × acción. }
+              modulo_etiqueta: { type: string }
+              accion: { type: string, description: 'Acción dentro del módulo: ver, crear, editar, eliminar, publicar…' }
+              requiere: { type: array, items: { type: string }, description: Permisos que este exige (toda acción distinta de ver exige el ver de su módulo). }
 
     BannerPublico:
       type: object

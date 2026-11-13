@@ -123,6 +123,8 @@ VALOR=()
 declare -A SECRETO=(
   [APP_KEY]='base64:AbC+dEf/gHi=jKl'
   [DB_PASSWORD]='clave con espacio & $ignora `esto`'
+  [DB_APP_PASSWORD]='app-clave'
+  [DB_LECTURA_PASSWORD]='lectura-clave'
   [REDIS_PASSWORD]='r3d1s'
   [BACKUP_PASSPHRASE]='frase-de-respaldo'
   [SUPER_ADMIN_EMAIL]='admin@example.test'

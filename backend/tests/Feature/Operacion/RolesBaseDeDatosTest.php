@@ -77,6 +77,24 @@ final class RolesBaseDeDatosTest extends TestCase
         ));
     }
 
+    public function test_el_comando_aplica_de_nuevo_y_rota_la_clave(): void
+    {
+        // Se compara el hash guardado y no un inicio de sesión: según el `pg_hba.conf`
+        // (la imagen oficial confía en 127.0.0.1) la clave puede no comprobarse.
+        $antes = DB::scalar("select rolpassword from pg_authid where rolname = 'sede_app'");
+
+        Config::set('database.roles.app_password', 'clave-rotada');
+        $this->artisan('bd:sincronizar-roles')->assertSuccessful();
+
+        $despues = DB::scalar("select rolpassword from pg_authid where rolname = 'sede_app'");
+        $this->assertNotSame($antes, $despues);
+        $this->assertStringStartsWith('SCRAM-SHA-256$', $despues);
+
+        // Se deja la clave de pruebas como estaba.
+        Config::set('database.roles.app_password', null);
+        $this->artisan('bd:sincronizar-roles')->assertSuccessful();
+    }
+
     public function test_los_roles_no_tienen_privilegios_de_administracion(): void
     {
         $filas = DB::select(

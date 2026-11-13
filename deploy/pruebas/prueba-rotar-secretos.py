@@ -20,7 +20,7 @@ import sys
 import tempfile
 
 RAIZ = pathlib.Path(__file__).resolve().parents[2]
-CLAVES = ["APP_KEY", "DB_PASSWORD", "REDIS_PASSWORD", "S3_ACCESS_KEY", "S3_SECRET_KEY", "BACKUP_PASSPHRASE"]
+CLAVES = ["APP_KEY", "DB_PASSWORD", "DB_APP_PASSWORD", "DB_LECTURA_PASSWORD", "REDIS_PASSWORD", "S3_ACCESS_KEY", "S3_SECRET_KEY", "BACKUP_PASSPHRASE"]
 
 spec = importlib.util.spec_from_file_location("rotar", RAIZ / "deploy" / "rotar-secretos.py")
 rotar = importlib.util.module_from_spec(spec)

@@ -7,10 +7,12 @@ namespace Database\Seeders;
 use App\Enums\CanalInicioTramite;
 use App\Enums\CostoTramite;
 use App\Enums\ModalidadTramite;
+use App\Models\Dependencia;
 use App\Models\Tramite;
 use App\Models\TramiteCategoria;
 use App\Support\Tramites\ContactoPublicable;
 use App\Support\Tramites\ConversorFichaJson;
+use App\Support\Tramites\DependenciaDeTramite;
 use App\Support\Tramites\EscritorFichaRelacional;
 use App\Support\Tramites\SlugCatalogo;
 use App\Support\Tramites\TemaDeTramite;
@@ -274,6 +276,14 @@ final class TramiteSeeder extends Seeder
         $tramite = new Tramite($escalares);
         $tramite->save();
         EscritorFichaRelacional::escribir($tramite, $ficha);
+
+        // La dependencia solo se asigna con evidencia directa en los puntos de atención; si no la
+        // hay, queda vacía para que la Entidad la elija en el panel (nada se deduce por analogía).
+        $dependencia = DependenciaDeTramite::para($tramite->puntosAtencion()->pluck('nombre')->map(static fn ($n): string => (string) $n)->all());
+        if ($dependencia !== null) {
+            $tramite->dependencia_id = Dependencia::query()->where('nombre', $dependencia)->value('id');
+            $tramite->save();
+        }
     }
 
     /** @var array<string, int> El id de cada tema por su slug, resuelto una vez. */

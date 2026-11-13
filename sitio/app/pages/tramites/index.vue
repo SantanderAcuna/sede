@@ -15,9 +15,11 @@
  * metadatos que el ciudadano necesita para elegir—. Al lado izquierdo, en un panel propio, el
  * buscador y los filtros agrupados en acordeones.
  *
- * **Adónde lleva cada fila.** La ficha completa vive en GOV.CO (registro nacional de trámites): la
- * fila entera abre su `url_ficha_gov_co` en una pestaña nueva (`enlaceTramite`). Un trámite sin ficha
- * nacional, como las consultas, cae a la ficha propia de la Sede.
+ * **Adónde lleva cada fila.** La ficha completa vive en GOV.CO (registro nacional de trámites): el
+ * título abre su `url_ficha_gov_co` en una pestaña nueva (`enlaceTramite`). Además cada fila ofrece un
+ * enlace «Detalle» a la ficha propia de la Sede (pasos, requisitos y valoración con estrellas), de modo
+ * que las dos fichas son alcanzables. Un trámite sin ficha nacional, como las consultas, lleva con su
+ * título a la ficha propia y no repite el «Detalle».
  *
  * **Los filtros y la búsqueda son del servidor, y el contrato lo dice.** `GET /tramites` declara
  * `page`, `per_page`, `buscar`, `type`, `categoria`, `modalidad`, `costo`, `dependencia` y
@@ -509,7 +511,7 @@ function reintentar(): void {
           <li v-for="t in elementos" :key="t.slug" class="fila">
             <div class="fila-texto">
               <h3 class="fila-nombre h5">
-                <!-- La ficha completa vive en GOV.CO: la fila entera lleva allí; sin ficha nacional, a la propia. -->
+                <!-- El título lleva a la ficha completa en GOV.CO; sin ficha nacional, a la propia. -->
                 <a
                   v-if="enlaceTramite(t).externo"
                   :href="enlaceTramite(t).href"
@@ -518,11 +520,19 @@ function reintentar(): void {
                   rel="noopener noreferrer"
                 >
                   {{ t.nombre }}
-                  <span class="solo-lectores">(abre la ficha en GOV.CO, en una pestaña nueva)</span>
+                  <span class="visually-hidden">(abre la ficha en GOV.CO, en una pestaña nueva)</span>
                 </a>
                 <NuxtLink v-else :to="enlaceTramite(t).href" class="fila-enlace">{{ t.nombre }}</NuxtLink>
               </h3>
               <p v-if="t.resumen" class="fila-resumen mb-0">{{ t.resumen }}</p>
+              <!-- Las dos fichas son alcanzables: la de GOV.CO (título) y la propia, con sus pasos y la valoración. -->
+              <NuxtLink
+                v-if="enlaceTramite(t).externo"
+                :to="'/tramites/' + t.slug"
+                class="fila-enlace fila-detalle"
+              >
+                Detalle<span class="visually-hidden"> de {{ t.nombre }}</span>
+              </NuxtLink>
             </div>
 
             <ul class="fila-datos" role="list">
@@ -558,7 +568,7 @@ function reintentar(): void {
                 </svg>
                 <span>{{ t.dependencia.nombre }}</span>
               </li>
-              <!-- Rótulo de destino, no un segundo enlace: toda la fila ya lo es. El logo es blanco, va sobre la pastilla azul. -->
+              <!-- Rótulo de destino del título, no un enlace. El logo es blanco, va sobre la pastilla azul. -->
               <li v-if="enlaceTramite(t).externo" class="dato dato-govco">
                 <span class="insignia-govco" aria-hidden="true">
                   <img src="/govco/assets/images/logo.svg" alt="" width="65" height="14" />
@@ -780,8 +790,6 @@ function reintentar(): void {
      directorio ocupa su columna. `min-width` gana a `max-width` cuando chocan, así no hace falta un
      `#id` en el selector (el proyecto no los admite fuera de la capa de modos de accesibilidad). */
   min-width: 100%;
-  /* La fila entera es el enlace (el `::after` del título la cubre), sin una segunda parada de teclado. */
-  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.75rem 2rem;
@@ -803,10 +811,18 @@ function reintentar(): void {
   text-decoration: underline;
   text-underline-offset: 0.15em;
 }
-.fila-enlace::after {
-  content: '';
-  position: absolute;
-  inset: 0;
+/* Objetivo táctil de al menos 44 px (WCAG 2.5.8 / criterio móvil del proyecto) sin agrandar el texto. */
+.fila-nombre .fila-enlace {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+.fila-detalle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin-top: 0.25rem;
+  font-weight: 700;
 }
 /* Al pasar el cursor la fila se tiñe; el `a:hover` del Kit baja el enlace a un azul que ahí ya no llega
    a 4,5:1 (medido: 3,93). El token del proyecto para enlaces sobre fondo teñido sí. */

@@ -164,7 +164,8 @@ final class PanelPoliticaController extends Controller
     {
         $base = Str::limit(Str::slug($nombre), 90, '') ?: 'politica';
         $slug = $base;
-        for ($n = 2; Politica::query()->where('slug', $slug)->exists(); $n++) {
+        // «nueva» es la ruta del formulario de creación en el panel: ninguna política puede llamarse así.
+        for ($n = 2; $slug === 'nueva' || Politica::query()->where('slug', $slug)->exists(); $n++) {
             $slug = $base.'-'.$n;
         }
 

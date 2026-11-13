@@ -97,6 +97,13 @@ final class PoliticasCrudTest extends TestCase
             ->assertJsonPath('data.slug', 'uso-de-cookies-3');
     }
 
+    public function test_ninguna_politica_se_llama_nueva_porque_es_la_ruta_del_formulario(): void
+    {
+        $this->con('politicas.ver', 'politicas.crear');
+        $this->postJson('/api/v1/panel/politicas', $this->nueva(['nombre' => 'Nueva']))->assertCreated()
+            ->assertJsonPath('data.slug', 'nueva-2');
+    }
+
     public function test_exige_nombre_y_al_menos_un_apartado_con_texto(): void
     {
         $this->con('politicas.ver', 'politicas.crear');

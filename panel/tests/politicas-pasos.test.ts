@@ -13,7 +13,9 @@ import { conSesion } from './ayudas/sesion'
 vi.mock('../src/services/politicas', () => ({
   COLECCION_DOCUMENTO: 'documento-oficial',
   listar: vi.fn(),
+  crear: vi.fn(),
   actualizar: vi.fn(),
+  eliminar: vi.fn(),
   documentosAdjuntos: vi.fn(),
   adjuntarDocumento: vi.fn(),
   quitarArchivo: vi.fn(),
@@ -30,7 +32,7 @@ const m = vi.mocked(servicio)
 const politica = (extra: Partial<PoliticaPanelItem> = {}): PoliticaPanelItem =>
   ({
     id: 1, type: 'politica', slug: 'terminos-y-condiciones-de-uso', nombre: 'Términos y condiciones de uso', version: 1,
-    vigente_desde: null, acto: { tipo: null, numero: null, fecha: null }, es_ejemplo: true, documento_oficial: null,
+    vigente_desde: null, acto: { tipo: null, numero: null, fecha: null }, es_ejemplo: true, publicada: true, es_base: true, documento_oficial: null,
     actualizada_en: '2026-10-29', secciones: [{ id: 'a', titulo: 'A', parrafos: ['x'] }],
     uuid: '11111111-1111-4111-8111-111111111111', componentes: { a: 'A' }, completa: true, problemas: [], ...extra,
   }) as PoliticaPanelItem
@@ -40,6 +42,7 @@ const router = () =>
     history: createMemoryHistory(),
     routes: [
       { path: '/configuracion/politicas', name: 'panel.politicas', component: { template: '<i/>' } },
+      { path: '/configuracion/politicas/nueva', name: 'panel.politicas.nueva', component: { template: '<i/>' } },
       { path: '/configuracion/politicas/:slug', name: 'panel.politicas.editar', component: { template: '<i/>' } },
       { path: '/configuracion/entidad', name: 'panel.entidad', component: { template: '<i/>' } },
     ],

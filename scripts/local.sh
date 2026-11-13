@@ -26,7 +26,7 @@ crear_env() {
   [ -f .env ] && { echo "  .env ya existe: no se toca."; return; }
   local clave_app
   clave_app="base64:$(openssl rand -base64 32)"
-  umask 077
+  ( umask 077
   cat > .env <<ENV
 # Generado por scripts/local.sh. Sólo para esta máquina. No se versiona.
 APP_NAME=sede
@@ -67,6 +67,7 @@ MAIL_PORT=1025
 
 BACKUP_PASSPHRASE=$(aleatorio)
 ENV
+  )
   echo "  .env creado con secretos aleatorios locales."
 }
 
@@ -79,7 +80,9 @@ crear_certificado() {
   openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
     -keyout docker/nginx/certs/sede.key -out docker/nginx/certs/sede.crt \
     -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" 2>/dev/null
-  chmod 600 docker/nginx/certs/sede.key
+  # 0644 a propósito: nginx corre sin DAC_OVERRIDE y su usuario no es el tuyo, así que una clave
+  # 0600 tuya no se puede leer. Es un certificado de PRUEBA de esta máquina; en servidores no se usa.
+  chmod 644 docker/nginx/certs/sede.crt docker/nginx/certs/sede.key
   echo "  certificado autofirmado creado (el navegador pedirá aceptarlo)."
 }
 

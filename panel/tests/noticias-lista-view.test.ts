@@ -8,6 +8,7 @@
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 vi.mock('../src/services/noticias', () => ({
@@ -80,6 +81,7 @@ async function montar() {
 const ultimaConsulta = () => m.listar.mock.calls.at(-1)![0]
 
 beforeEach(() => {
+  conSesion()
   vi.clearAllMocks()
   m.listar.mockResolvedValue(pagina([]))
 })

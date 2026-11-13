@@ -101,7 +101,21 @@ export interface RolPanelEntrada {
   permisos?: string[]
 }
 
+/** Un permiso del catálogo: una acción de un módulo (`modulo.accion`). */
+export interface PermisoPanel {
+  nombre: string
+  etiqueta: string
+  descripcion: string
+  /** Clave del módulo, p. ej. `noticias`. */
+  modulo: string
+  modulo_etiqueta: string
+  /** `ver`, `crear`, `editar`, `eliminar`, `publicar`… */
+  accion: string
+  /** Permisos que este exige: toda acción distinta de `ver` exige el `ver` de su módulo. */
+  requiere: string[]
+}
+
 export interface GrupoPermisosPanel {
   grupo: string
-  permisos: Array<{ nombre: string; etiqueta: string; descripcion: string }>
+  permisos: PermisoPanel[]
 }

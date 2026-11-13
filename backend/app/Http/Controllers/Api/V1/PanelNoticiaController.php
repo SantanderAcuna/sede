@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Gestión de las noticias desde el panel (M01-6). Requiere `noticias.gestionar`.
+ * Gestión de las noticias desde el panel (M01-6). Cada acción exige su permiso (ver `CatalogoPermisos`).
  *
  * Una noticia nace como borrador y sólo se publica con título, descripción,
  * contenido, imagen y texto alternativo de la imagen (RF-01-013, Res. 1519/2020).
@@ -76,6 +76,10 @@ final class PanelNoticiaController extends Controller
     public function store(GuardarNoticiaRequest $peticion): JsonResponse
     {
         Gate::authorize('create', Noticia::class);
+        // Publicar es un permiso aparte: crear no basta para dejar una noticia a la vista del público.
+        if ($peticion->boolean('activo')) {
+            Gate::authorize('publish', Noticia::class);
+        }
 
         try {
             $noticia = $this->noticias->crear($peticion->validated(), $peticion->user()?->id);
@@ -99,6 +103,10 @@ final class PanelNoticiaController extends Controller
             return ApiResponse::notFound('La noticia no existe.');
         }
         Gate::authorize('update', $noticia);
+        // Publicar o retirar (cambiar `activo`) exige el permiso de publicar; guardar igual que está, no.
+        if ($peticion->has('activo') && $peticion->boolean('activo') !== (bool) $noticia->activo) {
+            Gate::authorize('publish', $noticia);
+        }
 
         try {
             $noticia = $this->noticias->actualizar($noticia, $peticion->validated());

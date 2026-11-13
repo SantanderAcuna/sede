@@ -33,7 +33,7 @@ final class ImagenContenidoTest extends TestCase
         Storage::fake((string) config('filesystems.default'));
     }
 
-    private function usuario(string $permiso = 'noticias.gestionar'): User
+    private function usuario(string $permiso = 'noticias.editar'): User
     {
         $u = User::factory()->create();
         $u->givePermissionTo($permiso);
@@ -87,7 +87,7 @@ final class ImagenContenidoTest extends TestCase
     /** @return array<string, array{string}> */
     public static function permisosQueEditan(): array
     {
-        return ['noticias' => ['noticias.gestionar'], 'politicas' => ['politicas.gestionar'], 'entidad' => ['entidad.gestionar']];
+        return ['noticias editar' => ['noticias.editar'], 'noticias crear' => ['noticias.crear'], 'politicas' => ['politicas.editar'], 'entidad' => ['entidad.editar']];
     }
 
     public function test_sube_y_devuelve_la_url_publica_y_el_alt(): void

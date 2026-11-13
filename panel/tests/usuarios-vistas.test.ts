@@ -34,17 +34,21 @@ const usuario = (extra: Partial<UsuarioPanelItem> = {}): UsuarioPanelItem => ({
   mfa_habilitado: false, roles: ['editor'], es_super_admin: false, creado_en: null, ...extra,
 })
 const rol = (extra: Partial<RolPanelItem> = {}): RolPanelItem => ({
-  id: 7, type: 'roles', name: 'editor', permisos: ['noticias.gestionar'], usuarios: 0, protegido: false, ...extra,
+  id: 7, type: 'roles', name: 'editor', permisos: ['noticias.ver'], usuarios: 0, protegido: false, ...extra,
 })
 const pagina = (datos: UsuarioPanelItem[]) => ({
   datos,
   meta: { current_page: 1, from: datos.length ? 1 : null, last_page: 1, path: '/x', per_page: 20, to: datos.length, total: datos.length },
   enlaces: { first: null, last: null, prev: null, next: null },
 })
+const permiso = (modulo: string, etiquetaModulo: string, accion: string) => ({
+  nombre: `${modulo}.${accion}`, etiqueta: accion[0].toUpperCase() + accion.slice(1), descripcion: `Descripción de ${accion}.`,
+  modulo, modulo_etiqueta: etiquetaModulo, accion, requiere: accion === 'ver' ? [] : [`${modulo}.ver`],
+})
 const catalogo = [
   { grupo: 'Contenidos del sitio', permisos: [
-    { nombre: 'noticias.gestionar', etiqueta: 'Gestionar noticias', descripcion: 'Crear, editar y publicar noticias.' },
-    { nombre: 'entidad.gestionar', etiqueta: 'Gestionar datos de la entidad', descripcion: 'Editar la información institucional.' },
+    ...['ver', 'crear', 'editar', 'eliminar', 'publicar'].map((a) => permiso('noticias', 'Noticias', a)),
+    ...['ver', 'editar'].map((a) => permiso('entidad', 'Datos de la entidad', a)),
   ] },
 ]
 
@@ -62,7 +66,7 @@ function enrutador() {
   })
 }
 
-function quien(esSuper: boolean, permisos: string[] = ['usuarios.gestionar', 'noticias.gestionar'], email = 'yo@example.com') {
+function quien(esSuper: boolean, permisos: string[] = ['usuarios.ver', 'roles.ver', 'noticias.ver'], email = 'yo@example.com') {
   setActivePinia(createPinia())
   const sesion = useSesionStore()
   sesion.usuario = { id: 1, email, nombre: 'yo', permisos: esSuper ? ['*'] : permisos }
@@ -80,7 +84,7 @@ async function montar(vista: object, ruta: string, opciones: { global?: object }
 beforeEach(() => {
   vi.clearAllMocks()
   quien(true)
-  r.listar.mockResolvedValue([rol(), rol({ id: 8, name: 'poderoso', permisos: ['noticias.gestionar', 'entidad.gestionar'] }), rol({ id: 1, name: 'super-admin', permisos: [], protegido: true })])
+  r.listar.mockResolvedValue([rol(), rol({ id: 8, name: 'poderoso', permisos: ['noticias.ver', 'entidad.ver'] }), rol({ id: 1, name: 'super-admin', permisos: [], protegido: true })])
   r.permisos.mockResolvedValue(catalogo)
 })
 afterEach(() => { document.body.innerHTML = '' })
@@ -155,7 +159,7 @@ describe('UsuarioFormularioView', () => {
   })
 
   it('solo ofrece los roles que quien administra puede asignar', async () => {
-    quien(false, ['usuarios.gestionar', 'noticias.gestionar'])
+    quien(false, ['usuarios.ver', 'usuarios.crear', 'roles.ver', 'noticias.ver'])
     const { envoltura } = await montar(UsuarioFormularioView, '/usuarios/nuevo')
     const valores = envoltura.findAll('input[type="checkbox"]').map((c) => (c.element as HTMLInputElement).value)
     expect(valores).toEqual(['editor'])
@@ -172,7 +176,7 @@ describe('UsuarioFormularioView', () => {
   })
 
   it('en la propia cuenta no se pueden cambiar roles ni estado, y se dice por qué', async () => {
-    quien(false, ['usuarios.gestionar'], 'ana@example.com')
+    quien(false, ['usuarios.ver'], 'ana@example.com')
     u.obtener.mockResolvedValue(usuario())
     const { envoltura } = await montar(UsuarioFormularioView, `/usuarios/${UUID}`)
     expect(envoltura.find('select#usuario-estado').attributes('disabled')).toBeDefined()
@@ -220,26 +224,56 @@ describe('RolesListaView', () => {
 })
 
 describe('RolFormularioView', () => {
-  it('agrupa los permisos con etiquetas en lenguaje llano y crea el rol', async () => {
+  it('muestra cada módulo con sus acciones por separado y crea el rol con solo «ver»', async () => {
     r.crear.mockResolvedValue(rol())
     const { envoltura, router } = await montar(RolFormularioView, '/usuarios/roles/nuevo')
     expect(envoltura.text()).toContain('Contenidos del sitio')
-    expect(envoltura.text()).toContain('Gestionar noticias')
-    expect(envoltura.text()).not.toContain('noticias.gestionar')
+    expect(envoltura.text()).toContain('Noticias')
+    expect(envoltura.text()).not.toContain('noticias.ver')
+    // Cinco acciones de noticias y dos de entidad: cada una es su propia casilla.
+    expect(envoltura.findAll('input[type="checkbox"]')).toHaveLength(7)
 
     await envoltura.find('input[autocomplete="off"][type="text"]').setValue('redactor')
-    await envoltura.find('input[type="checkbox"][value="noticias.gestionar"]').setValue(true)
+    await envoltura.find('input[type="checkbox"][value="noticias.ver"]').setValue(true)
     await envoltura.find('form').trigger('submit')
     await flushPromises()
-    expect(r.crear).toHaveBeenCalledWith({ name: 'redactor', permisos: ['noticias.gestionar'] })
+    expect(r.crear).toHaveBeenCalledWith({ name: 'redactor', permisos: ['noticias.ver'] })
     expect(router.currentRoute.value.name).toBe('panel.roles')
   })
 
-  it('quien no es súper administrador no puede marcar permisos que no tiene', async () => {
-    quien(false, ['usuarios.gestionar', 'noticias.gestionar'])
+  it('marcar una acción marca también «ver» del módulo y quitar «ver» las quita todas', async () => {
     const { envoltura } = await montar(RolFormularioView, '/usuarios/roles/nuevo')
-    expect(envoltura.find('input[value="noticias.gestionar"]').attributes('disabled')).toBeUndefined()
-    expect(envoltura.find('input[value="entidad.gestionar"]').attributes('disabled')).toBeDefined()
+    const casilla = (n: string) => envoltura.find(`input[type="checkbox"][value="${n}"]`)
+    await casilla('noticias.editar').setValue(true)
+    expect((casilla('noticias.ver').element as HTMLInputElement).checked).toBe(true)
+    expect((casilla('noticias.editar').element as HTMLInputElement).checked).toBe(true)
+    expect((casilla('noticias.crear').element as HTMLInputElement).checked).toBe(false)
+    expect((casilla('entidad.ver').element as HTMLInputElement).checked).toBe(false)
+
+    await casilla('noticias.ver').setValue(false)
+    expect((casilla('noticias.editar').element as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('«Solo ver» deja únicamente «ver» en cada módulo del grupo', async () => {
+    const { envoltura } = await montar(RolFormularioView, '/usuarios/roles/nuevo')
+    await envoltura.find('input[value="noticias.eliminar"]').setValue(true)
+    await envoltura.find('button[aria-label="Dar solo ver en Contenidos del sitio"]').trigger('click')
+    const marcados = envoltura.findAll('input[type="checkbox"]').filter((c) => (c.element as HTMLInputElement).checked).map((c) => (c.element as HTMLInputElement).value)
+    expect(marcados.sort()).toEqual(['entidad.ver', 'noticias.ver'])
+  })
+
+  it('cada casilla tiene un nombre accesible que dice la acción y el módulo', async () => {
+    const { envoltura } = await montar(RolFormularioView, '/usuarios/roles/nuevo')
+    expect(envoltura.find('input[value="noticias.editar"]').attributes('aria-label')).toBe('Editar noticias')
+    expect(envoltura.find('input[value="entidad.ver"]').attributes('aria-label')).toBe('Ver datos de la entidad')
+  })
+
+  it('quien no es súper administrador no puede marcar permisos que no tiene', async () => {
+    quien(false, ['usuarios.ver', 'noticias.ver'])
+    const { envoltura } = await montar(RolFormularioView, '/usuarios/roles/nuevo')
+    expect(envoltura.find('input[value="noticias.ver"]').attributes('disabled')).toBeUndefined()
+    expect(envoltura.find('input[value="noticias.editar"]').attributes('disabled')).toBeDefined()
+    expect(envoltura.find('input[value="entidad.ver"]').attributes('disabled')).toBeDefined()
   })
 
   it('el rol protegido se muestra solo para leer', async () => {

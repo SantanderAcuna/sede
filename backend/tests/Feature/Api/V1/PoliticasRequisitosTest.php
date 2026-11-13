@@ -6,6 +6,7 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\Politica;
 use App\Models\User;
+use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\PoliticaSeeder;
 use Illuminate\Database\Migrations\Migration;
@@ -45,7 +46,7 @@ final class PoliticasRequisitosTest extends TestCase
     private function editor(): User
     {
         $usuario = User::factory()->create();
-        $usuario->givePermissionTo('politicas.gestionar');
+        $usuario->givePermissionTo(CatalogoPermisos::de('politicas'));
 
         return $usuario;
     }

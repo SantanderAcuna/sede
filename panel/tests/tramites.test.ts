@@ -200,8 +200,9 @@ describe('mensajes del servidor en español sencillo', () => {
 })
 
 describe('permiso y rutas', () => {
-  it('el módulo se gobierna con tramites.gestionar', () => {
-    expect(PERMISO_POR_RUTA['/tramites']).toBe('tramites.gestionar')
+  it('el módulo se abre con tramites.ver y crear uno pide tramites.crear', () => {
+    expect(PERMISO_POR_RUTA['/tramites']).toBe('tramites.ver')
+    expect(enrutador.getRoutes().find((r) => r.name === 'panel.tramites.nuevo')?.meta.permiso).toBe('tramites.crear')
   })
 
   it('existen la lista, la de nuevo y la de edición (solo con un uuid)', () => {

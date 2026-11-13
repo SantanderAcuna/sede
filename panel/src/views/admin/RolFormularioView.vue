@@ -14,6 +14,7 @@ import { actualizar, crear, obtener, permisos as cargarPermisos } from '@/servic
 import { useSesionStore } from '@/stores/sesion'
 import type { GrupoPermisosPanel, RolPanelItem } from '@/types/api'
 import { dejarAviso } from './avisos'
+import { ACCIONES_BASE, accionesDelModulo, alternarPermiso, modulosDelGrupo, soloVerEnGrupo } from './permisos-matriz'
 import { motivosDeError } from './politicas-logica'
 import { administradorDe, cambiosDeRol, hayCambiosDeRol, problemasDeRol, type FormularioRol } from './usuarios-logica'
 
@@ -37,7 +38,9 @@ let saliendo = false
 
 const esNuevo = computed(() => id.value === null)
 const quien = computed(() => administradorDe(sesion.usuario?.permisos ?? []))
-const soloLectura = computed(() => rol.value?.protegido === true)
+const protegido = computed(() => rol.value?.protegido === true)
+/** El rol protegido nunca se edita; los demás, solo con «editar roles» (con «ver» se consultan). */
+const soloLectura = computed(() => protegido.value || (!esNuevo.value && !sesion.tienePermiso('roles.editar')))
 const hayCambios = computed(() => !esNuevo.value && hayCambiosDeRol(formulario.value, original))
 const puedeDar = (nombre: string): boolean => quien.value.esSuper || quien.value.permisos.includes(nombre)
 
@@ -61,10 +64,30 @@ async function cargar(): Promise<void> {
   }
 }
 
+const ETIQUETA_ACCION: Record<string, string> = { ver: 'Ver', crear: 'Crear', editar: 'Editar', eliminar: 'Eliminar', publicar: 'Publicar' }
+const modulosPorGrupo = computed(() => catalogo.value.map((g) => ({ grupo: g, modulos: modulosDelGrupo(g) })))
+const hayLimitados = computed(() => !soloLectura.value && catalogo.value.some((g) => g.permisos.some((p) => !puedeDar(p.nombre))))
+
+function estaMarcado(nombre: string): boolean {
+  return formulario.value.permisos.includes(nombre)
+}
+
+function alternar(nombre: string, marcar: boolean): void {
+  formulario.value.permisos = alternarPermiso(formulario.value.permisos, nombre, marcar, catalogo.value, puedeDar)
+}
+
 function marcarGrupo(grupo: GrupoPermisosPanel, marcar: boolean): void {
   const delGrupo = grupo.permisos.map((p) => p.nombre).filter(puedeDar)
   const resto = formulario.value.permisos.filter((p) => !delGrupo.includes(p))
   formulario.value.permisos = marcar ? [...resto, ...delGrupo] : resto
+}
+
+function verSoloGrupo(grupo: GrupoPermisosPanel): void {
+  formulario.value.permisos = soloVerEnGrupo(formulario.value.permisos, grupo, puedeDar)
+}
+
+function contarGrupo(grupo: GrupoPermisosPanel): number {
+  return grupo.permisos.filter((p) => estaMarcado(p.nombre)).length
 }
 
 async function guardar(): Promise<void> {
@@ -137,9 +160,9 @@ const tarjeta = 'space-y-4 rounded-xl bg-white p-5 ring-1 ring-slate-200 sm:p-6'
   <div class="space-y-5 pb-24 lg:pb-0">
     <header>
       <RouterLink :to="{ name: 'panel.roles' }" class="text-sm text-gov-blue underline">← Volver a roles</RouterLink>
-      <h1 class="mt-2 text-xl font-semibold text-slate-900">{{ esNuevo ? 'Nuevo rol' : soloLectura ? 'Rol protegido' : 'Editar rol' }}</h1>
+      <h1 class="mt-2 text-xl font-semibold text-slate-900">{{ esNuevo ? 'Nuevo rol' : protegido ? 'Rol protegido' : soloLectura ? 'Ver rol' : 'Editar rol' }}</h1>
       <p class="mt-1 max-w-2xl text-sm text-slate-600">
-        Elija lo que podrá hacer quien tenga este rol. Los permisos están agrupados por tema.
+        Elija, módulo por módulo, lo que podrá hacer quien tenga este rol: desde solo mirar hasta crear, editar, eliminar y publicar.
       </p>
     </header>
 
@@ -151,8 +174,11 @@ const tarjeta = 'space-y-4 rounded-xl bg-white p-5 ring-1 ring-slate-200 sm:p-6'
     </div>
 
     <form v-else class="space-y-5" novalidate @submit.prevent="guardar">
-      <p v-if="soloLectura" class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+      <p v-if="protegido" class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
         El rol de súper administrador tiene todos los permisos y no se puede modificar ni eliminar desde el panel.
+      </p>
+      <p v-else-if="soloLectura" class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900" data-solo-lectura>
+        Está en modo de consulta: su rol puede ver este rol pero no modificarlo.
       </p>
 
       <div v-if="motivos.length > 0" ref="resumen" role="alert" tabindex="-1" class="rounded-xl border border-red-200 bg-red-50 p-4">
@@ -170,27 +196,75 @@ const tarjeta = 'space-y-4 rounded-xl bg-white p-5 ring-1 ring-slate-200 sm:p-6'
         <FormField v-model="formulario.name" label="Nombre del rol" required autocomplete="off" :disabled="soloLectura" :error="erroresServidor.name" hint="Por ejemplo: redactor de noticias. Solo letras, números, espacios y guiones." />
       </section>
 
-      <section v-for="g in catalogo" :key="g.grupo" :class="tarjeta" :aria-labelledby="`g-${g.grupo}`">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 :id="`g-${g.grupo}`" class="font-medium text-slate-900">{{ g.grupo }}</h2>
-          <div v-if="!soloLectura" class="flex gap-2">
-            <button type="button" class="text-sm text-gov-blue underline" @click="marcarGrupo(g, true)">Marcar todos</button>
-            <button type="button" class="text-sm text-gov-blue underline" @click="marcarGrupo(g, false)">Quitar todos</button>
+      <p v-if="!soloLectura" class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        Cada módulo se asigna por acciones. Puede dar solo <strong>Ver</strong>, o sumar Crear, Editar, Eliminar y Publicar según lo que deba hacer este rol.
+        Crear, editar, eliminar y publicar necesitan «Ver» del mismo módulo, que se marca solo.
+        <span v-if="hayLimitados" class="mt-1 block text-amber-800">Las casillas apagadas son permisos que usted no tiene, así que no puede darlos.</span>
+      </p>
+
+      <section v-for="{ grupo: g, modulos } in modulosPorGrupo" :key="g.grupo" :class="tarjeta" :aria-labelledby="`g-${g.grupo}`">
+        <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <h2 :id="`g-${g.grupo}`" class="font-medium text-slate-900">
+            {{ g.grupo }}
+            <span class="ml-1 text-sm font-normal text-slate-600">({{ contarGrupo(g) }} de {{ g.permisos.length }})</span>
+          </h2>
+          <div v-if="!soloLectura" class="flex flex-wrap gap-x-4 gap-y-1">
+            <button type="button" class="text-sm text-gov-blue underline" :aria-label="`Dar solo ver en ${g.grupo}`" @click="verSoloGrupo(g)">Solo ver</button>
+            <button type="button" class="text-sm text-gov-blue underline" :aria-label="`Marcar todo en ${g.grupo}`" @click="marcarGrupo(g, true)">Marcar todo</button>
+            <button type="button" class="text-sm text-gov-blue underline" :aria-label="`Quitar todo en ${g.grupo}`" @click="marcarGrupo(g, false)">Quitar todo</button>
           </div>
         </div>
-        <div class="grid gap-2 sm:grid-cols-2">
-          <label
-            v-for="p in g.permisos"
-            :key="p.nombre"
-            class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 has-[:checked]:border-gov-blue has-[:checked]:bg-gov-blue-light has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
-          >
-            <input v-model="formulario.permisos" type="checkbox" :value="p.nombre" :disabled="soloLectura || !puedeDar(p.nombre)" class="mt-1 h-4 w-4">
-            <span class="text-sm text-slate-800">
-              <strong>{{ p.etiqueta }}</strong>
-              <span class="block text-xs text-slate-600">{{ p.descripcion }}</span>
-              <span v-if="!soloLectura && !puedeDar(p.nombre)" class="mt-1 block text-xs text-amber-700">Usted no tiene este permiso, así que no puede darlo.</span>
-            </span>
-          </label>
+
+        <div class="hidden grid-cols-[minmax(0,1fr)_repeat(5,5.5rem)] gap-2 border-b border-slate-200 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-600 md:grid" aria-hidden="true">
+          <span>Módulo</span>
+          <span v-for="a in ACCIONES_BASE" :key="a" class="text-center">{{ ETIQUETA_ACCION[a] }}</span>
+        </div>
+
+        <div class="divide-y divide-slate-100">
+          <fieldset v-for="m in modulos" :key="m.modulo" class="min-w-0 py-3 md:grid md:grid-cols-[minmax(0,1fr)_repeat(5,5.5rem)] md:items-center md:gap-2 md:py-2">
+            <legend class="sr-only">{{ m.etiqueta }}</legend>
+            <p v-if="!(accionesDelModulo(m).otras.length === 1 && accionesDelModulo(m).otras[0]?.etiqueta === m.etiqueta)" class="mb-2 text-sm font-medium text-slate-900 md:col-start-1 md:row-start-1 md:mb-0" aria-hidden="true">{{ m.etiqueta }}</p>
+            <div class="flex flex-wrap gap-2 md:contents">
+              <template v-for="(p, i) in accionesDelModulo(m).base" :key="ACCIONES_BASE[i]">
+                <label
+                  v-if="p"
+                  :title="p.descripcion"
+                  class="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm text-slate-800 has-[:checked]:border-gov-blue has-[:checked]:bg-gov-blue-light has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 md:min-h-8 md:min-w-8 md:justify-center md:border-0 md:bg-transparent md:px-0 md:has-[:checked]:bg-transparent"
+                  :style="{ gridColumnStart: i + 2, gridRowStart: 1 }"
+                >
+                  <input
+                    type="checkbox"
+                    class="h-5 w-5"
+                    :checked="estaMarcado(p.nombre)"
+                    :disabled="soloLectura || !puedeDar(p.nombre)"
+                    :aria-label="`${p.etiqueta} ${m.etiqueta.toLowerCase()}`"
+                    :value="p.nombre"
+                    @change="alternar(p.nombre, ($event.target as HTMLInputElement).checked)"
+                  >
+                  <span class="md:sr-only" aria-hidden="true">{{ p.etiqueta }}</span>
+                </label>
+                <span v-else class="hidden text-center text-slate-300 md:block" :style="{ gridColumnStart: i + 2, gridRowStart: 1 }" aria-hidden="true">—</span>
+              </template>
+            </div>
+            <div v-if="accionesDelModulo(m).otras.length > 0" class="mt-2 flex flex-wrap gap-2 md:col-span-6 md:mt-1">
+              <label
+                v-for="p in accionesDelModulo(m).otras"
+                :key="p.nombre"
+                :title="p.descripcion"
+                class="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm text-slate-800 has-[:checked]:border-gov-blue has-[:checked]:bg-gov-blue-light has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
+              >
+                <input
+                  type="checkbox"
+                  class="h-5 w-5"
+                  :checked="estaMarcado(p.nombre)"
+                  :disabled="soloLectura || !puedeDar(p.nombre)"
+                  :value="p.nombre"
+                  @change="alternar(p.nombre, ($event.target as HTMLInputElement).checked)"
+                >
+                <span>{{ p.etiqueta }}</span>
+              </label>
+            </div>
+          </fieldset>
         </div>
       </section>
       <p v-if="erroresServidor['permisos.0']" class="text-sm text-red-700">{{ erroresServidor['permisos.0'] }}</p>

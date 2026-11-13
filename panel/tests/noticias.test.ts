@@ -255,8 +255,8 @@ describe('servicio', () => {
 })
 
 describe('permiso y ruta', () => {
-  it('el módulo exige noticias.gestionar, el mismo permiso que comprueba el servidor', () => {
-    expect(PERMISO_POR_RUTA['/contenidos/noticias']).toBe('noticias.gestionar')
+  it('el módulo se abre con noticias.ver, el mismo permiso que comprueba el servidor', () => {
+    expect(PERMISO_POR_RUTA['/contenidos/noticias']).toBe('noticias.ver')
   })
 
   it('la ruta existe, pide sesión y declara ese permiso', () => {
@@ -264,19 +264,18 @@ describe('permiso y ruta', () => {
 
     expect(ruta).toBeDefined()
     expect(ruta?.meta.requiereSesion).toBe(true)
-    expect(ruta?.meta.permiso).toBe('noticias.gestionar')
+    expect(ruta?.meta.permiso).toBe('noticias.ver')
   })
 
-  it('crear y editar son vistas aparte de la lista, con el mismo permiso', () => {
+  it('crear y editar son vistas aparte de la lista; crear pide «crear» y editar pide «ver»', () => {
     const nueva = enrutador.getRoutes().find((r) => r.name === 'panel.noticias.nueva')
     const editar = enrutador.getRoutes().find((r) => r.name === 'panel.noticias.editar')
 
     expect(nueva?.path).toBe('/contenidos/noticias/nueva')
     expect(editar?.path).toMatch(/^\/contenidos\/noticias\/:uuid/)
-    for (const ruta of [nueva, editar]) {
-      expect(ruta?.meta.requiereSesion).toBe(true)
-      expect(ruta?.meta.permiso).toBe('noticias.gestionar')
-    }
+    for (const ruta of [nueva, editar]) expect(ruta?.meta.requiereSesion).toBe(true)
+    expect(nueva?.meta.permiso).toBe('noticias.crear')
+    expect(editar?.meta.permiso).toBe('noticias.ver')
     expect(nueva?.meta.titulo).toBe('Nueva noticia')
     expect(editar?.meta.titulo).toBe('Editar noticia')
   })

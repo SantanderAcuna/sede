@@ -13,12 +13,15 @@ import BaseButton from '@/components/base/BaseButton.vue'
 import ConfirmModal from '@/components/base/ConfirmModal.vue'
 import DataTable from '@/components/base/DataTable.vue'
 import type { DataTableFeatures } from '@/components/base/dataTableFeatures'
+import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
 import { POR_PAGINA, eliminar, listar, type EstadoTramiteFiltro } from '@/services/tramites'
 import type { TramitePanelFila } from '@/types/api'
 import { tomarAviso } from './avisos'
 import { motivosDeError } from './politicas-logica'
 
 const ESPERA_BUSQUEDA_MS = 400
+
+const { puedeCrear, puedeEditar, puedeEliminar } = usePermisosDeModulo('tramites')
 
 const filas = ref<TramitePanelFila[]>([])
 const total = ref(0)
@@ -231,12 +234,13 @@ const columnas: ColumnDef<DataTableFeatures, TramitePanelFila, unknown>[] = [
           RouterLink,
           {
             to: { name: 'panel.tramites.editar', params: { uuid: row.original.uuid } },
-            'aria-label': `Editar «${row.original.nombre}»`,
+            'aria-label': `${puedeEditar.value ? 'Editar' : 'Ver'} «${row.original.nombre}»`,
             class: `${claseAccion} text-gov-blue hover:bg-gov-blue-light focus-visible:ring-gov-blue`,
           },
-          () => 'Editar',
+          () => (puedeEditar.value ? 'Editar' : 'Ver'),
         ),
         // Todo elemento es borrable: va a la papelera (soft delete).
+        puedeEliminar.value &&
         h(
           'button',
           {
@@ -266,6 +270,7 @@ const columnas: ColumnDef<DataTableFeatures, TramitePanelFila, unknown>[] = [
         </p>
       </div>
       <RouterLink
+        v-if="puedeCrear"
         :to="{ name: 'panel.tramites.nuevo' }"
         class="inline-flex h-10 items-center gap-2 rounded-lg bg-gov-blue px-4 text-sm font-medium text-white hover:bg-gov-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue focus-visible:ring-offset-2"
       >
@@ -331,6 +336,7 @@ const columnas: ColumnDef<DataTableFeatures, TramitePanelFila, unknown>[] = [
         Cuando cree el primero, aparecerá aquí. Empiece como borrador: no se verá en el sitio hasta que usted lo publique.
       </p>
       <RouterLink
+        v-if="puedeCrear"
         :to="{ name: 'panel.tramites.nuevo' }"
         class="mt-4 inline-flex h-10 items-center rounded-lg bg-gov-blue px-4 text-sm font-medium text-white hover:bg-gov-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue focus-visible:ring-offset-2"
       >

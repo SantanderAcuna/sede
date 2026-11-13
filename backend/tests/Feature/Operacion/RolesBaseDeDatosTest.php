@@ -95,6 +95,27 @@ final class RolesBaseDeDatosTest extends TestCase
         $this->artisan('bd:sincronizar-roles')->assertSuccessful();
     }
 
+    public function test_la_clave_se_comprueba_de_verdad(): void
+    {
+        // Esta prueba SÓLO vale si el servidor autentica desde este origen. La imagen oficial
+        // de PostgreSQL confía en 127.0.0.1 (`trust`) y entonces cualquier clave entra: en
+        // ese caso se omite, y no se da por buena una autenticación que no ocurrió. En CI el
+        // servicio llega por la red de Docker y sí autentica; en local, usar la IP del
+        // contenedor en `DB_HOST` (ver docs/entorno-local.md).
+        $mala = $this->como('sede_app', 'clave-incorrecta');
+        try {
+            $mala->scalar('select 1');
+        } catch (QueryException) {
+            $this->assertSame(1, (int) $this->como('sede_app', 'prueba-app')->scalar('select 1'));
+            $this->expectException(QueryException::class);
+            $this->como('sede_lectura', 'prueba-app')->scalar('select 1');
+
+            return;
+        }
+
+        $this->markTestSkipped('El servidor confía en este origen (trust): no autentica claves.');
+    }
+
     public function test_los_roles_no_tienen_privilegios_de_administracion(): void
     {
         $filas = DB::select(

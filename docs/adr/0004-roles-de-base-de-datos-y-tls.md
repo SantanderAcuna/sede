@@ -46,6 +46,9 @@ estaba cifrada.
 - Con `log_statement` en `ddl`/`all`, `CREATE/ALTER ROLE … PASSWORD` deja la clave en el registro de
   PostgreSQL.
 - La copia sigue en el mismo servidor.
+- Las pruebas de PHPUnit sólo autentican claves si el servidor no confía en el origen (la imagen
+  oficial confía en 127.0.0.1): la prueba se omite y lo dice. Con `DB_HOST` en una IP no local pasa
+  9/9. Que el servicio de CI autentique es HIPÓTESIS hasta ver su primera ejecución.
 - No verificado: el esquema `public` de staging (`\dn+`), sin acceso desde la sesión de desarrollo.
 
 ## Alternativas descartadas

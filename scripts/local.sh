@@ -111,7 +111,9 @@ case "$accion" in
     crear_env
     crear_certificado
     crear_certificado_bd
-    echo "2. Imágenes y servicios"
+    echo "2. Imagen del panel (contexto con nombre de la imagen de nginx)"
+    docker build -f docker/panel/Dockerfile -t sede-panel:dev .
+    echo "   Imágenes y servicios"
     docker compose up -d --build postgres redis
     echo "3. Migraciones con el rol dueño (crea sede_app y sede_lectura)"
     docker compose --profile migrar run --rm --build migrar

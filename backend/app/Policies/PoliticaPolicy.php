@@ -8,7 +8,8 @@ use App\Models\Politica;
 use App\Models\User;
 
 /**
- * Políticas del sitio: se ven y se editan; no se crean ni se eliminan desde el panel.
+ * Políticas del sitio: se ven, se crean, se editan, se publican y se eliminan. Las cinco de base
+ * (`Politica::COMPONENTES`) no se eliminan.
  *
  * Cada acción es un permiso propio del módulo `politicas` (ver `CatalogoPermisos`).
  */
@@ -31,7 +32,13 @@ final class PoliticaPolicy extends PoliticaDeModulo
 
     public function create(User $user): bool
     {
-        return false;
+        return $this->puede($user, 'ver') && $this->puede($user, 'crear');
+    }
+
+    /** Publicar o retirar de la versión pública. */
+    public function publish(User $user, Politica $politica): bool
+    {
+        return $this->puede($user, 'publicar');
     }
 
     public function update(User $user, Politica $politica): bool
@@ -41,6 +48,6 @@ final class PoliticaPolicy extends PoliticaDeModulo
 
     public function delete(User $user, Politica $politica): bool
     {
-        return false;
+        return ! $politica->esBase() && $this->puede($user, 'eliminar');
     }
 }

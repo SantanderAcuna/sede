@@ -23,7 +23,7 @@ final class PoliticaDocumentoOficialController extends Controller
 {
     public function __invoke(Request $peticion, string $slug): Response
     {
-        $politica = Politica::query()->where('slug', $slug)->firstOrFail();
+        $politica = Politica::query()->publicadas()->where('slug', $slug)->firstOrFail();
         $archivo = $politica->documentoOficial();
 
         abort_if($archivo === null, 404);

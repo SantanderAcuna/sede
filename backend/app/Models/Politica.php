@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Models\Traits\HasUuids;
 use App\Support\Busqueda\TextoBuscable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -23,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $acto_fecha
  * @property list<array{id: string, titulo: string, parrafos: list<string>}> $secciones
  * @property bool $es_ejemplo
+ * @property bool $publicada
  * @property string $busqueda_titulo
  * @property string $busqueda
  * @property Carbon $updated_at
@@ -107,7 +109,7 @@ final class Politica extends Model
 
     protected $fillable = [
         'slug', 'nombre', 'version', 'vigente_desde', 'acto_tipo', 'acto_numero',
-        'acto_fecha', 'secciones', 'es_ejemplo',
+        'acto_fecha', 'secciones', 'es_ejemplo', 'publicada',
     ];
 
     /**
@@ -134,7 +136,41 @@ final class Politica extends Model
             'acto_fecha' => 'date',
             'secciones' => 'array',
             'es_ejemplo' => 'boolean',
+            'publicada' => 'boolean',
         ];
+    }
+
+    /** Las cinco políticas obligatorias de la sede: no se eliminan ni se ocultan. */
+    public function esBase(): bool
+    {
+        return array_key_exists($this->slug, self::COMPONENTES);
+    }
+
+    /**
+     * Solo las publicadas: lo que ve la ciudadanía. Las de base siempre lo están.
+     *
+     * @param  Builder<Politica>  $consulta
+     * @return Builder<Politica>
+     */
+    public function scopePublicadas($consulta)
+    {
+        return $consulta->where('publicada', true);
+    }
+
+    /**
+     * Enlaces del pie de página para las políticas propias ya publicadas (las de base
+     * viven en el registro de la Entidad).
+     *
+     * @return list<array{slug: string, nombre: string}>
+     */
+    public static function enlacesExtraDelPie(): array
+    {
+        return self::query()->publicadas()
+            ->whereNotIn('slug', array_keys(self::COMPONENTES))
+            ->orderBy('nombre')
+            ->get(['slug', 'nombre'])
+            ->map(static fn (Politica $p): array => ['slug' => $p->slug, 'nombre' => $p->nombre])
+            ->all();
     }
 
     /**
@@ -183,6 +219,14 @@ final class Politica extends Model
                 $textos[] = (string) $parrafo;
             }
         }
+        if (! $this->esBase()) {
+            if (trim(implode(' ', $textos)) === '' || ! $this->tieneAlgunTexto()) {
+                $problemas[] = 'La política necesita al menos un apartado con título y texto.';
+            }
+            if ($this->publicada && $this->es_ejemplo) {
+                $problemas[] = 'Para publicarla debe estar adoptada: quite la marca de texto de ejemplo y complete el acto administrativo.';
+            }
+        }
         if (preg_match('/en preparaci[oó]n/iu', implode("\n", $textos)) === 1) {
             $problemas[] = 'El texto contiene «en preparación».';
         }
@@ -219,6 +263,17 @@ final class Politica extends Model
         }
 
         return $problemas;
+    }
+
+    private function tieneAlgunTexto(): bool
+    {
+        foreach ($this->secciones as $seccion) {
+            if (trim((string) ($seccion['titulo'] ?? '')) !== '' && trim(implode(' ', $seccion['parrafos'] ?? [])) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -275,6 +330,8 @@ final class Politica extends Model
                 'fecha' => $this->acto_fecha?->toDateString(),
             ],
             'es_ejemplo' => $this->es_ejemplo,
+            'publicada' => $this->publicada,
+            'es_base' => $this->esBase(),
             'documento_oficial' => $this->resumenDocumentoOficial(),
             'actualizada_en' => $this->updated_at->toDateString(),
             'secciones' => $this->secciones,

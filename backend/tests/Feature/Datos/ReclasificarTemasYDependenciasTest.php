@@ -32,7 +32,7 @@ final class ReclasificarTemasYDependenciasTest extends TestCase
     private function tramite(string $nombre, TramiteCategoria $tema, string ...$puntos): Tramite
     {
         $t = Tramite::factory()->create(['nombre' => $nombre, 'categoria_id' => $tema->id]);
-        foreach ($puntos as $i => $punto) {
+        foreach (array_values($puntos) as $i => $punto) {
             $t->puntosAtencion()->create(['orden' => $i + 1, 'nombre' => $punto, 'direccion' => 'Calle 14 No. 3-00']);
         }
 

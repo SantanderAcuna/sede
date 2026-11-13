@@ -77,7 +77,8 @@ final class CatalogoPermisosTest extends TestCase
     public function test_un_permiso_que_no_esta_en_el_catalogo_va_a_otros(): void
     {
         $grupos = CatalogoPermisos::agrupar(['noticias.ver', 'raro.cosa']);
-        $ultimo = $grupos[array_key_last($grupos)];
+        $this->assertNotEmpty($grupos);
+        $ultimo = array_values(array_slice($grupos, -1))[0];
         $this->assertSame('Otros', $ultimo['grupo']);
         $this->assertSame('raro.cosa', $ultimo['permisos'][0]['nombre']);
     }

@@ -25,7 +25,7 @@ estaba cifrada.
    clúster, así que `down()` no los borra. **Rotar una clave** = cambiar el secreto y redesplegar:
    `bd:sincronizar-roles` corre en cada despliegue (una migración ya corrida no se repite).
 5. `REVOKE CONNECT, TEMPORARY … FROM PUBLIC` y `REVOKE CREATE ON SCHEMA public FROM PUBLIC`.
-6. **TLS:** `POSTGRES_SSL=on` (guion `docker/postgres/entrypoint-tls.sh`, que no arranca si faltan los
+6. **TLS:** `POSTGRES_SSL=on` (guion `docker/postgres/entrypoint-tls.sh`, que viaja DENTRO de `compose.yaml` como `configs.entrypoint_tls` —al servidor no llegan archivos sueltos del repositorio— y que `deploy/pruebas/guarda-montajes-compose.sh` mantiene idéntico a la fuente; que no arranca si faltan los
    certificados) y `DB_SSLMODE=require`. Producción: activado. Local: activado con certificado de
    prueba. **Staging: sin TLS, riesgo aceptado por José.**
 7. Con `POSTGRES_SSL=on` el servidor **rechaza** las conexiones de red sin TLS (`pg_hba.conf` propio:

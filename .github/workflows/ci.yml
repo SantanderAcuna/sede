@@ -384,6 +384,12 @@ jobs:
           # cambiando la frase que cifra todas las copias existentes. Detalle y motivos
           # en el encabezado del propio guion.
           bash deploy/pruebas/guarda-copias.sh
+      - name: Los montajes del compose existen en el servidor
+        run: |
+          # Al servidor sólo llegan compose.yaml, plantilla.env y valores-<entorno>.env. Un
+          # montaje relativo de un ARCHIVO (`./docker/...`) allí no existe: Docker crea un
+          # directorio y el contenedor muere con «is a directory». Pasó con PostgreSQL.
+          bash deploy/pruebas/guarda-montajes-compose.sh
       - name: La salud del sitio no depende de la API (ADR-0018)
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=

@@ -250,11 +250,12 @@ services:
       - "log_checkpoints=on"
       - -c
       - "log_lock_waits=on"
-      - -c
-      - "ssl=off"
+    # `ssl` lo decide el guion según POSTGRES_SSL (por defecto, apagado).
+    entrypoint: ["/usr/local/bin/entrypoint-tls.sh"]
     restart: unless-stopped
     networks: [data]
     environment:
+      POSTGRES_SSL: ${POSTGRES_SSL:-off}
       POSTGRES_DB: ${DB_DATABASE:-sede}
       POSTGRES_USER: ${DB_USERNAME:-sede}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?La contraseña de la base es obligatoria}
@@ -267,6 +268,8 @@ services:
       # mount/volume» y SE NIEGA A ARRANCAR: el mensaje lo explica, pero hay que
       # leerlo entero para ver que no es un problema de datos.
       - datos-postgres:/var/lib/postgresql
+      - ./docker/postgres/entrypoint-tls.sh:/usr/local/bin/entrypoint-tls.sh:ro
+      - ${SEDE_DB_CERTS_DIR:-./docker/postgres/certs}:/tls:ro
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]

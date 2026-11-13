@@ -82,6 +82,13 @@ const noticias = (consulta) => {
 }
 
 /**
+ * `GET /banners`. Sin diapositivas publicadas: es el estado del entorno hasta que la Entidad cargue
+ * la primera desde el panel, y ejercita el respaldo de la portada (las diapositivas por defecto)
+ * sin inventar un banner.
+ */
+const banners = () => sobre([])
+
+/**
  * `GET /politicas/uso-de-cookies`. Una política válida para el contrato (slug,
  * nombre y versión entera ≥ 1, que es lo que exige `politicaDesdeApi`) con un
  * texto que declara ser de prueba.
@@ -258,6 +265,7 @@ const RUTAS = new Map([
   ['/api/v1/busqueda/sugerencias', sugerenciasDeBusqueda],
   ['/api/v1/tramites', tramites],
   ['/api/v1/noticias', noticias],
+  ['/api/v1/banners', banners],
   ['/api/v1/politicas/uso-de-cookies', politicaDeCookies],
 ])
 

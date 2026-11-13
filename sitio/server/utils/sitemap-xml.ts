@@ -148,6 +148,17 @@ export async function leerTramites(pedir: (pagina: number) => Promise<unknown>):
   return entradasDeTramites(paginas)
 }
 
+/**
+ * Cabecera `Cache-Control` del mapa del sitio.
+ *
+ * Con fichas de trámite se guarda una hora. Sin ninguna casi siempre es un fallo transitorio de la
+ * API (un despliegue la reinicia): si el mapa incompleto se guardara una hora en el borde, los
+ * buscadores y las pruebas verían una hora un catálogo sin trámites aunque la API ya hubiera vuelto.
+ */
+export function cacheDelMapa(fichas: number): string {
+  return fichas > 0 ? 'public, max-age=3600' : 'no-store'
+}
+
 /** Opciones de la caché de lectura. */
 export interface OpcionesCache {
   /** Cuánto vale una lectura, en milisegundos. */

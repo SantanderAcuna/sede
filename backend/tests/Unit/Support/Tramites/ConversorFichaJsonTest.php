@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Support\Tramites;
 
 use App\Support\Tramites\ConversorFichaJson;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -123,5 +124,30 @@ final class ConversorFichaJsonTest extends TestCase
 
         $this->assertNull($r['documentos'][0]['url']);
         $this->assertSame('pdf', $r['documentos'][0]['formato']);
+    }
+
+    /**
+     * T2636 trae `http://file:///C:/Users/…/Downloads/….pdf` (una ruta del PC de quien la cargó en SUIT).
+     * Una URL que el panel rechazaría al editar la ficha no puede llegar al catálogo: el gestor no
+     * podría guardarla. Se cae a la URL de descarga de SUIT, que sí es pública.
+     */
+    public function test_una_url_que_el_panel_rechazaria_cae_a_la_de_descarga(): void
+    {
+        $r = ConversorFichaJson::convertir(['normativa' => [[
+            'tipo' => 'Acuerdo',
+            'url' => 'http://file:///C:/Users/User/Downloads/3.%20ACUERDO%20004%202016.pdf',
+            'url_descarga' => 'https://tramites1.suit.gov.co/registro-web/suit_descargar_archivo?A=133441',
+        ]]]);
+
+        $this->assertSame('https://tramites1.suit.gov.co/registro-web/suit_descargar_archivo?A=133441', $r['normativa'][0]['url']);
+    }
+
+    public function test_toda_url_convertida_cumple_la_regla_del_panel(): void
+    {
+        foreach (['http://file:///C:/x.pdf', 'https://', 'http://a b.co', 'ftp://x.co/a', 'https://www.gov.co/a?b=1'] as $candidata) {
+            $url = ConversorFichaJson::convertir(['documentos' => [['nombre' => 'D', 'url' => $candidata]]])['documentos'][0]['url'];
+            $this->assertTrue($url === null || Str::isUrl($url, ['http', 'https']), $candidata);
+        }
+        $this->assertSame('https://www.gov.co/a?b=1', ConversorFichaJson::convertir(['documentos' => [['nombre' => 'D', 'url' => 'https://www.gov.co/a?b=1']]])['documentos'][0]['url']);
     }
 }

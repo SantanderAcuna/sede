@@ -18,6 +18,7 @@ import {
   fechasDePoliticas,
   leerTramites,
   tramitesConCache,
+  cacheDelMapa,
   type EntradaSitemap,
 } from '../utils/sitemap-xml'
 
@@ -90,8 +91,8 @@ export default defineEventHandler(async (evento): Promise<string> => {
   const fichas = await tramitesDe(urlApi)()
 
   setHeader(evento, 'content-type', 'application/xml; charset=utf-8')
-  // Una hora: el contenido de la sede no cambia al segundo.
-  setHeader(evento, 'cache-control', 'public, max-age=3600')
+  // Una hora si el mapa trae fichas; nada si salió sin ellas (ver `cacheDelMapa`).
+  setHeader(evento, 'cache-control', cacheDelMapa(fichas.length))
 
   return construirSitemapXml(base, [...fijas, ...fichas])
 })

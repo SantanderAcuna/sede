@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { analizarResultados } from '../app/composables/resultadosBusqueda'
 import { analizarSugerencias } from '../app/composables/useSugerenciasBusqueda'
 import { politicaDesdeApi } from '../app/config/politicas-contenido'
+import { diapositivasDePortada } from '../app/utils/banners'
 // @ts-expect-error — módulo .mjs sin declaraciones: lo usan scripts de Node, no la app.
 import { iniciarApiSimulada } from './ayudas/api-simulada.mjs'
 
@@ -129,6 +130,16 @@ describe('API simulada de la puerta de diseño', () => {
     const tres = analizarSugerencias((await pedir('/api/v1/busqueda/sugerencias?q=prueba&limite=3')).cuerpo)
     expect(tres).toHaveLength(3)
     expect(tres?.[0]?.url).toBe('/tramites/tramite-de-prueba-01')
+  })
+
+  it('los banners responden vacíos y la portada usa entonces sus diapositivas por defecto', async () => {
+    const { estado, cuerpo } = await pedir('/api/v1/banners')
+    expect(estado).toBe(200)
+    expect(cuerpo.success).toBe(true)
+    expect(cuerpo.data).toEqual([])
+    const porDefecto = [{ id: 'a', imagen: '/x.jpg', alt: 'x' }]
+    expect(diapositivasDePortada(cuerpo as { data?: unknown }, porDefecto)).toBe(porDefecto)
+    expect(simulada.rutasDesconocidas()).not.toContain('GET /api/v1/banners')
   })
 
   it('el pie responde con redes vacías (el sitio usa entonces su respaldo)', async () => {

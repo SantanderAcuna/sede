@@ -12,13 +12,13 @@
  *     al pulsar (10 < 15 < 30 días) en las dos direcciones y su botón mide ≥ 44 px.
  *  2. Trámites: cada control de la paginación mide ≥ 44 × 44 px en móvil (390 px) y
  *     la página activa lleva `aria-current="page"`.
- *  3. Ficha de un trámite (si el catálogo tiene alguno): los pasos son acordeones con
- *     `aria-expanded`; tabular hasta uno NO lo abre; Intro lo abre y vuelve a cerrar.
+ *  3. Directorio de trámites: los grupos de filtros son acordeones del Kit con
+ *     `aria-expanded`; tabular hasta uno NO lo abre; Intro lo abre y Espacio lo cierra.
  *  4. Aviso emergente: elegir en el banner de cookies muestra un `role="status"` que
  *     se cierra con su botón y con Esc.
  *
- * Sale con código 1 si algo falla. Si el catálogo no tiene trámites, el punto 3 se
- * declara «no comprobado» (no pasa en silencio).
+ * Sale con código 1 si algo falla. Lo que no se pudo probar se declara «no comprobado»
+ * (no pasa en silencio).
  */
 
 const BASE = (process.env.BASE_URL ?? '').replace(/\/+$/, '')
@@ -111,45 +111,41 @@ console.log('Trámites · paginación a 390 px')
   await p.close()
 }
 
-// 3. Acordeón en la ficha de un trámite --------------------------------------
-console.log('Ficha de un trámite · acordeón de pasos')
+// 3. Acordeón del Kit en los filtros del directorio de trámites ------------------
+// La ficha propia muestra los pasos como lista ordenada, no como acordeón: el acordeón del Kit vive
+// en el panel de filtros de `/tramites` (Modalidad, Costo, Temáticas…), y es ahí donde se prueba.
+console.log('Directorio de trámites · acordeones de los filtros')
 {
-  // Las tarjetas del catálogo llevan a GOV.CO, así que ya no sirven para llegar a la ficha propia:
-  // el slug se toma del sitemap, que lista cada `/tramites/{slug}` publicado.
-  const sitemap = await fetch(`${BASE}/sitemap.xml`).then((r) => (r.ok ? r.text() : '')).catch(() => '')
-  const ruta = /<loc>[^<]*?(\/tramites\/[^<\s/]+)<\/loc>/.exec(sitemap)?.[1]
-  if (!ruta) {
-    omite('el sitemap no lista ningún trámite publicado, no hay ficha propia que abrir')
+  const p = await abrir('/tramites')
+  const botones = p.locator('.acordeon-govco button[aria-expanded]')
+  await botones.first().waitFor({ timeout: 8000 }).catch(() => {})
+  const total = await botones.count()
+  if (total === 0) {
+    falla('el panel de filtros no muestra ningún acordeón del Kit (`.acordeon-govco button[aria-expanded]`)')
   } else {
-    const p = await abrir(ruta)
-    const botones = p.locator('.acordeon-govco button[aria-expanded]')
-    if ((await botones.count()) === 0) {
-      omite('la ficha propia muestra los pasos como lista ordenada, no como acordeón del Kit: no hay acordeón que probar')
-    } else {
-      ok(`${await botones.count()} paso(s) como acordeón`)
-      // Busca uno cerrado para probar que el foco no lo abre.
-      let cerrado = null
-      for (let i = 0; i < (await botones.count()); i += 1) {
-        if ((await botones.nth(i).getAttribute('aria-expanded')) === 'false') {
-          cerrado = botones.nth(i)
-          break
-        }
-      }
-      if (cerrado === null) omite('todos los pasos nacen abiertos, no se puede probar el foco sobre uno cerrado')
-      else {
-        await cerrado.focus()
-        if ((await cerrado.getAttribute('aria-expanded')) === 'false') ok('recibir el foco NO lo abre')
-        else falla('recibir el foco abrió el panel')
-        await p.keyboard.press('Enter')
-        if ((await cerrado.getAttribute('aria-expanded')) === 'true') ok('Intro lo abre')
-        else falla('Intro no abrió el panel')
-        await p.keyboard.press('Space')
-        if ((await cerrado.getAttribute('aria-expanded')) === 'false') ok('Espacio lo vuelve a cerrar')
-        else falla('Espacio no cerró el panel')
+    ok(`${total} grupo(s) de filtros como acordeón`)
+    // Busca uno cerrado para probar que el foco no lo abre.
+    let cerrado = null
+    for (let i = 0; i < total; i += 1) {
+      if ((await botones.nth(i).getAttribute('aria-expanded')) === 'false') {
+        cerrado = botones.nth(i)
+        break
       }
     }
-    await p.close()
+    if (cerrado === null) omite('todos los grupos nacen abiertos, no se puede probar el foco sobre uno cerrado')
+    else {
+      await cerrado.focus()
+      if ((await cerrado.getAttribute('aria-expanded')) === 'false') ok('recibir el foco NO lo abre')
+      else falla('recibir el foco abrió el panel')
+      await p.keyboard.press('Enter')
+      if ((await cerrado.getAttribute('aria-expanded')) === 'true') ok('Intro lo abre')
+      else falla('Intro no abrió el panel')
+      await p.keyboard.press('Space')
+      if ((await cerrado.getAttribute('aria-expanded')) === 'false') ok('Espacio lo vuelve a cerrar')
+      else falla('Espacio no cerró el panel')
+    }
   }
+  await p.close()
 }
 
 // 4. Aviso emergente ------------------------------------------------------------

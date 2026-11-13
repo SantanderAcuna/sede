@@ -110,6 +110,39 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // Mismo servidor y base que `pgsql`, otro ROL (Fase 0A, D-0.1). `migrate
+        // --database=pgsql_migracion` corre con el dueño; la copia lee con `sede_lectura`.
+        // Sin su variable caen a DB_USERNAME/DB_PASSWORD, para que desarrollo y CI no cambien.
+        'pgsql_migracion' => [
+            'driver' => 'pgsql',
+            'url' => null,
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_MIGRATION_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('DB_MIGRATION_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
+        'pgsql_copia' => [
+            'driver' => 'pgsql',
+            'url' => null,
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_COPIA_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('DB_COPIA_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

@@ -119,9 +119,26 @@ final class CopiasDeSeguridadTest extends TestCase
         $this->assertTrue($frase === null || $frase === '');
     }
 
+    public function test_la_copia_y_las_migraciones_tienen_su_propia_conexion_con_su_propio_rol(): void
+    {
+        $base = config('database.connections.pgsql');
+        $copia = config('database.connections.pgsql_copia');
+        $migra = config('database.connections.pgsql_migracion');
+
+        foreach ([$copia, $migra] as $c) {
+            $this->assertSame('pgsql', $c['driver']);
+            $this->assertSame($base['database'], $c['database']);
+            $this->assertSame($base['host'], $c['host']);
+        }
+
+        // Cada una lee SU variable de usuario; sin ella, cae a DB_USERNAME (desarrollo y CI).
+        $this->assertSame(env('DB_COPIA_USERNAME', env('DB_USERNAME')), $copia['username']);
+        $this->assertSame(env('DB_MIGRATION_USERNAME', env('DB_USERNAME')), $migra['username']);
+    }
+
     public function test_solo_se_copia_la_base_de_la_sede_y_se_verifica_el_archivo(): void
     {
-        $this->assertSame(['pgsql'], config('backup.backup.source.databases'));
+        $this->assertSame(['pgsql_copia'], config('backup.backup.source.databases'));
         $this->assertTrue(config('backup.backup.verify_backup'));
         $this->assertFalse(config('backup.backup.destination.continue_on_failure'));
     }

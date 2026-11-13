@@ -89,9 +89,9 @@ return [
 
             // Conexión explícita y no `DB_CONNECTION`: si alguien cambiara esa
             // variable en un entorno, la copia dejaría de apuntar a la base de la
-            // sede sin que nada fallara.
+            // sede sin que nada fallara. `pgsql_copia` usa el rol de sólo lectura.
             'databases' => [
-                'pgsql',
+                'pgsql_copia',
             ],
         ],
 

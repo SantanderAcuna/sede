@@ -55,7 +55,7 @@ fi
 
 # --- 2. quién monta /copias -------------------------------------------------------
 if command -v docker >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
-  pila="$(APP_KEY=x DB_PASSWORD=x REDIS_PASSWORD=x BACKUP_PASSPHRASE=x \
+  pila="$(APP_KEY=x DB_PASSWORD=x DB_APP_PASSWORD=x DB_LECTURA_PASSWORD=x REDIS_PASSWORD=x BACKUP_PASSPHRASE=x \
           docker compose -f "$RAIZ/compose.yaml" --profile copias config --format json 2>/dev/null)"
   if [ -z "$pila" ]; then
     mal "la pila no se resolvió (¿falta docker compose?): no pude comprobar quién monta /copias"

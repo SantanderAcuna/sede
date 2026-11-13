@@ -101,3 +101,4 @@ backend/database/*.sqlite
 # Bytecode de Python: lo generan las pruebas de deploy/pruebas al importar rotar-secretos.py.
 __pycache__/
 *.pyc
+/docker/postgres/certs/

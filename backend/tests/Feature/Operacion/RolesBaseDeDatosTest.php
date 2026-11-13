@@ -6,9 +6,11 @@ namespace Tests\Feature\Operacion;
 
 use Illuminate\Database\Connection;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
+use Throwable;
 
 /**
  * Roles de la base de datos (Fase 0A, decisión D-0.1).
@@ -84,7 +86,7 @@ final class RolesBaseDeDatosTest extends TestCase
         $antes = DB::scalar("select rolpassword from pg_authid where rolname = 'sede_app'");
 
         Config::set('database.roles.app_password', 'clave-rotada');
-        $this->artisan('bd:sincronizar-roles')->assertSuccessful();
+        $this->assertSame(0, Artisan::call('bd:sincronizar-roles'));
 
         $despues = DB::scalar("select rolpassword from pg_authid where rolname = 'sede_app'");
         $this->assertNotSame($antes, $despues);
@@ -92,7 +94,7 @@ final class RolesBaseDeDatosTest extends TestCase
 
         // Se deja la clave de pruebas como estaba.
         Config::set('database.roles.app_password', null);
-        $this->artisan('bd:sincronizar-roles')->assertSuccessful();
+        $this->assertSame(0, Artisan::call('bd:sincronizar-roles'));
     }
 
     public function test_la_clave_se_comprueba_de_verdad(): void
@@ -105,7 +107,8 @@ final class RolesBaseDeDatosTest extends TestCase
         $mala = $this->como('sede_app', 'clave-incorrecta');
         try {
             $mala->scalar('select 1');
-        } catch (QueryException) {
+        } catch (Throwable $e) {
+            $this->assertInstanceOf(QueryException::class, $e);
             $this->assertSame(1, (int) $this->como('sede_app', 'prueba-app')->scalar('select 1'));
             $this->expectException(QueryException::class);
             $this->como('sede_lectura', 'prueba-app')->scalar('select 1');
@@ -160,7 +163,7 @@ final class RolesBaseDeDatosTest extends TestCase
         $app = $this->como('sede_app', 'prueba-app');
         $app->insert('insert into '.self::TABLA." (dato) values ('con-secuencia')");
 
-        $this->assertTrue(true);
+        $this->assertSame(1, (int) $app->scalar('select count(*) from '.self::TABLA." where dato = 'con-secuencia'"));
     }
 
     public function test_sede_lectura_lee_pero_no_escribe(): void

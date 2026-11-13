@@ -8,6 +8,7 @@ use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -132,8 +133,8 @@ final class CopiasDeSeguridadTest extends TestCase
         }
 
         // Cada una lee SU variable de usuario; sin ella, cae a DB_USERNAME (desarrollo y CI).
-        $this->assertSame(env('DB_COPIA_USERNAME', env('DB_USERNAME')), $copia['username']);
-        $this->assertSame(env('DB_MIGRATION_USERNAME', env('DB_USERNAME')), $migra['username']);
+        $this->assertSame(Env::get('DB_COPIA_USERNAME', Env::get('DB_USERNAME')), $copia['username']);
+        $this->assertSame(Env::get('DB_MIGRATION_USERNAME', Env::get('DB_USERNAME')), $migra['username']);
     }
 
     public function test_solo_se_copia_la_base_de_la_sede_y_se_verifica_el_archivo(): void

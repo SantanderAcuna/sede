@@ -81,6 +81,8 @@ final class RolesBaseDeDatos
             "select format('$verbo PASSWORD %L ".self::ATRIBUTOS."', ?::text, ?::text)",
             [$rol, $clave],
         );
+        // El SQL lo cita el propio servidor (`format` con %I/%L); no hay concatenación de entrada.
+        // @phpstan-ignore argument.type
         $bd->unprepared((string) $sql);
     }
 

@@ -94,6 +94,8 @@ const pasos = computed(() => ficha.value.pasos ?? [])
 const documentos = computed(() => ficha.value.documentos ?? [])
 const puntos = computed(() => ficha.value.puntos_atencion ?? [])
 const normas = computed(() => ficha.value.normativa ?? [])
+// Las normas enlazan a la ficha oficial del trámite en GOV.CO: la descarga de SUIT depende de un servidor ajeno.
+const urlNormas = computed(() => urlFichaGovCo(ficha.value))
 const canales = computed(() => (ficha.value.canales_consulta_estado ?? []).filter((c) => c.habilitado))
 const solicitantes = computed(() => ficha.value.solicitantes ?? [])
 const cuentas = computed(() => ficha.value.costo?.cuentas ?? [])
@@ -288,9 +290,7 @@ const tieneInicioEnLinea = computed(
       <h2 id="normas-titulo" class="h5">¿Qué norma lo regula?</h2>
       <ul class="lista-simple" role="list">
         <li v-for="(n, i) in normas" :key="i">
-          {{ n.tipo }}<span v-if="n.numero"> {{ n.numero }}</span><span v-if="n.anio"> de {{ n.anio }}</span>
-          <span v-if="n.articulos"> — {{ n.articulos }}</span>
-          <a v-if="n.url" :href="n.url" rel="external"> (ver)</a>
+          {{ textoNorma(n) }} <a v-if="urlNormas" :href="urlNormas" rel="external">(ver<span class="solo-lectores">{{ ' ' + etiquetaNorma(n) }} en la ficha oficial de GOV.CO</span>)</a>
         </li>
       </ul>
     </section>

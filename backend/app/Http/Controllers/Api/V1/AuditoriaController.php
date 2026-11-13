@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Controlador para el log de auditoría.
@@ -32,6 +33,8 @@ final class AuditoriaController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        Gate::authorize('viewAny', AuditLog::class);
+
         $query = AuditLog::query()
             ->with('causer')
             ->orderByDesc('created_at');

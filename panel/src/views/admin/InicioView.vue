@@ -27,7 +27,7 @@ const hoy = new Date().toLocaleDateString('es-CO', { dateStyle: 'long' })
 const indicadores = [
   { label: 'PQRSD activas', fuente: 'el módulo de PQRSD' },
   { label: 'Por vencer', fuente: 'el módulo de PQRSD' },
-  { label: 'Trámites SUIT', fuente: 'el catálogo de trámites' },
+  { label: 'Trámites', fuente: 'el catálogo de trámites' },
   { label: 'Cumplimiento ITA', fuente: 'el validador de publicación' },
 ]
 </script>

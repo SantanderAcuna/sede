@@ -371,12 +371,7 @@ final class BusquedaApiTest extends TestCase
      */
     private function publicar(array $cambios = []): Tramite
     {
-        $numero = Tramite::query()->count() + 1;
-
-        /** @var array<string, mixed> $atributos */
-        $atributos = array_merge([
-            'codigo' => 'T'.str_pad((string) $numero, 5, '0', STR_PAD_LEFT),
-            'slug' => 'tramite-de-prueba-'.$numero,
+        return Tramite::factory()->published()->create(array_merge([
             'nombre' => 'Trámite de prueba',
             'resumen' => 'Sirve para comprobar el catálogo.',
             'modalidad' => 'parcialmente_en_linea',
@@ -386,18 +381,6 @@ final class BusquedaApiTest extends TestCase
             'canal_inicio' => 'propio',
             'url_inicio' => null,
             'consulta_estado' => '/seguimiento?radicado=…',
-            'requisitos' => [['descripcion' => 'Cédula de ciudadanía', 'obligatorio' => true]],
-            'documentos' => [['nombre' => 'Formulario', 'url' => null, 'formato' => 'PDF']],
-            'categoria_slug' => null,
-            'categoria_nombre' => null,
-            'url_ficha_gov_co' => 'https://www.gov.co/ficha-tramites-y-servicios/T00001',
-            'procedencia_fuente' => 'SUIT — Función Pública (entidad 0043)',
-            'procedencia_url' => 'https://www.funcionpublica.gov.co/suit',
-            'procedencia_obtenido_en' => '2026-09-30',
-            'procedencia_nota' => null,
-            'publicado_en' => Carbon::now(),
-        ], $cambios);
-
-        return Tramite::create($atributos);
+        ], $cambios));
     }
 }

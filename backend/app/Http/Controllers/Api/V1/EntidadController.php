@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Contracts\Services\EntidadServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ActualizarEntidadRequest;
+use App\Models\Entidad;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -67,6 +69,8 @@ final class EntidadController extends Controller
      */
     public function actualizar(ActualizarEntidadRequest $request): JsonResponse
     {
+        Gate::authorize('update', new Entidad);
+
         try {
             $entidadResource = $this->entidadService->actualizar(
                 $request->validated()

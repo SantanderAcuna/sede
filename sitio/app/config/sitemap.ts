@@ -79,8 +79,8 @@ export interface ItemMenu {
  *
  * Hoy publican contenido real: la portada, el catálogo de trámites y su ficha,
  * la página de PQRSD y el formulario de petición, los canales de atención, la
- * normativa, el mapa del sitio, la declaración de accesibilidad y la portada de
- * Participa. Todo lo demás existe, explica qué publicará y **no** se anuncia
+ * normativa, las noticias (M01-6; sin ninguna publicada muestra el aviso CT-01), el
+ * mapa del sitio, la declaración de accesibilidad y la portada de Participa. Todo lo demás existe, explica qué publicará y **no** se anuncia
  * como publicado.
  */
 const PUBLICADAS = {
@@ -91,7 +91,7 @@ const PUBLICADAS = {
   pqrsd: true,
   realizarPeticion: true,
   seguimiento: false,
-  noticias: false,
+  noticias: true,
   portales: false,
   servicios: false,
   normativa: true,

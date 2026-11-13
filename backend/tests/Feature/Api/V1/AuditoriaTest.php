@@ -6,6 +6,7 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\EntidadSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\SuperAdminSeeder;
@@ -121,7 +122,7 @@ final class AuditoriaTest extends TestCase
     public function test_asignar_permiso_a_rol_crea_permission_attached_y_detached(): void
     {
         $role = Role::findByName('super-admin', 'web');
-        $permission = Permission::findByName('entidad.gestionar', 'web');
+        $permission = Permission::findByName('entidad.editar', 'web');
 
         $this->actingAs($this->user, 'web');
 
@@ -131,7 +132,7 @@ final class AuditoriaTest extends TestCase
         // Verificar que se registró el permission_detached sobre el rol
         $this->assertDatabaseHas('audit_log', [
             'accion' => 'permission_detached',
-            'recurso' => 'entidad.gestionar',
+            'recurso' => 'entidad.editar',
         ]);
 
         // Volver a asignar
@@ -139,14 +140,14 @@ final class AuditoriaTest extends TestCase
 
         $this->assertDatabaseHas('audit_log', [
             'accion' => 'permission_attached',
-            'recurso' => 'entidad.gestionar',
+            'recurso' => 'entidad.editar',
         ]);
     }
 
     public function test_quitar_permiso_de_rol_crea_permission_detached(): void
     {
         $role = Role::findByName('super-admin', 'web');
-        $permission = Permission::findByName('entidad.gestionar', 'web');
+        $permission = Permission::findByName('entidad.editar', 'web');
 
         $this->actingAs($this->user, 'web');
 
@@ -155,7 +156,7 @@ final class AuditoriaTest extends TestCase
 
         $this->assertDatabaseHas('audit_log', [
             'accion' => 'permission_detached',
-            'recurso' => 'entidad.gestionar',
+            'recurso' => 'entidad.editar',
         ]);
     }
 
@@ -165,7 +166,7 @@ final class AuditoriaTest extends TestCase
 
         $this->actingAs($this->user, 'web');
 
-        $user->givePermissionTo('entidad.gestionar');
+        $user->givePermissionTo(CatalogoPermisos::de('entidad'));
 
         // Spatie dispara PermissionAttachedEvent para asignación directa a usuario
         $this->assertDatabaseHas('audit_log', [

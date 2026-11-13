@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Rellena el `uuid` de las filas que lo tienen nulo.
@@ -24,6 +25,11 @@ return new class extends Migration
     public function up(): void
     {
         foreach (self::TABLAS as $tabla) {
+            // `ingesta_tramites` desapareció al pasar el catálogo a base propia; se comprueba que la
+            // tabla exista para que esta migración histórica siga corriendo en limpio y al reejecutarse.
+            if (! Schema::hasTable($tabla)) {
+                continue;
+            }
             DB::statement("UPDATE {$tabla} SET uuid = gen_random_uuid() WHERE uuid IS NULL");
         }
     }

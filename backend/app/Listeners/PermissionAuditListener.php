@@ -211,7 +211,8 @@ final class PermissionAuditListener
     {
         AuditLog::create([
             'accion' => $datos['accion'],
-            'recurso' => $datos['recurso'],
+            // La columna admite 255: al dar muchos permisos de una vez la lista completa viaja en `cambios`.
+            'recurso' => mb_strimwidth((string) $datos['recurso'], 0, 255, '…'),
             'recurso_id' => null,
             'cambios' => $datos['cambios'] ?? null,
             'ip_origen' => $this->peticion()->ip(),

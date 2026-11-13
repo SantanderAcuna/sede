@@ -8,67 +8,38 @@ use App\Models\Entidad;
 use App\Models\User;
 
 /**
- * Política para la entidad institucional.
+ * Datos institucionales: se pueden ver y editar; la entidad es un registro único y no se crea ni se elimina desde la API.
  *
- * Solo los usuarios con el permiso `entidad.gestionar` pueden ver, crear o editar
- * los datos institucionales. No se permite eliminar la entidad (es un registro
- * sistema único).
+ * Cada acción es un permiso propio del módulo `entidad` (ver `CatalogoPermisos`).
  */
-final class EntidadPolicy
+final class EntidadPolicy extends PoliticaDeModulo
 {
-    /**
-     * Anyone authenticated with the permission can access the entity list.
-     */
+    protected function modulo(): string
+    {
+        return 'entidad';
+    }
+
     public function viewAny(User $user): bool
     {
-        return $user->can('entidad.gestionar');
+        return $this->puede($user, 'ver');
     }
 
-    /**
-     * Anyone authenticated with the permission can view the entity details.
-     */
     public function view(User $user, Entidad $entidad): bool
     {
-        return $user->can('entidad.gestionar');
+        return $this->puede($user, 'ver');
     }
 
-    /**
-     * Only users with the permission can create / update the entity.
-     * There is typically only one entity record in the system.
-     */
     public function create(User $user): bool
     {
-        return $user->can('entidad.gestionar');
+        return false;
     }
 
-    /**
-     * Only users with the permission can update the entity.
-     */
     public function update(User $user, Entidad $entidad): bool
     {
-        return $user->can('entidad.gestionar');
+        return $this->puede($user, 'editar');
     }
 
-    /**
-     * Entity deletion is not permitted through the API.
-     */
     public function delete(User $user, Entidad $entidad): bool
-    {
-        return false;
-    }
-
-    /**
-     * Entity restoration is not applicable.
-     */
-    public function restore(User $user, Entidad $entidad): bool
-    {
-        return false;
-    }
-
-    /**
-     * Entity force deletion is not permitted.
-     */
-    public function forceDelete(User $user, Entidad $entidad): bool
     {
         return false;
     }

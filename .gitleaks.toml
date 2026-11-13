@@ -21,6 +21,12 @@ paths = [
   '''backend/tests/Unit/DTOs/LoginCredentialsTest\.php''',
   '''backend/tests/Feature/Seguridad/LoginEndurecidoTest\.php''',
   '''backend/tests/Feature/Seguridad/SuperAdminSeederTest\.php''',
+  # Fase 5 (usuarios y roles): contraseñas de ejemplo para comprobar la política de
+  # 12 caracteres y que la clave nunca se devuelva ni se registre. Usuarios de una base
+  # efímera del CI y datos simulados del panel; ninguna es una cuenta real.
+  '''backend/tests/Feature/Api/V1/UsuariosRolesPanelTest\.php''',
+  '''panel/tests/usuarios-logica\.test\.ts''',
+  '''panel/tests/usuarios-vistas\.test\.ts''',
   # Ejemplo de respuesta de la API: `mfa_token` truncado con puntos suspensivos.
   '''entidad-transparencia/05-especificaciones-api/errores-y-codigos\.md''',
   # Documentación que cita la EXPRESIÓN REGULAR que detecta claves SSH

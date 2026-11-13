@@ -4,45 +4,78 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Contracts\Integraciones\FuenteFichaGovCoInterface;
 use App\Contracts\Repositories\AuthRepositoryInterface;
 use App\Contracts\Repositories\BusquedaRepositoryInterface;
 use App\Contracts\Repositories\EntidadRepositoryInterface;
-use App\Contracts\Repositories\IngestaTramiteRepositoryInterface;
 use App\Contracts\Repositories\MenuRepositoryInterface;
+use App\Contracts\Repositories\NoticiaRepositoryInterface;
+use App\Contracts\Repositories\TramitePanelRepositoryInterface;
 use App\Contracts\Repositories\TramiteRepositoryInterface;
 use App\Contracts\Services\AuthServiceInterface;
+use App\Contracts\Services\BannerServiceInterface;
 use App\Contracts\Services\BusquedaServiceInterface;
 use App\Contracts\Services\EntidadServiceInterface;
 use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Contracts\Services\IdentidadServiceInterface;
-use App\Contracts\Services\IngestaTramitesInterface;
+use App\Contracts\Services\ImagenContenidoServiceInterface;
+use App\Contracts\Services\NoticiaServiceInterface;
+use App\Contracts\Services\RolPanelServiceInterface;
+use App\Contracts\Services\TramitePanelServiceInterface;
 use App\Contracts\Services\TramiteServiceInterface;
+use App\Contracts\Services\UsuarioPanelServiceInterface;
+use App\Models\AuditLog;
+use App\Models\Banner;
+use App\Models\Consentimiento;
+use App\Models\Dependencia;
 use App\Models\Entidad;
 use App\Models\FileMedia;
+use App\Models\Menu;
+use App\Models\Noticia;
+use App\Models\Politica;
+use App\Models\Tramite;
+use App\Models\TramiteCategoria;
+use App\Models\TramiteValoracion;
 use App\Models\User;
 use App\Policies\ArchivoPolicy;
+use App\Policies\AuditoriaPolicy;
+use App\Policies\BannerPolicy;
+use App\Policies\ConsentimientoPolicy;
+use App\Policies\DependenciaPolicy;
 use App\Policies\EntidadPolicy;
+use App\Policies\MenuPolicy;
+use App\Policies\NoticiaPolicy;
+use App\Policies\PoliticaPolicy;
+use App\Policies\RolPolicy;
+use App\Policies\TemaTramitePolicy;
+use App\Policies\TramitePolicy;
+use App\Policies\UsuarioPolicy;
+use App\Policies\ValoracionPolicy;
 use App\Repositories\Eloquent\AuthRepository;
 use App\Repositories\Eloquent\BusquedaRepository;
 use App\Repositories\Eloquent\EntidadRepository;
-use App\Repositories\Eloquent\IngestaTramiteRepository;
 use App\Repositories\Eloquent\MenuRepository;
+use App\Repositories\Eloquent\NoticiaRepository;
+use App\Repositories\Eloquent\TramitePanelRepository;
 use App\Repositories\Eloquent\TramiteRepository;
 use App\Services\AuthService;
+use App\Services\BannerService;
 use App\Services\BusquedaService;
 use App\Services\EntidadService;
 use App\Services\FilesMediaService;
-use App\Services\GovCo\FuenteFichaGovCo;
 use App\Services\IdentidadService;
-use App\Services\IngestaTramites;
+use App\Services\ImagenContenidoService;
+use App\Services\NoticiaService;
+use App\Services\RolPanelService;
+use App\Services\TramitePanelService;
 use App\Services\TramiteService;
+use App\Services\UsuarioPanelService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -59,6 +92,17 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(TramiteRepositoryInterface::class, TramiteRepository::class);
         $this->app->bind(TramiteServiceInterface::class, TramiteService::class);
+
+        // Noticias del home (M01-6)
+        $this->app->bind(NoticiaRepositoryInterface::class, NoticiaRepository::class);
+        $this->app->bind(NoticiaServiceInterface::class, NoticiaService::class);
+        $this->app->bind(BannerServiceInterface::class, BannerService::class);
+
+        // Trámites en el panel
+        $this->app->bind(TramitePanelRepositoryInterface::class, TramitePanelRepository::class);
+        $this->app->bind(TramitePanelServiceInterface::class, TramitePanelService::class);
+        $this->app->bind(UsuarioPanelServiceInterface::class, UsuarioPanelService::class);
+        $this->app->bind(RolPanelServiceInterface::class, RolPanelService::class);
 
         // Entidad: datos institucionales para cabecera y pie de página
         $this->app->bind(EntidadRepositoryInterface::class, EntidadRepository::class);
@@ -78,14 +122,12 @@ class AppServiceProvider extends ServiceProvider
 
         // FilesMedia: archivos subidos
         $this->app->bind(FilesMediaServiceInterface::class, FilesMediaService::class);
+        $this->app->bind(ImagenContenidoServiceInterface::class, ImagenContenidoService::class);
 
         // La ingesta y su fuente. La interfaz de la fuente es lo que permite probar
         // la ingesta entera —incluido su comportamiento de reanudación— sin salir a
         // la red: la fuente del Estado limita la tasa y una prueba que dependiera
         // de ella fallaría los días que la fuente decide no contestar.
-        $this->app->bind(IngestaTramiteRepositoryInterface::class, IngestaTramiteRepository::class);
-        $this->app->bind(FuenteFichaGovCoInterface::class, FuenteFichaGovCo::class);
-        $this->app->bind(IngestaTramitesInterface::class, IngestaTramites::class);
     }
 
     /**
@@ -112,7 +154,19 @@ class AppServiceProvider extends ServiceProvider
         // sigan la convención de nombres (App\Models\X → App\Policies\XPolicy), pero
         // el registro explícito es más legible y no depende de la convención.
         Gate::policy(Entidad::class, EntidadPolicy::class);
+        Gate::policy(Noticia::class, NoticiaPolicy::class);
+        Gate::policy(Banner::class, BannerPolicy::class);
+        Gate::policy(Tramite::class, TramitePolicy::class);
         Gate::policy(FileMedia::class, ArchivoPolicy::class);
+        Gate::policy(Politica::class, PoliticaPolicy::class);
+        Gate::policy(Dependencia::class, DependenciaPolicy::class);
+        Gate::policy(TramiteCategoria::class, TemaTramitePolicy::class);
+        Gate::policy(Menu::class, MenuPolicy::class);
+        Gate::policy(TramiteValoracion::class, ValoracionPolicy::class);
+        Gate::policy(Consentimiento::class, ConsentimientoPolicy::class);
+        Gate::policy(AuditLog::class, AuditoriaPolicy::class);
+        Gate::policy(User::class, UsuarioPolicy::class);
+        Gate::policy(Role::class, RolPolicy::class);
 
         // El acceso se limita por correo y por IP a la vez: el primer límite frena
         // el ataque contra una cuenta concreta —cinco intentos— y el segundo frena
@@ -136,6 +190,14 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($peticion->ip());
         });
 
+        // La valoración de una ficha es una escritura pública (el ciudadano califica su experiencia):
+        // cupo propio y ajustado por IP. El valor se lee dentro del cierre para que una prueba lo
+        // cambie con `config([...])` sin reiniciar la aplicación.
+        RateLimiter::for('valoraciones', function (Request $peticion) {
+            return Limit::perMinute((int) config('valoraciones.limite_por_minuto'))
+                ->by('valoraciones|'.$peticion->ip());
+        });
+
         // La búsqueda se llama mientras el ciudadano escribe (una petición por cada
         // pausa), así que su límite es más holgado que el de las escrituras. El valor
         // se lee dentro del cierre y no al registrarlo: así una prueba puede bajarlo
@@ -154,6 +216,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('lecturas-publicas', function (Request $peticion) {
             return Limit::perMinute((int) config('lecturas.limite_por_minuto'))
                 ->by('lecturas|'.$peticion->ip());
+        });
+
+        // Las imágenes de las noticias: cada visita al home pide seis (y las repite
+        // sólo si el navegador no las guardó: llevan ETag y `max-age`). Con su propio
+        // contador no gastan el de las lecturas de datos.
+        RateLimiter::for('imagenes-publicas', function (Request $peticion) {
+            return Limit::perMinute((int) config('lecturas.imagenes_por_minuto'))
+                ->by('imagenes|'.$peticion->ip());
         });
 
         // El resto de la API —el panel— cabe en sesenta peticiones por minuto. Se cuenta por

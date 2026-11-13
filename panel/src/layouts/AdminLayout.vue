@@ -13,7 +13,8 @@
  * sesión real dice que no la hay.
  */
 import { computed, ref, watch } from 'vue'
-import { RouterView, RouterLink, useRoute } from 'vue-router'
+import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
+import { construirMigas } from './migas'
 
 import CommandPalette from '@/components/feedback/CommandPalette.vue'
 import AppLogo from '@/components/base/AppLogo.vue'
@@ -63,6 +64,8 @@ const grupos: GrupoNavegacion[] = [
     label: 'Contenidos',
     items: [
       { label: 'CMS', ruta: '/cms', icono: 'pen-to-square' },
+      { label: 'Noticias', ruta: '/contenidos/noticias', icono: 'newspaper' },
+      { label: 'Carrusel de la portada', ruta: '/contenidos/carrusel', icono: 'image' },
       { label: 'Portal Ciudadano', ruta: '/portal', icono: 'display' },
       { label: 'Transparencia', ruta: '/transparencia', icono: 'landmark' },
     ],
@@ -84,7 +87,8 @@ const grupos: GrupoNavegacion[] = [
     id: 'admin',
     label: 'Administración',
     items: [
-      { label: 'Usuarios y Roles', ruta: '/usuarios', icono: 'users' },
+      { label: 'Usuarios', ruta: '/usuarios', icono: 'users' },
+      { label: 'Roles y permisos', ruta: '/usuarios/roles', icono: 'shield-halved' },
       { label: 'Auditoría', ruta: '/auditoria', icono: 'magnifying-glass' },
       { label: 'Reportes', ruta: '/reportes', icono: 'chart-line' },
       { label: 'Motor de asignación', ruta: '/asignacion', icono: 'sliders' },
@@ -137,6 +141,7 @@ watch(
 )
 
 const ruta = useRoute()
+const enrutador = useRouter()
 const paleta = ref<InstanceType<typeof CommandPalette> | null>(null)
 const menuUsuarioAbierto = ref(false)
 
@@ -159,7 +164,11 @@ const sesion = useSesionStore()
 
 /** Una ruta está activa cuando la actual es ella o cuelga de ella. */
 function estaActiva(destino: string): boolean {
-  return destino === '/' ? ruta.path === '/' : ruta.path.startsWith(destino)
+  if (destino === '/') return ruta.path === '/'
+  const coincide = (r: string): boolean => ruta.path === r || ruta.path.startsWith(`${r}/`)
+  if (!coincide(destino)) return false
+  // «/usuarios/roles» cuelga de «/usuarios», pero solo el item más específico se marca activo.
+  return !grupos.some((g) => g.items.some((i) => i.ruta.length > destino.length && coincide(i.ruta)))
 }
 
 function grupoAbierto(id: string): boolean {
@@ -242,20 +251,13 @@ watch(
  * se marca con `aria-current="page"`. El nombre sale de `meta.titulo` cuando
  * existe, porque el segmento de la URL («gestion-documental») no es un nombre.
  */
-const migas = computed(() => {
-  const segmentos = ruta.path.split('/').filter(Boolean)
-  return segmentos.map((segmento, indice) => {
-    const esActual = indice === segmentos.length - 1
-    return {
-      label:
-        esActual && ruta.meta.titulo
-          ? ruta.meta.titulo
-          : segmento.charAt(0).toUpperCase() + segmento.slice(1).replace(/-/g, ' '),
-      ruta: '/' + segmentos.slice(0, indice + 1).join('/'),
-      esActual,
-    }
-  })
-})
+const migas = computed(() =>
+  construirMigas(ruta.path, ruta.meta.titulo, (destino) => {
+    const resuelta = enrutador.resolve(destino)
+    // La ruta comodín (`no-encontrado`) responde a cualquier dirección: no cuenta.
+    return resuelta.name !== undefined && resuelta.name !== 'no-encontrado'
+  }),
+)
 </script>
 
 <template>
@@ -283,8 +285,9 @@ const migas = computed(() => {
         'flex flex-col bg-white border-r border-slate-200 shrink-0',
         'transition-transform lg:transition-[width] duration-200',
         // Por debajo de `lg` sale del flujo y se desliza desde la izquierda; a
-        // partir de `lg` vuelve a ocupar su columna, como antes.
-        'fixed inset-y-0 left-0 z-40 w-64 lg:static lg:z-auto',
+        // partir de `lg` ocupa su columna pero queda fijo a la altura de la pantalla (sticky):
+        // la página se desplaza y el menú no, y su lista de módulos tiene scroll propio.
+        'fixed inset-y-0 left-0 z-40 w-64 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:self-start',
         menuMovilAbierto ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         interfaz.plegado ? 'lg:w-16' : 'lg:w-64',
       ]"
@@ -294,7 +297,7 @@ const migas = computed(() => {
         <AppLogo variant="dark" :size="38" :show-text="menuExpandido" />
       </div>
 
-      <nav class="flex-1 overflow-y-auto py-3">
+      <nav class="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3">
         <!--
           Sin nada que mostrar se dice POR QUÉ, que no es lo mismo en los dos
           casos: no haber entrado y haber entrado sin permiso para ningún
@@ -413,11 +416,12 @@ const migas = computed(() => {
           </template>
           <template v-else>
             <RouterLink to="/" class="hover:text-gov-blue">Inicio</RouterLink>
-            <template v-for="miga in migas" :key="miga.ruta">
+            <template v-for="miga in migas" :key="miga.label + miga.esActual">
               <span class="text-slate-300" aria-hidden="true">/</span>
               <span v-if="miga.esActual" class="truncate text-slate-700" aria-current="page">
                 {{ miga.label }}
               </span>
+              <span v-else-if="miga.ruta === null" class="truncate">{{ miga.label }}</span>
               <RouterLink v-else :to="miga.ruta" class="hover:text-gov-blue truncate">
                 {{ miga.label }}
               </RouterLink>
@@ -530,7 +534,7 @@ const migas = computed(() => {
         </div>
       </header>
 
-      <main id="contenido-principal" tabindex="-1" class="flex-1 overflow-y-auto p-6 focus:outline-none">
+      <main id="contenido-principal" tabindex="-1" class="flex-1 overflow-y-auto p-6 pr-14 focus:outline-none">
         <RouterView />
       </main>
     </div>

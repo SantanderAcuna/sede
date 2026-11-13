@@ -25,6 +25,7 @@ final class LimiteLecturasPublicasTest extends TestCase
 
     /** Las lecturas que el sitio hace para pintar una página pública. */
     private const LECTURAS = [
+        'v1.banners.listar',
         'v1.entidad.mostrar',
         'v1.politicas.index',
         'v1.politicas.show',
@@ -33,6 +34,8 @@ final class LimiteLecturasPublicasTest extends TestCase
         'v1.identidad.menu',
         'v1.tramites.listar',
         'v1.tramites.mostrar',
+        'v1.noticias.index',
+        'v1.noticias.mostrar',
     ];
 
     public function test_el_valor_por_defecto_es_300_por_minuto(): void
@@ -115,6 +118,16 @@ final class LimiteLecturasPublicasTest extends TestCase
         $this->getJson('/api/v1/politicas')->assertStatus(429);
 
         $this->getJson('/api/v1/busqueda/sugerencias?q=licencia')->assertOk();
+    }
+
+    public function test_la_imagen_de_una_noticia_tiene_su_propio_contador(): void
+    {
+        $this->assertSame(600, config('lecturas.imagenes_por_minuto'));
+
+        $ruta = Route::getRoutes()->getByName('v1.noticias.imagen');
+        $this->assertNotNull($ruta);
+        // Un solo límite, y no el de las lecturas: cada visita al home pide seis imágenes.
+        $this->assertSame(['imagenes-publicas'], $this->limitesDe($ruta));
     }
 
     public function test_solo_las_lecturas_publicas_cambian_de_limite(): void

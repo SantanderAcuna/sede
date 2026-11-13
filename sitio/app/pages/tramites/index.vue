@@ -1,47 +1,32 @@
 <script setup lang="ts">
 /**
- * Trámites y servicios — catálogo de la Sede.
+ * Trámites y servicios — directorio del catálogo de la Sede.
  *
- * **Qué exige esta página.** El Anexo 2.1 — Guía de diseño gráfico para sedes
- * electrónicas, de obligatorio cumplimiento por el artículo 14 del Decreto 2106
- * de 2019, páginas 10 y 11, pide que «en la sección de Trámites y servicios se
- * visualicen los Trámites, OPA's y Consultas de acceso a información pública que
- * la autoridad tenga disponibles», con **mecanismos de acceso** —etiquetas,
- * desplegables o campo de texto—, el **número de resultados** siempre a la vista
- * y, en la galería, dos destinos por elemento: el **nombre** lleva a la ficha del
- * trámite en GOV.CO y el botón **«Trámite en línea»** a la página donde esté
- * alojado. Su ejemplo añade la **paginación**: «Anterior 1 2 … 20 Siguiente».
- * Y exige que «se visualice al menos un resultado en la pantalla sin necesidad de
- * hacer scroll», que es la razón de que todo lo que va por encima de la lista
- * —título, selector de grupo, filtros y contador— sea deliberadamente compacto.
+ * **Qué exige esta página.** El Anexo 2.1 (Guía de diseño gráfico para sedes electrónicas, de
+ * obligatorio cumplimiento por el artículo 14 del Decreto 2106 de 2019) pide visualizar los
+ * Trámites, OPA y Consultas de acceso a información pública con mecanismos de acceso —filtros y
+ * buscador—, el número de resultados siempre a la vista, al menos un resultado visible sin hacer
+ * scroll, y paginación. El RF-B1-022 añade filtros por nombre, modalidad, costo y tipo de
+ * solicitante.
  *
- * **De dónde sale el catálogo.** De `GET /tramites` del contrato
- * (`contract/openapi.yaml`), que es la única fuente de verdad del intercambio
- * entre el backend y el sitio. Lo que la galería dibuja es lo que esa operación
- * devuelve, y nada más: un trámite no es relleno, es un procedimiento con
- * requisitos, costo y plazo, y el ciudadano decide sobre esa información como si
- * fuera oficial. Inventarlo en una sede electrónica es publicar información
- * oficial falsa, así que aquí sólo se publica lo que la Entidad tiene publicado.
+ * **Presentación de directorio (modelo: el listado de trámites de la Alcaldía de Montería).** Cada
+ * trámite es una fila a todo el ancho: a la izquierda su nombre y un resumen; a la derecha, en
+ * columna y con icono y etiqueta, la modalidad, si tiene costo, la duración y la dependencia —los
+ * metadatos que el ciudadano necesita para elegir—. Al lado izquierdo, en un panel propio, el
+ * buscador y los filtros agrupados en acordeones.
  *
- * **La paginación y la búsqueda son del servidor, y el contrato lo dice.** El
- * contrato declara `page` y `per_page` —con 100 como máximo— y devuelve el sobre
- * `meta` con las siete claves del paginador, así que la página pide **una página
- * cada vez** en lugar de traerse el catálogo entero para trocearlo aquí: con 123
- * trámites publicados, y un catálogo que crece, traerse todo en cada visita para
- * enseñar seis es pagar por lo que no se ve. Por la misma razón `buscar` y
- * `categoria` viajan como parámetros: filtrar en el navegador sobre la página
- * recibida devolvería «0 resultados» para un trámite que sí existe en la página
- * siguiente, que es peor que no ofrecer el filtro. El repositorio del backend
- * busca además contra el texto normalizado —sin tildes—, de modo que quien
- * escribe «areas» encuentra «áreas».
+ * **Adónde lleva cada fila.** La fila entera abre la ficha propia de la Sede (`/tramites/{slug}`); el
+ * rótulo «Trámite en gov.co» avisa de que la ficha oficial también existe allí (se enlaza desde la ficha).
  *
- * **Los tres estados se distinguen, y ninguno miente.** Si la API no responde,
- * la página lo dice y ofrece reintentar; no cae, y sobre todo no finge un vacío:
- * «todavía no hay trámites publicados» es un enunciado sobre la Entidad, y
- * decirlo cuando lo que pasa es que el servidor no contesta sería mentir. Los
- * dos vacíos que ya existían siguen separados por la misma razón: que la Entidad
- * no tenga nada publicado en el grupo es un hecho suyo, y que una búsqueda no
- * encuentre nada es un hecho del filtro.
+ * **Los filtros y la búsqueda son del servidor, y el contrato lo dice.** `GET /tramites` declara
+ * `page`, `per_page`, `buscar`, `type`, `categoria`, `modalidad`, `costo`, `dependencia` y
+ * `solicitante`, y devuelve en `meta.facetas` el recuento de cada faceta del grupo. La página pide
+ * una página cada vez y pinta las facetas con lo que el servidor cuenta: no se inventa ninguna.
+ *
+ * **Los tres estados se distinguen, y ninguno miente.** Si la API no responde, se dice y se ofrece
+ * reintentar; no se finge un vacío. Que la Entidad no tenga nada publicado en el grupo es un hecho
+ * suyo; que una búsqueda no encuentre nada es un hecho del filtro. El amarillo institucional se
+ * reserva para el primero.
  */
 import type { components } from '~~/types/openapi'
 
@@ -51,7 +36,7 @@ useHead({
     {
       name: 'description',
       content:
-        'Trámites, otros procedimientos administrativos (OPA) y consultas de acceso a información pública de la Alcaldía Distrital de Santa Marta, con la ficha de cada uno en GOV.CO.',
+        'Trámites, otros procedimientos administrativos (OPA) y consultas de acceso a información pública de la Alcaldía Distrital de Santa Marta, con la ficha de cada uno.',
     },
   ],
 })
@@ -60,104 +45,23 @@ useHead({
 // Modelo del catálogo
 // ---------------------------------------------------------------------------
 
-/** Los tres grupos que el Anexo 2.1 manda visualizar en esta sección. */
 type GrupoCatalogo = 'tramites' | 'opa' | 'consultas'
 
-interface Grupo {
-  /** Nombre completo del grupo, con el que el Anexo lo nombra. */
-  nombre: string
-  /**
-   * Forma corta con la que el botón del grupo se rotula. Son las palabras que
-   * usa el propio Anexo al enumerar los tres grupos —«los Trámites, OPA's y
-   * Consultas de acceso a información pública»—, y el nombre completo sigue a la
-   * vista justo debajo, en el encabezado del grupo activo. Se rotula corto
-   * porque con los nombres largos los tres botones se parten en tres filas en un
-   * teléfono y empujan los resultados fuera de la pantalla, que es justo lo que
-   * el Anexo prohíbe.
-   */
-  nombreCorto: string
-  /**
-   * Qué publica el grupo. Es la frase del propio Anexo —«que la autoridad tenga
-   * disponibles»— repartida entre los tres: no se define nada por cuenta propia,
-   * porque una definición inventada de «OPA» sería tan falsa como un trámite
-   * inventado.
-   */
-  descripcion: string
-}
-
-interface CategoriaCatalogo {
-  slug: string
-  nombre: string
-}
-
-/**
- * Un trámite del contrato, tal como viaja por la API.
- *
- * Es el tipo generado desde `contract/openapi.yaml` —el archivo no se escribe a
- * mano— para que la forma del elemento no se pueda desincronizar del contrato
- * sin que el compilador lo diga.
- */
 type TramiteApi = components['schemas']['TramiteItem']
+type FacetasApi = components['schemas']['TramiteFacetas']
 
-/**
- * Lo que esta página lee del sobre de `GET /tramites`.
- *
- * Las dos claves que se usan —los elementos y el paginador— son las del
- * contrato, tomadas del mismo archivo generado. El sobre **no** se declara con
- * `TramiteCollection` por un defecto medido de la generación: `ApiEnvelope.data`
- * está declarado como `object | array | null` y `TramiteCollection` compone tres
- * esquemas que vuelven a redeclararlo, así que para TypeScript `data` acaba
- * siendo `unknown[]` y cada elemento habría que forzarlo con un `as` —que es
- * justo lo que aquí no se quiere—. Declarar sólo lo que se lee deja el resto del
- * sobre donde tiene que estar: en el contrato.
- */
 interface RespuestaCatalogo {
   data: TramiteApi[]
   meta: components['schemas']['PageMeta']
 }
 
-/** Un elemento de la galería. */
-interface TramiteCatalogo {
-  /** Identificador estable del catálogo; es la clave de la lista. */
-  slug: string
+interface Grupo {
   nombre: string
+  nombreCorto: string
   descripcion: string
-  /**
-   * Clasificación del trámite, si la Entidad la ha declarado. Es **opcional** y
-   * no un valor de relleno: el contrato la declara nula mientras la Entidad no
-   * la declare, y ponerle una inventada aquí sería tan falso como inventarse el
-   * trámite.
-   */
-  categoria?: CategoriaCatalogo
-  /**
-   * Ficha del elemento en GOV.CO (SUIT). **Obligatoria por el Anexo**: es el
-   * destino del clic en el nombre. Un elemento sin ficha en GOV.CO no se
-   * publica, con la misma regla con la que el contrato no publica un trámite al
-   * que le falte uno de sus seis atributos obligatorios: antes de ofrecer un
-   * enlace roto, no se ofrece el elemento.
-   */
-  urlFichaGovCo: string
-  /** Página donde está alojado el trámite. Sin ella no hay botón que mostrar. */
-  urlTramiteEnLinea?: string
 }
 
-interface EstadoVacio {
-  titulo: string
-  detalle: string
-  /**
-   * Si el vacío habla de la Entidad —no hay nada publicado— o del filtro —la
-   * búsqueda no encontró nada—. El aviso amarillo institucional se reserva para
-   * el primero.
-   */
-  esPublicacion: boolean
-}
-
-/**
- * Los tres grupos del Anexo, en un objeto y no en un arreglo, para que
- * `GRUPOS[unGrupo]` esté tipado como `Grupo` y no como `Grupo | undefined`: con
- * la comprobación estricta del proyecto, indexar un arreglo devuelve `undefined`
- * y obligaría a defenderse de un caso que el tipo ya descarta.
- */
+/** Los tres grupos del Anexo 2.1, en su orden (no el alfabético). */
 const GRUPOS: Record<GrupoCatalogo, Grupo> = {
   tramites: {
     nombre: 'Trámites',
@@ -172,98 +76,92 @@ const GRUPOS: Record<GrupoCatalogo, Grupo> = {
   consultas: {
     nombre: 'Consultas de acceso a información pública',
     nombreCorto: 'Consultas',
-    descripcion:
-      'Consultas de acceso a información pública que la Entidad tiene disponibles.',
+    descripcion: 'Consultas de acceso a información pública que la Entidad tiene disponibles.',
   },
 }
 
-/** Orden de los grupos en pantalla: el del Anexo 2.1, no el alfabético. */
 const ORDEN_GRUPOS: readonly GrupoCatalogo[] = ['tramites', 'opa', 'consultas']
 
-/**
- * Seis elementos por página. Es el tamaño con el que el catálogo no se convierte
- * en una lista interminable ni obliga a paginar de más. Con la primera fila
- * compacta —título, descripción y botón— la primera cabe holgadamente por
- * encima del pliegue de una pantalla de 800 px de alto, que es lo que el Anexo
- * exige («se visualice al menos un resultado sin necesidad de hacer scroll»).
- *
- * Viaja como `per_page` en cada petición: el troceado lo hace el servidor, no el
- * navegador.
- */
-const TAMANO_PAGINA = 6
+/** Etiquetas legibles de los valores de las facetas, para no mostrar el código crudo del dato. */
+const ETIQUETA_MODALIDAD: Record<string, string> = {
+  en_linea: 'En línea',
+  parcialmente_en_linea: 'Parcialmente en línea',
+  presencial: 'Presencial',
+}
+const ETIQUETA_COSTO: Record<string, string> = {
+  gratuito: 'Gratuito',
+  con_costo: 'Con costo',
+}
+const ETIQUETA_SOLICITANTE: Record<string, string> = {
+  ciudadano: 'Ciudadano',
+  extranjeros: 'Extranjeros',
+  organizaciones: 'Organizaciones',
+  instituciones: 'Instituciones',
+}
+
+/** Diez por página, como el listado de referencia. */
+const TAMANO_PAGINA = 10
 
 // ---------------------------------------------------------------------------
 // Estado de los mecanismos de acceso
 // ---------------------------------------------------------------------------
 
 const grupoActivo = ref<GrupoCatalogo>('tramites')
-
-/**
- * El término **aplicado**, no el que se está escribiendo: la búsqueda se dispara
- * al enviar el formulario del buscador, que es como funciona `BuscadorGovco`, y
- * así el contador no cambia a cada tecla.
- */
 const terminoAplicado = ref('')
-
-/** Slug de la categoría elegida. Cadena vacía significa «Todas las categorías». */
 const categoriaElegida = ref('')
-
+const modalidadElegida = ref('')
+const costoElegido = ref('')
+const dependenciaElegida = ref<number | null>(null)
+const solicitanteElegido = ref('')
 const pagina = ref(1)
-
-/**
- * Cambiar esta clave vuelve a montar el buscador. Hace falta porque
- * `BuscadorGovco` guarda su propio texto: al limpiar los filtros desde fuera,
- * el campo se quedaría con lo escrito y contradiría al contador.
- */
 const claveBuscador = ref(0)
+/** En móvil el panel de filtros se pliega para no empujar el primer resultado fuera de pantalla. */
+const filtrosAbiertos = ref(false)
+/** Qué grupos de filtros están desplegados. «Modalidad» arranca abierto: es el primer criterio con que se elige. */
+const gruposAbiertos = reactive({
+  modalidad: true,
+  costo: false,
+  categoria: false,
+  dependencia: false,
+  solicitante: false,
+})
 
 // ---------------------------------------------------------------------------
 // Lectura del catálogo
 // ---------------------------------------------------------------------------
 
-/**
- * La URL base de la API. En producción el sitio y la API comparten origen, así
- * que la ruta relativa que trae `runtimeConfig` basta; cuando no, se apunta al
- * origen donde esté la API. Se le quita la barra final para no acabar pidiendo
- * `//tramites`.
- */
 const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-
-/**
- * `useRequestFetch` y no `$fetch` a secas: durante el renderizado en servidor
- * resuelve la ruta relativa contra la petición en curso, y la URL por defecto del
- * sitio —`/api/v1`— es relativa, porque en producción el sitio y la API comparten
- * origen. Con `$fetch` a secas, el servidor no tendría contra qué resolverla.
- */
 const traer = useRequestFetch()
 
-/**
- * El catálogo: una petición por página, término y categoría.
- *
- * El contrato declara `page`, `per_page`, `buscar`, `categoria` y `type`, así que
- * el troceado y el filtrado los hace el servidor. Traerse el catálogo entero
- * para hacerlo aquí sería hacer el trabajo dos veces —y la segunda con la copia
- * peor: la que no ve lo que no se ha traído—.
- */
 const { data, status, refresh } = await useAsyncData<RespuestaCatalogo>(
   'tramites-catalogo',
   async () => {
     const consulta: Record<string, string | number> = {
       page: pagina.value,
       per_page: TAMANO_PAGINA,
+      type: grupoActivo.value,
     }
-    // Una cadena vacía no es un filtro: el contrato la trata como ausente. No se
-    // manda igualmente porque una URL con `?buscar=` afirma que alguien buscó, y
-    // el servidor devolvería el catálogo entero bajo esa apariencia.
     if (terminoAplicado.value !== '') consulta.buscar = terminoAplicado.value
     if (categoriaElegida.value !== '') consulta.categoria = categoriaElegida.value
-    // El grupo activo del Anexo 2.1 viaja como `type` al backend: el contrato
-    // declara el filtro y el repositorio lo aplica al campo `type` del modelo.
-    consulta.type = grupoActivo.value
+    if (modalidadElegida.value !== '') consulta.modalidad = modalidadElegida.value
+    if (costoElegido.value !== '') consulta.costo = costoElegido.value
+    if (dependenciaElegida.value !== null) consulta.dependencia = dependenciaElegida.value
+    if (solicitanteElegido.value !== '') consulta.solicitante = solicitanteElegido.value
 
     return await traer<RespuestaCatalogo>(`${urlApi}/tramites`, { query: consulta })
   },
-  { watch: [pagina, terminoAplicado, categoriaElegida, grupoActivo] },
+  {
+    watch: [
+      pagina,
+      terminoAplicado,
+      categoriaElegida,
+      modalidadElegida,
+      costoElegido,
+      dependenciaElegida,
+      solicitanteElegido,
+      grupoActivo,
+    ],
+  },
 )
 
 // ---------------------------------------------------------------------------
@@ -271,146 +169,48 @@ const { data, status, refresh } = await useAsyncData<RespuestaCatalogo>(
 // ---------------------------------------------------------------------------
 
 const grupo = computed<Grupo>(() => GRUPOS[grupoActivo.value])
-
-/** Los elementos de la página recibida, ya en la forma que usa la galería. */
-const elementos = computed<TramiteCatalogo[]>(() => (data.value?.data ?? []).map(aCatalogo))
-
-/** El total de la consulta entera —no el de la página—, tal como lo da el sobre. */
+const elementos = computed<TramiteApi[]>(() => data.value?.data ?? [])
+const facetas = computed<FacetasApi | undefined>(() => data.value?.meta.facetas)
 const totalResultados = computed<number>(() => data.value?.meta.total ?? 0)
-
 const totalPaginas = computed<number>(() => Math.max(1, data.value?.meta.last_page ?? 1))
-
-/** La página pedida, siempre dentro del total: al filtrar puede quedar fuera. */
 const paginaActual = computed<number>(() => Math.min(Math.max(pagina.value, 1), totalPaginas.value))
-
-/**
- * Mientras se pide una página nueva —o al cambiar el término— lo que hay en
- * `data` es todavía la respuesta anterior: enseñarla junto al recuento nuevo
- * sería decir que ese recuento describe esa lista. Por eso la carga ocupa el
- * sitio de la galería en vez de convivir con ella.
- */
 const cargando = computed<boolean>(() => status.value === 'pending' || status.value === 'idle')
-
 const fallo = computed<boolean>(() => status.value === 'error')
-
-/*
- * El aviso de carga prolongada (CAG-29: a los diez segundos se informa del estado)
- * vive ahora en `CargandoGovco`, que nace con la carga y muere con ella.
- */
-
-/**
- * Sin respuesta buena no hay páginas que ofrecer. La paginación se sigue
- * dibujando —el Anexo la pide como parte del mecanismo de acceso— pero con los
- * dos extremos apagados, en vez de invitar a pulsar sobre un catálogo que no se
- * ha podido leer.
- */
 const sinPaginasQueOfrecer = computed<boolean>(() => cargando.value || fallo.value)
 
-/**
- * Las categorías que ofrece el desplegable.
- *
- * El contrato permite filtrar por `categoria`, pero **no tiene ninguna operación
- * que las enumere**: la única fuente son los elementos ya recibidos, y por eso
- * esta lista es parcial —sólo puede ofrecer las categorías que declaren los
- * elementos de las páginas ya consultadas—. Se van **acumulando**, además,
- * porque derivarlas sólo de la respuesta en curso haría que elegir una categoría
- * borrara del desplegable todas las demás —la respuesta filtrada ya no las
- * trae—, que es justo lo contrario de lo que un desplegable sirve.
- *
- * Enumerarlas todas exigiría traerse el catálogo entero en cada visita, que es
- * exactamente lo que la paginación del servidor evita; lo que hace falta es una
- * operación del contrato que las liste —o un `meta` que las traiga—. Mientras no
- * exista, esto es lo único que se puede ofrecer sin inventar ni pagar de más.
- *
- * Hoy no aparece ninguna, y no es un hueco: el propio contrato lo dice —«la
- * fuente oficial de la que se siembra el catálogo no clasifica los trámites por
- * categoría»—, así que el desplegable ofrece «Todas las categorías» y nada más.
- * La lista no se inventa: se enseña la que la Entidad declare.
- */
-const categorias = ref<CategoriaCatalogo[]>([])
-
-watch(
-  elementos,
-  (lista) => {
-    const porSlug = new Map(categorias.value.map((categoria) => [categoria.slug, categoria]))
-    let nueva = false
-    for (const elemento of lista) {
-      const categoria = elemento.categoria
-      if (categoria !== undefined && !porSlug.has(categoria.slug)) {
-        porSlug.set(categoria.slug, categoria)
-        nueva = true
-      }
-    }
-    if (nueva) {
-      categorias.value = [...porSlug.values()].sort((a, b) =>
-        a.nombre.localeCompare(b.nombre, 'es'),
-      )
-    }
-  },
-  { immediate: true },
-)
-
-/** Nombre de la categoría elegida, si sigue existiendo entre las conocidas. */
-const nombreCategoriaElegida = computed<string>(() => {
-  const encontrada = categorias.value.find((categoria) => categoria.slug === categoriaElegida.value)
-  return encontrada?.nombre ?? ''
-})
-
 const hayFiltros = computed(
-  () => terminoAplicado.value !== '' || categoriaElegida.value !== '',
+  () =>
+    terminoAplicado.value !== '' ||
+    categoriaElegida.value !== '' ||
+    modalidadElegida.value !== '' ||
+    costoElegido.value !== '' ||
+    dependenciaElegida.value !== null ||
+    solicitanteElegido.value !== '',
 )
 
-/**
- * El número de resultados y el contexto en el que se está buscando, en una sola
- * frase: es el «número de resultados que se visualizan» que el Anexo exige tener
- * a la vista. Va en una región `role="status"` para que el lector de pantalla
- * anuncie el recuento nuevo cuando el ciudadano busca o cambia de grupo, en vez
- * de dejarlo cambiar en silencio.
- *
- * Va en una línea y no en dos —el recuento arriba y el tramo visible debajo—
- * porque cada línea de más por encima de la lista empuja el primer resultado
- * fuera de la pantalla, que es lo que el Anexo prohíbe.
- *
- * El total y el tramo son los del sobre —`meta.total`, `meta.from`, `meta.to`—
- * y no los de la lista dibujada: con la paginación en el servidor, «de 6» sería
- * el número de la página, y al ciudadano lo que le interesa saber es cuántos
- * trámites hay en total.
- */
 const resumenResultados = computed<string>(() => {
   if (cargando.value) return 'Cargando el catálogo…'
   if (fallo.value) return 'No se pudo cargar el catálogo de trámites.'
 
   const total = totalResultados.value
-  const clausulas: string[] = []
-  if (terminoAplicado.value !== '') clausulas.push(`para «${terminoAplicado.value}»`)
-  if (nombreCategoriaElegida.value !== '') {
-    clausulas.push(`de la categoría «${nombreCategoriaElegida.value}»`)
-  }
-  const contexto = clausulas.length > 0 ? ` ${clausulas.join(' ')}` : ''
   const cuenta = `${total} ${total === 1 ? 'resultado' : 'resultados'}`
-
-  if (total <= 1) return `${cuenta}${contexto} en ${grupo.value.nombre}.`
+  if (total <= 1) return `${cuenta} en ${grupo.value.nombre}.`
 
   const desde = data.value?.meta.from ?? 1
   const hasta = data.value?.meta.to ?? total
-  return `Mostrando ${desde} a ${hasta} de ${cuenta}${contexto} en ${grupo.value.nombre}.`
+  return `Mostrando ${desde} a ${hasta} de ${cuenta} en ${grupo.value.nombre}.`
 })
 
-/**
- * El estado vacío dice dos cosas distintas según por qué no hay nada, y no se
- * confunden: que la Entidad no tenga nada publicado es un hecho de la Entidad;
- * que una búsqueda no encuentre nada es un hecho del filtro.
- *
- * El primero alcanza también al grupo que el catálogo público todavía no sirve
- * —hoy OPA y consultas—: ahí lo cierto es que no hay nada publicado, no que una
- * búsqueda haya fallado.
- */
-const estadoVacio = computed<EstadoVacio>(() => {
-  const sinPublicar = !hayFiltros.value && totalResultados.value === 0
+interface EstadoVacio {
+  titulo: string
+  detalle: string
+  esPublicacion: boolean
+}
 
-  if (sinPublicar) {
+const estadoVacio = computed<EstadoVacio>(() => {
+  if (!hayFiltros.value && totalResultados.value === 0) {
     return {
-      titulo: 'Todavía no hay trámites publicados en esta sección.',
+      titulo: 'Todavía no hay nada publicado en esta sección.',
       detalle:
         'Esta sección publica lo que la Entidad tiene disponible, con la ficha de cada uno: qué es, quién puede solicitarlo, requisitos, costo, tiempo de respuesta y el enlace para iniciarlo. Mientras no haya nada publicado aquí, la sede no muestra ningún trámite de ejemplo: uno inventado daría por ciertos unos requisitos, un costo y un plazo que nadie ha aprobado.',
       esPublicacion: true,
@@ -418,51 +218,38 @@ const estadoVacio = computed<EstadoVacio>(() => {
   }
   return {
     titulo: 'No hay resultados para esta búsqueda.',
-    detalle: 'Pruebe con otras palabras, elija otra categoría o limpie los filtros.',
+    detalle: 'Pruebe con otras palabras, quite algún filtro o cámbielo.',
     esPublicacion: false,
   }
 })
 
 // ---------------------------------------------------------------------------
-// Mapeo del contrato a la galería
+// Presentación de cada fila
 // ---------------------------------------------------------------------------
 
-/**
- * Lo que el contrato deja en blanco: `null`, la clave ausente y la cadena vacía
- * dicen lo mismo —que no hay valor— y en la galería los tres son la misma cosa,
- * `undefined`. Así el botón «Trámite en línea» se decide con una sola
- * comprobación y no con tres.
- */
-function opcional(texto: string | null | undefined): string | undefined {
-  if (texto === null || texto === undefined || texto === '') return undefined
-  return texto
+function textoModalidad(valor: string | null | undefined): string | null {
+  return valor == null ? null : (ETIQUETA_MODALIDAD[valor] ?? valor)
 }
 
-/**
- * Un trámite del contrato, en la forma que usa la galería.
- *
- * El contrato viaja en `snake_case` —es el intercambio HTTP— y la página trabaja
- * en `camelCase`, así que esta función es la única frontera entre los dos. Es
- * una traducción de nombres y nada más: no completa huecos, no inventa
- * categorías y no rellena `url_inicio`. Lo que el catálogo no trae, no se
- * dibuja.
- */
-function aCatalogo(elemento: TramiteApi): TramiteCatalogo {
-  return {
-    slug: elemento.slug,
-    nombre: elemento.nombre,
-    descripcion: elemento.resumen ?? '',
-    categoria: elemento.categoria ?? undefined,
-    urlFichaGovCo: elemento.url_ficha_gov_co,
-    urlTramiteEnLinea: opcional(elemento.url_inicio),
-  }
+/** El icono de la modalidad: una persona para lo presencial, una pantalla para lo que se hace en línea. */
+function iconoModalidad(valor: string | null | undefined): 'persona' | 'pantalla' {
+  return valor === 'presencial' ? 'persona' : 'pantalla'
+}
+
+function textoCosto(valor: string | null | undefined): string | null {
+  return valor == null ? null : (ETIQUETA_COSTO[valor] ?? valor)
+}
+
+function textoDuracion(dias: number | null | undefined): string | null {
+  if (dias == null) return null
+  if (dias === 0) return 'Inmediato'
+  return `${dias} día${dias === 1 ? '' : 's'} hábil${dias === 1 ? '' : 'es'}`
 }
 
 // ---------------------------------------------------------------------------
 // Acciones
 // ---------------------------------------------------------------------------
 
-/** Cambiar de filtro devuelve a la primera página: la actual puede no existir ya. */
 function alBuscar(termino: string): void {
   terminoAplicado.value = termino
   pagina.value = 1
@@ -476,21 +263,40 @@ function alLimpiarBusqueda(): void {
 function alElegirGrupo(id: GrupoCatalogo): void {
   if (grupoActivo.value === id) return
   grupoActivo.value = id
-  // Las categorías salen del grupo: la elegida puede no existir en el nuevo.
+  // Las facetas salen del grupo: lo elegido puede no existir en el nuevo.
   categoriaElegida.value = ''
+  modalidadElegida.value = ''
+  costoElegido.value = ''
+  dependenciaElegida.value = null
+  solicitanteElegido.value = ''
   pagina.value = 1
 }
 
-function alCambiarCategoria(evento: Event): void {
-  const destino = evento.target
-  if (!(destino instanceof HTMLSelectElement)) return
-  categoriaElegida.value = destino.value
+/** Activa o desactiva un valor de faceta de texto (un segundo clic lo quita). */
+function alternar(campo: 'modalidad' | 'costo' | 'categoria' | 'solicitante', valor: string): void {
+  const refs = {
+    modalidad: modalidadElegida,
+    costo: costoElegido,
+    categoria: categoriaElegida,
+    solicitante: solicitanteElegido,
+  }
+  const r = refs[campo]
+  r.value = r.value === valor ? '' : valor
+  pagina.value = 1
+}
+
+function alternarDependencia(id: number): void {
+  dependenciaElegida.value = dependenciaElegida.value === id ? null : id
   pagina.value = 1
 }
 
 function limpiarFiltros(): void {
   terminoAplicado.value = ''
   categoriaElegida.value = ''
+  modalidadElegida.value = ''
+  costoElegido.value = ''
+  dependenciaElegida.value = null
+  solicitanteElegido.value = ''
   pagina.value = 1
   claveBuscador.value += 1
 }
@@ -499,11 +305,6 @@ function irAPagina(numero: number): void {
   pagina.value = Math.min(Math.max(numero, 1), totalPaginas.value)
 }
 
-/**
- * Volver a pedir el catálogo después de un fallo, con los mismos filtros y la
- * misma página: es lo que el ciudadano espera de un «Reintentar», y no que le
- * devuelva la primera página de todo.
- */
 function reintentar(): void {
   void refresh()
 }
@@ -511,16 +312,17 @@ function reintentar(): void {
 
 <template>
   <div class="container py-5 catalogo-tramites">
-    <h1>Trámites y servicios</h1>
+    <nav class="migas" aria-label="Ruta">
+      <NuxtLink to="/">Inicio</NuxtLink>
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">Trámites y servicios</span>
+    </nav>
+
+    <h1 class="mt-2">Trámites y servicios</h1>
     <p class="lead mb-0">Trámites, OPA y consultas de acceso a información pública.</p>
 
-    <!--
-      Selector de grupo. Son botones con `aria-pressed` y no un juego de pestañas
-      ARIA: los filtros —categoría y buscador— son los mismos para los tres
-      grupos, así que no hay tres paneles que cada pestaña posea, y declarar
-      `role="tab"` sin panel propio sería mentir sobre la estructura. Como
-      botones, además, basta con `Tab` y `Enter` y el foco no necesita flechas.
-    -->
+    <!-- Acceso por grupo (Anexo 2.1). Son botones con aria-pressed, no pestañas ARIA: los filtros
+         son los mismos para los tres grupos. -->
     <div class="selector-grupos mt-3" role="group" aria-label="Grupo del catálogo">
       <button
         v-for="id in ORDEN_GRUPOS"
@@ -535,206 +337,266 @@ function reintentar(): void {
       </button>
     </div>
 
-    <!--
-      El nombre del grupo va como encabezado de nivel 2 —la página ya tiene su
-      h1 y los nombres de los elementos son h3— con la descripción en la misma
-      línea: el Anexo exige que al menos un resultado se vea sin desplazar la
-      pantalla, y todo lo que ocupe de más por encima de la lista se come ese
-      alto. La descripción va **fuera** del encabezado, en un `span` hermano: si
-      estuviera dentro, quien navega por encabezados oiría «Trámites. Trámites y
-      servicios que la Entidad tiene disponibles» cada vez que pasa por él.
-    -->
-    <div class="mt-3">
-      <h2 class="h5 d-inline mb-0">{{ grupo.nombre }}</h2>
-      <span class="descripcion-grupo">{{ grupo.descripcion }}</span>
-    </div>
+    <div class="directorio mt-3">
+      <!-- Columna lateral: el buscador, siempre a la vista, y los filtros. -->
+      <div class="lateral">
+        <div class="lateral-buscar">
+          <h2 id="titulo-buscar" class="lateral-titulo">Buscar</h2>
+          <BuscadorGovco
+            :key="claveBuscador"
+            etiqueta="Buscar dentro de trámites, OPA y consultas de acceso a información pública"
+            placeholder="Palabra clave"
+            texto-boton="Buscar en el catálogo"
+            :valor-inicial="terminoAplicado"
+            @buscar="alBuscar"
+            @limpiar="alLimpiarBusqueda"
+          />
+        </div>
 
-    <!-- Mecanismos de acceso: desplegable de categorías y buscador. -->
-    <div class="row g-3 align-items-end mt-2">
-      <div class="col-12 col-md-5 col-lg-4">
-        <label class="form-label" for="categoria-catalogo">Categoría</label>
-        <select
-          id="categoria-catalogo"
-          class="form-select"
-          :value="categoriaElegida"
-          @change="alCambiarCategoria"
+        <!-- Botón de filtros, sólo en móvil: pliega el panel para no empujar el primer resultado. -->
+        <button
+          type="button"
+          class="boton-filtros mt-3"
+          :aria-expanded="filtrosAbiertos"
+          aria-controls="panel-filtros"
+          @click="filtrosAbiertos = !filtrosAbiertos"
         >
-          <option value="">Todas las categorías</option>
-          <option v-for="categoria in categorias" :key="categoria.slug" :value="categoria.slug">
-            {{ categoria.nombre }}
-          </option>
-        </select>
+          {{ filtrosAbiertos ? 'Ocultar filtros' : 'Mostrar filtros' }}
+        </button>
+
+        <aside
+          id="panel-filtros"
+          class="panel-filtros"
+          :class="{ 'panel-filtros-abierto': filtrosAbiertos }"
+          aria-label="Filtrar el catálogo"
+        >
+          <div class="panel-filtros-cabecera">
+            <h2 class="lateral-titulo mb-0">Filtrar por:</h2>
+            <button v-if="hayFiltros" type="button" class="enlace-limpiar" @click="limpiarFiltros">
+              Limpiar
+            </button>
+          </div>
+
+          <AcordeonGovco
+            v-if="facetas && facetas.modalidades.length > 0"
+            v-model:abierto="gruposAbiertos.modalidad"
+            titulo="Modalidad"
+            :nivel="3"
+          >
+            <ul class="faceta-lista" role="list">
+              <li v-for="f in facetas.modalidades" :key="f.valor">
+                <button
+                  type="button"
+                  class="faceta-opcion"
+                  :aria-pressed="modalidadElegida === f.valor"
+                  @click="alternar('modalidad', f.valor)"
+                >
+                  <span>{{ ETIQUETA_MODALIDAD[f.valor] ?? f.valor }}</span>
+                  <span class="faceta-cuenta">{{ f.total }}</span>
+                </button>
+              </li>
+            </ul>
+          </AcordeonGovco>
+
+          <AcordeonGovco
+            v-if="facetas && facetas.costos.length > 0"
+            v-model:abierto="gruposAbiertos.costo"
+            titulo="Costo"
+            :nivel="3"
+          >
+            <ul class="faceta-lista" role="list">
+              <li v-for="f in facetas.costos" :key="f.valor">
+                <button
+                  type="button"
+                  class="faceta-opcion"
+                  :aria-pressed="costoElegido === f.valor"
+                  @click="alternar('costo', f.valor)"
+                >
+                  <span>{{ ETIQUETA_COSTO[f.valor] ?? f.valor }}</span>
+                  <span class="faceta-cuenta">{{ f.total }}</span>
+                </button>
+              </li>
+            </ul>
+          </AcordeonGovco>
+
+          <AcordeonGovco
+            v-if="facetas && facetas.categorias.length > 0"
+            v-model:abierto="gruposAbiertos.categoria"
+            titulo="Temáticas"
+            :nivel="3"
+          >
+            <ul class="faceta-lista" role="list">
+              <li v-for="f in facetas.categorias" :key="f.slug">
+                <button
+                  type="button"
+                  class="faceta-opcion"
+                  :aria-pressed="categoriaElegida === f.slug"
+                  @click="alternar('categoria', f.slug)"
+                >
+                  <span>{{ f.nombre }}</span>
+                  <span class="faceta-cuenta">{{ f.total }}</span>
+                </button>
+              </li>
+            </ul>
+          </AcordeonGovco>
+
+          <AcordeonGovco
+            v-if="facetas && facetas.dependencias.length > 0"
+            v-model:abierto="gruposAbiertos.dependencia"
+            titulo="Dependencias"
+            :nivel="3"
+          >
+            <ul class="faceta-lista" role="list">
+              <li v-for="f in facetas.dependencias" :key="f.id">
+                <button
+                  type="button"
+                  class="faceta-opcion"
+                  :aria-pressed="dependenciaElegida === f.id"
+                  @click="alternarDependencia(f.id)"
+                >
+                  <span>{{ f.nombre }}</span>
+                  <span class="faceta-cuenta">{{ f.total }}</span>
+                </button>
+              </li>
+            </ul>
+          </AcordeonGovco>
+
+          <AcordeonGovco
+            v-if="facetas && facetas.solicitantes.length > 0"
+            v-model:abierto="gruposAbiertos.solicitante"
+            titulo="Tipo de solicitante"
+            :nivel="3"
+          >
+            <ul class="faceta-lista" role="list">
+              <li v-for="f in facetas.solicitantes" :key="f.valor">
+                <button
+                  type="button"
+                  class="faceta-opcion"
+                  :aria-pressed="solicitanteElegido === f.valor"
+                  @click="alternar('solicitante', f.valor)"
+                >
+                  <span>{{ ETIQUETA_SOLICITANTE[f.valor] ?? f.valor }}</span>
+                  <span class="faceta-cuenta">{{ f.total }}</span>
+                </button>
+              </li>
+            </ul>
+          </AcordeonGovco>
+        </aside>
       </div>
-      <div class="col-12 col-md-7 col-lg-8">
-        <BuscadorGovco
-          :key="claveBuscador"
-          etiqueta="Buscar dentro de trámites, OPA y consultas de acceso a información pública"
-          placeholder="Buscar en trámites y servicios"
-          texto-boton="Buscar en el catálogo"
-          :valor-inicial="terminoAplicado"
-          @buscar="alBuscar"
-          @limpiar="alLimpiarBusqueda"
+
+      <!-- Resultados. -->
+      <section class="resultados" aria-label="Resultados">
+        <div class="barra-resumen" role="status">
+          <p class="resumen-cuenta mb-0">{{ resumenResultados }}</p>
+        </div>
+
+        <CargandoGovco v-if="cargando" class="estado-vacio mt-2" mensaje="Cargando el catálogo…" />
+
+        <div v-else-if="fallo" class="estado-vacio estado-vacio-error mt-2" role="alert">
+          <p class="estado-vacio-titulo mb-2">No se pudo cargar el catálogo de trámites.</p>
+          <p class="mb-2">
+            La sede no pudo consultar el catálogo publicado en este momento. No es que no haya
+            trámites: es que no se pudieron leer.
+          </p>
+          <button type="button" class="btn btn-govco outline-btn-govco btn-catalogo" @click="reintentar">
+            Reintentar
+          </button>
+        </div>
+
+        <ul v-else-if="elementos.length > 0" class="filas mt-2" role="list">
+          <li v-for="t in elementos" :key="t.slug" class="fila">
+            <div class="fila-texto">
+              <h3 class="fila-nombre h5">
+                <!-- Toda la fila lleva a la ficha propia de la Sede (pasos, requisitos y valoración). -->
+                <NuxtLink :to="'/tramites/' + t.slug" class="fila-enlace">{{ t.nombre }}</NuxtLink>
+              </h3>
+              <p v-if="t.resumen" class="fila-resumen mb-0">{{ t.resumen }}</p>
+            </div>
+
+            <ul class="fila-datos" role="list">
+              <li v-if="textoModalidad(t.modalidad)" class="dato dato-modalidad">
+                <svg v-if="iconoModalidad(t.modalidad) === 'persona'" class="dato-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <circle cx="8" cy="5" r="2.6" fill="currentColor" />
+                  <path d="M2.5 14c0-3 2.4-4.8 5.5-4.8s5.5 1.8 5.5 4.8z" fill="currentColor" />
+                </svg>
+                <svg v-else class="dato-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="M2 3h12v8H2z" fill="none" stroke="currentColor" stroke-width="1.3" />
+                  <path d="M6 13h4M8 11v2" stroke="currentColor" stroke-width="1.3" />
+                </svg>
+                <span>{{ textoModalidad(t.modalidad) }}</span>
+              </li>
+              <li v-if="textoCosto(t.tiene_costo)" class="dato">
+                <svg class="dato-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.3" />
+                  <path d="M8 4.5v7M6.3 6.2c0-1 .8-1.5 1.7-1.5s1.7.5 1.7 1.4c0 1.8-3.4 1-3.4 2.9 0 .9.8 1.5 1.7 1.5s1.7-.5 1.7-1.5" fill="none" stroke="currentColor" stroke-width="1.1" />
+                </svg>
+                <span>{{ textoCosto(t.tiene_costo) }}</span>
+              </li>
+              <li v-if="textoDuracion(t.tiempo_solucion_dias)" class="dato">
+                <svg class="dato-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.3" />
+                  <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" stroke-width="1.3" />
+                </svg>
+                <span>{{ textoDuracion(t.tiempo_solucion_dias) }}</span>
+              </li>
+              <li v-if="t.dependencia" class="dato">
+                <svg class="dato-icono" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="M3 13V4l5-2 5 2v9" fill="none" stroke="currentColor" stroke-width="1.3" />
+                  <path d="M6 7h1M9 7h1M6 10h1M9 10h1" stroke="currentColor" stroke-width="1.2" />
+                </svg>
+                <span>{{ t.dependencia.nombre }}</span>
+              </li>
+              <!-- Rótulo: la ficha oficial vive también en GOV.CO. El logo es blanco, va sobre la pastilla azul. -->
+              <li v-if="t.url_ficha_gov_co" class="dato dato-govco">
+                <span class="insignia-govco" aria-hidden="true">
+                  <img src="/govco/assets/images/logo.svg" alt="" width="65" height="14" />
+                </span>
+                <span>Trámite en gov.co</span>
+              </li>
+            </ul>
+          </li>
+        </ul>
+
+        <div
+          v-else
+          class="estado-vacio mt-2"
+          :class="{ 'estado-vacio-publicacion': estadoVacio.esPublicacion }"
+        >
+          <p class="estado-vacio-titulo mb-2">{{ estadoVacio.titulo }}</p>
+          <p class="mb-0">{{ estadoVacio.detalle }}</p>
+        </div>
+
+        <PaginacionGovco
+          class="mt-4"
+          :pagina-actual="paginaActual"
+          :total-paginas="totalPaginas"
+          :extremos-apagados="sinPaginasQueOfrecer"
+          @cambiar="irAPagina"
         />
-      </div>
+      </section>
     </div>
-
-    <!--
-      El recuento va en una región viva: cuando el ciudadano busca o cambia de
-      grupo, el lector de pantalla lo anuncia. Es el «número de resultados que se
-      visualizan» que el Anexo exige que aparezca.
-
-      El botón de limpiar va a su lado, en la misma fila, y **fuera** de la
-      región viva: dentro, cada recuento nuevo lo volvería a anunciar.
-    -->
-    <div class="barra-resumen mt-2">
-      <div role="status">
-        <p class="resumen-cuenta mb-0">{{ resumenResultados }}</p>
-      </div>
-      <button
-        v-if="hayFiltros"
-        type="button"
-        class="btn btn-govco outline-btn-govco btn-catalogo ms-auto"
-        @click="limpiarFiltros"
-      >
-        Limpiar los filtros
-      </button>
-    </div>
-
-    <!--
-      Los resultados, y lo que ocupa su sitio cuando no los hay. Los tres estados
-      van separados y en este orden: la carga tapa la galería —lo que hay en
-      `data` mientras se pide una página nueva es la respuesta anterior, y su
-      recuento ya no describe lo que se está pidiendo—, el fallo se declara en
-      vez de disfrazarse de vacío, y sólo con una respuesta buena y sin elementos
-      se habla de vacío.
-    -->
-    <CargandoGovco
-      v-if="cargando"
-      class="estado-vacio mt-2"
-      mensaje="Cargando el catálogo…"
-    />
-
-    <!--
-      Que la API no conteste no es que no haya trámites. Se dice lo que ha pasado
-      —la sede no pudo leer su catálogo— y se ofrece volver a intentarlo, en vez
-      de dejar al ciudadano creyendo que la Entidad no tiene nada publicado. Va
-      con `role="alert"` para que se anuncie en cuanto aparece.
-    -->
-    <div v-else-if="fallo" class="estado-vacio estado-vacio-error mt-2" role="alert">
-      <p class="estado-vacio-titulo mb-2">No se pudo cargar el catálogo de trámites.</p>
-      <p class="mb-2">
-        La sede no pudo consultar el catálogo publicado en este momento. No es que no
-        haya trámites: es que no se pudieron leer.
-      </p>
-      <button
-        type="button"
-        class="btn btn-govco outline-btn-govco btn-catalogo"
-        @click="reintentar"
-      >
-        Reintentar
-      </button>
-    </div>
-
-    <!-- Galería de resultados. -->
-    <ul v-else-if="elementos.length > 0" class="lista-resultados mt-2" role="list">
-      <li v-for="elemento in elementos" :key="elemento.slug" class="resultado">
-        <!--
-          El nombre lleva a la ficha del elemento en GOV.CO, como exige el
-          Anexo. Se dice en la línea de metadatos hacia dónde va el enlace: quien
-          lo pulsa sale de la sede, y tiene derecho a saberlo antes.
-        -->
-        <h3 class="resultado-nombre h5">
-          <a :href="elemento.urlFichaGovCo" class="resultado-enlace">{{ elemento.nombre }}</a>
-        </h3>
-        <p v-if="elemento.descripcion !== ''" class="resultado-descripcion mb-2">
-          {{ elemento.descripcion }}
-        </p>
-        <p class="resultado-meta mb-2">
-          <!-- La categoría sólo se dibuja si la Entidad la declaró: una etiqueta
-               sin nombre ocuparía sitio sin decir nada. -->
-          <span v-if="elemento.categoria !== undefined" class="etiqueta-categoria">
-            {{ elemento.categoria.nombre }}
-          </span>
-          <span class="origen-enlace">Ficha del trámite en GOV.CO</span>
-        </p>
-        <!--
-          La ficha propia, **sin quitar el enlace a GOV.CO**.
-
-          El Anexo manda que el nombre lleve a la ficha oficial de GOV.CO, y eso
-          sigue haciendo el `h3` de arriba: este enlace no lo sustituye, se añade
-          al lado. Los dos destinos dicen cosas distintas y el ciudadano necesita
-          los dos: GOV.CO publica la ficha tal como la Entidad la registró en el
-          SUIT —que es el origen oficial y el que se puede citar—, y esta ficha
-          publica los requisitos, el costo, dónde se atiende y qué norma lo
-          faculta, que es lo que el SUIT no declara por atributo y lo que la Sede
-          sí puede sostener.
-        -->
-        <NuxtLink class="enlace-ficha-tramite" :to="`/tramites/${elemento.slug}`">
-          Ver la ficha completa<span class="solo-lectores">: {{ elemento.nombre }}</span>
-        </NuxtLink>
-
-        <!-- Sin página de inicio en línea no hay botón que ofrecer, y un botón
-             que no lleva a ninguna parte es peor que su ausencia. La fuente
-             oficial declara «en línea» o «parcialmente en línea» para 37 de los
-             123 trámites publicados y sólo trae la dirección de 7: no se rellena
-             con nada, porque rellenarla sería inventarse el destino. -->
-        <a
-          v-if="elemento.urlTramiteEnLinea !== undefined"
-          class="btn btn-govco outline-btn-govco btn-catalogo"
-          :href="elemento.urlTramiteEnLinea"
-        >
-          Trámite en línea<span class="solo-lectores">: {{ elemento.nombre }}</span>
-        </a>
-      </li>
-    </ul>
-
-    <!--
-      Estado vacío. No dice «no hay resultados» a secas: distingue «la Entidad no
-      ha publicado nada en esta sección» de «su búsqueda no encontró nada»,
-      porque son dos situaciones distintas y confundirlas haría creer que el
-      catálogo existe. El aviso neutro es el del filtro; el amarillo
-      institucional se reserva para cuando el que falta es el catálogo.
-    -->
-    <div
-      v-else
-      class="estado-vacio mt-2"
-      :class="{ 'estado-vacio-publicacion': estadoVacio.esPublicacion }"
-    >
-      <p class="estado-vacio-titulo mb-2">{{ estadoVacio.titulo }}</p>
-      <p class="mb-0">{{ estadoVacio.detalle }}</p>
-    </div>
-
-    <!--
-      Paginación. Se dibuja también cuando sólo hay una página: el Anexo pide
-      que el mecanismo de acceso y sus elementos secundarios aparezcan, y
-      esconderlos cuando hay pocos resultados daría a entender que la sección no
-      los tiene. Con una sola página los dos extremos quedan deshabilitados.
-    -->
-    <PaginacionGovco
-      class="mt-4"
-      :pagina-actual="paginaActual"
-      :total-paginas="totalPaginas"
-      :extremos-apagados="sinPaginasQueOfrecer"
-      @cambiar="irAPagina"
-    />
   </div>
 </template>
 
 <style scoped>
-/*
-  Selector de grupo. Se dibuja como los botones del Kit —píldora con borde de
-  2 px y radio de 1,563rem, el mismo de `.btn-govco`— y no con las pestañas de
-  Bootstrap: las de Bootstrap fijan el azul #0d6efd en duro, que no es el
-  cobalto del Kit, y su geometría de bordes pegados se rompe en cuanto una
-  etiqueta se parte en dos líneas, que es lo que pasa a 320 px. Además, al ser
-  controles de filtro y no pestañas, un botón es lo que corresponde.
-*/
+/* Migas de pan. */
+.migas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.9375rem;
+  color: var(--govcolor-matterhorn, #4c4c4c);
+}
+.migas a {
+  color: var(--govcolor-cobalt, #0943b5);
+}
+
+/* Selector de grupo: píldora del Kit, no las pestañas de Bootstrap (que fijan otro azul). */
 .selector-grupos {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-
 .pestana-grupo {
   padding: 0.688rem 1rem;
   border: 0.125rem solid var(--govcolor-cobalt, #0943b5);
@@ -743,174 +605,307 @@ function reintentar(): void {
   color: var(--govcolor-cobalt, #0943b5);
   font: inherit;
   line-height: 1rem;
-  text-align: left;
   overflow-wrap: anywhere;
   cursor: pointer;
-  /* CAG-23: 44 px de alto es el mínimo de un blanco de pulsación en móvil. */
   min-height: 2.75rem;
 }
-
-/* El grupo activo se marca por color y por contraste invertido, no sólo por
-   color: el relleno cambia junto con el texto. */
 .pestana-grupo-activa {
   background-color: var(--govcolor-cobalt, #0943b5);
   color: var(--govcolor-white, #ffffff);
   font-weight: 700;
 }
-
 .pestana-grupo:focus-visible {
   outline: 3px solid var(--govcolor-cobalt, #0943b5);
   outline-offset: 2px;
 }
 
-.descripcion-grupo {
-  /* Hermana del encabezado del grupo, no parte de él: se queda en el tamaño del
-     cuerpo y sólo acompaña al nombre. */
-  margin-left: 0.35rem;
-  font-size: 1rem;
-  font-weight: 400;
-  color: var(--govcolor-matterhorn, #4c4c4c);
+/* Botón de filtros (sólo móvil). */
+.boton-filtros {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border: 0.125rem solid var(--govcolor-cobalt, #0943b5);
+  border-radius: 0.375rem;
+  background-color: var(--govcolor-white, #ffffff);
+  color: var(--govcolor-cobalt, #0943b5);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.boton-filtros:focus-visible {
+  outline: 3px solid var(--govcolor-cobalt, #0943b5);
+  outline-offset: 2px;
 }
 
-/* El color de los enlaces y el foco de los campos los fija la hoja del sitio
-   (`app/assets/css/sitio.css`), no esta página: un enlace nuevo hereda el
-   cobalto del Kit sin que nadie tenga que escribirlo. Aquí sólo va lo propio de
-   esta vista. */
+/* Rejilla: en escritorio, columna lateral + resultados; en móvil, una columna. */
+.directorio {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
 
-/* Botones del catálogo («Trámite en línea», «Limpiar los filtros»). */
-.btn-catalogo {
+/* --- Columna lateral: buscador + filtros -------------------------------- */
+.lateral-titulo {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--govcolor-black, #000);
+  margin: 0 0 0.5rem;
+}
+
+/* --- Panel de filtros ----------------------------------------------------- */
+.panel-filtros {
+  display: none;
+  margin-top: 1rem;
+}
+.panel-filtros-abierto {
+  display: block;
+}
+.panel-filtros-cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+.enlace-limpiar {
+  border: 0;
+  background: none;
+  color: var(--govcolor-cobalt, #0943b5);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
   min-height: 2.75rem;
 }
-
-/* --- Recuento ----------------------------------------------------------- */
-
-/* El recuento y el botón de limpiar, en una fila; el botón se va al extremo
-   derecho cuando hay ancho y baja de línea cuando no. */
-.barra-resumen {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
+.enlace-limpiar:focus-visible {
+  outline: 3px solid var(--govcolor-cobalt, #0943b5);
+  outline-offset: 2px;
 }
 
+/* Los grupos son acordeones del Kit; dentro del panel se aprietan: el Kit les da el relleno de una
+   página, no el de una columna de 17 rem. */
+.panel-filtros :deep(.accordion-govco) {
+  margin: 0;
+}
+.panel-filtros :deep(.item-accordion-govco),
+.panel-filtros :deep(.accordion-header),
+.panel-filtros :deep(.accordion-collapse),
+.panel-filtros :deep(.body-accordion-govco) {
+  background-color: transparent;
+}
+.panel-filtros :deep(.item-accordion-govco) {
+  border-bottom: 1px solid var(--govcolor-silver, #b9b9b9);
+}
+.panel-filtros :deep(.button-accordion-govco) {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  background-color: transparent;
+}
+.panel-filtros :deep(.button-accordion-govco),
+.panel-filtros :deep(.text-button-accordion-govco) {
+  font-size: 1.125rem;
+  font-weight: 400;
+}
+.panel-filtros :deep(.body-accordion-govco) {
+  padding: 0 0 0.5rem;
+}
+
+.faceta-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.faceta-opcion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: none;
+  color: var(--govcolor-cobalt, #0943b5);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.faceta-opcion:hover {
+  background-color: var(--govcolor-solitude, #e5ecf8);
+}
+.faceta-opcion[aria-pressed='true'] {
+  background-color: var(--govcolor-cobalt, #0943b5);
+  color: var(--govcolor-white, #ffffff);
+  font-weight: 700;
+}
+.faceta-opcion:focus-visible {
+  outline: 3px solid var(--govcolor-cobalt, #0943b5);
+  outline-offset: 2px;
+}
+.faceta-cuenta {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  color: inherit;
+  opacity: 0.85;
+}
+
+/* --- Resultados: una fila por trámite ------------------------------------- */
+.barra-resumen {
+  margin-bottom: 0.5rem;
+}
 .resumen-cuenta {
   font-weight: 700;
   color: var(--govcolor-matterhorn, #4c4c4c);
 }
 
-/* --- Resultados --------------------------------------------------------- */
-
-.lista-resultados {
+.filas {
+  list-style: none;
   margin: 0;
   padding: 0;
-  list-style: none;
 }
-
-/*
-  Filas compactas. Es una decisión de diseño con motivo: el Anexo exige que al
-  menos un resultado se vea sin desplazar la pantalla, y lo que hay por encima de
-  la lista —título, selector, filtros y recuento— ocupa un alto que no se puede
-  recortar sin quitarle al ciudadano algo que necesita. Lo que sí se puede
-  apretar es la fila.
-*/
-.resultado {
-  padding: 0.875rem 0;
+.fila {
+  /* El tope de 68 ch que `sitio.css` pone a todo `li` de `#contenido-principal` es para prosa; una fila de
+     directorio ocupa su columna. `min-width` gana a `max-width` cuando chocan, así no hace falta un
+     `#id` en el selector (el proyecto no los admite fuera de la capa de modos de accesibilidad). */
+  min-width: 100%;
+  /* La fila entera es el enlace (el `::after` del título la cubre), sin una segunda parada de teclado. */
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem 2rem;
+  padding: 1.25rem 0.5rem;
   border-top: 1px solid var(--govcolor-silver, #b9b9b9);
 }
-
-.resultado:last-child {
+.fila:last-child {
   border-bottom: 1px solid var(--govcolor-silver, #b9b9b9);
 }
-
-.resultado-nombre {
-  margin-bottom: 0.25rem;
+.fila:hover,
+.fila:focus-within {
+  background-color: var(--govcolor-solitude, #e5ecf8);
 }
-
-.resultado-descripcion {
+.fila-nombre {
+  margin-bottom: 0.35rem;
+}
+.fila-enlace {
+  color: var(--govcolor-cobalt, #0943b5);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.fila-enlace::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+/* Al pasar el cursor la fila se tiñe; el `a:hover` del Kit baja el enlace a un azul que ahí ya no llega
+   a 4,5:1 (medido: 3,93). El token del proyecto para enlaces sobre fondo teñido sí. */
+.fila:hover .fila-enlace,
+.fila-enlace:hover {
+  color: var(--color-enlace-sobre-tenido, #00568d);
+}
+.fila-enlace:focus-visible {
+  outline: 3px solid var(--govcolor-cobalt, #0943b5);
+  outline-offset: 2px;
+}
+.fila-resumen {
   color: var(--govcolor-matterhorn, #4c4c4c);
+  /* Cuatro líneas como máximo: las filas conservan una altura comparable. */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.resultado-meta {
+/* Columna de datos: icono + etiqueta (nunca sólo icono), uno bajo otro. */
+.fila-datos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.5rem 1.25rem;
+  align-content: start;
+}
+.dato {
+  display: flex;
   align-items: center;
-  font-size: 0.9375rem;
-}
-
-.etiqueta-categoria {
-  padding: 0.125rem 0.625rem;
-  border: 1px solid var(--govcolor-cobalt, #0943b5);
-  border-radius: 1rem;
-  color: var(--govcolor-cobalt, #0943b5);
-}
-
-.origen-enlace {
+  gap: 0.6rem;
   color: var(--govcolor-matterhorn, #4c4c4c);
+}
+.dato-modalidad {
+  color: var(--govcolor-green, #158361);
+}
+.dato-icono {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+.dato-govco {
+  margin-top: 0.25rem;
+  color: var(--govcolor-black, #000);
+}
+/* El logo de GOV.CO es blanco: sobre fondo claro no se vería. Va en una pastilla azul. */
+.insignia-govco {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  background-color: var(--govcolor-cobalt, #0943b5);
+}
+.insignia-govco img {
+  display: block;
+}
+
+/* Botones del catálogo. */
+.btn-catalogo {
+  min-height: 2.75rem;
 }
 
 /* --- Estados vacíos ----------------------------------------------------- */
-
-/*
-  El estado de «catálogo todavía no publicado» usa el mismo amarillo y el mismo
-  filete que el aviso de sección en preparación del resto del sitio, para que se
-  lea igual en todas partes. El de «la búsqueda no encontró nada» es neutro: no
-  es un aviso sobre la Entidad, es el resultado de un filtro. El de la carga
-  también es neutro y por la misma razón: no dice nada de nadie todavía.
-*/
 .estado-vacio {
   padding: 1rem 1.25rem;
   border-left: 0.25rem solid var(--govcolor-silver, #b9b9b9);
   background-color: var(--govcolor-white-smoke, #f4f4f4);
 }
-
 .estado-vacio-publicacion {
   border-left-color: var(--govcolor-golden-brown, #9d7700);
   background-color: var(--govcolor-vis-vis, #fee697);
 }
-
-/*
-  El fallo no es un vacío: es una avería. Lleva el rojo del Kit en el filete para
-  que no se pueda confundir de un vistazo con «aquí no hay nada publicado». El
-  texto se queda en el gris de siempre para no bajar el contraste.
-*/
 .estado-vacio-error {
   border-left-color: var(--govcolor-red, #a80521);
 }
-
 .estado-vacio-titulo {
   font-weight: 700;
 }
 
-/*
-  CAG-23: en móvil todo control tiene que medir al menos 44 × 44 px. Los de la
-  paginación ya lo cumplen en `PaginacionGovco` (en todos los anchos).
-*/
-@media (max-width: 47.9375rem) {
-  /* El desplegable de categorías mide 38 px de alto con el relleno del Kit. */
-  .catalogo-tramites .form-select {
-    min-height: 2.75rem;
+/* --- Escritorio: columna lateral + filas ------------------------------- */
+@media (min-width: 62rem) {
+  .boton-filtros {
+    display: none;
   }
-
-  /*
-    El nombre es el enlace principal de cada fila —el que lleva a la ficha en
-    GOV.CO— y como enlace de texto mide 27 px de alto. En móvil se le da el
-    blanco de pulsación de CAG-23 sin cambiar lo que se ve: el texto queda
-    centrado dentro de los 44 px.
-  */
-  .resultado-enlace {
-    display: flex;
-    align-items: center;
-    min-height: 2.75rem;
+  .directorio {
+    grid-template-columns: 18rem 1fr;
+    align-items: start;
+  }
+  /* El panel lateral, con el tono neutro del sitio (no hay un beige entre los tokens). */
+  .lateral {
+    padding: 1.25rem 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--govcolor-white-smoke, #f4f4f4);
+  }
+  .panel-filtros {
+    display: block;
+  }
+  .fila {
+    grid-template-columns: 1fr 15rem;
+  }
+  .fila-datos {
+    flex-direction: column;
+    flex-wrap: nowrap;
   }
 }
 
 /* --- Texto sólo para lectores de pantalla ------------------------------- */
-
-/*
-  Se declara aquí en vez de usar la utilidad `visually-hidden` de Bootstrap para
-  no arrastrar sus `!important`; es el mismo criterio que sigue `BuscadorGovco`.
-*/
 .solo-lectores {
   position: absolute;
   overflow: hidden;
@@ -923,4 +918,3 @@ function reintentar(): void {
   white-space: nowrap;
 }
 </style>
-

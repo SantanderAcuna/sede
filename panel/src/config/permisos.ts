@@ -27,26 +27,31 @@ export const PERMISO_POR_RUTA: Record<string, string> = {
   // Servicios al ciudadano
   '/sede': 'sede.publicar',
   '/carpeta': 'carpeta.ver',
-  '/autenticacion': 'autenticacion.gestionar',
+  '/autenticacion': 'autenticacion.ver',
 
   // Contenidos
-  '/cms': 'cms.gestionar',
+  '/cms': 'cms.ver',
   '/portal': 'portal.publicar',
   '/transparencia': 'transparencia.ver',
 
+  // Contenidos del sitio
+  '/contenidos/noticias': 'noticias.ver',
+  '/contenidos/carrusel': 'banners.ver',
+
   // Gestión documental e integraciones
-  '/gestion-documental': 'documental.gestionar',
+  '/gestion-documental': 'documental.ver',
   '/sigmi': 'sigmi.ver',
-  '/integraciones': 'integraciones.gestionar',
+  '/integraciones': 'integraciones.ver',
 
   // Administración
-  '/usuarios': 'usuarios.gestionar',
+  '/usuarios': 'usuarios.ver',
+  '/usuarios/roles': 'roles.ver',
   '/auditoria': 'auditoria.ver',
   '/reportes': 'reportes.ver',
-  '/asignacion': 'asignacion.gestionar',
-  '/configuracion/entidad': 'entidad.gestionar',
-  '/configuracion/politicas': 'politicas.gestionar',
-  '/configuracion': 'configuracion.gestionar',
+  '/asignacion': 'asignacion.ver',
+  '/configuracion/entidad': 'entidad.ver',
+  '/configuracion/politicas': 'politicas.ver',
+  '/configuracion': 'configuracion.ver',
 
   // Mi cuenta
   '/perfil': 'perfil.ver',
@@ -62,4 +67,14 @@ export const PERMISO_POR_RUTA: Record<string, string> = {
  */
 export function permisoDeRuta(ruta: string): string | undefined {
   return PERMISO_POR_RUTA[ruta]
+}
+
+/**
+ * Permiso de una acción concreta sobre un módulo (`noticias`, `crear` → `noticias.crear`).
+ *
+ * Abrir una pantalla pide «ver»; los botones de crear, eliminar y publicar piden cada uno el suyo.
+ * Así un rol puede mirar sin poder tocar, que es lo que la matriz de roles permite dar.
+ */
+export function permisoDe(modulo: string, accion: 'ver' | 'crear' | 'editar' | 'eliminar' | 'publicar'): string {
+  return `${modulo}.${accion}`
 }

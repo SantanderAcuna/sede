@@ -45,5 +45,11 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(SedeSeeder::class);
+
+        // Sólo en desarrollo: son noticias inventadas y la sede no las publica (CT-01).
+        // El despliegue no pasa por aquí (nombra `SedeSeeder`) y staging se siembra a mano.
+        if (app()->environment('local')) {
+            $this->call(NoticiasDePruebaSeeder::class);
+        }
     }
 }

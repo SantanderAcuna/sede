@@ -24,6 +24,8 @@ const politica = (extra: Partial<PoliticaPanelItem> = {}): PoliticaPanelItem => 
   vigente_desde: null,
   acto: { tipo: null, numero: null, fecha: null },
   es_ejemplo: true,
+  publicada: true,
+  es_base: true,
   documento_oficial: null,
   actualizada_en: '2026-10-29',
   secciones: [

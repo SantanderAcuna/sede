@@ -20,6 +20,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  cacheDelMapa,
   MAXIMO_URL,
   aFechaW3C,
   construirSitemapXml,
@@ -183,6 +184,16 @@ describe('tramitesConCache (AC-1.7)', () => {
     const cache = tramitesConCache(leer, { vigenciaMs: 600_000, reloj: () => 1 })
     await Promise.all([cache(), cache(), cache()])
     expect(leer).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('cacheDelMapa (mapa sin fichas = fallo transitorio)', () => {
+  it('con fichas, el mapa se puede guardar una hora', () => {
+    expect(cacheDelMapa(123)).toBe('public, max-age=3600')
+  })
+
+  it('sin ninguna ficha no se guarda en ninguna caché: un fallo de la API durante un despliegue no puede durar una hora', () => {
+    expect(cacheDelMapa(0)).toBe('no-store')
   })
 })
 

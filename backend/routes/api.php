@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\PanelUsuarioController;
 use App\Http\Controllers\Api\V1\PoliticaController;
 use App\Http\Controllers\Api\V1\TramiteController;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 /*
 |--------------------------------------------------------------------------
@@ -43,110 +44,115 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // para todos los que salen por una misma IP. Se quita el general de cada una porque,
     // con dos limitadores, manda el más estricto (ver `config/lecturas.php`).
 
-    // Datos institucionales — pública (sin autenticación)
-    Route::get('/entidad', [EntidadController::class, 'mostrar'])
-        ->name('entidad.mostrar')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:lecturas-publicas');
+    // Todo lo público va sin el middleware de «frontend con estado» de Sanctum: el sitio y el panel
+    // comparten dominio y, con él, una lectura anónima abría sesión y ponía XSRF-TOKEN y la cookie de
+    // sesión antes de que la persona eligiera nada en el banner (AC-26.2). Solo el panel necesita estado.
+    Route::withoutMiddleware(EnsureFrontendRequestsAreStateful::class)->group(function (): void {
+        // Datos institucionales — pública (sin autenticación)
+        Route::get('/entidad', [EntidadController::class, 'mostrar'])
+            ->name('entidad.mostrar')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:lecturas-publicas');
 
-    // Registro del consentimiento de cookies — público (lo llama el navegador del
-    // ciudadano) y con límite propio por IP: no guarda nada identificable, pero
-    // sigue siendo una escritura abierta a internet.
-    Route::post('/consentimientos', [ConsentimientoController::class, 'store'])
-        ->name('consentimientos.store')
-        ->withoutMiddleware('auth:sanctum')
-        ->middleware('throttle:consentimientos');
+        // Registro del consentimiento de cookies — público (lo llama el navegador del
+        // ciudadano) y con límite propio por IP: no guarda nada identificable, pero
+        // sigue siendo una escritura abierta a internet.
+        Route::post('/consentimientos', [ConsentimientoController::class, 'store'])
+            ->name('consentimientos.store')
+            ->withoutMiddleware('auth:sanctum')
+            ->middleware('throttle:consentimientos');
 
-    // Políticas de la sede — públicas. El texto vive en base de datos y se edita desde el panel.
-    Route::get('/politicas', [PoliticaController::class, 'index'])
-        ->name('politicas.index')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:lecturas-publicas');
-    Route::get('/politicas/{slug}', [PoliticaController::class, 'show'])
-        ->name('politicas.show')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:lecturas-publicas');
+        // Políticas de la sede — públicas. El texto vive en base de datos y se edita desde el panel.
+        Route::get('/politicas', [PoliticaController::class, 'index'])
+            ->name('politicas.index')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:lecturas-publicas');
+        Route::get('/politicas/{slug}', [PoliticaController::class, 'show'])
+            ->name('politicas.show')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:lecturas-publicas');
 
-    // Identidad: top-bar, footer y menú — públicos
-    Route::get('/identidad/top-bar', [IdentidadController::class, 'topBar'])
-        ->name('identidad.top-bar')
-        ->withoutMiddleware('throttle:api')
-        ->middleware('throttle:lecturas-publicas');
-    Route::get('/identidad/footer', [IdentidadController::class, 'footer'])
-        ->name('identidad.footer')
-        ->withoutMiddleware('throttle:api')
-        ->middleware('throttle:lecturas-publicas');
-    Route::get('/identidad/menu', [IdentidadController::class, 'menu'])
-        ->name('identidad.menu')
-        ->withoutMiddleware('throttle:api')
-        ->middleware('throttle:lecturas-publicas');
+        // Identidad: top-bar, footer y menú — públicos
+        Route::get('/identidad/top-bar', [IdentidadController::class, 'topBar'])
+            ->name('identidad.top-bar')
+            ->withoutMiddleware('throttle:api')
+            ->middleware('throttle:lecturas-publicas');
+        Route::get('/identidad/footer', [IdentidadController::class, 'footer'])
+            ->name('identidad.footer')
+            ->withoutMiddleware('throttle:api')
+            ->middleware('throttle:lecturas-publicas');
+        Route::get('/identidad/menu', [IdentidadController::class, 'menu'])
+            ->name('identidad.menu')
+            ->withoutMiddleware('throttle:api')
+            ->middleware('throttle:lecturas-publicas');
 
-    // Noticias del home (M01-6, RF-01-013): lecturas públicas. La imagen tiene su
-    // propio límite: cada visita al home pide seis y no debe gastar el cupo de las
-    // lecturas de datos.
-    Route::get('/noticias', [NoticiaController::class, 'index'])
-        ->name('noticias.index')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:lecturas-publicas');
-    Route::get('/noticias/{slug}', [NoticiaController::class, 'show'])
-        ->name('noticias.mostrar')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:lecturas-publicas');
-    // Carrusel de la portada: solo diapositivas vigentes. Misma política de lectura pública que las noticias.
-    Route::get('/banners', [BannerController::class, 'listar'])
-        ->name('banners.listar')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:lecturas-publicas');
-    Route::get('/banners/{uuid}/imagen', [BannerController::class, 'imagen'])
-        ->name('banners.imagen')
-        ->whereUuid('uuid')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:imagenes-publicas');
+        // Noticias del home (M01-6, RF-01-013): lecturas públicas. La imagen tiene su
+        // propio límite: cada visita al home pide seis y no debe gastar el cupo de las
+        // lecturas de datos.
+        Route::get('/noticias', [NoticiaController::class, 'index'])
+            ->name('noticias.index')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:lecturas-publicas');
+        Route::get('/noticias/{slug}', [NoticiaController::class, 'show'])
+            ->name('noticias.mostrar')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:lecturas-publicas');
+        // Carrusel de la portada: solo diapositivas vigentes. Misma política de lectura pública que las noticias.
+        Route::get('/banners', [BannerController::class, 'listar'])
+            ->name('banners.listar')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:lecturas-publicas');
+        Route::get('/banners/{uuid}/imagen', [BannerController::class, 'imagen'])
+            ->name('banners.imagen')
+            ->whereUuid('uuid')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:imagenes-publicas');
 
-    Route::get('/noticias/{slug}/imagen', [NoticiaController::class, 'imagen'])
-        ->name('noticias.imagen')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:imagenes-publicas');
+        Route::get('/noticias/{slug}/imagen', [NoticiaController::class, 'imagen'])
+            ->name('noticias.imagen')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:imagenes-publicas');
 
-    // Imágenes insertadas en el contenido editado en el panel: públicas, con su propio límite.
-    Route::get('/contenido/imagenes/{uuid}', [ImagenContenidoController::class, 'show'])
-        ->whereUuid('uuid')
-        ->name('contenido.imagenes.ver')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:imagenes-publicas');
+        // Imágenes insertadas en el contenido editado en el panel: públicas, con su propio límite.
+        Route::get('/contenido/imagenes/{uuid}', [ImagenContenidoController::class, 'show'])
+            ->whereUuid('uuid')
+            ->name('contenido.imagenes.ver')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:imagenes-publicas');
 
-    // El catálogo de trámites. Las dos operaciones son públicas —el contrato las
-    // declara con `security: []`— y por eso no llevan middleware de sesión.
-    Route::get('/tramites', [TramiteController::class, 'listar'])
-        ->name('tramites.listar')
-        ->withoutMiddleware('throttle:api')
-        ->middleware('throttle:lecturas-publicas');
-    Route::get('/tramites/{slug}', [TramiteController::class, 'mostrar'])
-        ->name('tramites.mostrar')
-        ->withoutMiddleware('throttle:api')
-        ->middleware('throttle:lecturas-publicas');
-    // La valoración de una ficha — escritura pública con su propio límite por IP.
-    Route::post('/tramites/{slug}/valoracion', [TramiteController::class, 'valorar'])
-        ->name('tramites.valorar')
-        ->withoutMiddleware('throttle:api')
-        ->middleware('throttle:valoraciones');
+        // El catálogo de trámites. Las dos operaciones son públicas —el contrato las
+        // declara con `security: []`— y por eso no llevan middleware de sesión.
+        Route::get('/tramites', [TramiteController::class, 'listar'])
+            ->name('tramites.listar')
+            ->withoutMiddleware('throttle:api')
+            ->middleware('throttle:lecturas-publicas');
+        Route::get('/tramites/{slug}', [TramiteController::class, 'mostrar'])
+            ->name('tramites.mostrar')
+            ->withoutMiddleware('throttle:api')
+            ->middleware('throttle:lecturas-publicas');
+        // La valoración de una ficha — escritura pública con su propio límite por IP.
+        Route::post('/tramites/{slug}/valoracion', [TramiteController::class, 'valorar'])
+            ->name('tramites.valorar')
+            ->withoutMiddleware('throttle:api')
+            ->middleware('throttle:valoraciones');
 
-    // La búsqueda de la sede (T-22). Las dos operaciones son públicas y comparten un
-    // límite por IP: se llaman mientras el ciudadano escribe, así que son las más
-    // expuestas a un uso abusivo. Lo escrito no se registra en la aplicación.
-    //
-    // `throttle:api` (60 por minuto) se quita de estas dos rutas: el grupo `api` lo trae
-    // y, sumado al límite propio, dejaba el tope real de la búsqueda en 60 y no en los 120
-    // documentados —se midió en staging: 200 hasta la petición 60 y 429 desde la 61—.
-    // Con dos limitadores, el más estricto manda y el configurable no sirve de nada.
-    Route::get('/busqueda/sugerencias', [BusquedaController::class, 'sugerir'])
-        ->name('busqueda.sugerir')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:busqueda');
-    Route::get('/buscar', [BusquedaController::class, 'buscar'])
-        ->name('busqueda.buscar')
-        ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-        ->middleware('throttle:busqueda');
+        // La búsqueda de la sede (T-22). Las dos operaciones son públicas y comparten un
+        // límite por IP: se llaman mientras el ciudadano escribe, así que son las más
+        // expuestas a un uso abusivo. Lo escrito no se registra en la aplicación.
+        //
+        // `throttle:api` (60 por minuto) se quita de estas dos rutas: el grupo `api` lo trae
+        // y, sumado al límite propio, dejaba el tope real de la búsqueda en 60 y no en los 120
+        // documentados —se midió en staging: 200 hasta la petición 60 y 429 desde la 61—.
+        // Con dos limitadores, el más estricto manda y el configurable no sirve de nada.
+        Route::get('/busqueda/sugerencias', [BusquedaController::class, 'sugerir'])
+            ->name('busqueda.sugerir')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:busqueda');
+        Route::get('/buscar', [BusquedaController::class, 'buscar'])
+            ->name('busqueda.buscar')
+            ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
+            ->middleware('throttle:busqueda');
+    });
 
     // Panel — Auth (requiere autenticación Sanctum)
     Route::prefix('panel')->name('panel.')->group(function (): void {

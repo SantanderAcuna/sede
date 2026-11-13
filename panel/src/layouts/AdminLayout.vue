@@ -285,8 +285,9 @@ const migas = computed(() =>
         'flex flex-col bg-white border-r border-slate-200 shrink-0',
         'transition-transform lg:transition-[width] duration-200',
         // Por debajo de `lg` sale del flujo y se desliza desde la izquierda; a
-        // partir de `lg` vuelve a ocupar su columna, como antes.
-        'fixed inset-y-0 left-0 z-40 w-64 lg:static lg:z-auto',
+        // partir de `lg` ocupa su columna pero queda fijo a la altura de la pantalla (sticky):
+        // la página se desplaza y el menú no, y su lista de módulos tiene scroll propio.
+        'fixed inset-y-0 left-0 z-40 w-64 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:self-start',
         menuMovilAbierto ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         interfaz.plegado ? 'lg:w-16' : 'lg:w-64',
       ]"
@@ -296,7 +297,7 @@ const migas = computed(() =>
         <AppLogo variant="dark" :size="38" :show-text="menuExpandido" />
       </div>
 
-      <nav class="flex-1 overflow-y-auto py-3">
+      <nav class="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3">
         <!--
           Sin nada que mostrar se dice POR QUÉ, que no es lo mismo en los dos
           casos: no haber entrado y haber entrado sin permiso para ningún

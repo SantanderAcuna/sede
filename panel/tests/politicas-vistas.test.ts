@@ -92,7 +92,7 @@ describe('lista de políticas', () => {
 
     expect(wrapper.find('table').exists()).toBe(true)
     const encabezados = wrapper.findAll('th').map((t) => t.text())
-    for (const nombre of ['Política', 'Estado', 'Versión', 'Vigente desde', 'Documento oficial', 'Acciones']) {
+    for (const nombre of ['Política', 'Estado', 'Versión', 'Vigente desde', 'Para adoptarla', 'Acciones']) {
       expect(encabezados.some((t) => t.includes(nombre))).toBe(true)
     }
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
@@ -112,7 +112,7 @@ describe('lista de políticas', () => {
     expect(filas[2]).toContain('Incompleta')
   })
 
-  it('dice si hay documento oficial', async () => {
+  it('dice, paso a paso, si hay archivo del acto', async () => {
     m.listar.mockResolvedValue([
       politica({ slug: 'a', nombre: 'A', documento_oficial: { nombre: 'r.pdf', tipo: 'application/pdf', tamano: 10, url: '/x' } }),
       politica({ slug: 'b', nombre: 'B', documento_oficial: null }),
@@ -120,8 +120,8 @@ describe('lista de políticas', () => {
     const { wrapper } = await montarLista()
     const filas = wrapper.findAll('tbody tr').map((f) => f.text())
 
-    expect(filas[0]).toContain('Adjunto')
-    expect(filas[1]).toContain('Falta')
+    expect(filas[0]).toContain('Listo: Archivo del acto')
+    expect(filas[1]).toContain('Falta: Archivo del acto')
   })
 
   it('«Editar» es un enlace a la vista de edición de esa política', async () => {

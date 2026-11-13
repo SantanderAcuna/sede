@@ -151,3 +151,27 @@ export function motivosDeError(error: unknown, porDefecto: string): string[] {
   }
   return [porDefecto]
 }
+
+export interface PasoDeAdopcion {
+  id: 'texto' | 'acto' | 'archivo'
+  etiqueta: string
+  hecho: boolean
+}
+
+/**
+ * Los tres pasos que separan un texto de ejemplo de una política adoptada.
+ *
+ * Son independientes: el texto definitivo (se quita la marca de ejemplo), el acto administrativo que la
+ * adopta (tipo, número y fecha) y el archivo de ese acto o del texto aprobado. La lista los muestra
+ * juntos para que una fila no parezca pedir solo un adjunto. La decisión final de «completa» sigue
+ * siendo del servidor; esto solo ordena lo que ya se sabe.
+ */
+export function pasosDeAdopcion(p: PoliticaPanelItem): PasoDeAdopcion[] {
+  const acto = p.acto
+  const actoCompleto = [acto?.tipo, acto?.numero, acto?.fecha].every((v) => typeof v === 'string' && v.trim() !== '')
+  return [
+    { id: 'texto', etiqueta: 'Texto definitivo', hecho: !p.es_ejemplo },
+    { id: 'acto', etiqueta: 'Acto administrativo (tipo, número y fecha)', hecho: actoCompleto },
+    { id: 'archivo', etiqueta: 'Archivo del acto o del texto aprobado', hecho: Boolean(p.documento_oficial) },
+  ]
+}

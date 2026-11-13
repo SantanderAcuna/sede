@@ -307,6 +307,41 @@ watch(slug, () => {
         </ul>
       </div>
 
+      <section class="rounded-xl border border-blue-200 bg-blue-50 p-5 sm:p-6" aria-labelledby="politica-guia" data-guia-pdf>
+        <h2 id="politica-guia" class="font-medium text-blue-950">Qué se imprime en el PDF</h2>
+        <p class="mt-1 text-sm text-blue-900">
+          El PDF y el ODT que descarga el público se arman con lo que escribe en esta pantalla; no hay otro lugar donde
+          redactarlo.
+        </p>
+        <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-blue-950">
+          <li>
+            <strong>Encabezado:</strong> el nombre, la versión, «Vigente desde», el acto administrativo (tipo, número y fecha) y el
+            estado (texto de ejemplo o aprobado) salen de
+            <a href="#politica-datos" class="font-medium underline">Datos de la política</a>. La Entidad (Alcaldía Distrital de
+            Santa Marta) es fija.
+          </li>
+          <li>
+            <strong>Cuerpo:</strong> cada apartado, con su título y sus párrafos, sale de
+            <a href="#politica-apartados" class="font-medium underline">Apartados</a>, en el orden en que aparecen. Los datos de
+            contacto o la jurisdicción se escriben allí, en su apartado.
+          </li>
+          <li>
+            <strong>Documento oficial:</strong> el archivo
+            <a href="#politica-documento" class="font-medium underline">adjunto</a> no se imprime en el PDF; el sitio lo ofrece
+            aparte junto a la política.
+          </li>
+        </ol>
+        <p class="mt-3 text-sm text-blue-900">
+          <a
+            :href="`/politicas/${politica?.slug ?? ''}.pdf`"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex h-10 items-center rounded-lg bg-white px-4 font-medium text-gov-blue ring-1 ring-blue-200 hover:bg-gov-blue-light focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue"
+          >Ver el PDF actual (se abre en otra pestaña)</a>
+          <span class="mt-2 block">Muestra lo ya guardado: lo que acaba de escribir aparece después de pulsar «Guardar».</span>
+        </p>
+      </section>
+
       <section class="space-y-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-6" aria-labelledby="politica-datos">
         <h2 id="politica-datos" class="font-medium text-slate-900">Datos de la política</h2>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

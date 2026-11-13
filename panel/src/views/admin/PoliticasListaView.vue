@@ -17,7 +17,7 @@ import type { DataTableFeatures } from '@/components/base/dataTableFeatures'
 import { listar } from '@/services/politicas'
 import type { PoliticaPanelItem } from '@/types/api'
 import { tomarAviso } from './avisos'
-import { motivosDeError } from './politicas-logica'
+import { motivosDeError, pasosDeAdopcion } from './politicas-logica'
 
 const filas = ref<PoliticaPanelItem[]>([])
 const cargando = ref(true)
@@ -69,6 +69,11 @@ const columnas: ColumnDef<DataTableFeatures, PoliticaPanelItem, unknown>[] = [
         ),
         // En pantallas estrechas la columna Estado se oculta y el estado va bajo el nombre.
         insignia(row.original, 'sm:hidden'),
+        h(
+          'span',
+          { class: 'text-xs text-slate-600 lg:hidden' },
+          `${pasosDeAdopcion(row.original).filter((x) => x.hecho).length} de 3 pasos para adoptarla`,
+        ),
       ]),
   },
   {
@@ -98,27 +103,56 @@ const columnas: ColumnDef<DataTableFeatures, PoliticaPanelItem, unknown>[] = [
   },
   {
     id: 'documento',
-    header: 'Documento oficial',
+    header: 'Para adoptarla',
     enableSorting: false,
     meta: { clase: 'hidden lg:table-cell' },
-    cell: ({ row }) =>
-      row.original.documento_oficial ? 'Adjunto' : h('span', { class: 'font-medium text-amber-700' }, 'Falta'),
+    cell: ({ row }) => {
+      const pasos = pasosDeAdopcion(row.original)
+      const hechos = pasos.filter((x) => x.hecho).length
+      return h('div', { class: 'space-y-1' }, [
+        h('p', { class: 'text-xs font-semibold text-slate-700' }, `${hechos} de ${pasos.length} pasos`),
+        h(
+          'ul',
+          { class: 'space-y-0.5 text-xs' },
+          pasos.map((x) =>
+            h('li', { class: x.hecho ? 'text-emerald-800' : 'text-amber-800' }, [
+              h('span', { class: 'font-medium' }, x.hecho ? 'Listo: ' : 'Falta: '),
+              x.etiqueta,
+            ]),
+          ),
+        ),
+      ])
+    },
   },
   {
     id: 'acciones',
     header: 'Acciones',
     enableSorting: false,
     cell: ({ row }) =>
-      h(
-        RouterLink,
-        {
-          to: { name: 'panel.politicas.editar', params: { slug: row.original.slug } },
-          'aria-label': `Editar «${row.original.nombre}»`,
-          class:
-            'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium text-gov-blue ring-1 ring-slate-200 hover:bg-gov-blue-light focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue',
-        },
-        () => 'Editar',
-      ),
+      h('div', { class: 'flex flex-wrap items-center gap-2' }, [
+        h(
+          RouterLink,
+          {
+            to: { name: 'panel.politicas.editar', params: { slug: row.original.slug } },
+            'aria-label': `Editar «${row.original.nombre}»`,
+            class:
+              'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium text-gov-blue ring-1 ring-slate-200 hover:bg-gov-blue-light focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue',
+          },
+          () => 'Editar',
+        ),
+        h(
+          'a',
+          {
+            href: `/politicas/${row.original.slug}.pdf`,
+            target: '_blank',
+            rel: 'noopener',
+            'aria-label': `Ver el PDF de «${row.original.nombre}» (se abre en otra pestaña)`,
+            class:
+              'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue',
+          },
+          'Ver PDF',
+        ),
+      ]),
   },
 ]
 </script>
@@ -129,7 +163,8 @@ const columnas: ColumnDef<DataTableFeatures, PoliticaPanelItem, unknown>[] = [
       <h1 class="text-xl font-semibold text-slate-900">Políticas del sitio</h1>
       <p class="mt-1 max-w-2xl text-sm text-slate-600">
         Las cinco políticas que publica el sitio: términos de uso, seguridad y privacidad, datos personales, cookies y
-        derechos de autor. Mientras el texto sea de ejemplo, el sitio lo avisa y no lo deja indexar. Elija una para
+        derechos de autor. Mientras el texto sea de ejemplo, el sitio lo avisa y no lo deja indexar. Para adoptar una
+        política hacen falta tres pasos: texto definitivo, acto administrativo y el archivo de ese acto. Elija una para
         editarla.
       </p>
     </header>

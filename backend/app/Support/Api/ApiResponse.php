@@ -155,9 +155,14 @@ final class ApiResponse
      * paginador de Eloquent trae claves de más —y enlaces con nombres que el
      * contrato no declara—, y el contrato fija lo que viaja.
      *
+     * El `metaExtra` deja añadir claves al `meta` del contrato —hoy las facetas del catálogo— sin
+     * tocar las siete del paginador: se funden al final para que una clave extra nunca pise a
+     * `total` o `last_page`.
+     *
      * @param  LengthAwarePaginator<int, mixed>  $pagina
+     * @param  array<string, mixed>  $metaExtra
      */
-    public static function coleccion(ResourceCollection $coleccion, LengthAwarePaginator $pagina): JsonResponse
+    public static function coleccion(ResourceCollection $coleccion, LengthAwarePaginator $pagina, array $metaExtra = []): JsonResponse
     {
         return response()->json([
             'success' => true,
@@ -171,6 +176,7 @@ final class ApiResponse
                 'per_page' => $pagina->perPage(),
                 'to' => $pagina->lastItem(),
                 'total' => $pagina->total(),
+                ...$metaExtra,
             ],
             'links' => [
                 'first' => $pagina->url(1),

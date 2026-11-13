@@ -61,6 +61,34 @@ const tramites = (consulta) => {
 }
 
 /**
+ * `GET /noticias`. Sin noticias, con la forma paginada del contrato: es el estado
+ * del entorno hasta que la Entidad publique la primera (CT-01), y ejercita la
+ * portada y `/noticias` sin inventar una sola.
+ */
+const noticias = (consulta) => {
+  const porPagina = Number.parseInt(consulta.get('per_page') ?? '', 10)
+  return sobre([], {
+    meta: {
+      current_page: 1,
+      from: null,
+      last_page: 1,
+      path: '/api/v1/noticias',
+      per_page: Number.isInteger(porPagina) && porPagina > 0 ? porPagina : 6,
+      to: null,
+      total: 0,
+    },
+    links: { first: null, last: null, prev: null, next: null },
+  })
+}
+
+/**
+ * `GET /banners`. Sin diapositivas publicadas: es el estado del entorno hasta que la Entidad cargue
+ * la primera desde el panel, y ejercita el respaldo de la portada (las diapositivas por defecto)
+ * sin inventar un banner.
+ */
+const banners = () => sobre([])
+
+/**
  * `GET /politicas/uso-de-cookies`. Una política válida para el contrato (slug,
  * nombre y versión entera ≥ 1, que es lo que exige `politicaDesdeApi`) con un
  * texto que declara ser de prueba.
@@ -236,6 +264,8 @@ const RUTAS = new Map([
   ['/api/v1/buscar', resultadosDeBusqueda],
   ['/api/v1/busqueda/sugerencias', sugerenciasDeBusqueda],
   ['/api/v1/tramites', tramites],
+  ['/api/v1/noticias', noticias],
+  ['/api/v1/banners', banners],
   ['/api/v1/politicas/uso-de-cookies', politicaDeCookies],
 ])
 

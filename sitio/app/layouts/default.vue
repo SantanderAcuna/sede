@@ -16,7 +16,10 @@
 import type { MenuPrincipal } from '~/types/menu'
 import type { NivelMigaDePan } from '~/components/govco/MigaDePanGovco.vue'
 import { redesDesdeApi, REDES_RESPALDO, type RedDeApi } from '~/config/redes-sociales'
-import { etiquetaFueraDelMenu, menuPrincipal } from '~/config/sitemap'
+import { politicasPropiasDesdeApi, type PoliticaPropia } from '~/config/politicas-contenido'
+import { etiquetaFueraDelMenu, menuPrincipal, POLITICAS } from '~/config/sitemap'
+import { useFichaPrecargada } from '~/composables/useFichaPrecargada'
+import { construirMiga, tituloDeFicha } from '~/utils/miga'
 
 // Componentes globales de la auditoría (D-01, D-02)
 import BannerCookies from '~/components/BannerCookies.vue'
@@ -44,15 +47,20 @@ const traer = useRequestFetch()
 const { data: pieDeApi } = await useAsyncData('pie-redes', async () => {
   try {
     const respuesta = await traer<{ data?: { redes?: RedDeApi[] } }>(`${urlApi}/identidad/footer`)
-    return respuesta.data?.redes ?? []
+    return {
+      redes: respuesta.data?.redes ?? [],
+      // Las cinco obligatorias son fijas; el pie suma las que la Entidad haya publicado.
+      politicas: politicasPropiasDesdeApi(respuesta, POLITICAS.map((p) => p.slug)),
+    }
   } catch {
-    return []
+    return { redes: [] as RedDeApi[], politicas: [] as PoliticaPropia[] }
   }
 })
 const redesDelPie = computed(() => {
-  const redes = redesDesdeApi(pieDeApi.value)
+  const redes = redesDesdeApi(pieDeApi.value?.redes)
   return redes.length > 0 ? redes : REDES_RESPALDO
 })
+const politicasPropiasDelPie = computed(() => pieDeApi.value?.politicas ?? [])
 
 // Estado del modal de aviso de salida a sitio externo
 const { visible, enlacePendiente, origenDelAviso, confirmarNavegacion, cancelarNavegacion } =
@@ -125,40 +133,22 @@ const destinosDelMenu = menu.flatMap((item) => [
   ...(item.subsecciones ?? []).flatMap((sub) => sub.enlaces),
 ])
 
-/**
- * El nombre de la sección a la que pertenece una ruta. Se busca el prefijo más
- * largo que coincida, para que `/participa/control-ciudadano` use el nombre de
- * esa subcategoría y no el de `/participa`, y se descarta el destino raíz para
- * que `/` no se lea como prefijo de todo.
- */
-function nombreDeLaSeccion(destino: string): string {
-  const candidatos = destinosDelMenu
-    .filter((d) => d.ruta !== '/' && (destino === d.ruta || destino.startsWith(`${d.ruta}/`)))
-    .sort((a, b) => b.ruta.length - a.ruta.length)
-  return candidatos[0]?.etiqueta ?? ''
-}
-
-const migaDePan = computed<NivelMigaDePan[]>(() => {
-  // En la portada no hay recorrido que mostrar.
-  if (ruta.path === '/') return []
-
-  const niveles: NivelMigaDePan[] = [{ etiqueta: 'Inicio', ruta: '/' }]
-
-  const segmentos = ruta.path.split('/').filter(Boolean)
-  segmentos.forEach((segmento, indice) => {
-    const destino = `/${segmentos.slice(0, indice + 1).join('/')}`
-    const delMenu = nombreDeLaSeccion(destino)
-    // Si el menú no lo conoce —una subcategoría, un detalle— se deriva del
-    // segmento, que es lo único que queda sin inventarse un nombre.
-    const etiqueta =
-      delMenu ||
-      etiquetaFueraDelMenu(destino) ||
-      (segmento.charAt(0).toUpperCase() + segmento.slice(1)).replace(/-/g, ' ')
-    niveles.push({ etiqueta, ruta: destino })
-  })
-
-  return niveles
+/** El título de la ficha en la que se está (noticia o trámite), si el middleware ya la leyó. */
+const fichaPrecargada = useFichaPrecargada()
+const tituloDeLaPagina = computed(() => {
+  const ficha = fichaPrecargada.value
+  if (!ficha || ficha.ruta !== ruta.path) return null
+  const texto = tituloDeFicha(ficha.seccion, ficha.respuesta)
+  return texto ? { ruta: ficha.ruta, texto } : null
 })
+
+const migaDePan = computed<NivelMigaDePan[]>(() =>
+  construirMiga(ruta.path, {
+    destinos: destinosDelMenu,
+    fueraDelMenu: etiquetaFueraDelMenu,
+    titulo: tituloDeLaPagina.value,
+  }),
+)
 
 /**
  * Aplicaciones de la galería de la cabecera (RF-B3-068).
@@ -308,7 +298,7 @@ const aplicacionesGaleria = [
         <slot />
       </main>
 
-      <PiePaginaGovco :redes-sociales="redesDelPie" />
+      <PiePaginaGovco :redes-sociales="redesDelPie" :politicas-propias="politicasPropiasDelPie" />
     </div>
 
     <VolverArriba />

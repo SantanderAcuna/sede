@@ -2,7 +2,9 @@
  * Servicio de las políticas del sitio y de su documento oficial adjunto.
  *
  * GET   /api/v1/panel/politicas               → listar()
- * PATCH /api/v1/panel/politicas/{slug}        → actualizar()
+ * POST   /api/v1/panel/politicas              → crear()
+ * PATCH  /api/v1/panel/politicas/{slug}        → actualizar()
+ * DELETE /api/v1/panel/politicas/{slug}        → eliminar()
  * GET   /api/v1/panel/entidad/{uuid}/archivos → documentosAdjuntos()
  * POST  /api/v1/panel/entidad/{uuid}/archivos → adjuntarDocumento()
  * DELETE /api/v1/panel/archivos/{uuid}        → quitarArchivo()
@@ -20,6 +22,17 @@ export const COLECCION_DOCUMENTO = 'documento-oficial'
 export async function listar(): Promise<PoliticaPanelItem[]> {
   const respuesta = await http.get<ApiEnvelope<PoliticaPanelItem[]>>('/panel/politicas')
   return desenvolver(respuesta.data)
+}
+
+/** Crea una política propia: nace oculta y como texto de ejemplo. */
+export async function crear(datos: PoliticaInput): Promise<PoliticaPanelItem> {
+  const respuesta = await http.post<ApiEnvelope<PoliticaPanelItem>>('/panel/politicas', datos)
+  return desenvolver(respuesta.data)
+}
+
+/** Elimina una política propia (y su documento oficial). Las cinco obligatorias no se eliminan. */
+export async function eliminar(slug: string): Promise<void> {
+  await http.delete(`/panel/politicas/${slug}`)
 }
 
 export async function actualizar(slug: string, datos: PoliticaInput): Promise<PoliticaPanelItem> {

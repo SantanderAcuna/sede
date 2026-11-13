@@ -28,3 +28,12 @@ export async function actualizar(datos: Partial<EntidadInput>): Promise<EntidadI
   )
   return desenvolver(respuesta.data)
 }
+
+/**
+ * Las políticas que existen, para elegir a cuál lleva cada enlace del pie de página.
+ * Es la lectura pública: no pide permisos de políticas.
+ */
+export async function politicasDisponibles(): Promise<Array<{ slug: string; nombre: string }>> {
+  const respuesta = await http.get<ApiEnvelope<Array<{ slug: string; nombre: string }>>>('/politicas')
+  return desenvolver(respuesta.data).map((p) => ({ slug: p.slug, nombre: p.nombre }))
+}

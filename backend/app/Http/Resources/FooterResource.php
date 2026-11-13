@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\Entidad;
+use App\Models\Politica;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -37,7 +38,7 @@ final class FooterResource extends JsonResource
             'correo_institucional' => $this->correo_atencion,
             'correo_notificaciones' => $this->correo_notificaciones_judiciales,
             'redes' => $this->redes ?? [],
-            'politicas' => $this->politicas ?? [],
+            'politicas' => [...($this->politicas ?? []), ...Politica::enlacesExtraDelPie()],
         ];
     }
 }

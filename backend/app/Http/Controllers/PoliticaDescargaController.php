@@ -20,7 +20,7 @@ final class PoliticaDescargaController extends Controller
 {
     public function __invoke(Request $peticion, string $slug, string $formato, PoliticaDocumentos $documentos): Response
     {
-        $politica = Politica::query()->where('slug', $slug)->firstOrFail();
+        $politica = Politica::query()->publicadas()->where('slug', $slug)->firstOrFail();
 
         $tipo = $formato === 'odt' ? PoliticaDocumentos::TIPO_ODT : PoliticaDocumentos::TIPO_PDF;
 

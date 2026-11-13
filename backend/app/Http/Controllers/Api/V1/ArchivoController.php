@@ -39,13 +39,13 @@ final class ArchivoController extends Controller
 
     /**
      * Adjuntar o quitar archivos de una política exige, además del permiso de
-     * archivos, poder gestionar políticas: el documento oficial se publica.
+     * archivos, poder editar políticas: el documento oficial se publica.
      */
     private function puedeTocar(Request $request, Model|string|null $propietario): bool
     {
         $esPolitica = $propietario instanceof Politica || $propietario === Politica::class;
 
-        return ! $esPolitica || $request->user()?->can('politicas.gestionar') === true;
+        return ! $esPolitica || $request->user()?->can('politicas.editar') === true;
     }
 
     /**

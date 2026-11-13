@@ -11,13 +11,14 @@
  * fuente centralizada de rutas. Cualquier cambio en la navegación se refleja
  * automáticamente aquí y en el menú de la sede (RF-B1-010).
  */
-import { slugsAdoptados } from '../../app/config/politicas-contenido'
+import { politicasPropiasDesdeApi, slugsAdoptados } from '../../app/config/politicas-contenido'
 import { POLITICAS, todasLasRutas } from '../../app/config/sitemap'
 import {
   construirSitemapXml,
   fechasDePoliticas,
   leerTramites,
   tramitesConCache,
+  cacheDelMapa,
   type EntradaSitemap,
 } from '../utils/sitemap-xml'
 
@@ -64,6 +65,7 @@ export default defineEventHandler(async (evento): Promise<string> => {
    */
   const urlApi = String(config.public.apiUrl ?? '').replace(/\/+$/, '')
   let adoptadas: string[] = []
+  let propias: { slug: string; nombre: string }[] = []
   let fechasPoliticas = new Map<string, string>()
   try {
     const respuesta = await $fetch<unknown>(`${urlApi}/politicas`, { timeout: 3000 })
@@ -72,8 +74,11 @@ export default defineEventHandler(async (evento): Promise<string> => {
       POLITICAS.map((politica) => politica.slug),
     )
     fechasPoliticas = fechasDePoliticas(respuesta)
+    // Una política propia solo llega publicada, y solo se publica adoptada: se anuncia sin más.
+    propias = politicasPropiasDesdeApi(respuesta, POLITICAS.map((politica) => politica.slug))
   } catch {
     adoptadas = []
+    propias = []
   }
 
   const fijas: EntradaSitemap[] = todasLasRutas()
@@ -86,12 +91,21 @@ export default defineEventHandler(async (evento): Promise<string> => {
       modificado: fechasPoliticas.get(ruta.ruta.replace(/^\/politicas\//, '')),
     }))
 
+  for (const politica of propias) {
+    fijas.push({
+      ruta: `/politicas/${politica.slug}`,
+      frecuencia: 'yearly',
+      prioridad: 0.4,
+      modificado: fechasPoliticas.get(politica.slug),
+    })
+  }
+
   // Las fichas de trámite se leen de la API. Si falla, el mapa sale con las rutas fijas.
   const fichas = await tramitesDe(urlApi)()
 
   setHeader(evento, 'content-type', 'application/xml; charset=utf-8')
-  // Una hora: el contenido de la sede no cambia al segundo.
-  setHeader(evento, 'cache-control', 'public, max-age=3600')
+  // Una hora si el mapa trae fichas; nada si salió sin ellas (ver `cacheDelMapa`).
+  setHeader(evento, 'cache-control', cacheDelMapa(fichas.length))
 
   return construirSitemapXml(base, [...fijas, ...fichas])
 })

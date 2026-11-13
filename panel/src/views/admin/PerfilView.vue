@@ -234,7 +234,7 @@ onMounted(async () => {
                 </span>
                 <span
                   v-if="rol.permisos.length === 0"
-                  class="inline-flex items-center gap-1 text-xs text-slate-400"
+                  class="inline-flex items-center gap-1 text-xs text-slate-600"
                 >
                   <FaIcon icon='infinity' class="h-3 w-3" aria-hidden="true" />
                   Acceso total (sin restricciones)

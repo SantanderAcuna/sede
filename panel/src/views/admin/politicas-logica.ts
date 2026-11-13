@@ -27,6 +27,8 @@ export interface FormularioPolitica {
   acto_numero: string
   acto_fecha: string
   es_ejemplo: boolean
+  /** Visible para la ciudadanía. Las cinco obligatorias siempre lo están. */
+  publicada: boolean
   secciones: SeccionEditable[]
 }
 
@@ -43,6 +45,21 @@ export function textoDesdeParrafos(parrafos: readonly string[]): string {
   return parrafos.join('\n\n')
 }
 
+/** El formulario de una política nueva: de ejemplo, oculta y con un apartado en blanco. */
+export function formularioNuevo(): FormularioPolitica {
+  return {
+    nombre: '',
+    version: 1,
+    vigente_desde: '',
+    acto_tipo: '',
+    acto_numero: '',
+    acto_fecha: '',
+    es_ejemplo: true,
+    publicada: false,
+    secciones: [{ id: 'apartado', titulo: '', texto: '', obligatoria: false }],
+  }
+}
+
 export function formularioDesde(politica: PoliticaPanelItem): FormularioPolitica {
   return {
     nombre: politica.nombre,
@@ -52,6 +69,7 @@ export function formularioDesde(politica: PoliticaPanelItem): FormularioPolitica
     acto_numero: politica.acto?.numero ?? '',
     acto_fecha: politica.acto?.fecha ?? '',
     es_ejemplo: politica.es_ejemplo,
+    publicada: politica.publicada,
     secciones: politica.secciones.map((seccion) => ({
       id: seccion.id,
       titulo: seccion.titulo,
@@ -82,6 +100,9 @@ export function entradaDesde(formulario: FormularioPolitica, original: Formulari
     es_ejemplo: formulario.es_ejemplo,
   }
 
+  // Publicar o retirar exige un permiso propio: solo se envía si la persona lo cambió.
+  if (formulario.publicada !== original.publicada) entrada.publicada = formulario.publicada
+
   if (JSON.stringify(formulario.secciones) !== JSON.stringify(original.secciones)) {
     entrada.secciones = formulario.secciones.map((seccion) => ({
       id: seccion.id,
@@ -93,6 +114,31 @@ export function entradaDesde(formulario: FormularioPolitica, original: Formulari
   }
 
   return entrada
+}
+
+/**
+ * Lo que se envía a `POST /panel/politicas`. El identificador de cada apartado sale de su título
+ * (quien escribe no ve ni elige identificadores) y no se repite. La política nace oculta: la
+ * publicación se pide después, cuando está adoptada.
+ */
+export function entradaParaCrear(formulario: FormularioPolitica): PoliticaInput {
+  const usados: string[] = []
+  const secciones = formulario.secciones.map((seccion) => {
+    const id = idDeApartado(seccion.titulo, usados)
+    usados.push(id)
+    return { id, titulo: seccion.titulo.trim(), parrafos: parrafosDesdeTexto(seccion.texto) }
+  })
+
+  return {
+    nombre: formulario.nombre.trim(),
+    version: formulario.version,
+    vigente_desde: nuloSiVacio(formulario.vigente_desde),
+    acto_tipo: nuloSiVacio(formulario.acto_tipo),
+    acto_numero: nuloSiVacio(formulario.acto_numero),
+    acto_fecha: nuloSiVacio(formulario.acto_fecha),
+    es_ejemplo: formulario.es_ejemplo,
+    secciones,
+  }
 }
 
 export function hayCambios(formulario: FormularioPolitica, original: FormularioPolitica): boolean {
@@ -107,6 +153,8 @@ export function problemasLocales(formulario: FormularioPolitica): string[] {
   if (!Number.isInteger(formulario.version) || formulario.version < 1) {
     problemas.push('La versión debe ser un número entero desde 1.')
   }
+
+  if (formulario.secciones.length === 0) problemas.push('La política necesita al menos un apartado.')
 
   for (const seccion of formulario.secciones) {
     const nombre = seccion.titulo.trim() === '' ? seccion.id : seccion.titulo.trim()
@@ -150,4 +198,28 @@ export function motivosDeError(error: unknown, porDefecto: string): string[] {
     if (typeof cuerpo?.message === 'string' && cuerpo.message !== '') return [cuerpo.message]
   }
   return [porDefecto]
+}
+
+export interface PasoDeAdopcion {
+  id: 'texto' | 'acto' | 'archivo'
+  etiqueta: string
+  hecho: boolean
+}
+
+/**
+ * Los tres pasos que separan un texto de ejemplo de una política adoptada.
+ *
+ * Son independientes: el texto definitivo (se quita la marca de ejemplo), el acto administrativo que la
+ * adopta (tipo, número y fecha) y el archivo de ese acto o del texto aprobado. La lista los muestra
+ * juntos para que una fila no parezca pedir solo un adjunto. La decisión final de «completa» sigue
+ * siendo del servidor; esto solo ordena lo que ya se sabe.
+ */
+export function pasosDeAdopcion(p: PoliticaPanelItem): PasoDeAdopcion[] {
+  const acto = p.acto
+  const actoCompleto = [acto?.tipo, acto?.numero, acto?.fecha].every((v) => typeof v === 'string' && v.trim() !== '')
+  return [
+    { id: 'texto', etiqueta: 'Texto definitivo', hecho: !p.es_ejemplo },
+    { id: 'acto', etiqueta: 'Acto administrativo (tipo, número y fecha)', hecho: actoCompleto },
+    { id: 'archivo', etiqueta: 'Archivo del acto o del texto aprobado', hecho: Boolean(p.documento_oficial) },
+  ]
 }

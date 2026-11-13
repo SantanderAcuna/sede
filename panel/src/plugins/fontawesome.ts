@@ -16,7 +16,7 @@ import {
   faGaugeHigh, faInbox, faFileLines, faCalendarCheck, faBell, faGlobe,
   faBriefcase, faKey, faPenToSquare, faDisplay, faLandmark, faBuilding,
   faFolderOpen, faLink, faPlug, faUsers, faMagnifyingGlass, faChartLine,
-  faGear, faSliders, faShieldHalved,
+  faGear, faSliders, faShieldHalved, faNewspaper, faImage,
   // Acciones y estado
   faRightFromBracket, faBars, faChevronRight, faChevronLeft, faChevronDown,
   faCircleCheck, faCircleXmark, faCircleExclamation, faTriangleExclamation,
@@ -34,7 +34,7 @@ library.add(
   faGaugeHigh, faInbox, faFileLines, faCalendarCheck, faBell, faGlobe,
   faBriefcase, faKey, faPenToSquare, faDisplay, faLandmark, faBuilding,
   faFolderOpen, faLink, faPlug, faUsers, faMagnifyingGlass, faChartLine,
-  faGear, faSliders, faShieldHalved,
+  faGear, faSliders, faShieldHalved, faNewspaper, faImage,
   // Acciones y estado
   faRightFromBracket, faBars, faChevronRight, faChevronLeft, faChevronDown,
   faCircleCheck, faCircleXmark, faCircleExclamation, faTriangleExclamation,

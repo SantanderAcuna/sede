@@ -24,20 +24,28 @@ const ALL_PERMISSIONS = [
   'notificaciones.ver',
   'sede.publicar',
   'carpeta.ver',
-  'autenticacion.gestionar',
-  'cms.gestionar',
+  'autenticacion.ver',
+  'cms.ver',
   'portal.publicar',
   'transparencia.ver',
-  'documental.gestionar',
+  'documental.ver',
   'sigmi.ver',
-  'integraciones.gestionar',
-  'usuarios.gestionar',
+  'integraciones.ver',
+  'usuarios.ver',
+  'usuarios.crear',
+  'roles.ver',
+  'roles.crear',
+  'noticias.ver',
+  'noticias.crear',
+  'banners.ver',
+  'banners.crear',
+  'tramites.crear',
   'auditoria.ver',
   'reportes.ver',
-  'asignacion.gestionar',
-  'entidad.gestionar',
-  'politicas.gestionar',
-  'configuracion.gestionar',
+  'asignacion.ver',
+  'entidad.ver',
+  'politicas.ver',
+  'configuracion.ver',
   'perfil.ver',
 ]
 
@@ -128,7 +136,9 @@ describe('guardias de navegación (D-04, D-42)', () => {
 
 describe('títulos y recorrido de todos los módulos', () => {
   it('cada módulo se abre y titula la pestaña (D-47)', async () => {
-    establecerSesion(Object.values(PERMISO_POR_RUTA))
+    // Quien puede todo: los permisos del mapa y los de cada ruta (las de «nuevo» piden «crear»).
+    const deRutas = enrutador.getRoutes().map((r) => r.meta?.permiso).filter((p): p is string => typeof p === 'string')
+    establecerSesion([...Object.values(PERMISO_POR_RUTA), ...deRutas])
     const rutas = enrutador
       .getRoutes()
       .filter((ruta) => ruta.meta?.requiereSesion && ruta.meta?.titulo && !ruta.path.includes(':'))

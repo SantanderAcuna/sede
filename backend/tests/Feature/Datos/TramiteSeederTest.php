@@ -60,6 +60,22 @@ final class TramiteSeederTest extends TestCase
         $this->assertSame('Editado por la Entidad', Tramite::query()->where('codigo', 'T2621')->firstOrFail()->nombre);
     }
 
+    public function test_asigna_la_dependencia_solo_cuando_los_puntos_la_nombran_sin_ambiguedad(): void
+    {
+        $this->seed(TramiteSeeder::class);
+
+        $dependenciaDe = static fn (string $codigo): ?string => Tramite::query()->with('dependencia')->where('codigo', $codigo)->firstOrFail()->dependencia?->nombre;
+
+        // Un solo punto, la Secretaría de Planeación.
+        $this->assertSame('Planeación', $dependenciaDe('T28610'));
+        // Planeación y Salud a la vez: la decide la Entidad, no el sembrador.
+        $this->assertNull($dependenciaDe('T65989'));
+        // Solo la Dirección de Impuestos: no se asume que sea parte de Hacienda.
+        $this->assertNull($dependenciaDe('T2621'));
+        // Una persona sin dependencia reconocible tampoco recibe una inventada.
+        $this->assertNull($dependenciaDe('T28651'));
+    }
+
     public function test_mapea_un_tramite_conocido_a_filas_relacionales(): void
     {
         $this->seed(TramiteSeeder::class);

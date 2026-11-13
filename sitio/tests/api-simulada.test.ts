@@ -12,7 +12,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { analizarResultados } from '../app/composables/resultadosBusqueda'
 import { analizarSugerencias } from '../app/composables/useSugerenciasBusqueda'
-import { politicaDesdeApi } from '../app/config/politicas-contenido'
+import { politicaDesdeApi, politicasPropiasDesdeApi } from '../app/config/politicas-contenido'
+import { POLITICAS } from '../app/config/sitemap'
 import { diapositivasDePortada } from '../app/utils/banners'
 // @ts-expect-error — módulo .mjs sin declaraciones: lo usan scripts de Node, no la app.
 import { iniciarApiSimulada } from './ayudas/api-simulada.mjs'
@@ -54,6 +55,19 @@ describe('API simulada de la puerta de diseño', () => {
     expect(politica?.slug).toBe('uso-de-cookies')
     expect(politica?.version).toBeGreaterThanOrEqual(1)
     expect(politica?.secciones.length).toBeGreaterThan(0)
+  })
+
+  it('la lista de políticas existe y pasa por el adaptador del sitio (sin propias que anunciar)', async () => {
+    // El sitio lee `GET /politicas` una vez por visita (usePoliticasPropias). Sin esta ruta el
+    // simulador respondía 404 y la puerta de diseño fallaba con API-SIM (la ruta no estaba
+    // cubierta), aunque el sitio degradara bien. Vacía es una lista válida del contrato y es
+    // justo lo que el sitio ya mostraba cuando la ruta no respondía: sin políticas propias
+    // inventadas (AGENTS.md §7) y sin cambiar la línea base de la puerta visual.
+    const { estado, cuerpo } = await pedir('/api/v1/politicas')
+    expect(estado).toBe(200)
+    expect(cuerpo.success).toBe(true)
+    expect(Array.isArray(cuerpo.data)).toBe(true)
+    expect(politicasPropiasDesdeApi(cuerpo, POLITICAS.map((p) => p.slug))).toEqual([])
   })
 
   it('el texto de la política se declara de prueba y de ejemplo, no institucional', async () => {

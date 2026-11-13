@@ -29,7 +29,7 @@ final class PermisosGranularesTest extends TestCase
         $this->withoutMiddleware(ThrottleRequests::class);
     }
 
-    /** @return array<string, string> */
+    /** @return array<string, bool|string> */
     private function noticiaCompleta(string $titulo, bool $activo = false): array
     {
         return ['titulo' => $titulo, 'descripcion_corta' => 'Resumen', 'contenido' => 'Un párrafo.', 'fecha_publicacion' => '2026-01-01', 'activo' => $activo];

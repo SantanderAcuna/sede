@@ -38,6 +38,7 @@ final class PermisosGranularesMigracionTest extends TestCase
 
     private function rol(string $nombre, string ...$permisos): Role
     {
+        /** @var Role $rol */
         $rol = Role::findOrCreate($nombre, 'web');
         foreach ($permisos as $p) {
             Permission::findOrCreate($p, 'web');
@@ -133,6 +134,7 @@ final class PermisosGranularesMigracionTest extends TestCase
     {
         $this->rol('lector-catalogo', 'tramites.gestionar');
         $this->correr();
+        /** @var Role $solo */
         $solo = Role::findByName('lector-catalogo', 'web');
         $solo->syncPermissions(['tramites.ver']);
 

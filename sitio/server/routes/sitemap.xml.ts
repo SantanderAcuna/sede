@@ -11,7 +11,7 @@
  * fuente centralizada de rutas. Cualquier cambio en la navegación se refleja
  * automáticamente aquí y en el menú de la sede (RF-B1-010).
  */
-import { slugsAdoptados } from '../../app/config/politicas-contenido'
+import { politicasPropiasDesdeApi, slugsAdoptados } from '../../app/config/politicas-contenido'
 import { POLITICAS, todasLasRutas } from '../../app/config/sitemap'
 import {
   construirSitemapXml,
@@ -65,6 +65,7 @@ export default defineEventHandler(async (evento): Promise<string> => {
    */
   const urlApi = String(config.public.apiUrl ?? '').replace(/\/+$/, '')
   let adoptadas: string[] = []
+  let propias: { slug: string; nombre: string }[] = []
   let fechasPoliticas = new Map<string, string>()
   try {
     const respuesta = await $fetch<unknown>(`${urlApi}/politicas`, { timeout: 3000 })
@@ -73,8 +74,11 @@ export default defineEventHandler(async (evento): Promise<string> => {
       POLITICAS.map((politica) => politica.slug),
     )
     fechasPoliticas = fechasDePoliticas(respuesta)
+    // Una política propia solo llega publicada, y solo se publica adoptada: se anuncia sin más.
+    propias = politicasPropiasDesdeApi(respuesta, POLITICAS.map((politica) => politica.slug))
   } catch {
     adoptadas = []
+    propias = []
   }
 
   const fijas: EntradaSitemap[] = todasLasRutas()
@@ -86,6 +90,15 @@ export default defineEventHandler(async (evento): Promise<string> => {
       // Sólo las políticas tienen una fecha real de modificación; las páginas fijas no.
       modificado: fechasPoliticas.get(ruta.ruta.replace(/^\/politicas\//, '')),
     }))
+
+  for (const politica of propias) {
+    fijas.push({
+      ruta: `/politicas/${politica.slug}`,
+      frecuencia: 'yearly',
+      prioridad: 0.4,
+      modificado: fechasPoliticas.get(politica.slug),
+    })
+  }
 
   // Las fichas de trámite se leen de la API. Si falla, el mapa sale con las rutas fijas.
   const fichas = await tramitesDe(urlApi)()

@@ -2688,8 +2688,74 @@ paths:
           $ref: '#/components/responses/NoAutenticado'
       security:
         - cookieSesion: []
+    post:
+      tags: [Panel — Políticas]
+      operationId: crearPolitica
+      summary: Crear una política propia de la Entidad
+      description: |
+        Además de las cinco obligatorias. Requiere `politicas.crear` (y `politicas.ver`). La
+        dirección (`slug`) sale del nombre y no se repite (`-2`, `-3`…). Nace como borrador
+        **oculto** (`publicada: false`) y con la marca de texto de ejemplo. Publicarla exige el
+        permiso `politicas.publicar`; enviar `publicada: true` sin él responde `403`. Debe traer
+        al menos un apartado con título y texto.
+      x-status: implemented
+      x-criterios: [RF-B1-009, RF-B2-008]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PoliticaCrearInput' }
+      responses:
+        '201':
+          description: Política creada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/PoliticaPanelItem' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `politicas.crear` (o `politicas.publicar` si se pide publicarla).
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
 
   /panel/politicas/{slug}:
+    delete:
+      tags: [Panel — Políticas]
+      operationId: eliminarPolitica
+      summary: Eliminar una política propia
+      description: |
+        Requiere `politicas.eliminar`. Borra también el documento oficial adjunto (el archivo y su
+        registro). Las cinco políticas obligatorias no se eliminan: `422`.
+      x-status: implemented
+      x-criterios: [RF-B1-009]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-z0-9-]+$' }
+      responses:
+        '200':
+          description: Política eliminada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          description: Falta el permiso `politicas.eliminar`.
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '422':
+          $ref: '#/components/responses/ValidacionInvalida'
+      security:
+        - cookieSesion: []
     patch:
       tags: [Panel — Políticas]
       operationId: actualizarPolitica
@@ -2704,6 +2770,10 @@ paths:
         administrativo (tipo, número y fecha) sin marcadores «[por ...]»; si no, `422`.
         La versión de `uso-de-cookies` es la que el sitio usa para volver a pedir el
         consentimiento (RN-01-D01).
+
+        Cambiar `publicada` exige además `politicas.publicar` (`403` si falta). Una política propia
+        solo puede publicarse si está adoptada (`es_ejemplo: false`); las cinco obligatorias
+        siempre están publicadas y no se ocultan (`422`).
       x-status: implemented
       x-criterios: [RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010, RN-01-D01]
       parameters:
@@ -3229,7 +3299,7 @@ components:
 
     PoliticaResumen:
       type: object
-      required: [id, type, slug, nombre, version, es_ejemplo]
+      required: [id, type, slug, nombre, version, es_ejemplo, publicada, es_base]
       properties:
         id: { type: integer }
         type: { type: string, enum: [politica] }
@@ -3241,6 +3311,12 @@ components:
         es_ejemplo:
           type: boolean
           description: Verdadero mientras el texto sea de ejemplo, pendiente de aprobación por la Entidad.
+        publicada:
+          type: boolean
+          description: Visible para la ciudadanía. Una política propia nace oculta; las cinco obligatorias siempre están publicadas.
+        es_base:
+          type: boolean
+          description: Una de las cinco políticas obligatorias (no se eliminan ni se ocultan).
         documento_oficial:
           description: >-
             Documento oficial adjunto desde el panel (acto administrativo o texto
@@ -3301,9 +3377,16 @@ components:
         acto_numero: { type: [string, 'null'], maxLength: 60 }
         acto_fecha: { type: [string, 'null'], format: date }
         es_ejemplo: { type: boolean }
+        publicada: { type: boolean }
         secciones:
           type: array
           items: { $ref: '#/components/schemas/PoliticaSeccion' }
+
+    PoliticaCrearInput:
+      allOf:
+        - $ref: '#/components/schemas/PoliticaInput'
+        - type: object
+          required: [nombre, secciones]
 
 
     # ─── Esquemas compartidos ───────────────────────────────────────────────

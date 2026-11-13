@@ -179,6 +179,7 @@ final class BusquedaRepository implements BusquedaRepositoryInterface
     private function politicas(string $consulta, array $palabras): ConsultaBase
     {
         $lado = Politica::query()
+            ->publicadas()
             ->selectRaw("'politica' as tipo_recurso")
             ->addSelect(['id', 'slug', 'nombre as titulo'])
             // El primer párrafo del primer apartado: lo que la página muestra primero.

@@ -100,6 +100,13 @@ const rutas: RouteRecordRaw[] = [
         component: () => import('@/views/admin/PoliticasListaView.vue'),
         meta: { requiereSesion: true, titulo: 'Políticas del sitio', permiso: PERMISO_POR_RUTA['/configuracion/politicas'] },
       },
+      // «nueva» va antes que «:slug»; el servidor no entrega ese slug a ninguna política (ver `slugDisponible`).
+      {
+        path: 'configuracion/politicas/nueva',
+        name: 'panel.politicas.nueva',
+        component: () => import('@/views/admin/PoliticaFormularioView.vue'),
+        meta: { requiereSesion: true, titulo: 'Nueva política', permiso: permisoDe('politicas', 'crear') },
+      },
       {
         path: 'configuracion/politicas/:slug([a-z0-9-]+)',
         name: 'panel.politicas.editar',

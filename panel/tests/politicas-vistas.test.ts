@@ -14,7 +14,9 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 vi.mock('../src/services/politicas', () => ({
   COLECCION_DOCUMENTO: 'documento-oficial',
   listar: vi.fn(),
+  crear: vi.fn(),
   actualizar: vi.fn(),
+  eliminar: vi.fn(),
   documentosAdjuntos: vi.fn(),
   adjuntarDocumento: vi.fn(),
   quitarArchivo: vi.fn(),
@@ -37,6 +39,8 @@ function politica(extra: Partial<PoliticaPanelItem> = {}): PoliticaPanelItem {
     vigente_desde: null,
     acto: { tipo: null, numero: null, fecha: null },
     es_ejemplo: true,
+    publicada: true,
+    es_base: true,
     documento_oficial: null,
     actualizada_en: '2026-10-29',
     secciones: [{ id: 'finalidad', titulo: 'Finalidad', parrafos: ['Uno.', 'Dos.'] }],
@@ -53,6 +57,7 @@ const enrutador = () =>
     history: createMemoryHistory(),
     routes: [
       { path: '/configuracion/politicas', name: 'panel.politicas', component: { template: '<i/>' } },
+      { path: '/configuracion/politicas/nueva', name: 'panel.politicas.nueva', component: { template: '<i/>' } },
       { path: '/configuracion/politicas/:slug', name: 'panel.politicas.editar', component: { template: '<i/>' } },
     ],
   })
@@ -92,7 +97,7 @@ describe('lista de políticas', () => {
 
     expect(wrapper.find('table').exists()).toBe(true)
     const encabezados = wrapper.findAll('th').map((t) => t.text())
-    for (const nombre of ['Política', 'Estado', 'Versión', 'Vigente desde', 'Documento oficial', 'Acciones']) {
+    for (const nombre of ['Política', 'Estado', 'Versión', 'Vigente desde', 'Para adoptarla', 'Acciones']) {
       expect(encabezados.some((t) => t.includes(nombre))).toBe(true)
     }
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
@@ -112,7 +117,7 @@ describe('lista de políticas', () => {
     expect(filas[2]).toContain('Incompleta')
   })
 
-  it('dice si hay documento oficial', async () => {
+  it('dice, paso a paso, si hay archivo del acto', async () => {
     m.listar.mockResolvedValue([
       politica({ slug: 'a', nombre: 'A', documento_oficial: { nombre: 'r.pdf', tipo: 'application/pdf', tamano: 10, url: '/x' } }),
       politica({ slug: 'b', nombre: 'B', documento_oficial: null }),
@@ -120,8 +125,8 @@ describe('lista de políticas', () => {
     const { wrapper } = await montarLista()
     const filas = wrapper.findAll('tbody tr').map((f) => f.text())
 
-    expect(filas[0]).toContain('Adjunto')
-    expect(filas[1]).toContain('Falta')
+    expect(filas[0]).toContain('Listo: Archivo del acto')
+    expect(filas[1]).toContain('Falta: Archivo del acto')
   })
 
   it('«Editar» es un enlace a la vista de edición de esa política', async () => {
@@ -132,9 +137,9 @@ describe('lista de políticas', () => {
     expect(editar.attributes('href')).toBe('/configuracion/politicas/uso-de-cookies')
   })
 
-  it('no ofrece crear ni eliminar: las cinco políticas son fijas', async () => {
+  it('las cinco obligatorias no ofrecen eliminar (crear está en politicas-crud.test.ts)', async () => {
     const { wrapper } = await montarLista()
-    expect(wrapper.text()).not.toMatch(/Nueva política|Eliminar/)
+    expect(wrapper.find('tbody button[aria-label*="Eliminar"]').exists()).toBe(false)
   })
 
   it('sin políticas cargadas dice qué pasa, no «Sin resultados»', async () => {

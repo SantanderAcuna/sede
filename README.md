@@ -110,7 +110,7 @@ castellano — describen el efecto, no el archivo tocado.
 ```bash
 make instalar    # dependencias del backend y de los dos frontends
 make preparar    # base de datos local con datos de ejemplo
-make dev         # API y panel en segundo plano
+make local       # pila completa en Docker (roles de BD, migrada y sembrada): https://localhost:8443
 make comprobar   # todas las puertas de calidad
 ```
 

@@ -89,6 +89,15 @@ const noticias = (consulta) => {
 const banners = () => sobre([])
 
 /**
+ * `GET /politicas`. La lista de políticas publicadas (`PoliticaResumen[]` en el contrato). Vacía
+ * a propósito: el sitio la usa para añadir las políticas PROPIAS de la Entidad a las cinco
+ * obligatorias (`usePoliticasPropias`), y inventar una sería contenido institucional (AGENTS.md
+ * §7). Vacía es una respuesta válida y deja el sitio como estaba cuando esta ruta no
+ * respondía —solo las cinco—, así que la línea base de la puerta visual no cambia.
+ */
+const politicas = () => sobre([])
+
+/**
  * `GET /politicas/uso-de-cookies`. Una política válida para el contrato (slug,
  * nombre y versión entera ≥ 1, que es lo que exige `politicaDesdeApi`) con un
  * texto que declara ser de prueba.
@@ -266,6 +275,7 @@ const RUTAS = new Map([
   ['/api/v1/tramites', tramites],
   ['/api/v1/noticias', noticias],
   ['/api/v1/banners', banners],
+  ['/api/v1/politicas', politicas],
   ['/api/v1/politicas/uso-de-cookies', politicaDeCookies],
 ])
 

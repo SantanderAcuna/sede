@@ -8,6 +8,7 @@ Cómo se publica la Sede en el servidor y qué hay que hacer a mano.
 |---|---|---|
 | `droplet/preparar.sh` | Se ejecuta **en** el servidor, una vez | Prepara la máquina: docker, cortafuegos, fail2ban, la cuenta de despliegue y su llave restringida |
 | `droplet/certificado.sh` | En el servidor | Emite y renueva el certificado del origen |
+| `droplet/certificado-bd.sh` | En el servidor | Emite y renueva el certificado TLS de la base de datos (producción) |
 | `droplet/despliegue-remoto.sh` | **`/usr/local/bin/desplegar.sh`** | Despliega una versión, **renderiza su entorno** y vuelve atrás si algo falla |
 | `publicar-entorno.sh` | Se ejecuta desde tu máquina | Instala los **secretos** en `/etc/sede/<entorno>.secretos.env` y publica el arranque de `/opt/sede/<entorno>/` |
 | `plantilla.env` | Dentro de la imagen de la app | La plantilla con la que se renderiza cada `.env`, en el servidor |
@@ -44,6 +45,12 @@ ssh ops@<servidor> 'sudo install -m 755 -o root -g root /tmp/despliegue-remoto.s
 
 # 4. Certificado.
 scp deploy/droplet/certificado.sh ops@<servidor>:/tmp/ && ssh ops@<servidor> 'sudo bash /tmp/certificado.sh'
+
+# 4b. Certificado de la BASE DE DATOS (sólo en entornos con POSTGRES_SSL=on: producción).
+#     Es otro certificado que el de nginx: cifra el tramo aplicación → PostgreSQL, por la red
+#     interna, y no pasa por Cloudflare. Sin él la base no arranca (a propósito). `--programar`
+#     deja el temporizador semanal que lo renueva 60 días antes de caducar.
+scp deploy/droplet/certificado-bd.sh ops@<servidor>:/tmp/ && ssh -t ops@<servidor> 'sudo bash /tmp/certificado-bd.sh produccion --programar'
 
 # 5. Sembrar. Lo hace el despliegue solo desde que se añadió el paso, pero en un
 #    entorno que ya existía hay que hacerlo una vez a mano (ver más abajo).
@@ -197,6 +204,41 @@ Lo que hay que hacer en Cloudflare (decisión del titular; no se hace desde el r
 
 Después de cualquiera de las dos, se vuelve a lanzar el flujo a mano (Actions → Verificación de
 vínculos → Run workflow) y debe informar `0 vínculos internos rotos` con más de una página.
+
+## Cloudflare en esta arquitectura: por qué está, qué cubre y qué no
+
+**Por qué.** El dominio `santamarta.gov.co` ya está en Cloudflare: sus servidores de nombres son
+`*.ns.cloudflare.com` y el sitio actual responde detrás de su proxy (HECHO, medido el 2026-09-30:
+`docs/investigacion/tecnico.md` §1.6). `staging.santamarta.gov.co` es un subdominio de esa misma zona,
+así que el DNS, el borde (CDN, WAF, protección contra bots) y la validación del certificado ya viven
+ahí; no es una elección del repositorio sino el entorno de la entidad.
+
+**Qué cubre, y dónde está en el código.**
+
+| Función | Dónde |
+|---|---|
+| DNS y proxy HTTP(S) de la sede | zona de Cloudflare (panel; el repositorio no la gestiona) |
+| Certificado del origen (nginx), validado por DNS con un token de Cloudflare | `deploy/droplet/certificado.sh` |
+| Dirección real del ciudadano (`CF-Connecting-IP`) | `docker/nginx/snippets/cloudflare-realip.conf`, rangos generados por `scripts/actualizar-rangos-cloudflare.sh` y vigilados cada semana por `rangos-cloudflare.yml` |
+| Que el HTML no reciba transformaciones del borde | `Cache-Control: no-transform` (sección siguiente) |
+
+**Qué NO cubre: el tramo aplicación → PostgreSQL.** El proxy de Cloudflare sólo atiende puertos
+HTTP/HTTPS (80, 443, 8080, 8443, 2052…2096; documentación de Cloudflare, «Network ports»); un puerto como el
+5432 exigiría Spectrum (TCP, plan Enterprise) o un túnel. La base no publica ningún puerto en el
+anfitrión (`compose.yaml` sólo publica 80 y 443 de nginx) y la conexión va por la red interna de Docker.
+Por eso su certificado TLS es propio (`droplet/certificado-bd.sh`) y no depende de Cloudflare, ni de
+una autoridad externa, ni del dominio.
+
+**Decisión abierta: cerrar el origen a Cloudflare.** Hoy el cortafuegos (`ufw allow 80,443` y la cadena
+`DOCKER-USER`, `droplet/preparar.sh` pasos 6 y 8) deja entrar a 80 y 443 a **cualquiera**. Quien conozca o
+descubra la dirección del servidor puede hablarle directamente y saltarse el WAF, la protección contra
+bots y las reglas de Cloudflare. Cloudflare recomienda restringir el origen a sus rangos («Cloudflare IP
+addresses») o, mejor, usar Authenticated Origin Pulls (TLS mutuo; exige el modo SSL «Full» o «Full
+(strict)» y, para que identifique **tu** zona y no a cualquier cliente de Cloudflare, un certificado
+propio de zona o de nombre de host). No se aplica sin decisión porque un error aquí deja la sede fuera de
+línea y hay que comprobar antes, en el panel de Cloudflare (el repositorio no lo ve): el modo SSL/TLS de
+la zona, si Authenticated Origin Pulls está activo, y que ninguna comprobación del despliegue entre al
+origen por su IP directa.
 
 ## La baliza de Cloudflare Web Analytics y el consentimiento (M01-4)
 

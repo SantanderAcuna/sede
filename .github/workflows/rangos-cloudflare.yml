@@ -1,0 +1,94 @@
+# Revisión semanal de los rangos de Cloudflare que nginx toma como confiables.
+#
+# `docker/nginx/snippets/cloudflare-realip.conf` lista los rangos desde los que nginx le cree a
+# `CF-Connecting-IP`. Cloudflare puede cambiar su lista; si la copia del repositorio se queda atrás,
+# el límite de tasa deja de ver al ciudadano (rango que falta) o se puede falsear (rango que
+# sobra). Este flujo NO modifica nada: compara con la lista oficial y avisa con una incidencia.
+# Corregirlo es correr `make rangos-cloudflare`, revisar el PR y desplegar con el flujo normal.
+#
+# Códigos del comprobador: 1 = la lista oficial difiere · 2 = no se pudo obtener o no valida (no se
+# afirma nada sobre si cambió).
+
+name: Rangos de Cloudflare
+
+on:
+  schedule:
+    # Lunes 06:30 en Bogotá (UTC-5).
+    - cron: '30 11 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: rangos-cloudflare
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  ETIQUETA: rangos-cloudflare
+
+jobs:
+  rangos:
+    name: Rangos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Comparar con la lista oficial
+        id: comparar
+        continue-on-error: true
+        run: |
+          set +e
+          bash scripts/actualizar-rangos-cloudflare.sh --comprobar > "$RUNNER_TEMP/informe.txt" 2>&1
+          codigo=$?
+          cat "$RUNNER_TEMP/informe.txt"
+          echo "codigo=$codigo" >> "$GITHUB_OUTPUT"
+          exit "$codigo"
+
+      - name: Avisar (incidencia)
+        if: steps.comparar.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          CODIGO: ${{ steps.comparar.outputs.codigo }}
+        run: |
+          gh label create "$ETIQUETA" --color D93F0B \
+            --description "Los rangos de Cloudflare de nginx difieren de la lista oficial" 2>/dev/null || true
+          if [ "$CODIGO" = "1" ]; then
+            titulo="Los rangos de Cloudflare cambiaron (nginx y límite de tasa)"
+            intro="La lista oficial de Cloudflare difiere de docker/nginx/snippets/cloudflare-realip.conf. Corre \`make rangos-cloudflare\`, revisa el cambio y abre un PR."
+          else
+            titulo="No se pudo comprobar los rangos de Cloudflare"
+            intro="El comprobador no pudo obtener o validar la lista oficial. No se afirma que haya cambiado."
+          fi
+          {
+            echo "$intro"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/informe.txt"
+            echo '```'
+            echo
+            echo "Ejecución: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > "$RUNNER_TEMP/cuerpo.md"
+          abierta=$(gh issue list --label "$ETIQUETA" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$abierta" ]; then
+            gh issue comment "$abierta" --body-file "$RUNNER_TEMP/cuerpo.md"
+          else
+            gh issue create --label "$ETIQUETA" --title "$titulo" --body-file "$RUNNER_TEMP/cuerpo.md"
+          fi
+
+      - name: Cerrar la incidencia si ya está al día
+        if: steps.comparar.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for numero in $(gh issue list --label "$ETIQUETA" --state open --json number --jq '.[].number'); do
+            gh issue close "$numero" --comment "La ejecución $GITHUB_RUN_ID encontró los rangos al día. Se cierra sola."
+          done
+
+      - name: Fallar si difiere
+        if: steps.comparar.outcome == 'failure'
+        run: exit 1

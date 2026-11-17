@@ -28,6 +28,15 @@ estaba cifrada.
 6. **TLS:** `POSTGRES_SSL=on` (guion `docker/postgres/entrypoint-tls.sh`, que viaja DENTRO de `compose.yaml` como `configs.entrypoint_tls` —al servidor no llegan archivos sueltos del repositorio— y que `deploy/pruebas/guarda-montajes-compose.sh` mantiene idéntico a la fuente; que no arranca si faltan los
    certificados) y `DB_SSLMODE=require`. Producción: activado. Local: activado con certificado de
    prueba. **Staging: sin TLS, riesgo aceptado por José.**
+   - El certificado de PRODUCCIÓN lo emite `deploy/droplet/certificado-bd.sh` en
+     `/opt/sede/<entorno>/db-certs/` (autofirmado, EC P-256, 825 días, llave de root 0600); un
+     temporizador de systemd (`--programar`) lo revisa cada semana y lo renueva 60 días antes de
+     que caduque, reiniciando PostgreSQL. No es el certificado de nginx (Let's Encrypt por DNS con
+     Cloudflare): el tramo aplicación → PostgreSQL va por la red interna de Docker y no pasa por
+     Cloudflare.
+   - `deploy/pruebas/prueba-tls-bd.sh` (CI, job Pila) lo demuestra contra el servicio real:
+     sin cifrar se rechaza, la conexión aparece cifrada en `pg_stat_ssl`, sin certificado la base
+     no arranca y el emisor es idempotente y renueva.
 7. Con `POSTGRES_SSL=on` el servidor **rechaza** las conexiones de red sin TLS (`pg_hba.conf` propio:
    `hostssl … scram-sha-256` y `hostnossl … reject`); los sockets locales quedan como en la imagen.
 
@@ -49,7 +58,9 @@ estaba cifrada.
 - Las pruebas de PHPUnit sólo autentican claves si el servidor no confía en el origen (la imagen
   oficial confía en 127.0.0.1): la prueba se omite y lo dice. Con `DB_HOST` en una IP no local pasa
   9/9. Que el servicio de CI autentique es HIPÓTESIS hasta ver su primera ejecución.
-- No verificado: el esquema `public` de staging (`\dn+`), sin acceso desde la sesión de desarrollo.
+- El esquema `public` de staging se verificó el 2026-11-16 con consultas de solo lectura: `PUBLIC` sin
+  `CONNECT` ni `CREATE`, y ninguna tabla sin permisos para `sede_app`.
+- El certificado de producción no se ha emitido: el entorno no está aprovisionado (dominio, §21.A).
 
 ## Alternativas descartadas
 

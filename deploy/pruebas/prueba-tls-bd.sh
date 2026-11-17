@@ -32,7 +32,9 @@ FALLOS=0
 verde() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 rojo()  { printf '  \033[31m✗ %s\033[0m\n' "$*" >&2; FALLOS=$((FALLOS + 1)); }
 paso()  { printf '\n\033[1m%s\033[0m\n' "$*"; }
-raiz()  { if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo -n -E "$@"; fi; }  # -E: SEDE_* deben llegar al guion
+# `sudo` descarta el entorno según la política de la máquina (en el ejecutor de CI `-E` no bastó):
+# las variables SEDE_* se pasan EXPLÍCITAS con `env`, que no depende de esa política.
+raiz()  { if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo -n env $(env | grep '^SEDE_' | tr '\n' ' ') "$@"; fi; }
 
 # Valores de mentira, como los del CI: sólo hacen falta para que `compose` resuelva el archivo.
 export APP_KEY="base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
@@ -68,8 +70,8 @@ export SEDE_BASE="$TMP/opt" SEDE_UNIT_DIR="$TMP/units" SEDE_BIN_DIR="$TMP/bin" S
 mkdir -p "$SEDE_BASE" "$SEDE_UNIT_DIR" "$SEDE_BIN_DIR"
 DIR_CERTS="$SEDE_BASE/produccion/db-certs"
 
-if raiz bash "$SCRIPT_CERT" produccion >"$TMP/g1.txt" 2>&1; then verde "emite el certificado"; else rojo "no pudo emitir: $(cat "$TMP/g1.txt")"; fi
-if raiz test -s "$DIR_CERTS/server.crt" && raiz test -s "$DIR_CERTS/server.key"; then verde "crea server.crt y server.key"; else rojo "faltan server.crt/server.key"; fi
+if raiz bash "$SCRIPT_CERT" produccion >"$TMP/g1.txt" 2>&1; then verde "emite el certificado ($(head -c 120 "$TMP/g1.txt"))"; else rojo "no pudo emitir: $(cat "$TMP/g1.txt")"; fi
+if raiz test -s "$DIR_CERTS/server.crt" && raiz test -s "$DIR_CERTS/server.key"; then verde "crea server.crt y server.key"; else rojo "faltan server.crt/server.key en $DIR_CERTS (contenido de $SEDE_BASE: $(raiz find "$SEDE_BASE" -maxdepth 4 2>&1 | head -8 | tr '\n' ' '))"; fi
 perm_llave="$(raiz stat -c '%a %U' "$DIR_CERTS/server.key" 2>/dev/null)"
 [ "$perm_llave" = "600 root" ] && verde "la llave queda 0600 y de root" || rojo "la llave es '$perm_llave' (esperado '600 root')"
 perm_dir="$(raiz stat -c '%a' "$DIR_CERTS" 2>/dev/null)"

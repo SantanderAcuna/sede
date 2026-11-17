@@ -21,7 +21,7 @@ import BaseBadge from '@/components/base/BaseBadge.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import FormField from '@/components/base/FormField.vue'
 import ConfirmModal from '@/components/base/ConfirmModal.vue'
-import { adjuntarDocumento, actualizar, crear, documentosAdjuntos, eliminar, listar, quitarArchivo } from '@/services/politicas'
+import { adjuntarDocumento, actualizar, crear, documentosAdjuntos, eliminar, listar, quitarArchivo } from '@/api/politicas'
 import type { ArchivoItem, PoliticaPanelItem } from '@/types/api'
 import { dejarAviso, tomarAviso } from './avisos'
 import {

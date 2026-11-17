@@ -3,7 +3,7 @@
  *
  * Tres cosas que no estaban cubiertas y que no son relleno:
  *
- *  - `services/http.ts` es por donde sale **todo** lo que el panel pide al
+ *  - `api/client.ts` es por donde sale **todo** lo que el panel pide al
  *    backend, con la cookie de sesión y el desenvolvimiento del sobre.
  *  - `DataTable` es la tabla que usarán los módulos, y la auditoría le señaló el
  *    `aria-sort` y la paginación (D-16).
@@ -16,7 +16,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import DataTable from '../src/components/base/DataTable.vue'
-import { desenvolver, ErrorApi, http } from '../src/services/http'
+import { desenvolver, ErrorApi, http } from '../src/api/client'
 import type { ApiEnvelope } from '../src/types/api'
 import EntrarView from '../src/views/acceso/EntrarView.vue'
 import MfaView from '../src/views/acceso/MfaView.vue'
@@ -51,7 +51,7 @@ function crearEnrutador(): Router {
   })
 }
 
-describe('services/http', () => {
+describe('api/client', () => {
   it('apunta a la API y viaja con la cookie de sesión', () => {
     expect(http.defaults.baseURL).toContain('/api/v1')
     // La sesión va en una cookie `HttpOnly`: sin `withCredentials` no viajaría.

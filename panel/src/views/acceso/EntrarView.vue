@@ -11,7 +11,7 @@ import { useRouter } from 'vue-router'
 import FormField from '@/components/base/FormField.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import { useSesionStore } from '@/stores/sesion'
-import { mensajeDeError } from '@/services/http'
+import { mensajeDeError } from '@/api/client'
 
 const router = useRouter()
 const sesion = useSesionStore()

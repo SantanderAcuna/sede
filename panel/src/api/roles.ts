@@ -8,7 +8,7 @@
  * PATCH  /api/v1/panel/roles/{id}  → actualizar()
  * DELETE /api/v1/panel/roles/{id}  → eliminar()
  */
-import { http, desenvolver } from './http'
+import { http, desenvolver } from './client'
 import type { ApiEnvelope, GrupoPermisosPanel, RolPanelEntrada, RolPanelItem } from '@/types/api'
 
 export async function permisos(): Promise<GrupoPermisosPanel[]> {

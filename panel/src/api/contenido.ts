@@ -6,7 +6,7 @@
  * La imagen y su texto alternativo viajan juntos. El servidor la re-codifica y
  * devuelve la URL pública con la que se inserta en el HTML.
  */
-import { http, desenvolver } from './http'
+import { http, desenvolver } from './client'
 import type { ApiEnvelope } from '@/types/api'
 
 export interface ImagenContenido {

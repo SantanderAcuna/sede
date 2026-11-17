@@ -11,7 +11,7 @@
  * La imagen y su texto alternativo viajan juntos: el servidor no acepta una imagen
  * sin su descripción (Res. MinTIC 1519/2020, Anexo 2).
  */
-import { http, desenvolver, desenvolverPagina, type Pagina } from './http'
+import { http, desenvolver, desenvolverPagina, type Pagina } from './client'
 import type { ApiEnvelope, NoticiaInput, NoticiaPanelItem, PaginatedEnvelope } from '@/types/api'
 
 export const POR_PAGINA = 20

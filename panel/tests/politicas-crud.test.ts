@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { conSesion } from './ayudas/sesion'
 
-vi.mock('../src/services/politicas', () => ({
+vi.mock('../src/api/politicas', () => ({
   COLECCION_DOCUMENTO: 'documento-oficial',
   listar: vi.fn(),
   crear: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock('../src/services/politicas', () => ({
   quitarArchivo: vi.fn(),
 }))
 
-import * as servicio from '../src/services/politicas'
+import * as servicio from '../src/api/politicas'
 import {
   entradaDesde,
   entradaParaCrear,
@@ -130,9 +130,9 @@ describe('servicio: crear y eliminar', () => {
 
   it('POST a /panel/politicas y DELETE por slug', async () => {
     vi.resetModules()
-    vi.doUnmock('../src/services/politicas')
-    vi.doMock('../src/services/http', () => ({ http: peticion, desenvolver: (s: { data: unknown }) => s.data }))
-    const real = await import('../src/services/politicas')
+    vi.doUnmock('../src/api/politicas')
+    vi.doMock('../src/api/client', () => ({ http: peticion, desenvolver: (s: { data: unknown }) => s.data }))
+    const real = await import('../src/api/politicas')
     peticion.post.mockResolvedValue({ data: { success: true, data: { slug: 'a' } } })
     peticion.delete.mockResolvedValue({ data: {} })
 
@@ -140,7 +140,7 @@ describe('servicio: crear y eliminar', () => {
     expect(peticion.post).toHaveBeenCalledWith('/panel/politicas', { nombre: 'A' })
     await real.eliminar('a')
     expect(peticion.delete).toHaveBeenCalledWith('/panel/politicas/a')
-    vi.doUnmock('../src/services/http')
+    vi.doUnmock('../src/api/client')
   })
 })
 

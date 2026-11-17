@@ -13,7 +13,7 @@
  * (`file_media`), en la colección `documento-oficial`; la ruta se llama
  * `/entidad/{uuid}/archivos` por historia, pero acepta el UUID de una política.
  */
-import { http, desenvolver } from './http'
+import { http, desenvolver } from './client'
 import type { ApiEnvelope, ArchivoItem, PoliticaInput, PoliticaPanelItem } from '@/types/api'
 
 /** Colección de `file_media` donde vive el documento oficial de una política. */

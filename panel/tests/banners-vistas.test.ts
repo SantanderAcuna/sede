@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('../src/services/banners', () => ({
+vi.mock('../src/api/banners', () => ({
   listar: vi.fn(),
   obtener: vi.fn(),
   crear: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('../src/services/banners', () => ({
 
 import { PERMISO_POR_RUTA } from '../src/config/permisos'
 import enrutadorReal from '../src/router/index'
-import * as servicio from '../src/services/banners'
+import * as servicio from '../src/api/banners'
 import type { BannerPanelItem } from '../src/types/api'
 import BannerFormularioView from '../src/views/admin/BannerFormularioView.vue'
 import BannersListaView from '../src/views/admin/BannersListaView.vue'

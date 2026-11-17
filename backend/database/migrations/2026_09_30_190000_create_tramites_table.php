@@ -42,11 +42,11 @@ use Illuminate\Support\Facades\Schema;
  *   sede lo publique: borrarlo obligaría a volver a cargarlo entero.
  * - **`busqueda` guarda el nombre y el resumen sin tildes y en minúsculas.** La
  *   búsqueda del catálogo tiene que encontrar «tramite» cuando el catálogo dice
- *   «trámite», y eso no se resuelve igual en los dos motores que este proyecto
- *   usa —SQLite en las pruebas, PostgreSQL en producción—: `unaccent` es una
- *   extensión que hay que instalar en la base, y `LIKE` no la aplica solo. Una
- *   columna ya normalizada funciona igual en los dos y se puede indexar el día
- *   que el catálogo crezca.
+ *   «trámite»: `unaccent` es una extensión que hay que instalar en la base, y
+ *   `LIKE` no la aplica solo. Una columna ya normalizada no depende de ninguna
+ *   extensión y se puede indexar el día que el catálogo crezca. (Cuando se
+ *   escribió, las pruebas corrían en otro motor; hoy todo corre en PostgreSQL y la
+ *   decisión se mantiene por la razón anterior.)
  *
  * La forma de la tabla la fija el contrato (`TramiteItem`), no al revés: los
  * nombres de las columnas son los de los campos que viajan en la respuesta.

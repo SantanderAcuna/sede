@@ -78,6 +78,12 @@ id_ed25519*
 /pass.md
 /accesos.local.md
 /accesos.md
+# Copias de seguridad de esos archivos (p. ej. `pass.md.antes-0a-…`, `.accesos.local.env.antes-0a-…`):
+# los patrones exactos de arriba y `*.local.env` NO las cubren, porque el nombre no termina igual.
+pass.md.*
+.accesos.local.env.*
+accesos.local.md.*
+accesos.md.*
 # Copia de referencia del Kit gov.co: se usa para extraer los activos que se
 # vendorizan en sitio/public/govco, pero no es parte del proyecto.
 /vendor-src/

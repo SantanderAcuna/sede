@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('../src/services/tramites', () => ({
+vi.mock('../src/api/tramites', () => ({
   POR_PAGINA: 20,
   obtener: vi.fn(),
   crear: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock('../src/services/tramites', () => ({
   dependencias: vi.fn(),
 }))
 
-import * as servicio from '../src/services/tramites'
+import * as servicio from '../src/api/tramites'
 import TramiteFormularioView from '../src/views/admin/TramiteFormularioView.vue'
 import type { TramitePanelItem } from '../src/types/api'
 

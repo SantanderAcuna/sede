@@ -10,13 +10,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('../src/services/tramites', () => ({
+vi.mock('../src/api/tramites', () => ({
   POR_PAGINA: 20,
   listar: vi.fn(),
   eliminar: vi.fn(),
 }))
 
-import * as servicio from '../src/services/tramites'
+import * as servicio from '../src/api/tramites'
 import TramitesListaView from '../src/views/admin/TramitesListaView.vue'
 import type { TramitePanelFila } from '../src/types/api'
 

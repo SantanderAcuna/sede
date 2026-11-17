@@ -7,7 +7,7 @@
  * PATCH  /api/v1/panel/tramites/{uuid}  → actualizar()
  * DELETE /api/v1/panel/tramites/{uuid}  → eliminar()
  */
-import { http, desenvolver, desenvolverPagina, type Pagina } from './http'
+import { http, desenvolver, desenvolverPagina, type Pagina } from './client'
 import type { ApiEnvelope, PaginatedEnvelope, TramiteInput, TramitePanelFila, TramitePanelItem } from '@/types/api'
 
 export const POR_PAGINA = 20

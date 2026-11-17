@@ -8,7 +8,7 @@
  *
  * No se usan tokens Bearer ni localStorage.
  */
-import { http, desenvolver } from './http'
+import { http, desenvolver } from './client'
 import type { ApiEnvelope } from '@/types/api'
 
 export interface Credenciales {

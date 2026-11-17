@@ -11,11 +11,11 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('../src/services/usuarios', () => ({ POR_PAGINA: 20, listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn() }))
-vi.mock('../src/services/roles', () => ({ permisos: vi.fn(), listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), eliminar: vi.fn() }))
+vi.mock('../src/api/usuarios', () => ({ POR_PAGINA: 20, listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn() }))
+vi.mock('../src/api/roles', () => ({ permisos: vi.fn(), listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), eliminar: vi.fn() }))
 
-import * as usuarios from '../src/services/usuarios'
-import * as roles from '../src/services/roles'
+import * as usuarios from '../src/api/usuarios'
+import * as roles from '../src/api/roles'
 import { useSesionStore } from '../src/stores/sesion'
 import { tomarAviso } from '../src/views/admin/avisos'
 import UsuariosListaView from '../src/views/admin/UsuariosListaView.vue'

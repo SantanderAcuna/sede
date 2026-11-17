@@ -17,7 +17,7 @@ const mockSesionStore = {
 }
 vi.mock('@/stores/sesion', () => ({ useSesionStore: () => mockSesionStore }))
 
-vi.mock('@/services/auth', () => ({
+vi.mock('@/api/auth', () => ({
   login: vi.fn().mockResolvedValue({
     require_mfa: false, mfa_token: null, csrf_token: 'tok',
     user: { id: 1, email: 'a@b.co', mfa_habilitado: false, estado: 'activo', roles: [] },

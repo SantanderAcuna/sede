@@ -14,7 +14,7 @@ import BaseButton from '@/components/base/BaseButton.vue'
 import ConfirmModal from '@/components/base/ConfirmModal.vue'
 import FormField from '@/components/base/FormField.vue'
 import SubirImagen from '@/components/base/SubirImagen.vue'
-import { actualizar, crear, eliminar, obtener, subirImagen } from '@/services/banners'
+import { actualizar, crear, eliminar, obtener, subirImagen } from '@/api/banners'
 import type { BannerPanelItem } from '@/types/api'
 import { dejarAviso } from './avisos'
 import {

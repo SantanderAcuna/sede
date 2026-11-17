@@ -10,17 +10,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { conSesion } from './ayudas/sesion'
 
-vi.mock('../src/services/noticias', () => ({ POR_PAGINA: 20, listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), eliminar: vi.fn(), subirImagen: vi.fn() }))
-vi.mock('../src/services/tramites', () => ({ POR_PAGINA: 20, listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), eliminar: vi.fn(), dependencias: vi.fn().mockResolvedValue([]), temas: vi.fn().mockResolvedValue([]) }))
-vi.mock('../src/services/banners', () => ({ listar: vi.fn(), obtener: vi.fn(), ordenar: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), eliminar: vi.fn(), subirImagen: vi.fn() }))
-vi.mock('../src/services/usuarios', () => ({ POR_PAGINA: 20, listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn() }))
-vi.mock('../src/services/roles', () => ({ listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), eliminar: vi.fn(), permisos: vi.fn() }))
+vi.mock('../src/api/noticias', () => ({ POR_PAGINA: 20, listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), eliminar: vi.fn(), subirImagen: vi.fn() }))
+vi.mock('../src/api/tramites', () => ({ POR_PAGINA: 20, listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), eliminar: vi.fn(), dependencias: vi.fn().mockResolvedValue([]), temas: vi.fn().mockResolvedValue([]) }))
+vi.mock('../src/api/banners', () => ({ listar: vi.fn(), obtener: vi.fn(), ordenar: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), eliminar: vi.fn(), subirImagen: vi.fn() }))
+vi.mock('../src/api/usuarios', () => ({ POR_PAGINA: 20, listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn() }))
+vi.mock('../src/api/roles', () => ({ listar: vi.fn(), obtener: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), eliminar: vi.fn(), permisos: vi.fn() }))
 
-import * as noticias from '../src/services/noticias'
-import * as tramites from '../src/services/tramites'
-import * as banners from '../src/services/banners'
-import * as usuarios from '../src/services/usuarios'
-import * as roles from '../src/services/roles'
+import * as noticias from '../src/api/noticias'
+import * as tramites from '../src/api/tramites'
+import * as banners from '../src/api/banners'
+import * as usuarios from '../src/api/usuarios'
+import * as roles from '../src/api/roles'
 import NoticiasListaView from '../src/views/admin/NoticiasListaView.vue'
 import NoticiaFormularioView from '../src/views/admin/NoticiaFormularioView.vue'
 import TramitesListaView from '../src/views/admin/TramitesListaView.vue'

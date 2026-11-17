@@ -858,7 +858,7 @@ El documento **no publica un árbol de carpetas completo** para el frontend. Los
 | Alias `@/` | Alias de import hacia `src/` | l.2396, l.2287 |
 | `frontend/` dentro de la raíz del proyecto | Carpeta hermana de `backend/` | l.38-41 |
 
-**Convención de nombres de vistas observada:** `PascalCase` + sufijo `View.vue` para vistas, `XxxLayout.vue` para layouts, y directorios por área (`public/`, `admin/<recurso>/`). El documento **no enuncia esta convención como regla explícita**, solo la usa. **No consta** carpeta `src/services/` como directorio separado (el "SERVICE" del flujo de datos no tiene ruta ejemplificada). *Nota (2026-11-17): en este repositorio esa capa vive en `panel/src/api/` desde la Fase 0B, T6.*
+**Convención de nombres de vistas observada:** `PascalCase` + sufijo `View.vue` para vistas, `XxxLayout.vue` para layouts, y directorios por área (`public/`, `admin/<recurso>/`). El documento **no enuncia esta convención como regla explícita**, solo la usa. **No consta** carpeta `src/api/` como directorio separado (el "SERVICE" del flujo de datos no tiene ruta ejemplificada). *Nota (2026-11-17): en este repositorio esa capa vive en `panel/src/api/` desde la Fase 0B, T6.*
 
 ### 7.3 Cliente Axios del Flat Envelope (§4.2, l.1899-1931) — forma canónica literal
 

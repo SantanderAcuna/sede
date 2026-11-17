@@ -8,6 +8,7 @@ Cómo se publica la Sede en el servidor y qué hay que hacer a mano.
 |---|---|---|
 | `droplet/preparar.sh` | Se ejecuta **en** el servidor, una vez | Prepara la máquina: docker, cortafuegos, fail2ban, la cuenta de despliegue y su llave restringida |
 | `droplet/certificado.sh` | En el servidor | Emite y renueva el certificado del origen |
+| `droplet/certificado-bd.sh` | En el servidor | Emite y renueva el certificado TLS de la base de datos (producción) |
 | `droplet/despliegue-remoto.sh` | **`/usr/local/bin/desplegar.sh`** | Despliega una versión, **renderiza su entorno** y vuelve atrás si algo falla |
 | `publicar-entorno.sh` | Se ejecuta desde tu máquina | Instala los **secretos** en `/etc/sede/<entorno>.secretos.env` y publica el arranque de `/opt/sede/<entorno>/` |
 | `plantilla.env` | Dentro de la imagen de la app | La plantilla con la que se renderiza cada `.env`, en el servidor |
@@ -44,6 +45,12 @@ ssh ops@<servidor> 'sudo install -m 755 -o root -g root /tmp/despliegue-remoto.s
 
 # 4. Certificado.
 scp deploy/droplet/certificado.sh ops@<servidor>:/tmp/ && ssh ops@<servidor> 'sudo bash /tmp/certificado.sh'
+
+# 4b. Certificado de la BASE DE DATOS (sólo en entornos con POSTGRES_SSL=on: producción).
+#     Es otro certificado que el de nginx: cifra el tramo aplicación → PostgreSQL, por la red
+#     interna, y no pasa por Cloudflare. Sin él la base no arranca (a propósito). `--programar`
+#     deja el temporizador semanal que lo renueva 60 días antes de caducar.
+scp deploy/droplet/certificado-bd.sh ops@<servidor>:/tmp/ && ssh -t ops@<servidor> 'sudo bash /tmp/certificado-bd.sh produccion --programar'
 
 # 5. Sembrar. Lo hace el despliegue solo desde que se añadió el paso, pero en un
 #    entorno que ya existía hay que hacerlo una vez a mano (ver más abajo).

@@ -390,6 +390,12 @@ jobs:
           # montaje relativo de un ARCHIVO (`./docker/...`) allí no existe: Docker crea un
           # directorio y el contenedor muere con «is a directory». Pasó con PostgreSQL.
           bash deploy/pruebas/guarda-montajes-compose.sh
+      - name: El TLS a la base se exige y el certificado se emite y se renueva
+        run: |
+          # Contra el servicio `postgres` real de compose.yaml: una conexión sin cifrar es
+          # rechazada, la de `sede_app`-like aparece cifrada en pg_stat_ssl, sin certificado la
+          # base no arranca y `certificado-bd.sh` emite, no repite y renueva (Fase 0A, T5).
+          bash deploy/pruebas/prueba-tls-bd.sh
       - name: La salud del sitio no depende de la API (ADR-0018)
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=

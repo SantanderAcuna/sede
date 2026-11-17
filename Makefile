@@ -175,6 +175,10 @@ registros: ## Sigue los registros de la pila
 imagenes: ## Comprueba que las imágenes de terceros están fijadas por resumen
 	bash scripts/verificar-imagenes.sh
 
+.PHONY: tls-bd
+tls-bd: ## Comprueba que el TLS a la base se exige y que el certificado se emite y renueva (Docker)
+	bash deploy/pruebas/prueba-tls-bd.sh
+
 .PHONY: respaldo
 respaldo: ## Comprueba que una copia de la base se restaura con los mismos datos
 	bash scripts/verificar-respaldo.sh

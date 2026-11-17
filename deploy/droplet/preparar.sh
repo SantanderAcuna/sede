@@ -634,6 +634,7 @@ echo "Lo que falta, y NO lo hace este guion:"
 echo "  · Cerrar el acceso de root, DESPUÉS de verificar que $USUARIO_ADMIN entra y eleva."
 echo "  · Copiar la llave pública de despliegue y restringirla al guion de despliegue."
 echo "  · Emitir el certificado antes del primer despliegue."
+echo "  · Producción: emitir también el certificado de la base (certificado-bd.sh produccion --programar)."
 echo "  · Reiniciar si el sistema lo pide."
 echo
 echo "Si una cárcel te deja fuera, la orden de recuperación es:"

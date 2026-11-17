@@ -390,6 +390,17 @@ jobs:
           # montaje relativo de un ARCHIVO (`./docker/...`) allí no existe: Docker crea un
           # directorio y el contenedor muere con «is a directory». Pasó con PostgreSQL.
           bash deploy/pruebas/guarda-montajes-compose.sh
+      - name: El TLS a la base se exige y el certificado se emite y se renueva
+        run: |
+          # Contra el servicio `postgres` real de compose.yaml: una conexión sin cifrar es
+          # rechazada, la de `sede_app`-like aparece cifrada en pg_stat_ssl, sin certificado la
+          # base no arranca y `certificado-bd.sh` emite, no repite y renueva (Fase 0A, T5).
+          bash deploy/pruebas/prueba-tls-bd.sh
+      - name: El actualizador de rangos de Cloudflare valida antes de escribir
+        run: |
+          # La lista decide en quién confía nginx para creerle a CF-Connecting-IP: un rango de más
+          # deja falsear la dirección. Sin red: usa archivos locales.
+          bash deploy/pruebas/prueba-rangos-cloudflare.sh
       - name: La salud del sitio no depende de la API (ADR-0018)
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -610,7 +621,16 @@ jobs:
           #   de braces con la vulnerabilidad. No existe versión parcheada de esos
           #   paquetes que no rompa el build. El arreglo real es Tailwind CSS 4,
           #   que se evaluará en su momento.
-          permitidas="GHSA-86w9-cpqp-85rv GHSA-vfj7-8cjw-p6xm"
+          # GHSA-fc5q-39xc-vjpf  picomatch ≤ 4.0.7, ReDoS por patrones glob con extglobs
+          #   repetidos de una sola rama (CVE-2026-112366, publicado el 2026-10-19).
+          #   Tolerado el 2026-11-17: la 4.0.7 es la última versión en npm y no existe
+          #   una corregida; lo que `npm audit` ofrece como «arreglo» es bajar de versión
+          #   `vite` y `vue-router`, que no corrige nada. El fallo exige patrones
+          #   controlados por un atacante, y aquí picomatch lo usan herramientas de
+          #   construcción (vite, vitest, unplugin, tinyglobby) con patrones de la propia
+          #   configuración. RETIRAR de esta lista cuando picomatch publique la corrección
+          #   y el bloqueo la tome (`npm update picomatch` en panel/ y sitio/).
+          permitidas="GHSA-86w9-cpqp-85rv GHSA-vfj7-8cjw-p6xm GHSA-fc5q-39xc-vjpf"
 
           fallos=0
           for d in panel sitio; do

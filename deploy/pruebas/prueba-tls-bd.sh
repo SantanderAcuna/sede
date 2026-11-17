@@ -32,7 +32,7 @@ FALLOS=0
 verde() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 rojo()  { printf '  \033[31m✗ %s\033[0m\n' "$*" >&2; FALLOS=$((FALLOS + 1)); }
 paso()  { printf '\n\033[1m%s\033[0m\n' "$*"; }
-raiz()  { if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo -n "$@"; fi; }
+raiz()  { if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo -n -E "$@"; fi; }  # -E: SEDE_* deben llegar al guion
 
 # Valores de mentira, como los del CI: sólo hacen falta para que `compose` resuelva el archivo.
 export APP_KEY="base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="

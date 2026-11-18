@@ -115,6 +115,17 @@ services:
   horizon:
     <<: *comun-app
     command: ["php", "artisan", "horizon"]
+    # `environment` en un servicio que hereda por `<<` reemplaza el del ancla: se repiten sus tres
+    # variables y se añaden los límites de procesos largos (0D, D7).
+    environment:
+      APP_KEY: ${APP_KEY:?La clave de la aplicación es obligatoria}
+      DB_USERNAME: ${DB_APP_USERNAME:-sede_app}
+      DB_PASSWORD: ${DB_APP_PASSWORD:?La clave del rol de la aplicación (DB_APP_PASSWORD) es obligatoria}
+      # Límites de tiempo de los procesos largos (0D, D7). La web usa los del rol `sede_app`
+      # (estrictos); estos son mayores porque el borrado diario de consentimientos crece con el
+      # tráfico. Un valor por omisión de rol no es un techo: `PGOPTIONS` lo sube para ESTE proceso.
+      # Mismos valores que fija `LimitesPorRolTest`; `docs/limites-por-rol-bd.md` da las razones.
+      PGOPTIONS: "-c statement_timeout=120000 -c lock_timeout=5000 -c idle_in_transaction_session_timeout=60000"
     mem_limit: 512m
     pids_limit: 256
     healthcheck:
@@ -138,6 +149,11 @@ services:
       DB_PASSWORD: ${DB_APP_PASSWORD:?La clave del rol de la aplicación (DB_APP_PASSWORD) es obligatoria}
       DB_COPIA_USERNAME: ${DB_LECTURA_USERNAME:-sede_lectura}
       DB_COPIA_PASSWORD: ${DB_LECTURA_PASSWORD:?La clave del rol de lectura (DB_LECTURA_PASSWORD) es obligatoria}
+      # Límites de tiempo de los procesos largos (0D, D7). La web usa los del rol `sede_app`
+      # (estrictos); estos son mayores porque el borrado diario de consentimientos crece con el
+      # tráfico. Un valor por omisión de rol no es un techo: `PGOPTIONS` lo sube para ESTE proceso.
+      # Mismos valores que fija `LimitesPorRolTest`; `docs/limites-por-rol-bd.md` da las razones.
+      PGOPTIONS: "-c statement_timeout=120000 -c lock_timeout=5000 -c idle_in_transaction_session_timeout=60000"
     mem_limit: 256m
     pids_limit: 128
     # Además de lo común, monta las copias de seguridad: ESTE es el proceso que
@@ -360,6 +376,11 @@ services:
       DB_PASSWORD: ${DB_APP_PASSWORD:?La clave del rol de la aplicación (DB_APP_PASSWORD) es obligatoria}
       DB_COPIA_USERNAME: ${DB_LECTURA_USERNAME:-sede_lectura}
       DB_COPIA_PASSWORD: ${DB_LECTURA_PASSWORD:?La clave del rol de lectura (DB_LECTURA_PASSWORD) es obligatoria}
+      # Límites de tiempo de los procesos largos (0D, D7). La web usa los del rol `sede_app`
+      # (estrictos); estos son mayores porque el borrado diario de consentimientos crece con el
+      # tráfico. Un valor por omisión de rol no es un techo: `PGOPTIONS` lo sube para ESTE proceso.
+      # Mismos valores que fija `LimitesPorRolTest`; `docs/limites-por-rol-bd.md` da las razones.
+      PGOPTIONS: "-c statement_timeout=120000 -c lock_timeout=5000 -c idle_in_transaction_session_timeout=60000"
     volumes:
       - almacenamiento-app:/app/storage
       - cache-app:/app/bootstrap/cache

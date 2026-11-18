@@ -41,6 +41,27 @@ return [
         'lectura_password' => env('DB_LECTURA_PASSWORD'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Límites de tiempo del rol de la aplicación (0D, D7)
+    |--------------------------------------------------------------------------
+    |
+    | Valor por omisión de `sede_app` en la web, en milisegundos. Los pone
+    | `RolesBaseDeDatos::aplicar()` en cada despliegue. Son un cortafuegos contra la
+    | lentitud y los olvidos, no un techo contra una aplicación comprometida: una sesión puede
+    | subirlos con `SET`. El planificador y Horizon llevan otros (más altos) por `PGOPTIONS`
+    | en `compose.yaml`; `sede` y `sede_lectura` no llevan ninguno. Razones y mediciones en
+    | `docs/limites-por-rol-bd.md`.
+    |
+    */
+    'limites' => [
+        'web' => [
+            'statement_timeout' => 5000,
+            'lock_timeout' => 2000,
+            'idle_in_transaction_session_timeout' => 15000,
+        ],
+    ],
+
     'connections' => [
 
         'mysql' => [

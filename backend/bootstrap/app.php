@@ -7,6 +7,7 @@ use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -132,5 +133,20 @@ return Application::configure(basePath: dirname(__DIR__))
             // las perdería: Laravel no las copia de la excepción a la respuesta
             // que devuelve el callback.
             return ApiResponse::tooManyRequests()->withHeaders($excepcion->getHeaders());
+        });
+
+        // La base corta lo que se atasca (0D, D7): una consulta que pasa del límite (57014) o un
+        // bloqueo que no se suelta (55P03). Es saturación pasajera, no un defecto del código: 503 con
+        // `Retry-After` en lugar de un 500 que además llenaría el registro de falsos errores. Se REPORTA
+        // igual (la excepción sigue en el registro: es la señal de que el límite se está tocando). Cualquier
+        // otro error de base devuelve `null` y sigue su camino: no se enmascaran los defectos reales.
+        $exceptions->render(function (QueryException $excepcion, Request $peticion): ?JsonResponse {
+            if (! $peticion->is('api/*')) {
+                return null;
+            }
+
+            return in_array($excepcion->errorInfo[0] ?? null, ['57014', '55P03'], true)
+                ? ApiResponse::serviceUnavailable()
+                : null;
         });
     })->create();

@@ -1,0 +1,105 @@
+{
+  "descripcion": "Línea base de la guarda del esquema (0D, D1; ADR 0008). Solo puede bajar: cada tarea de la 0D que corrige un defecto lo borra de aquí. 'permanente' = excepción a propósito, con razón.",
+  "defectos": [
+    {
+      "id": "clave_compuesta|file_media(model_type,model_id,collection,filename)"
+    },
+    {
+      "id": "clave_compuesta|model_has_permissions(permission_id,model_id,model_type)",
+      "permanente": true,
+      "razon": "Clave de Spatie Permission (relación binaria con tipo de modelo)."
+    },
+    {
+      "id": "clave_compuesta|model_has_roles(role_id,model_id,model_type)",
+      "permanente": true,
+      "razon": "Clave de Spatie Permission (relación binaria con tipo de modelo)."
+    },
+    {
+      "id": "enum_sin_check|file_media.collection",
+      "destino": "D10: la columna se retira con la mediateca"
+    },
+    {
+      "id": "enum_sin_check|file_media.disk",
+      "permanente": true,
+      "razon": "Nombre de un disco de almacenamiento: lo fija la configuración (config/filesystems.php), no el dominio."
+    },
+    {
+      "id": "enum_sin_check|politicas.acto_tipo",
+      "permanente": true,
+      "razon": "Texto libre validado a 60 caracteres (Resolución, Decreto…): el vocabulario lo decide quien publica."
+    },
+    {
+      "id": "enum_sin_check|tramite_cuentas.tipo",
+      "destino": "Fase 5: catálogo de cuentas de recaudo (R16); el código solo limita el largo"
+    },
+    {
+      "id": "enum_sin_check|tramite_normas.tipo",
+      "destino": "Fase 5: catálogo de normas (R15); el vocabulario es abierto (8 tipos en staging)"
+    },
+    {
+      "id": "enum_sin_check|tramites.consulta_estado",
+      "permanente": true,
+      "razon": "No es una enumeración: guarda hasta 500 caracteres de texto o URL de seguimiento."
+    },
+    {
+      "id": "enum_sin_check|tramites.costo_moneda",
+      "destino": "Fase 5: coherencia del costo (R19); sin lista en el código y vacía en staging"
+    },
+    {
+      "id": "enum_sin_check|tramites.costo_tipo_valor",
+      "destino": "Fase 5: coherencia del costo (R19); sin lista en el código y vacía en staging"
+    },
+    {
+      "id": "json|audit_log.cambios",
+      "permanente": true,
+      "razon": "Foto del cambio, no un dato que se consulte por campo; es jsonb desde D6 (se valida y se puede indexar)."
+    },
+    {
+      "id": "json|consentimientos.categorias"
+    },
+    {
+      "id": "json|entidads.datos_por_confirmar"
+    },
+    {
+      "id": "json|entidads.politicas"
+    },
+    {
+      "id": "json|entidads.redes"
+    },
+    {
+      "id": "json|file_media.metadata"
+    },
+    {
+      "id": "json|menus.roles"
+    },
+    {
+      "id": "json|politicas.secciones"
+    },
+    {
+      "id": "json|tramites.medios_resultado"
+    },
+    {
+      "id": "polimorfica|audit_log.causer",
+      "permanente": true,
+      "razon": "La bitácora debe sobrevivir al borrado de quien actuó; una clave foránea lo impediría."
+    },
+    {
+      "id": "polimorfica|file_media.model"
+    },
+    {
+      "id": "polimorfica|model_has_permissions.model",
+      "permanente": true,
+      "razon": "Tabla de Spatie Permission: cambiarla rompe las actualizaciones del paquete."
+    },
+    {
+      "id": "polimorfica|model_has_roles.model",
+      "permanente": true,
+      "razon": "Tabla de Spatie Permission: cambiarla rompe las actualizaciones del paquete."
+    },
+    {
+      "id": "polimorfica|personal_access_tokens.tokenable",
+      "permanente": true,
+      "razon": "Tabla de Laravel Sanctum: cambiarla rompe las actualizaciones del paquete."
+    }
+  ]
+}

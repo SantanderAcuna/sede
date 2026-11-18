@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string $uuid
  * @property string|null $model_uuid
  * @property string $model_type
- * @property int|null $model_id
+ * @property int $model_id
  * @property string $collection
  * @property string $filename
  * @property string $original_filename
@@ -32,6 +32,7 @@ use Illuminate\Support\Facades\Storage;
  * @property int $size
  * @property string $disk
  * @property string $path
+ * @property string|null $hash_sha256 SHA-256 del contenido; vacío hasta calcularlo (`archivos:calcular-hash`)
  * @property array<string, mixed>|null $metadata
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -60,6 +61,7 @@ final class FileMedia extends Model
         'size',
         'disk',
         'path',
+        'hash_sha256',
         'metadata',
     ];
 

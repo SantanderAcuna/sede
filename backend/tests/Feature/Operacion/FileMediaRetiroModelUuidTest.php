@@ -26,6 +26,12 @@ final class FileMediaRetiroModelUuidTest extends TestCase
     use CreaFilasDeArchivos;
     use RefreshDatabase;
 
+    /** Ejecuta `up` o `down` de la migración: la clase anónima las tiene, el tipo `Migration` no. */
+    private function ejecutar(string $metodo): void
+    {
+        $this->migracion()->{$metodo}();
+    }
+
     private function migracion(): Migration
     {
         $rutas = glob(database_path('migrations/*_retirar_model_uuid_de_file_media.php')) ?: [];
@@ -53,7 +59,7 @@ final class FileMediaRetiroModelUuidTest extends TestCase
         $banner = $this->banner();
         $uuid = $this->fila(['model_id' => $banner['id']]);
 
-        $this->migracion()->down();
+        $this->ejecutar('down');
 
         $this->assertTrue(Schema::hasColumn('file_media', 'model_uuid'));
         $this->assertTrue($this->existeIndice());
@@ -68,8 +74,8 @@ final class FileMediaRetiroModelUuidTest extends TestCase
         $this->fila(['model_id' => $b['id'], 'filename' => 'dos.png']);
         $antes = DB::table('file_media')->orderBy('uuid')->pluck('model_id', 'uuid')->all();
 
-        $this->migracion()->down();
-        $this->migracion()->up();
+        $this->ejecutar('down');
+        $this->ejecutar('up');
 
         $this->assertFalse(Schema::hasColumn('file_media', 'model_uuid'));
         $this->assertSame($antes, DB::table('file_media')->orderBy('uuid')->pluck('model_id', 'uuid')->all());
@@ -79,12 +85,12 @@ final class FileMediaRetiroModelUuidTest extends TestCase
     {
         $uno = $this->banner();
         $otro = $this->banner();
-        $this->migracion()->down();
+        $this->ejecutar('down');
         $fila = $this->fila(['model_id' => $uno['id']]);
         DB::table('file_media')->where('uuid', $fila)->update(['model_uuid' => $otro['uuid']]);
 
         try {
-            $this->migracion()->up();
+            $this->ejecutar('up');
             $this->fail('La migración debía detenerse y no lo hizo.');
         } catch (RuntimeException $e) {
             $this->assertStringContainsString($fila, $e->getMessage());
@@ -99,11 +105,11 @@ final class FileMediaRetiroModelUuidTest extends TestCase
     public function test_up_no_se_detiene_por_un_model_uuid_sin_dueno_porque_no_contradice_nada(): void
     {
         $banner = $this->banner();
-        $this->migracion()->down();
+        $this->ejecutar('down');
         $fila = $this->fila(['model_id' => $banner['id']]);
         DB::table('file_media')->where('uuid', $fila)->update(['model_uuid' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
 
-        $this->migracion()->up();
+        $this->ejecutar('up');
 
         $this->assertFalse(Schema::hasColumn('file_media', 'model_uuid'));
         $this->assertSame($banner['id'], (int) DB::table('file_media')->where('uuid', $fila)->value('model_id'));

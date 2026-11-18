@@ -39,7 +39,8 @@ final class FileMediaModelIdTest extends TestCase
 
         /** @var Migration $retiro */
         $retiro = require $rutas[0];
-        $retiro->down();
+        $metodo = 'down';
+        $retiro->{$metodo}();
     }
 
     /** Ejecuta `up` o `down` de la migración: la clase anónima las tiene, el tipo `Migration` no. */

@@ -18,11 +18,16 @@ final class ChecksDeEnumeracionesTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** @param \Closure(): mixed $escritura */
     private function rechaza(\Closure $escritura, string $que): void
     {
+        DB::beginTransaction();
+
         try {
-            DB::transaction($escritura);
+            $escritura();
+            DB::commit();
         } catch (QueryException $e) {
+            DB::rollBack();
             $this->assertSame('23514', $e->getCode(), $que.': se esperaba una violación de CHECK, no '.$e->getMessage());
 
             return;
@@ -31,9 +36,10 @@ final class ChecksDeEnumeracionesTest extends TestCase
         $this->fail($que.': la base aceptó un valor inválido.');
     }
 
+    /** @param \Closure(): mixed $escritura */
     private function acepta(\Closure $escritura): void
     {
-        DB::transaction($escritura);
+        $escritura();
         $this->addToAssertionCount(1);
     }
 

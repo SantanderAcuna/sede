@@ -52,8 +52,11 @@ incoherentes, 0 huérfanas.
    la columna. Decidido por José (2026-11-17): `model_uuid` **sale** de la respuesta de la API (hoy ningún
    código del panel ni del sitio lo lee; solo aparece en los tipos generados). Los tipos de `panel` y `sitio`
    no se versionan (`openapi.d.ts` está en `.gitignore`; se generan con `make tipos` y en la CI), así
-   que A solo cambia el contrato y la CI los regenera. Entregada A (T8 ya estaba desplegado en
-   staging, 2026-11-17), B espera a que A se despliegue y se estabilice.
+   que A solo cambia el contrato y la CI los regenera. A se entregó y se desplegó en staging (2026-11-17, #630). B (migración
+   `*_retirar_model_uuid_de_file_media.php`) borra la columna: se detiene sin cambiar nada si algún
+   `model_uuid` contradice a su `model_id`, y `down()` la devuelve rellenada desde el dueño, así que
+   el retroceso no exige restaurar una copia. Las pruebas de la migración de T8 la deshacen primero
+   en su `setUp`.
 
 ## Consecuencias
 

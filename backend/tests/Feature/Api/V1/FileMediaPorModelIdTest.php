@@ -18,7 +18,7 @@ use Tests\TestCase;
 /**
  * Las lecturas de `file_media` van por `model_type` + `model_id` (Fase 0B, T8).
  *
- * Antes iban por `model_uuid`, que ya no se escribe (entrega A); el dueño
+ * Antes iban por `model_uuid`, que ya no existe (entregas A y B); el dueño
  * se reconoce por el id numérico, que es el que la migración vuelve obligatorio y el que
  * cubre la unicidad. `model_type` se conserva en cada lectura: dos modelos distintos
  * pueden tener el mismo id.
@@ -31,7 +31,7 @@ final class FileMediaPorModelIdTest extends TestCase
     public function test_la_imagen_de_un_banner_se_encuentra_por_model_id(): void
     {
         $banner = $this->banner();
-        $this->fila(['model_type' => Banner::class, 'model_id' => $banner['id'], 'model_uuid' => null]);
+        $this->fila(['model_type' => Banner::class, 'model_id' => $banner['id']]);
 
         $this->assertNotNull(Banner::query()->findOrFail($banner['id'])->imagenPrincipal);
     }
@@ -39,7 +39,7 @@ final class FileMediaPorModelIdTest extends TestCase
     public function test_la_imagen_de_un_banner_no_se_confunde_con_otro_modelo_del_mismo_id(): void
     {
         $banner = $this->banner();
-        $this->fila(['model_type' => Noticia::class, 'model_id' => $banner['id'], 'model_uuid' => null]);
+        $this->fila(['model_type' => Noticia::class, 'model_id' => $banner['id']]);
 
         $this->assertNull(Banner::query()->findOrFail($banner['id'])->imagenPrincipal);
     }
@@ -56,7 +56,7 @@ final class FileMediaPorModelIdTest extends TestCase
     {
         $politica = $this->politica();
         $this->fila([
-            'model_type' => Politica::class, 'model_id' => $politica['id'], 'model_uuid' => null,
+            'model_type' => Politica::class, 'model_id' => $politica['id'],
             'collection' => Politica::COLECCION_DOCUMENTO,
         ]);
 
@@ -66,7 +66,7 @@ final class FileMediaPorModelIdTest extends TestCase
     public function test_get_by_collection_busca_por_model_id_y_model_type(): void
     {
         $banner = $this->banner();
-        $propia = $this->fila(['model_type' => Banner::class, 'model_id' => $banner['id'], 'model_uuid' => null]);
+        $propia = $this->fila(['model_type' => Banner::class, 'model_id' => $banner['id']]);
         $this->fila(['model_type' => Noticia::class, 'model_id' => $banner['id']]);
         $this->fila(['model_type' => Banner::class, 'model_id' => $banner['id'] + 100, 'collection' => 'otra']);
 

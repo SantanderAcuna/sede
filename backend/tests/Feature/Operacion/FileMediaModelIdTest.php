@@ -26,6 +26,22 @@ final class FileMediaModelIdTest extends TestCase
     use CreaFilasDeArchivos;
     use RefreshDatabase;
 
+    /**
+     * Estas pruebas escriben filas «viejas», que llevaban `model_uuid`: la entrega B borró esa columna,
+     * así que se la devuelve (con su índice) deshaciendo esa migración, como pide el ADR 0005.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $rutas = glob(database_path('migrations/*_retirar_model_uuid_de_file_media.php')) ?: [];
+        $this->assertCount(1, $rutas, 'Falta la migración *_retirar_model_uuid_de_file_media.php');
+
+        /** @var Migration $retiro */
+        $retiro = require $rutas[0];
+        $retiro->down();
+    }
+
     /** Ejecuta `up` o `down` de la migración: la clase anónima las tiene, el tipo `Migration` no. */
     private function ejecutar(string $metodo): void
     {

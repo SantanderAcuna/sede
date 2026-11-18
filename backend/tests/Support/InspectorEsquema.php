@@ -51,7 +51,7 @@ final class InspectorEsquema
               and t.table_name <> 'migrations'
         SQL);
 
-        return array_map(fn ($f): string => "polimorfica|{$f->table_name}.{$f->prefijo}", $filas);
+        return array_values(array_map(fn ($f): string => "polimorfica|{$f->table_name}.{$f->prefijo}", $filas));
     }
 
     /** @return list<string> */
@@ -62,7 +62,7 @@ final class InspectorEsquema
             where table_schema = 'public' and data_type in ('json', 'jsonb')
         SQL);
 
-        return array_map(fn ($f): string => "json|{$f->table_name}.{$f->column_name}", $filas);
+        return array_values(array_map(fn ($f): string => "json|{$f->table_name}.{$f->column_name}", $filas));
     }
 
     /** @return list<string> */
@@ -73,7 +73,7 @@ final class InspectorEsquema
             where table_schema = 'public' and data_type = 'timestamp without time zone'
         SQL);
 
-        return array_map(fn ($f): string => "fecha_sin_zona|{$f->table_name}.{$f->column_name}", $filas);
+        return array_values(array_map(fn ($f): string => "fecha_sin_zona|{$f->table_name}.{$f->column_name}", $filas));
     }
 
     /** @return list<string> */
@@ -98,7 +98,7 @@ final class InspectorEsquema
               )
         SQL);
 
-        return array_map(fn ($f): string => "fk_sin_indice|{$f->tabla}.{$f->columnas}", $filas);
+        return array_values(array_map(fn ($f): string => "fk_sin_indice|{$f->tabla}.{$f->columnas}", $filas));
     }
 
     /** @return list<string> */
@@ -119,7 +119,7 @@ final class InspectorEsquema
               )
         SQL, [self::ENUM_NOMBRES]);
 
-        return array_map(fn ($f): string => "enum_sin_check|{$f->table_name}.{$f->column_name}", $filas);
+        return array_values(array_map(fn ($f): string => "enum_sin_check|{$f->table_name}.{$f->column_name}", $filas));
     }
 
     /** @return list<string> */
@@ -138,6 +138,6 @@ final class InspectorEsquema
               and i.indnkeyatts >= 3 and 0 <> all (i.indkey::int2[])
         SQL);
 
-        return array_map(fn ($f): string => "clave_compuesta|{$f->tabla}({$f->columnas})", $filas);
+        return array_values(array_map(fn ($f): string => "clave_compuesta|{$f->tabla}({$f->columnas})", $filas));
     }
 }

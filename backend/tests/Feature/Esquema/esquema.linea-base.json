@@ -171,21 +171,6 @@
       "id": "fecha_sin_zona|users.updated_at"
     },
     {
-      "id": "fk_sin_indice|noticias.autor_id"
-    },
-    {
-      "id": "fk_sin_indice|role_has_permissions.role_id"
-    },
-    {
-      "id": "fk_sin_indice|tramite_requisitos.paso_id"
-    },
-    {
-      "id": "fk_sin_indice|tramites.categoria_id"
-    },
-    {
-      "id": "fk_sin_indice|tramites.dependencia_id"
-    },
-    {
       "id": "json|audit_log.cambios",
       "permanente": true,
       "razon": "Foto del cambio, no un dato que se consulte por campo; pasa a jsonb en D6."

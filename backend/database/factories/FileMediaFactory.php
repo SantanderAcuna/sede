@@ -23,7 +23,7 @@ final class FileMediaFactory extends Factory
         return [
             'model_uuid' => null,
             'model_type' => 'App\Models\Entidad',
-            'model_id' => null,
+            'model_id' => $this->faker->numberBetween(1, 1_000_000),
             'collection' => $this->faker->randomElement(['logos', 'documentos', 'firmas', 'fotos']),
             'filename' => $filename,
             'original_filename' => $this->faker->word().'.'.$extension,

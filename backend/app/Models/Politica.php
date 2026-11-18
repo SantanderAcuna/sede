@@ -285,7 +285,7 @@ final class Politica extends Model
     {
         return FileMedia::query()
             ->where('model_type', self::class)
-            ->where('model_uuid', $this->uuid)
+            ->where('model_id', $this->id)
             ->where('collection', self::COLECCION_DOCUMENTO)
             ->orderByDesc('created_at')
             ->first();

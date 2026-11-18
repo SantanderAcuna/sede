@@ -197,14 +197,15 @@ final class PoliticasCrudTest extends TestCase
         Storage::fake('local');
         $this->con(...CatalogoPermisos::de('politicas'));
         $slug = $this->postJson('/api/v1/panel/politicas', $this->nueva())->json('data.slug');
-        $uuid = Politica::query()->where('slug', $slug)->value('uuid');
+        $politica = Politica::query()->where('slug', $slug)->firstOrFail();
+        $uuid = $politica->uuid;
         Storage::disk('local')->put('politicas/acto.pdf', 'contenido');
         FileMedia::query()->create([
-            'model_uuid' => $uuid, 'model_type' => Politica::class, 'collection' => Politica::COLECCION_DOCUMENTO,
+            'model_id' => $politica->id, 'model_uuid' => $uuid, 'model_type' => Politica::class, 'collection' => Politica::COLECCION_DOCUMENTO,
             'filename' => 'acto.pdf', 'original_filename' => 'acto.pdf', 'mime_type' => 'application/pdf',
             'size' => 9, 'disk' => 'local', 'path' => 'politicas/acto.pdf',
         ]);
-        $this->assertDatabaseHas('file_media', ['model_uuid' => $uuid]);
+        $this->assertDatabaseHas('file_media', ['model_type' => Politica::class, 'model_id' => $politica->id]);
 
         $this->con('politicas.ver', 'politicas.editar');
         $this->deleteJson("/api/v1/panel/politicas/{$slug}")->assertForbidden();
@@ -212,7 +213,7 @@ final class PoliticasCrudTest extends TestCase
         $this->con('politicas.ver', 'politicas.eliminar');
         $this->deleteJson("/api/v1/panel/politicas/{$slug}")->assertOk();
         $this->assertDatabaseMissing('politicas', ['slug' => $slug]);
-        $this->assertDatabaseMissing('file_media', ['model_uuid' => $uuid]);
+        $this->assertDatabaseMissing('file_media', ['model_type' => Politica::class, 'model_id' => $politica->id]);
         Storage::disk('local')->assertMissing('politicas/acto.pdf');
         $this->deleteJson("/api/v1/panel/politicas/{$slug}")->assertNotFound();
     }

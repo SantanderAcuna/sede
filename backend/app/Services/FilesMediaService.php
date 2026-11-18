@@ -6,11 +6,11 @@ namespace App\Services;
 
 use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Models\FileMedia;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 /**
  * Servicio centralizado de gestión de archivos subidos.
@@ -47,20 +47,26 @@ final class FilesMediaService implements FilesMediaServiceInterface
         object $model,
         ?array $metadata = null,
     ): FileMedia {
+        // Sin id no hay dueño al que asociar el archivo: se falla antes de escribir en disco.
+        $modelId = $this->getModelId($model) ?? throw new InvalidArgumentException(
+            'No se puede guardar un archivo para un modelo sin id: '.$model::class,
+        );
+
         $filename = $this->generateFilename($file);
 
         $path = $this->buildPath($model, $collection, $filename);
+        $contenido = $file->getContent();
 
         // El disco configurado, no uno fijo: antes era siempre `public` aunque
         // `FILESYSTEM_DISK` dijera otra cosa, y los archivos quedaban donde nadie
         // los servía (H-13).
         $disco = (string) config('filesystems.default');
 
-        Storage::disk($disco)->put($path, $file->getContent());
+        Storage::disk($disco)->put($path, $contenido);
 
         return FileMedia::create([
             'model_type' => $model::class,
-            'model_id' => $this->getModelId($model),
+            'model_id' => $modelId,
             'model_uuid' => $this->getModelUuid($model),
             'collection' => $collection,
             'filename' => $filename,
@@ -69,6 +75,7 @@ final class FilesMediaService implements FilesMediaServiceInterface
             'size' => (int) $file->getSize(),
             'disk' => $disco,
             'path' => $path,
+            'hash_sha256' => hash('sha256', $contenido),
             'metadata' => $metadata,
         ]);
     }
@@ -78,24 +85,19 @@ final class FilesMediaService implements FilesMediaServiceInterface
      */
     public function getByCollection(object $model, string $collection): Collection
     {
-        $query = FileMedia::where('model_type', $model::class)
-            ->where('collection', $collection);
-
         $modelId = $this->getModelId($model);
-        $modelUuid = $this->getModelUuid($model);
 
-        // Buscar por model_id Y model_uuid a la vez (el caso normal con Eloquent real),
-        // o solo por model_uuid cuando model_id es null (compatibilidad con factories legacy).
-        if ($modelId !== null && $modelUuid !== null) {
-            $query->where(function (Builder $q) use ($modelId, $modelUuid): void {
-                $q->where('model_id', $modelId)
-                    ->where('model_uuid', $modelUuid);
-            });
-        } elseif ($modelUuid !== null) {
-            $query->where('model_uuid', $modelUuid);
+        // Un objeto sin id no es dueño de nada. Antes, sin id ni uuid la consulta no filtraba
+        // por dueño y devolvía los archivos de TODOS los modelos de ese tipo en la colección.
+        if ($modelId === null) {
+            return new Collection;
         }
 
-        return $query->orderBy('created_at', 'desc')->get();
+        return FileMedia::where('model_type', $model::class)
+            ->where('model_id', $modelId)
+            ->where('collection', $collection)
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
 
     /**
@@ -184,7 +186,10 @@ final class FilesMediaService implements FilesMediaServiceInterface
         }
 
         if (property_exists($model, 'id')) {
-            return (int) $model->id;
+            /** @var mixed $id */
+            $id = $model->id;
+
+            return is_int($id) || is_numeric($id) ? (int) $id : null;
         }
 
         return null;

@@ -499,6 +499,21 @@ if ! $COMPOSE run --rm app php artisan db:seed --class=SedeSeeder --force; then
 fi
 verde "  datos institucionales sembrados"
 
+# Huella (SHA-256) de los archivos que ya existían (Fase 0B, T8). La migración deja la columna
+# vacía a propósito: una migración no lee discos. El comando es idempotente (solo toca filas sin
+# huella) y **no es motivo para volver atrás**: la huella es evidencia de integridad, no algo de
+# lo que dependa servir la sede. Si algún archivo no se puede leer lo avisa y sigue; queda el
+# comando para repetirlo a mano.
+# Con tope de 5 minutos: un disco que no responde no debe dejar el despliegue colgado sin
+# volver atrás (los archivos de hoy son pocos; el tope es una red de seguridad, no un cálculo).
+if ! timeout 300 $COMPOSE run --rm app php artisan archivos:calcular-hash; then
+  echo "AVISO: el cálculo de huellas falló, se agotó el tiempo o dejó archivos sin leer." >&2
+  echo "       El despliegue continúa. Revise lo anterior y repita en el servidor:" >&2
+  echo "       $COMPOSE run --rm app php artisan archivos:calcular-hash" >&2
+else
+  verde "  huellas de archivos al día"
+fi
+
 $COMPOSE rm -f >/dev/null 2>&1 || true
 $COMPOSE up -d --remove-orphans
 

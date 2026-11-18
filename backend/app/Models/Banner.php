@@ -62,7 +62,7 @@ final class Banner extends Model
     /** @return HasOne<FileMedia, $this> */
     public function imagenPrincipal(): HasOne
     {
-        return $this->hasOne(FileMedia::class, 'model_uuid', 'uuid')
+        return $this->hasOne(FileMedia::class, 'model_id', 'id')
             ->where('model_type', self::class)
             ->where('collection', self::COLECCION_IMAGEN);
     }

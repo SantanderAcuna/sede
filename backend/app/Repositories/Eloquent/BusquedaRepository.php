@@ -168,7 +168,7 @@ final class BusquedaRepository implements BusquedaRepositoryInterface
             ->selectRaw("'tramite' as tipo_recurso")
             ->addSelect(['id', 'slug', 'nombre as titulo'])
             ->selectRaw('resumen as extracto')
-            ->selectRaw('cast(publicado_en as date) as fecha');
+            ->selectRaw("cast(publicado_en at time zone 'UTC' as date) as fecha");
 
         return $this->puntuado($lado->toBase(), $consulta, $palabras);
     }

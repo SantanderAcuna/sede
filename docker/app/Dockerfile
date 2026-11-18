@@ -211,6 +211,7 @@ RUN mkdir -p /copias && chown sede:sede /copias && chmod 700 /copias
 COPY compose.yaml /opt/sede-entorno/compose.yaml
 COPY deploy/plantilla.env deploy/valores-staging.env deploy/valores-produccion.env \
      /opt/sede-entorno/
+COPY deploy/despliegue-remoto.sha256 /opt/sede-entorno/despliegue-remoto.sha256
 
 # Se declaran para que la pila sepa que ahí se escribe. Es lo que permite montar
 # volúmenes y, aun así, ejecutar el contenedor con el sistema de archivos de sólo

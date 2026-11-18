@@ -28,12 +28,16 @@ final class BitacoraDeSoloInsercionTest extends TestCase
         ]);
     }
 
-    private function rechazada(string $sql): void
+    /**
+     * @param  literal-string  $sql  con `?` para los valores: nada se interpola en el SQL.
+     * @param  list<int|string>  $valores
+     */
+    private function rechazada(string $sql, array $valores = []): void
     {
         DB::beginTransaction();
 
         try {
-            DB::unprepared($sql);
+            DB::statement($sql, $valores);
             DB::commit();
         } catch (QueryException $e) {
             DB::rollBack();
@@ -56,8 +60,8 @@ final class BitacoraDeSoloInsercionTest extends TestCase
     {
         $id = $this->fila();
 
-        $this->rechazada("update audit_log set accion = 'otra' where id = {$id}");
-        $this->rechazada("delete from audit_log where id = {$id}");
+        $this->rechazada("update audit_log set accion = 'otra' where id = ?", [$id]);
+        $this->rechazada('delete from audit_log where id = ?', [$id]);
         $this->rechazada('truncate audit_log');
 
         $this->assertSame('prueba', DB::table('audit_log')->where('id', $id)->value('accion'));
@@ -114,6 +118,6 @@ final class BitacoraDeSoloInsercionTest extends TestCase
         $migracion->up();
         $migracion->up();
         $this->assertSame(2, (int) DB::scalar("select count(*) from pg_trigger where tgrelid = 'audit_log'::regclass and not tgisinternal"));
-        $this->rechazada("delete from audit_log where id = {$id}");
+        $this->rechazada('delete from audit_log where id = ?', [$id]);
     }
 }

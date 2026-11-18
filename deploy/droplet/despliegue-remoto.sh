@@ -504,9 +504,12 @@ verde "  datos institucionales sembrados"
 # huella) y **no es motivo para volver atrás**: la huella es evidencia de integridad, no algo de
 # lo que dependa servir la sede. Si algún archivo no se puede leer lo avisa y sigue; queda el
 # comando para repetirlo a mano.
-if ! $COMPOSE run --rm app php artisan archivos:calcular-hash; then
-  echo "AVISO: hay archivos sin huella (no se pudieron leer). El despliegue continúa;" >&2
-  echo "       revise la lista de arriba y repita: $COMPOSE run --rm app php artisan archivos:calcular-hash" >&2
+# Con tope de 5 minutos: un disco que no responde no debe dejar el despliegue colgado sin
+# volver atrás (los archivos de hoy son pocos; el tope es una red de seguridad, no un cálculo).
+if ! timeout 300 $COMPOSE run --rm app php artisan archivos:calcular-hash; then
+  echo "AVISO: el cálculo de huellas falló, se agotó el tiempo o dejó archivos sin leer." >&2
+  echo "       El despliegue continúa. Revise lo anterior y repita en el servidor:" >&2
+  echo "       $COMPOSE run --rm app php artisan archivos:calcular-hash" >&2
 else
   verde "  huellas de archivos al día"
 fi

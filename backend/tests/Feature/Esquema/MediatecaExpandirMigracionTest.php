@@ -147,7 +147,9 @@ final class MediatecaExpandirMigracionTest extends TestCase
             $this->fail('Se borró un archivo que una noticia usa.');
         } catch (QueryException $e) {
             DB::rollBack();
-            $this->assertSame('23503', $e->errorInfo[0] ?? null);
+            // RESTRICT rechaza con 23001 (restrict_violation) o 23503 (foreign_key_violation) según la
+            // versión de PostgreSQL: lo que se prueba es el rechazo por la clave, no el código exacto.
+            $this->assertContains($e->errorInfo[0] ?? null, ['23001', '23503']);
         }
     }
 

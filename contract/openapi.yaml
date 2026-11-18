@@ -3479,12 +3479,11 @@ components:
 
     FileMediaItem:
       type: object
-      required: [uuid, filename, original_filename, mime_type, size, collection, url]
+      required: [uuid, filename, original_filename, mime_type, size, collection, url, model_id]
       properties:
         uuid: { type: string, format: uuid }
-        model_uuid: { type: [string, 'null'], format: uuid }
         model_type: { type: string }
-        model_id: { type: [integer, 'null'] }
+        model_id: { type: integer }
         collection: { type: string }
         filename: { type: string }
         original_filename: { type: string }

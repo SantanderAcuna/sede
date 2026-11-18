@@ -67,7 +67,6 @@ final class FilesMediaService implements FilesMediaServiceInterface
         return FileMedia::create([
             'model_type' => $model::class,
             'model_id' => $modelId,
-            'model_uuid' => $this->getModelUuid($model),
             'collection' => $collection,
             'filename' => $filename,
             'original_filename' => $file->getClientOriginalName(),
@@ -193,23 +192,5 @@ final class FilesMediaService implements FilesMediaServiceInterface
         }
 
         return null;
-    }
-
-    /**
-     * Obtiene el uuid del modelo, si lo tiene.
-     */
-    private function getModelUuid(object $model): ?string
-    {
-        if (method_exists($model, 'getAttribute')) {
-            /** @var mixed $uuid */
-            $uuid = $model->getAttribute('uuid');
-        } elseif (property_exists($model, 'uuid')) {
-            /** @var mixed $uuid */
-            $uuid = $model->uuid;
-        } else {
-            return null;
-        }
-
-        return is_string($uuid) ? $uuid : null;
     }
 }

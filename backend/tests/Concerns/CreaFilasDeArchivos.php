@@ -51,7 +51,6 @@ trait CreaFilasDeArchivos
             'uuid' => $uuid,
             'model_type' => 'App\\Models\\Banner',
             'model_id' => null,
-            'model_uuid' => null,
             'collection' => 'imagen',
             'filename' => $archivo,
             'original_filename' => 'foto.png',

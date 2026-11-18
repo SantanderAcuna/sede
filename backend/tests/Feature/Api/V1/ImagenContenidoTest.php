@@ -180,7 +180,7 @@ final class ImagenContenidoTest extends TestCase
         $usuario = $this->usuario();
         Storage::disk((string) config('filesystems.default'))->put('x/secreto.pdf', '%PDF');
         $ajeno = FileMedia::create([
-            'model_type' => User::class, 'model_id' => $usuario->id, 'model_uuid' => $usuario->uuid,
+            'model_type' => User::class, 'model_id' => $usuario->id,
             'collection' => 'documento_oficial', 'filename' => 'secreto.pdf', 'original_filename' => 'secreto.pdf',
             'mime_type' => 'application/pdf', 'size' => 4, 'disk' => (string) config('filesystems.default'), 'path' => 'x/secreto.pdf',
         ]);

@@ -201,7 +201,7 @@ final class PoliticasCrudTest extends TestCase
         $uuid = $politica->uuid;
         Storage::disk('local')->put('politicas/acto.pdf', 'contenido');
         FileMedia::query()->create([
-            'model_id' => $politica->id, 'model_uuid' => $uuid, 'model_type' => Politica::class, 'collection' => Politica::COLECCION_DOCUMENTO,
+            'model_id' => $politica->id, 'model_type' => Politica::class, 'collection' => Politica::COLECCION_DOCUMENTO,
             'filename' => 'acto.pdf', 'original_filename' => 'acto.pdf', 'mime_type' => 'application/pdf',
             'size' => 9, 'disk' => 'local', 'path' => 'politicas/acto.pdf',
         ]);

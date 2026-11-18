@@ -22,7 +22,6 @@ use Illuminate\Support\Facades\Storage;
  * R-52: FilesMedia polymorphic.
  *
  * @property string $uuid
- * @property string|null $model_uuid
  * @property string $model_type
  * @property int $model_id
  * @property string $collection
@@ -51,7 +50,6 @@ final class FileMedia extends Model
 
     /** @var list<string> */
     protected $fillable = [
-        'model_uuid',
         'model_type',
         'model_id',
         'collection',

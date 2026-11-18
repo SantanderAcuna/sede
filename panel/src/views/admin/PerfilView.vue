@@ -6,9 +6,9 @@
  * Se carga al montar el componente.
  */
 import { ref, onMounted, computed } from 'vue'
-import { perfil as perfilApi } from '@/services/auth'
-import type { RespuestaPerfil } from '@/services/auth'
-import { esErrorApi } from '@/services/http'
+import { perfil as perfilApi } from '@/api/auth'
+import type { RespuestaPerfil } from '@/api/auth'
+import { esErrorApi } from '@/api/client'
 import BaseBadge from '@/components/base/BaseBadge.vue'
 
 const datos = ref<RespuestaPerfil | null>(null)

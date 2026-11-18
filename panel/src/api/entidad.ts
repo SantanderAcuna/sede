@@ -5,7 +5,7 @@
  * GET  /api/v1/entidad          → obtener()
  * PATCH /api/v1/panel/entidad   → actualizar()
  */
-import { http, desenvolver } from './http'
+import { http, desenvolver } from './client'
 import type { ApiEnvelope, EntidadItem, EntidadInput } from '@/types/api'
 
 /**

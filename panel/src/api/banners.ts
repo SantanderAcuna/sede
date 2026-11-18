@@ -11,7 +11,7 @@
  *
  * La imagen y su texto alternativo viajan juntos: sin descripción el servidor la rechaza.
  */
-import { http, desenvolver } from './http'
+import { http, desenvolver } from './client'
 import type { ApiEnvelope, BannerEntrada, BannerPanelItem } from '@/types/api'
 
 export async function listar(): Promise<BannerPanelItem[]> {

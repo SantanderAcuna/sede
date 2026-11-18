@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { mount, flushPromises } from '@vue/test-utils'
 
-vi.mock('../src/services/auth', () => {
+vi.mock('../src/api/auth', () => {
   return {
     perfil: vi.fn().mockResolvedValue({
       id: 3,
@@ -22,7 +22,7 @@ vi.mock('../src/services/auth', () => {
 })
 
 import PerfilView from '../src/views/admin/PerfilView.vue'
-import * as authModule from '../src/services/auth'
+import * as authModule from '../src/api/auth'
 
 async function flush() {
   await flushPromises()

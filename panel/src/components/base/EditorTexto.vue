@@ -18,7 +18,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 
 import SubirImagen from './SubirImagen.vue'
-import { subirImagenContenido } from '@/services/contenido'
+import { subirImagenContenido } from '@/api/contenido'
 
 interface Props {
   modelValue: string | null | undefined

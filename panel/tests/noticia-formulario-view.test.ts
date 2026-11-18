@@ -13,7 +13,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('../src/services/noticias', () => ({
+vi.mock('../src/api/noticias', () => ({
   POR_PAGINA: 20,
   obtener: vi.fn(),
   crear: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('../src/services/noticias', () => ({
   subirImagen: vi.fn(),
 }))
 
-import * as servicio from '../src/services/noticias'
+import * as servicio from '../src/api/noticias'
 import NoticiaFormularioView from '../src/views/admin/NoticiaFormularioView.vue'
 import EditorTexto from '../src/components/base/EditorTexto.vue'
 import type { NoticiaPanelItem } from '../src/types/api'

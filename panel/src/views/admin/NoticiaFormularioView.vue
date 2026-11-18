@@ -16,7 +16,7 @@ import ConfirmModal from '@/components/base/ConfirmModal.vue'
 import EditorTexto from '@/components/base/EditorTexto.vue'
 import FormField from '@/components/base/FormField.vue'
 import SubirImagen from '@/components/base/SubirImagen.vue'
-import { actualizar, crear, eliminar, obtener, subirImagen } from '@/services/noticias'
+import { actualizar, crear, eliminar, obtener, subirImagen } from '@/api/noticias'
 import type { NoticiaPanelItem } from '@/types/api'
 import { dejarAviso } from './avisos'
 import {

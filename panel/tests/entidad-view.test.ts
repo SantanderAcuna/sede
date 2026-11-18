@@ -10,13 +10,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('../src/services/entidad', () => ({
+vi.mock('../src/api/entidad', () => ({
   obtener: vi.fn(),
   actualizar: vi.fn(),
   politicasDisponibles: vi.fn(),
 }))
 
-import * as servicio from '../src/services/entidad'
+import * as servicio from '../src/api/entidad'
 import EntidadView from '../src/views/admin/EntidadView.vue'
 import type { EntidadItem } from '../src/types/api'
 

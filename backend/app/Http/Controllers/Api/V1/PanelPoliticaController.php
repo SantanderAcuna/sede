@@ -105,7 +105,7 @@ final class PanelPoliticaController extends Controller
         DB::transaction(static function () use ($politica): void {
             FileMedia::query()
                 ->where('model_type', Politica::class)
-                ->where('model_uuid', $politica->uuid)
+                ->where('model_id', $politica->id)
                 ->get()
                 ->each(static fn (FileMedia $archivo) => $archivo->deleteFully());
             $politica->delete();

@@ -6,7 +6,7 @@
  * POST  /api/v1/panel/usuarios         → crear()
  * PATCH /api/v1/panel/usuarios/{uuid}  → actualizar()
  */
-import { http, desenvolver, desenvolverPagina, type Pagina } from './http'
+import { http, desenvolver, desenvolverPagina, type Pagina } from './client'
 import type { ApiEnvelope, PaginatedEnvelope, UsuarioPanelEntrada, UsuarioPanelItem } from '@/types/api'
 
 export const POR_PAGINA = 20

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Operacion;
 
+use DateTimeZone;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
@@ -39,7 +40,8 @@ final class AgendaDeHuellasTest extends TestCase
         // 03:00 de Bogotá: después de limpiar (01:00) y copiar (01:30), antes de vigilar (06:00),
         // para que la lectura de discos no compita con la copia.
         $this->assertSame('0 3 * * *', $tarea->expression);
-        $this->assertSame('America/Bogota', (string) $tarea->timezone);
+        $zona = $tarea->timezone;
+        $this->assertSame('America/Bogota', $zona instanceof DateTimeZone ? $zona->getName() : $zona);
         $this->assertTrue($tarea->withoutOverlapping, 'Dos ejecuciones a la vez calcularían dos veces lo mismo.');
     }
 }

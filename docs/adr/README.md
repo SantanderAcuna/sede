@@ -4,7 +4,7 @@
 > estado, consecuencias y la evidencia que la respalda.
 >
 > **Dos series de numeración (aviso).** Este archivo guarda el registro corrido `ADR-0001…ADR-0021`.
-> Además hay archivos sueltos `NNNN-*.md` en esta carpeta (hoy 0001–0006) con su propia numeración,
+> Además hay archivos sueltos `NNNN-*.md` en esta carpeta (hoy 0001–0007) con su propia numeración,
 > que **no coincide** con la del registro (p. ej. el archivo `0005-file-media…` no es `ADR-0005`
 > de abajo). Hasta que el titular decida unificarlas, se cita siempre con el prefijo: `ADR-0005`
 > para el registro y `archivo 0005` para los archivos sueltos.

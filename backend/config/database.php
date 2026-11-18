@@ -95,6 +95,9 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
+            // Sesión en UTC, la zona de la aplicación: las columnas `timestamptz` interpretan en ella
+            // el texto sin zona que envía Laravel (ver ZonaHorariaDeLaBaseTest).
+            'timezone' => 'UTC',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
             'sslrootcert' => env('DB_SSLROOTCERT'),
         ],
@@ -114,6 +117,9 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
+            // Sesión en UTC, la zona de la aplicación: las columnas `timestamptz` interpretan en ella
+            // el texto sin zona que envía Laravel (ver ZonaHorariaDeLaBaseTest).
+            'timezone' => 'UTC',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
             'sslrootcert' => env('DB_SSLROOTCERT'),
         ],
@@ -130,6 +136,9 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
+            // Sesión en UTC, la zona de la aplicación: las columnas `timestamptz` interpretan en ella
+            // el texto sin zona que envía Laravel (ver ZonaHorariaDeLaBaseTest).
+            'timezone' => 'UTC',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
             'sslrootcert' => env('DB_SSLROOTCERT'),
         ],

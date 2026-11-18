@@ -16,8 +16,10 @@ use Illuminate\Support\Facades\Schema;
  * y se vuelve NOT NULL.
  *
  * Regla de fondo: lo que no se puede inferir con certeza no se arregla ni se borra. Si queda una
- * fila sin dueño, o con un `model_id` que contradice a su `model_uuid`, la migración **se detiene,
- * lista cada fila y no cambia nada** (todo corre en una transacción). `model_uuid` y el campo del
+ * fila sin dueño verificable (sin `model_id`, o con un `model_id` cuyo dueño no existe o cuyo tipo
+ * no es un modelo propio), con un `model_id` que contradice a su `model_uuid`, o si al asignar el
+ * dueño dos filas chocarían en el índice único, la migración **se detiene, lista cada fila y no
+ * cambia nada** (todo corre en una transacción). `model_uuid` y el campo del
  * contrato se retiran en una entrega posterior (expandir-contraer).
  *
  * `hash_sha256` nace vacío: el hash de los archivos que ya existen se calcula desde el disco con
@@ -34,15 +36,27 @@ return new class extends Migration
                 $tabla->char('hash_sha256', 64)->nullable();
             });
 
-            foreach ($this->duenos() as $tipo => $tabla) {
-                DB::update(
-                    "UPDATE file_media f SET model_id = d.id FROM {$tabla} d
-                     WHERE f.model_id IS NULL AND f.model_type = ? AND f.model_uuid = d.uuid",
-                    [$tipo],
-                );
+            $duenos = $this->duenos();
+
+            // Antes de escribir: dos filas que hoy eludían la unicidad por tener model_id nulo
+            // serían la misma al asignarles dueño. Se avisa con las filas, no con el error del índice.
+            $choques = $this->filasQueChocarian($duenos);
+
+            if ($choques !== []) {
+                throw new RuntimeException($this->mensaje($choques));
             }
 
-            $problemas = array_merge($this->filasSinDueno(), $this->filasIncoherentes());
+            foreach ($duenos as $tipo => $dueno) {
+                if ($dueno['uuid']) {
+                    DB::update(
+                        "UPDATE file_media f SET model_id = d.id FROM {$dueno['tabla']} d
+                         WHERE f.model_id IS NULL AND f.model_type = ? AND f.model_uuid = d.uuid",
+                        [$tipo],
+                    );
+                }
+            }
+
+            $problemas = array_merge($this->filasSinDueno($duenos), $this->filasIncoherentes($duenos));
 
             if ($problemas !== []) {
                 throw new RuntimeException($this->mensaje($problemas));
@@ -62,10 +76,11 @@ return new class extends Migration
     }
 
     /**
-     * Los tipos de dueño que existen de verdad, con su tabla ya escapada para SQL.
-     * El nombre sale del código de cada modelo, nunca de los datos de la fila.
+     * Los tipos de dueño que existen de verdad, con su tabla ya escapada para SQL y si esa tabla
+     * tiene `uuid` (con él se rellena `model_id`). El nombre sale del código de cada modelo,
+     * nunca de los datos de la fila.
      *
-     * @return array<string, string> clase => tabla
+     * @return array<string, array{tabla: string, uuid: bool}> clase => dueño
      */
     private function duenos(): array
     {
@@ -83,34 +98,110 @@ return new class extends Migration
 
             $tabla = (new $clase)->getTable();
 
-            if (Schema::hasColumn($tabla, 'uuid') && Schema::hasColumn($tabla, 'id')) {
-                $dueños[$clase] = DB::getQueryGrammar()->wrapTable($tabla);
+            if (Schema::hasColumn($tabla, 'id')) {
+                $dueños[$clase] = [
+                    'tabla' => DB::getQueryGrammar()->wrapTable($tabla),
+                    'uuid' => Schema::hasColumn($tabla, 'uuid'),
+                ];
             }
         }
 
         return $dueños;
     }
 
-    /** @return list<array{string, string}> */
-    private function filasSinDueno(): array
-    {
-        return DB::table('file_media')->whereNull('model_id')->orderBy('uuid')
-            ->get(['uuid', 'model_type', 'collection', 'path'])
-            ->map(fn (object $f): array => [
-                "{$f->uuid} ({$f->model_type}, {$f->collection}, {$f->path})",
-                'no se pudo inferir su model_id: el dueño no existe o su tipo no es un modelo',
-            ])->all();
-    }
-
-    /** @return list<array{string, string}> */
-    private function filasIncoherentes(): array
+    /**
+     * Filas que, con su dueño ya asignado, repetirían `[tipo, dueño, colección, archivo]`.
+     *
+     * @param  array<string, array{tabla: string, uuid: bool}>  $duenos
+     * @return list<array{string, string}>
+     */
+    private function filasQueChocarian(array $duenos): array
     {
         $problemas = [];
 
-        foreach ($this->duenos() as $tipo => $tabla) {
+        foreach ($duenos as $tipo => $dueno) {
+            if (! $dueno['uuid']) {
+                continue;
+            }
+
+            $grupos = DB::select(
+                "SELECT COALESCE(f.model_id, d.id) AS dueno, f.collection, f.filename,
+                        string_agg(f.uuid::text, ', ' ORDER BY f.uuid) AS filas
+                 FROM file_media f LEFT JOIN {$dueno['tabla']} d ON d.uuid = f.model_uuid
+                 WHERE f.model_type = ?
+                 GROUP BY COALESCE(f.model_id, d.id), f.collection, f.filename
+                 HAVING COALESCE(f.model_id, d.id) IS NOT NULL AND count(*) > 1
+                 ORDER BY 1, 2, 3",
+                [$tipo],
+            );
+
+            foreach ($grupos as $g) {
+                $problemas[] = [
+                    "{$g->filas} ({$tipo}, {$g->collection}, {$g->filename})",
+                    "repiten el mismo archivo para el dueño {$g->dueno}: chocarían en el índice único al asignarlo",
+                ];
+            }
+        }
+
+        return $problemas;
+    }
+
+    /**
+     * Sin `model_id`, o con uno cuyo dueño no se puede verificar: el tipo no es un modelo propio
+     * o el dueño ya no existe.
+     *
+     * @param  array<string, array{tabla: string, uuid: bool}>  $duenos
+     * @return list<array{string, string}>
+     */
+    private function filasSinDueno(array $duenos): array
+    {
+        $problemas = [];
+        $describir = static fn (object $f): string => "{$f->uuid} ({$f->model_type}, {$f->collection}, {$f->path})";
+        $columnas = ['uuid', 'model_type', 'collection', 'path'];
+
+        $sinId = DB::table('file_media')->whereNull('model_id')->orderBy('uuid')->get($columnas);
+        foreach ($sinId as $f) {
+            $problemas[] = [$describir($f), 'no se pudo inferir su model_id: el dueño no existe o su tipo no es un modelo'];
+        }
+
+        $tipoAjeno = DB::table('file_media')->whereNotNull('model_id')
+            ->whereNotIn('model_type', array_keys($duenos))->orderBy('uuid')->get($columnas);
+        foreach ($tipoAjeno as $f) {
+            $problemas[] = [$describir($f), 'su tipo no es un modelo propio que se pueda verificar'];
+        }
+
+        foreach ($duenos as $tipo => $dueno) {
+            $huerfanas = DB::select(
+                "SELECT f.uuid, f.model_type, f.collection, f.path, f.model_id FROM file_media f
+                 WHERE f.model_type = ? AND f.model_id IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM {$dueno['tabla']} d WHERE d.id = f.model_id)
+                 ORDER BY f.uuid",
+                [$tipo],
+            );
+            foreach ($huerfanas as $f) {
+                $problemas[] = [$describir($f), "su model_id {$f->model_id} no corresponde a ningún dueño existente"];
+            }
+        }
+
+        return $problemas;
+    }
+
+    /**
+     * @param  array<string, array{tabla: string, uuid: bool}>  $duenos
+     * @return list<array{string, string}>
+     */
+    private function filasIncoherentes(array $duenos): array
+    {
+        $problemas = [];
+
+        foreach ($duenos as $tipo => $dueno) {
+            if (! $dueno['uuid']) {
+                continue;
+            }
+
             $filas = DB::select(
                 "SELECT f.uuid, f.collection, f.path, f.model_id, d.id AS id_del_dueno
-                 FROM file_media f JOIN {$tabla} d ON d.uuid = f.model_uuid
+                 FROM file_media f JOIN {$dueno['tabla']} d ON d.uuid = f.model_uuid
                  WHERE f.model_type = ? AND f.model_id <> d.id ORDER BY f.uuid",
                 [$tipo],
             );
@@ -136,7 +227,7 @@ return new class extends Migration
         $resto = count($problemas) - count($lineas);
 
         return sprintf(
-            "La migración de file_media se detuvo SIN cambiar nada: %d fila(s) sin dueño verificable.\n%s%s\n"
+            "La migración de file_media se detuvo SIN cambiar nada: %d problema(s) de dueño en file_media.\n%s%s\n"
             .'Revise cada fila (¿el dueño fue borrado? ¿la fila es de prueba?), corríjala o retírela con criterio humano y vuelva a migrar.',
             count($problemas),
             implode("\n", $lineas),

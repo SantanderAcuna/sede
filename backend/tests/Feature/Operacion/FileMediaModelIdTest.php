@@ -143,6 +143,61 @@ final class FileMediaModelIdTest extends TestCase
         $this->assertStringContainsString($ajena, $mensaje);
     }
 
+    public function test_se_detiene_con_un_mensaje_claro_si_dos_filas_chocarian_en_el_indice_unico(): void
+    {
+        $this->ejecutar('down');
+        $banner = $this->banner();
+        // Antes eludían la unicidad por tener model_id nulo; al asignarles dueño serían la misma fila.
+        $a = $this->fila(['model_uuid' => $banner['uuid'], 'filename' => 'igual.png']);
+        $b = $this->fila(['model_uuid' => $banner['uuid'], 'filename' => 'igual.png']);
+        $apartada = $this->fila(['model_uuid' => $banner['uuid'], 'filename' => 'otra.png']);
+
+        $mensaje = $this->fallaCon(fn () => $this->ejecutar('up'));
+
+        $this->assertStringContainsString($a, $mensaje);
+        $this->assertStringContainsString($b, $mensaje);
+        $this->assertStringContainsString('igual.png', $mensaje);
+        $this->assertStringNotContainsString($apartada, $mensaje, 'Solo se listan las filas que chocan.');
+        $this->assertNull(DB::table('file_media')->where('uuid', $a)->value('model_id'), 'No debe quedar nada a medias.');
+        $this->assertFalse($this->existeHash());
+    }
+
+    public function test_se_detiene_si_una_fila_con_model_id_choca_con_otra_sin_model_id(): void
+    {
+        $this->ejecutar('down');
+        $banner = $this->banner();
+        $con = $this->fila(['model_id' => $banner['id'], 'model_uuid' => $banner['uuid'], 'filename' => 'igual.png']);
+        $sin = $this->fila(['model_uuid' => $banner['uuid'], 'filename' => 'igual.png']);
+
+        $mensaje = $this->fallaCon(fn () => $this->ejecutar('up'));
+
+        $this->assertStringContainsString($con, $mensaje);
+        $this->assertStringContainsString($sin, $mensaje);
+    }
+
+    public function test_se_detiene_si_una_fila_con_model_id_apunta_a_un_dueno_que_no_existe(): void
+    {
+        $this->ejecutar('down');
+        $banner = $this->banner();
+        $sana = $this->fila(['model_id' => $banner['id']]);
+        $huerfana = $this->fila(['model_id' => 987654]);
+
+        $mensaje = $this->fallaCon(fn () => $this->ejecutar('up'));
+
+        $this->assertStringContainsString($huerfana, $mensaje);
+        $this->assertStringNotContainsString($sana, $mensaje, 'Un model_id con dueño real no es un problema.');
+    }
+
+    public function test_se_detiene_si_una_fila_con_model_id_tiene_un_tipo_que_no_es_un_modelo(): void
+    {
+        $this->ejecutar('down');
+        $ajena = $this->fila(['model_type' => 'App\\Models\\NoExiste', 'model_id' => 1]);
+
+        $mensaje = $this->fallaCon(fn () => $this->ejecutar('up'));
+
+        $this->assertStringContainsString($ajena, $mensaje);
+    }
+
     public function test_despues_de_migrar_model_id_es_obligatorio_y_existe_el_hash(): void
     {
         $this->assertFalse($this->modelIdAdmiteNulos());

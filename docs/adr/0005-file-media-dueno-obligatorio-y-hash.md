@@ -1,4 +1,4 @@
-# ADR-0005: `file_media` con dueño obligatorio (`model_id`) y hash del contenido
+# Archivo 0005 (no es el `ADR-0005` del registro): `file_media` con dueño obligatorio (`model_id`) y hash del contenido
 
 > **Estado:** PROPUESTA (entrega 0B, tarea T8, de la Fase 0; pasa a ACEPTADA cuando José apruebe la fase)
 > **Fecha:** 2026-11-17
@@ -21,7 +21,9 @@ incoherentes, 0 huérfanas.
 1. `model_id` pasa a **NOT NULL**. La migración lo rellena desde `model_uuid` con el dueño real
    (por la tabla de su modelo) y **se detiene sin cambiar nada** si queda una fila sin dueño o con un
    `model_id` que contradice a su `model_uuid`: lista cada fila (uuid, tipo, colección, ruta) y no
-   borra ni inventa. Todo va en una transacción.
+   borra ni inventa. Todo va en una transacción. También se detiene, listando las filas, si una fila con
+   `model_id` apunta a un dueño que no existe o de un tipo que no es un modelo propio, y si dos filas
+   chocarían en el índice único al asignarles dueño (antes salía el error opaco de PostgreSQL).
 2. Las lecturas pasan a `model_type` + `model_id` (`Banner::imagenPrincipal`, `Noticia::imagenPrincipal`,
    `Politica::documentoOficial`, el borrado de una política y `FilesMediaService::getByCollection`).
    `model_type` se conserva en cada una: dos modelos pueden tener el mismo id.
@@ -30,7 +32,8 @@ incoherentes, 0 huérfanas.
    modelo sin id **falla antes de escribir en disco**.
 4. Nueva columna `hash_sha256` (`char(64)`, nullable). `upload` la calcula; los archivos que ya
    existían se rellenan con `php artisan archivos:calcular-hash`, que lee cada disco, es idempotente,
-   lista los archivos ausentes y termina con error si hay alguno. Una migración no debe leer discos.
+   lista los archivos ausentes y termina con error si hay alguno. Una migración no debe leer discos. El
+   despliegue lo ejecuta tras sembrar; si algún archivo no se lee, avisa y **no** vuelve atrás.
 5. **Expandir–contraer:** `model_uuid` y el campo `model_uuid` de `FileMediaResource` (contrato) **no**
    se retiran aquí; se retiran juntos, con regeneración del contrato, en una entrega posterior.
 
@@ -45,5 +48,5 @@ incoherentes, 0 huérfanas.
 
 ## Evidencia
 
-`tests/Feature/Operacion/FileMediaModelIdTest.php` (7), `tests/Feature/Api/V1/FileMediaPorModelIdTest.php`
+`tests/Feature/Operacion/FileMediaModelIdTest.php` (12), `tests/Feature/Api/V1/FileMediaPorModelIdTest.php`
 (8), `tests/Feature/Operacion/CalcularHashArchivosTest.php` (3).

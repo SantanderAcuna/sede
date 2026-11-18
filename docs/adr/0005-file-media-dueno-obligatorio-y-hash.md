@@ -49,13 +49,18 @@ incoherentes, 0 huérfanas.
    no vería lo escrito sin él. A no entra a `develop` mientras T8 no esté desplegado en staging, y B
    espera a que A se haya desplegado y estabilizado. Al llegar a B, las pruebas de la migración de T8
    (que insertan filas con `model_uuid`) deberán revertir antes la migración de borrado o retirarse con
-   la columna. Queda por decidir si la respuesta de la API conserva el uuid del dueño calculado desde
-   `model_id` o lo pierde (hoy ningún cliente lo lee).
+   la columna. Decidido por José (2026-11-17): `model_uuid` **sale** de la respuesta de la API (hoy ningún
+   código del panel ni del sitio lo lee; solo aparece en los tipos generados). A debe regenerar los
+   tipos de `panel` y `sitio`, rebasarse sobre `develop` antes de abrir su PR y queda en una rama sin
+   mezclar hasta que T8 esté desplegado en staging.
 
 ## Consecuencias
 
-- Antes de promover a staging o producción: **copia manual `backup:run`** justo antes (D-0.5), repetir
-  la consulta de coherencia, migrar y ejecutar `archivos:calcular-hash`.
+- Antes de promover a staging o producción: **copia manual** justo antes (D-0.5), con
+  `docker compose --profile copias run --rm copia`. Después se fusiona la promoción y el despliegue
+  migra, calcula las huellas y levanta por sí solo; la migración es la comprobación de coherencia
+  (aborta sin cambiar nada si hay choques o huérfanos). Tras el despliegue se verifica con consultas
+  de solo lectura.
 - Retroceso: `down()` devuelve `model_id` a nullable y quita `hash_sha256`; los valores rellenados de
   `model_id` se conservan. Para volver a un estado anterior a los datos, restaurar la copia previa.
 - Una instalación con filas sin dueño no migra hasta que una persona decida qué hacer con ellas: es a

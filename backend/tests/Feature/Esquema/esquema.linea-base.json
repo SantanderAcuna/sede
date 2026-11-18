@@ -15,46 +15,39 @@
       "razon": "Clave de Spatie Permission (relación binaria con tipo de modelo)."
     },
     {
-      "id": "enum_sin_check|file_media.collection"
+      "id": "enum_sin_check|file_media.collection",
+      "destino": "D10: la columna se retira con la mediateca"
     },
     {
-      "id": "enum_sin_check|file_media.disk"
+      "id": "enum_sin_check|file_media.disk",
+      "permanente": true,
+      "razon": "Nombre de un disco de almacenamiento: lo fija la configuración (config/filesystems.php), no el dominio."
     },
     {
-      "id": "enum_sin_check|politicas.acto_tipo"
+      "id": "enum_sin_check|politicas.acto_tipo",
+      "permanente": true,
+      "razon": "Texto libre validado a 60 caracteres (Resolución, Decreto…): el vocabulario lo decide quien publica."
     },
     {
-      "id": "enum_sin_check|tramite_canales.canal"
+      "id": "enum_sin_check|tramite_cuentas.tipo",
+      "destino": "Fase 5: catálogo de cuentas de recaudo (R16); el código solo limita el largo"
     },
     {
-      "id": "enum_sin_check|tramite_cuentas.tipo"
+      "id": "enum_sin_check|tramite_normas.tipo",
+      "destino": "Fase 5: catálogo de normas (R15); el vocabulario es abierto (8 tipos en staging)"
     },
     {
-      "id": "enum_sin_check|tramite_normas.tipo"
+      "id": "enum_sin_check|tramites.consulta_estado",
+      "permanente": true,
+      "razon": "No es una enumeración: guarda hasta 500 caracteres de texto o URL de seguimiento."
     },
     {
-      "id": "enum_sin_check|tramite_requisitos.tipo"
+      "id": "enum_sin_check|tramites.costo_moneda",
+      "destino": "Fase 5: coherencia del costo (R19); sin lista en el código y vacía en staging"
     },
     {
-      "id": "enum_sin_check|tramite_valoraciones.valor"
-    },
-    {
-      "id": "enum_sin_check|tramites.consulta_estado"
-    },
-    {
-      "id": "enum_sin_check|tramites.costo_moneda"
-    },
-    {
-      "id": "enum_sin_check|tramites.costo_tipo_valor"
-    },
-    {
-      "id": "enum_sin_check|tramites.modalidad"
-    },
-    {
-      "id": "enum_sin_check|tramites.tiene_costo"
-    },
-    {
-      "id": "enum_sin_check|tramites.type"
+      "id": "enum_sin_check|tramites.costo_tipo_valor",
+      "destino": "Fase 5: coherencia del costo (R19); sin lista en el código y vacía en staging"
     },
     {
       "id": "json|audit_log.cambios",

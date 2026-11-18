@@ -198,6 +198,20 @@ final class FileMediaModelIdTest extends TestCase
         $this->assertStringContainsString($ajena, $mensaje);
     }
 
+    public function test_una_fila_con_varios_problemas_se_lista_una_sola_vez(): void
+    {
+        $this->ejecutar('down');
+        $banner = $this->banner();
+        $doble = $this->fila(['model_id' => 987654, 'model_uuid' => $banner['uuid']]);
+
+        $mensaje = $this->fallaCon(fn () => $this->ejecutar('up'));
+
+        $this->assertSame(1, substr_count($mensaje, $doble), 'La fila debe salir una vez, con todos sus motivos.');
+        $this->assertStringContainsString('1 problema(s)', $mensaje);
+        $this->assertStringContainsString('no corresponde a ningún dueño existente', $mensaje);
+        $this->assertStringContainsString('contradice a model_uuid', $mensaje);
+    }
+
     public function test_despues_de_migrar_model_id_es_obligatorio_y_existe_el_hash(): void
     {
         $this->assertFalse($this->modelIdAdmiteNulos());

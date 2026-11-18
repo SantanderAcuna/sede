@@ -220,6 +220,16 @@ return new class extends Migration
     /** @param  list<array{string, string}>  $problemas */
     private function mensaje(array $problemas): string
     {
+        // Una fila con varios problemas sale una vez, con todos sus motivos.
+        $porFila = [];
+        foreach ($problemas as [$fila, $motivo]) {
+            $porFila[$fila][] = $motivo;
+        }
+        $problemas = [];
+        foreach ($porFila as $fila => $motivos) {
+            $problemas[] = [(string) $fila, implode('; ', $motivos)];
+        }
+
         $lineas = array_map(
             static fn (array $p): string => "  - {$p[0]}: {$p[1]}",
             array_slice($problemas, 0, self::MAXIMO_LISTADO),

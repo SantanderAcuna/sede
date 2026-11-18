@@ -18,7 +18,7 @@ use Tests\TestCase;
 /**
  * Las lecturas de `file_media` van por `model_type` + `model_id` (Fase 0B, T8).
  *
- * Antes iban por `model_uuid`; las filas se siguen escribiendo con los dos, pero el dueño
+ * Antes iban por `model_uuid`, que ya no se escribe (entrega A); el dueño
  * se reconoce por el id numérico, que es el que la migración vuelve obligatorio y el que
  * cubre la unicidad. `model_type` se conserva en cada lectura: dos modelos distintos
  * pueden tener el mismo id.

@@ -21,7 +21,6 @@ final class FileMediaFactory extends Factory
         $filename = Str::uuid()->toString().'.'.$extension;
 
         return [
-            'model_uuid' => null,
             'model_type' => 'App\Models\Entidad',
             'model_id' => $this->faker->numberBetween(1, 1_000_000),
             'collection' => $this->faker->randomElement(['logos', 'documentos', 'firmas', 'fotos']),

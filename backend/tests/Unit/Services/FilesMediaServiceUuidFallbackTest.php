@@ -63,65 +63,6 @@ final class FilesMediaServiceUuidFallbackTest extends TestCase
         $this->assertSame(42, $resultado);
     }
 
-    public function test_get_model_uuid_usa_property_exists_cuando_no_hay_get_attribute(): void
-    {
-        // Un objeto stdClass con propiedad uuid pero sin getAttribute
-        $objeto = new \stdClass;
-        $objeto->uuid = 'uuid-desde-property';
-
-        $service = new FilesMediaService;
-        $reflection = new \ReflectionClass($service);
-        $method = $reflection->getMethod('getModelUuid');
-        $method->setAccessible(true);
-
-        $resultado = $method->invoke($service, $objeto);
-
-        $this->assertSame('uuid-desde-property', $resultado);
-    }
-
-    public function test_get_model_uuid_devuelve_null_cuando_no_tiene_uuid_ni_get_attribute(): void
-    {
-        // Un objeto sin uuid y sin getAttribute
-        $objeto = new \stdClass;
-        $objeto->nombre = 'sin uuid';
-
-        $service = new FilesMediaService;
-        $reflection = new \ReflectionClass($service);
-        $method = $reflection->getMethod('getModelUuid');
-        $method->setAccessible(true);
-
-        $resultado = $method->invoke($service, $objeto);
-
-        $this->assertNull($resultado);
-    }
-
-    public function test_get_model_uuid_devuelve_null_cuando_uuid_no_es_string(): void
-    {
-        // Un objeto con uuid como int (no string)
-        $objeto = new class
-        {
-            public int $uuid = 12345;
-
-            public function getAttribute(string $key): mixed
-            {
-                if ($key === 'uuid') {
-                    return 12345; // int, no string
-                }
-
-                return null;
-            }
-        };
-
-        $service = new FilesMediaService;
-        $reflection = new \ReflectionClass($service);
-        $method = $reflection->getMethod('getModelUuid');
-        $method->setAccessible(true);
-
-        $resultado = $method->invoke($service, $objeto);
-
-        $this->assertNull($resultado);
-    }
-
     public function test_get_model_id_devuelve_null_cuando_id_no_es_numerico(): void
     {
         $objeto = new class

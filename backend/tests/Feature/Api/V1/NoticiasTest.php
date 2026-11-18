@@ -85,7 +85,6 @@ final class NoticiasTest extends TestCase
             'uuid' => (string) Str::uuid(),
             'model_type' => 'App\\Models\\Noticia',
             'model_id' => $id,
-            'model_uuid' => $uuid,
             'collection' => 'imagen',
             'filename' => 'foto.png',
             'original_filename' => 'foto.png',
@@ -319,7 +318,7 @@ final class NoticiasTest extends TestCase
                 ->assertJsonValidationErrors(['alt'], 'errors');
         }
 
-        $this->assertSame(0, DB::table('file_media')->where('model_uuid', $uuid)->count(), 'Sin alt no se guarda nada.');
+        $this->assertSame(0, DB::table('file_media')->where('model_type', 'App\\Models\\Noticia')->where('model_id', (int) DB::table('noticias')->where('uuid', $uuid)->value('id'))->count(), 'Sin alt no se guarda nada.');
     }
 
     public function test_solo_se_aceptan_imagenes(): void
@@ -349,7 +348,7 @@ final class NoticiasTest extends TestCase
                 ->assertJsonPath('data.imagen.alt', $alt);
         }
 
-        $this->assertSame(1, DB::table('file_media')->where('model_uuid', $uuid)->where('collection', 'imagen')->count());
+        $this->assertSame(1, DB::table('file_media')->where('model_type', 'App\\Models\\Noticia')->where('model_id', (int) DB::table('noticias')->where('uuid', $uuid)->value('id'))->where('collection', 'imagen')->count());
     }
 
     public function test_publica_con_imagen_y_alt_y_la_noticia_aparece_en_el_home(): void

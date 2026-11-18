@@ -22,7 +22,6 @@ final class FileMediaResource extends JsonResource
     {
         return [
             'uuid' => $this->uuid,
-            'model_uuid' => $this->model_uuid,
             'model_type' => $this->model_type,
             'model_id' => $this->model_id,
             'collection' => $this->collection,

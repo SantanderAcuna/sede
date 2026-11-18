@@ -50,9 +50,10 @@ incoherentes, 0 huérfanas.
    espera a que A se haya desplegado y estabilizado. Al llegar a B, las pruebas de la migración de T8
    (que insertan filas con `model_uuid`) deberán revertir antes la migración de borrado o retirarse con
    la columna. Decidido por José (2026-11-17): `model_uuid` **sale** de la respuesta de la API (hoy ningún
-   código del panel ni del sitio lo lee; solo aparece en los tipos generados). A debe regenerar los
-   tipos de `panel` y `sitio`, rebasarse sobre `develop` antes de abrir su PR y queda en una rama sin
-   mezclar hasta que T8 esté desplegado en staging.
+   código del panel ni del sitio lo lee; solo aparece en los tipos generados). Los tipos de `panel` y `sitio`
+   no se versionan (`openapi.d.ts` está en `.gitignore`; se generan con `make tipos` y en la CI), así
+   que A solo cambia el contrato y la CI los regenera. Entregada A (T8 ya estaba desplegado en
+   staging, 2026-11-17), B espera a que A se despliegue y se estabilice.
 
 ## Consecuencias
 

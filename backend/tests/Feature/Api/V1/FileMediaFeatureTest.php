@@ -82,7 +82,6 @@ final class FileMediaFeatureTest extends TestCase
 
         FileMedia::factory()->count(3)->create([
             'model_type' => Entidad::class,
-            'model_uuid' => $entidad->uuid,
             'model_id' => $entidad->id,
             'collection' => 'logos',
             'disk' => 'public',
@@ -90,7 +89,6 @@ final class FileMediaFeatureTest extends TestCase
 
         FileMedia::factory()->count(2)->create([
             'model_type' => Entidad::class,
-            'model_uuid' => $entidad->uuid,
             'model_id' => $entidad->id,
             'collection' => 'firmas',
             'disk' => 'public',
@@ -153,7 +151,8 @@ final class FileMediaFeatureTest extends TestCase
             ]);
 
         $this->assertDatabaseHas('file_media', [
-            'model_uuid' => $entidad->uuid,
+            'model_type' => Entidad::class,
+            'model_id' => $entidad->id,
             'collection' => 'logos',
         ]);
     }
@@ -173,7 +172,6 @@ final class FileMediaFeatureTest extends TestCase
         $archivo = FileMedia::factory()->create([
             'model_type' => Entidad::class,
             'model_id' => $entidad->id,
-            'model_uuid' => $entidad->uuid,
             'disk' => 'public',
             'path' => 'test/polymorphic.txt',
         ]);
@@ -187,18 +185,16 @@ final class FileMediaFeatureTest extends TestCase
     {
         $entidad = Entidad::firstOrFail();
 
-        // Crear archivos en dos colecciones usando model_uuid (no model_id)
+        // Crear archivos en dos colecciones del mismo dueño (por model_id)
         // Los archivos de logos tienen collection='logos'
         FileMedia::factory()->count(2)->create([
             'model_type' => Entidad::class,
-            'model_uuid' => $entidad->uuid,
             'model_id' => $entidad->id,
             'collection' => 'logos',
             'disk' => 'public',
         ]);
         FileMedia::factory()->count(3)->create([
             'model_type' => Entidad::class,
-            'model_uuid' => $entidad->uuid,
             'model_id' => $entidad->id,
             'collection' => 'firmas',
             'disk' => 'public',

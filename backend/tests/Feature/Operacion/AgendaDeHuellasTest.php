@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Operacion;
 
+use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
@@ -18,13 +19,16 @@ use Tests\TestCase;
  */
 final class AgendaDeHuellasTest extends TestCase
 {
-    private function tarea(): ?object
+    private function tarea(): ?Event
     {
         // `schedule:list` fuerza el arranque de las rutas de consola, donde está la agenda.
         Artisan::call('schedule:list');
 
-        return collect(app(Schedule::class)->events())
-            ->first(static fn ($evento): bool => str_ends_with((string) $evento->command, 'archivos:calcular-hash'));
+        /** @var Event|null $tarea */
+        $tarea = collect(app(Schedule::class)->events())
+            ->first(static fn (Event $evento): bool => str_ends_with((string) $evento->command, 'archivos:calcular-hash'));
+
+        return $tarea;
     }
 
     public function test_la_agenda_completa_las_huellas_cada_noche_fuera_de_la_ventana_de_copias(): void

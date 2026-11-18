@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature\Esquema;
 
 use App\Models\User;
-use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
+use stdClass;
 use Tests\TestCase;
 
 /**
@@ -28,16 +28,14 @@ final class MediatecaExpandirMigracionTest extends TestCase
 
     private const MIGRACION = '2026_11_19_700000_mediateca_expandir.php';
 
-    private function migracion(): Migration
+    /** La migración es una clase anónima: se usa sin tipo, como en las demás pruebas de migraciones. */
+    private function migracion(): mixed
     {
-        /** @var Migration $migracion */
-        $migracion = require database_path('migrations/'.self::MIGRACION);
-
-        return $migracion;
+        return require database_path('migrations/'.self::MIGRACION);
     }
 
     /** Estado «de antes»: sin las piezas nuevas. */
-    private function antes(): Migration
+    private function antes(): mixed
     {
         $migracion = $this->migracion();
         $migracion->down();
@@ -96,12 +94,15 @@ final class MediatecaExpandirMigracionTest extends TestCase
         ]);
     }
 
-    private function nulosYTipos(string $tabla, string $columna): ?object
+    private function nulosYTipos(string $tabla, string $columna): ?stdClass
     {
-        return DB::selectOne(
+        /** @var stdClass|null $fila */
+        $fila = DB::selectOne(
             'select data_type, is_nullable from information_schema.columns where table_schema = ? and table_name = ? and column_name = ?',
             ['public', $tabla, $columna],
         );
+
+        return $fila;
     }
 
     public function test_up_crea_las_piezas_con_las_claves_que_protegen_el_archivo_en_uso(): void
@@ -118,12 +119,16 @@ final class MediatecaExpandirMigracionTest extends TestCase
         }
 
         // Todas las claves hacia el archivo son RESTRICT: un archivo en uso no se puede borrar.
+        /** @var list<stdClass> $reglas */
         $reglas = DB::select(<<<'SQL'
             select c.conrelid::regclass::text as tabla, a.attname as columna, c.confdeltype as al_borrar
             from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any (c.conkey)
             where c.contype = 'f' and c.confrelid = 'file_media'::regclass
         SQL);
-        $hacia = collect($reglas)->mapWithKeys(fn (object $r): array => ["{$r->tabla}.{$r->columna}" => $r->al_borrar]);
+        $hacia = [];
+        foreach ($reglas as $regla) {
+            $hacia["{$regla->tabla}.{$regla->columna}"] = $regla->al_borrar;
+        }
         foreach (['noticias.imagen_principal_uuid', 'banners.imagen_uuid', 'noticia_imagenes.file_media_uuid', 'politica_documentos.file_media_uuid'] as $clave) {
             $this->assertSame('r', $hacia[$clave] ?? null, "{$clave} debe ser ON DELETE RESTRICT.");
         }

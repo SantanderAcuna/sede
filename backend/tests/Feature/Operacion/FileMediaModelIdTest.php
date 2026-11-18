@@ -34,12 +34,17 @@ final class FileMediaModelIdTest extends TestCase
     {
         parent::setUp();
 
+        $this->ejecutarRetiro('down');
+    }
+
+    /** Ejecuta `up` o `down` de la migración que retiró `model_uuid` (la entrega B). */
+    private function ejecutarRetiro(string $metodo): void
+    {
         $rutas = glob(database_path('migrations/*_retirar_model_uuid_de_file_media.php')) ?: [];
         $this->assertCount(1, $rutas, 'Falta la migración *_retirar_model_uuid_de_file_media.php');
 
         /** @var Migration $retiro */
         $retiro = require $rutas[0];
-        $metodo = 'down';
         $retiro->{$metodo}();
     }
 

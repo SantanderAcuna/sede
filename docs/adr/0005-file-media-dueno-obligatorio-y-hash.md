@@ -35,13 +35,32 @@ incoherentes, 0 huérfanas.
    lista los archivos ausentes y termina con error si hay alguno. Una migración no debe leer discos. El
    despliegue lo ejecuta tras sembrar (tope de 5 minutos; si algo falla, avisa y **no** vuelve atrás) y la
    agenda lo repite cada noche a las 03:00 de Bogotá para completar lo subido en la ventana de despliegue.
-5. **Expandir–contraer:** `model_uuid` y el campo `model_uuid` de `FileMediaResource` (contrato) **no**
-   se retiran aquí; se retiran juntos, con regeneración del contrato, en una entrega posterior.
+5. **Expandir–contraer, en tres lanzamientos separados** (orden aprobado por José, 2026-11-17).
+   `volver_atras` repone la imagen anterior pero **no deshace migraciones**, así que cada lanzamiento
+   debe poder retroceder al anterior sin perder datos:
+
+   | Lanzamiento | Contenido | Punto de retroceso |
+   |---|---|---|
+   | 1 | T8: lee por `model_id` y sigue escribiendo `model_id` y `model_uuid` | Versión anterior a T8, que lee por `model_uuid` y ve todo |
+   | 2 | A: deja de escribir `model_uuid` y lo quita de `FileMediaResource`, del contrato y de `$fillable`; el contrato declara `model_id` como entero requerido; guardia que compara el recurso con el esquema | T8, que lee por `model_id` y ve todo |
+   | 3 | B: migración que borra la columna `model_uuid` y su índice, tras repetir la comprobación de coherencia | A, que no la toca |
+
+   A **no** viaja con T8: si lo hiciera, el retroceso caería en una versión que lee por `model_uuid` y
+   no vería lo escrito sin él. A no entra a `develop` mientras T8 no esté desplegado en staging, y B
+   espera a que A se haya desplegado y estabilizado. Al llegar a B, las pruebas de la migración de T8
+   (que insertan filas con `model_uuid`) deberán revertir antes la migración de borrado o retirarse con
+   la columna. Decidido por José (2026-11-17): `model_uuid` **sale** de la respuesta de la API (hoy ningún
+   código del panel ni del sitio lo lee; solo aparece en los tipos generados). A debe regenerar los
+   tipos de `panel` y `sitio`, rebasarse sobre `develop` antes de abrir su PR y queda en una rama sin
+   mezclar hasta que T8 esté desplegado en staging.
 
 ## Consecuencias
 
-- Antes de promover a staging o producción: **copia manual `backup:run`** justo antes (D-0.5), repetir
-  la consulta de coherencia, migrar y ejecutar `archivos:calcular-hash`.
+- Antes de promover a staging o producción: **copia manual** justo antes (D-0.5), con
+  `docker compose --profile copias run --rm copia`. Después se fusiona la promoción y el despliegue
+  migra, calcula las huellas y levanta por sí solo; la migración es la comprobación de coherencia
+  (aborta sin cambiar nada si hay choques o huérfanos). Tras el despliegue se verifica con consultas
+  de solo lectura.
 - Retroceso: `down()` devuelve `model_id` a nullable y quita `hash_sha256`; los valores rellenados de
   `model_id` se conservan. Para volver a un estado anterior a los datos, restaurar la copia previa.
 - Una instalación con filas sin dueño no migra hasta que una persona decida qué hacer con ellas: es a

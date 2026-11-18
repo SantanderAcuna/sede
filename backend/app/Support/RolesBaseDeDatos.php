@@ -13,6 +13,7 @@ use RuntimeException;
  *
  *  - `sede`          dueño de todo; sólo corre migraciones (desde el despliegue).
  *  - `sede_app`      DML y secuencias. Sin DDL, sin TRUNCATE. Aplicación, Horizon, planificador.
+ *                    `audit_log` es de solo inserción: allí sólo INSERT y SELECT (0D, D6).
  *  - `sede_lectura`  SELECT. Copia de seguridad y reportes.
  *
  * Idempotente: los roles son del CLÚSTER, no de la base. Se invoca desde la migración
@@ -68,6 +69,17 @@ final class RolesBaseDeDatos
         ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO sede_app;
         ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO sede_lectura;
         ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO sede_lectura;
+        SQL);
+
+        // La bitácora es de solo inserción (0D, D6). Va AQUÍ y no en una migración porque el
+        // `GRANT … ON ALL TABLES` de arriba corre en cada despliegue y la volvería a abrir.
+        $bd->unprepared(<<<'SQL'
+        DO $$
+        BEGIN
+            IF to_regclass('public.audit_log') IS NOT NULL THEN
+                REVOKE UPDATE, DELETE, TRUNCATE ON public.audit_log FROM sede_app;
+            END IF;
+        END $$;
         SQL);
     }
 

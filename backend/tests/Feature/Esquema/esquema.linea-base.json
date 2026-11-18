@@ -52,7 +52,7 @@
     {
       "id": "json|audit_log.cambios",
       "permanente": true,
-      "razon": "Foto del cambio, no un dato que se consulte por campo; pasa a jsonb en D6."
+      "razon": "Foto del cambio, no un dato que se consulte por campo; es jsonb desde D6 (se valida y se puede indexar)."
     },
     {
       "id": "json|consentimientos.categorias"

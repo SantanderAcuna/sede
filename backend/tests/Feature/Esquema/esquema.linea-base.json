@@ -1,0 +1,241 @@
+{
+  "descripcion": "Línea base de la guarda del esquema (0D, D1; ADR 0008). Solo puede bajar: cada tarea de la 0D que corrige un defecto lo borra de aquí. 'permanente' = excepción a propósito, con razón.",
+  "defectos": [
+    {
+      "id": "clave_compuesta|file_media(model_type,model_id,collection,filename)"
+    },
+    {
+      "id": "clave_compuesta|model_has_permissions(permission_id,model_id,model_type)",
+      "permanente": true,
+      "razon": "Clave de Spatie Permission (relación binaria con tipo de modelo)."
+    },
+    {
+      "id": "clave_compuesta|model_has_roles(role_id,model_id,model_type)",
+      "permanente": true,
+      "razon": "Clave de Spatie Permission (relación binaria con tipo de modelo)."
+    },
+    {
+      "id": "enum_sin_check|file_media.collection"
+    },
+    {
+      "id": "enum_sin_check|file_media.disk"
+    },
+    {
+      "id": "enum_sin_check|politicas.acto_tipo"
+    },
+    {
+      "id": "enum_sin_check|tramite_canales.canal"
+    },
+    {
+      "id": "enum_sin_check|tramite_cuentas.tipo"
+    },
+    {
+      "id": "enum_sin_check|tramite_normas.tipo"
+    },
+    {
+      "id": "enum_sin_check|tramite_requisitos.tipo"
+    },
+    {
+      "id": "enum_sin_check|tramite_valoraciones.valor"
+    },
+    {
+      "id": "enum_sin_check|tramites.consulta_estado"
+    },
+    {
+      "id": "enum_sin_check|tramites.costo_moneda"
+    },
+    {
+      "id": "enum_sin_check|tramites.costo_tipo_valor"
+    },
+    {
+      "id": "enum_sin_check|tramites.modalidad"
+    },
+    {
+      "id": "enum_sin_check|tramites.tiene_costo"
+    },
+    {
+      "id": "enum_sin_check|tramites.type"
+    },
+    {
+      "id": "fecha_sin_zona|audit_log.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|banners.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|banners.deleted_at"
+    },
+    {
+      "id": "fecha_sin_zona|banners.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|consentimientos.registrado_en"
+    },
+    {
+      "id": "fecha_sin_zona|dependencias.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|dependencias.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|entidads.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|entidads.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|failed_jobs.failed_at"
+    },
+    {
+      "id": "fecha_sin_zona|file_media.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|file_media.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|menus.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|menus.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|noticias.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|noticias.deleted_at"
+    },
+    {
+      "id": "fecha_sin_zona|noticias.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|password_reset_tokens.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|permissions.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|permissions.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|personal_access_tokens.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|personal_access_tokens.expires_at"
+    },
+    {
+      "id": "fecha_sin_zona|personal_access_tokens.last_used_at"
+    },
+    {
+      "id": "fecha_sin_zona|personal_access_tokens.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|politicas.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|politicas.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|roles.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|roles.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|tramite_categorias.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|tramite_categorias.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|tramite_valoraciones.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|tramites.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|tramites.deleted_at"
+    },
+    {
+      "id": "fecha_sin_zona|tramites.publicado_en"
+    },
+    {
+      "id": "fecha_sin_zona|tramites.updated_at"
+    },
+    {
+      "id": "fecha_sin_zona|users.created_at"
+    },
+    {
+      "id": "fecha_sin_zona|users.email_verified_at"
+    },
+    {
+      "id": "fecha_sin_zona|users.updated_at"
+    },
+    {
+      "id": "fk_sin_indice|noticias.autor_id"
+    },
+    {
+      "id": "fk_sin_indice|role_has_permissions.role_id"
+    },
+    {
+      "id": "fk_sin_indice|tramite_requisitos.paso_id"
+    },
+    {
+      "id": "fk_sin_indice|tramites.categoria_id"
+    },
+    {
+      "id": "fk_sin_indice|tramites.dependencia_id"
+    },
+    {
+      "id": "json|audit_log.cambios",
+      "permanente": true,
+      "razon": "Foto del cambio, no un dato que se consulte por campo; pasa a jsonb en D6."
+    },
+    {
+      "id": "json|consentimientos.categorias"
+    },
+    {
+      "id": "json|entidads.datos_por_confirmar"
+    },
+    {
+      "id": "json|entidads.politicas"
+    },
+    {
+      "id": "json|entidads.redes"
+    },
+    {
+      "id": "json|file_media.metadata"
+    },
+    {
+      "id": "json|menus.roles"
+    },
+    {
+      "id": "json|politicas.secciones"
+    },
+    {
+      "id": "json|tramites.medios_resultado"
+    },
+    {
+      "id": "polimorfica|audit_log.causer",
+      "permanente": true,
+      "razon": "La bitácora debe sobrevivir al borrado de quien actuó; una clave foránea lo impediría."
+    },
+    {
+      "id": "polimorfica|file_media.model"
+    },
+    {
+      "id": "polimorfica|model_has_permissions.model",
+      "permanente": true,
+      "razon": "Tabla de Spatie Permission: cambiarla rompe las actualizaciones del paquete."
+    },
+    {
+      "id": "polimorfica|model_has_roles.model",
+      "permanente": true,
+      "razon": "Tabla de Spatie Permission: cambiarla rompe las actualizaciones del paquete."
+    },
+    {
+      "id": "polimorfica|personal_access_tokens.tokenable",
+      "permanente": true,
+      "razon": "Tabla de Laravel Sanctum: cambiarla rompe las actualizaciones del paquete."
+    }
+  ]
+}

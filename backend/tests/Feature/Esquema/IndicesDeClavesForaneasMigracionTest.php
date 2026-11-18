@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Esquema;
 
-use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -22,21 +21,16 @@ final class IndicesDeClavesForaneasMigracionTest extends TestCase
         'tramites_dependencia_id_index',
     ];
 
-    private function migracion(): Migration
-    {
-        return require database_path('migrations/2026_11_19_200000_indices_de_claves_foraneas.php');
-    }
-
     /** @return list<string> */
     private function existentes(): array
     {
-        return array_map(
+        return array_values(array_map(
             fn ($f): string => $f->indexname,
             DB::select('select indexname from pg_indexes where schemaname = ? and indexname = any (?)', [
                 'public',
                 '{'.implode(',', self::INDICES).'}',
             ]),
-        );
+        ));
     }
 
     public function test_up_crea_los_cinco_indices(): void
@@ -46,7 +40,7 @@ final class IndicesDeClavesForaneasMigracionTest extends TestCase
 
     public function test_down_los_borra_y_up_los_vuelve_a_crear(): void
     {
-        $migracion = $this->migracion();
+        $migracion = require database_path('migrations/2026_11_19_200000_indices_de_claves_foraneas.php');
 
         $migracion->down();
         $this->assertSame([], $this->existentes());

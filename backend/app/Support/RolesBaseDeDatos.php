@@ -14,6 +14,7 @@ use RuntimeException;
  *  - `sede`          dueño de todo; sólo corre migraciones (desde el despliegue).
  *  - `sede_app`      DML y secuencias. Sin DDL, sin TRUNCATE. Aplicación, Horizon, planificador.
  *                    `audit_log` es de solo inserción: allí sólo INSERT y SELECT (0D, D6).
+ *                    Trae límites de tiempo por omisión (0D, D7): ver `database.limites`.
  *  - `sede_lectura`  SELECT. Copia de seguridad y reportes.
  *
  * Idempotente: los roles son del CLÚSTER, no de la base. Se invoca desde la migración
@@ -81,6 +82,37 @@ final class RolesBaseDeDatos
             END IF;
         END $$;
         SQL);
+
+        self::fijarLimites($bd);
+    }
+
+    /**
+     * Límites de tiempo de `sede_app` (0D, D7), como valor por omisión del rol EN ESTA BASE.
+     *
+     * `IN DATABASE`: los roles son del clúster y sin eso otra base del mismo servidor heredaría los
+     * límites de la sede. Va aquí y no en una migración por lo mismo que la bitácora: `aplicar()` corre
+     * en cada despliegue y deja el valor vigente aunque alguien lo haya cambiado a mano. Sólo afecta a
+     * las sesiones NUEVAS: las ya abiertas (Horizon, el planificador) los toman al reiniciarse.
+     */
+    private static function fijarLimites(Connection $bd): void
+    {
+        $limites = config('database.limites.web');
+
+        if (! is_array($limites)) {
+            return;
+        }
+
+        // Lista cerrada en código: el nombre del parámetro nunca viene de fuera.
+        foreach (['statement_timeout', 'lock_timeout', 'idle_in_transaction_session_timeout'] as $parametro) {
+            $milisegundos = max(0, (int) ($limites[$parametro] ?? 0));
+
+            // `format` cita el identificador (%I) y el literal (%L) en el servidor, como en `fijarRol`.
+            $sql = $bd->scalar(
+                "select format('ALTER ROLE sede_app IN DATABASE %I SET %s = %L', current_database(), ?::text, ?::text)",
+                [$parametro, $milisegundos.'ms'],
+            );
+            $bd->statement((string) $sql);
+        }
     }
 
     private static function fijarRol(Connection $bd, string $rol, string $clave): void

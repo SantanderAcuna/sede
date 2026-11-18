@@ -12,7 +12,12 @@ Artisan::command('inspire', function () {
 
 // Retención del registro de consentimientos de cookies (T-26). Corre una vez al día
 // siempre que el servidor ejecute `schedule:run` cada minuto.
-Schedule::command('consentimientos:depurar')->daily();
+//
+// A las 02:15 de Bogotá (0D, D7). Con `->daily()` y la zona de la aplicación en UTC corría a las
+// 19:00 de Bogotá, en plena tarde, borrando de una vez lo que pasó la retención mientras la sede
+// tiene tráfico. Va DESPUÉS de limpiar (01:00) y de copiar (01:30, que puede tardar) para no
+// competir con ellas, y antes del hash (03:00).
+Schedule::command('consentimientos:depurar')->dailyAt('02:15')->timezone('America/Bogota')->withoutOverlapping();
 
 // Copias de seguridad de la base (docs/copias-de-seguridad.md). Las ejecuta el servicio
 // `scheduler`, que es el único proceso con la agenda y con el volumen de copias montado.

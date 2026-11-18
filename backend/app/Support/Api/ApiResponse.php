@@ -133,6 +133,17 @@ final class ApiResponse
     }
 
     /**
+     * El servicio no puede atender ahora (503), con `Retry-After` en segundos.
+     *
+     * La base cortó la consulta por tiempo o por un bloqueo (0D, D7): saturación pasajera, no un
+     * defecto de la petición. El cliente lee `Retry-After` —expuesto en CORS— para saber cuándo volver.
+     */
+    public static function serviceUnavailable(string $message = 'El servicio está ocupado. Intenta de nuevo en unos segundos.', int $reintentarEn = 5): JsonResponse
+    {
+        return self::error($message, 503)->withHeaders(['Retry-After' => (string) $reintentarEn]);
+    }
+
+    /**
      * Un recurso individual.
      *
      * El `resolve()` no es decorativo: un `JsonResource` devuelto tal cual a

@@ -390,6 +390,13 @@ jobs:
           # montaje relativo de un ARCHIVO (`./docker/...`) allí no existe: Docker crea un
           # directorio y el contenedor muere con «is a directory». Pasó con PostgreSQL.
           bash deploy/pruebas/guarda-montajes-compose.sh
+      - name: El guion instalado en el servidor es el del repositorio
+        run: |
+          # El despliegue corre /usr/local/bin/desplegar.sh, una copia instalada a mano. La
+          # huella del guion viaja en la imagen y el guion del servidor la compara con la
+          # suya; esta guarda comprueba que la huella del repositorio sea la del guion
+          # actual, que el Dockerfile la copie y que la comprobación distinga los tres casos.
+          bash deploy/pruebas/guarda-guion-instalado.sh
       - name: El TLS a la base se exige y el certificado se emite y se renueva
         run: |
           # Contra el servicio `postgres` real de compose.yaml: una conexión sin cifrar es

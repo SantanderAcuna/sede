@@ -18,15 +18,15 @@ use Tests\TestCase;
 /**
  * Retiro de `model_uuid` de la API y de lo que se escribe (Fase 0B, entrega A; ADR 0005).
  *
- * La columna sigue existiendo hasta la entrega B: aquí solo se comprueba que ya no se escribe,
- * que no sale en la respuesta y que el recurso y el contrato dicen lo mismo.
+ * La columna se borró en la entrega B: aquí se comprueba que no se escribe, que no sale en la
+ * respuesta y que el recurso y el contrato dicen lo mismo.
  */
 final class FileMediaSinModelUuidTest extends TestCase
 {
     use CreaFilasDeArchivos;
     use RefreshDatabase;
 
-    public function test_upload_ya_no_escribe_model_uuid(): void
+    public function test_upload_guarda_el_dueno_por_model_id_y_sin_model_uuid(): void
     {
         Storage::fake('local');
         config(['filesystems.default' => 'local']);
@@ -34,7 +34,8 @@ final class FileMediaSinModelUuidTest extends TestCase
 
         $fila = (new FilesMediaService)->upload(UploadedFile::fake()->createWithContent('foto.png', 'x'), 'imagen', $banner);
 
-        $this->assertDatabaseHas('file_media', ['uuid' => $fila->uuid, 'model_id' => $banner->id, 'model_uuid' => null]);
+        $this->assertDatabaseHas('file_media', ['uuid' => $fila->uuid, 'model_id' => $banner->id]);
+        $this->assertArrayNotHasKey('model_uuid', $fila->getAttributes());
     }
 
     public function test_el_recurso_no_expone_model_uuid(): void

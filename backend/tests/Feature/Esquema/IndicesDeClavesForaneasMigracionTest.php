@@ -33,9 +33,15 @@ final class IndicesDeClavesForaneasMigracionTest extends TestCase
         ));
     }
 
-    public function test_up_crea_los_cinco_indices(): void
+    public function test_el_esquema_completo_conserva_los_indices_de_las_claves(): void
     {
-        $this->assertEqualsCanonicalizing(self::INDICES, $this->existentes());
+        // D5 reemplazó el índice de `paso_id` solo por `(paso_id, tramite_id)`, que sirve a la clave compuesta.
+        $esperados = array_values(array_diff(self::INDICES, ['tramite_requisitos_paso_id_index']));
+
+        $this->assertEqualsCanonicalizing($esperados, $this->existentes());
+        $this->assertSame(1, (int) DB::scalar(
+            "select count(*) from pg_indexes where schemaname = 'public' and indexname = 'tramite_requisitos_paso_id_tramite_id_index'",
+        ));
     }
 
     public function test_down_los_borra_y_up_los_vuelve_a_crear(): void

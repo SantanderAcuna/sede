@@ -11,6 +11,7 @@ use Database\Seeders\EntidadSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\SuperAdminSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -100,12 +101,24 @@ final class AuditoriaTest extends TestCase
     }
 
     /**
+     * Vacía la bitácora como lo haría una persona con permiso (docs/bitacora-auditoria.md): la
+     * tabla es de solo inserción, así que se desactiva su trigger. Todo ocurre dentro de la
+     * transacción de la prueba y se deshace al terminar.
+     */
+    private function vaciarBitacora(): void
+    {
+        DB::unprepared('alter table audit_log disable trigger user');
+        AuditLog::query()->delete();
+        DB::unprepared('alter table audit_log enable trigger user');
+    }
+
+    /**
      * Deja exactamente $cantidad registros en el log, sin disparar los eventos que
      * a su vez escribirían más filas.
      */
     private function crearRegistros(int $cantidad): void
     {
-        AuditLog::query()->delete();
+        $this->vaciarBitacora();
 
         AuditLog::withoutEvents(function () use ($cantidad): void {
             for ($i = 0; $i < $cantidad; $i++) {
@@ -196,23 +209,24 @@ final class AuditoriaTest extends TestCase
 
     public function test_auditoria_filtra_por_fecha_desde(): void
     {
-        // Limpiar todo antes de insertar los registros controladas
-        AuditLog::query()->delete();
+        // Limpiar todo antes de insertar los registros controlados
+        $this->vaciarBitacora();
 
         $fechaCorte = now()->subDays(5)->toDateString();
 
         // `created_at` NO es asignable en masa (ver AuditLog::$fillable): pasarlo a
         // `create()` lo descartaba en silencio y los dos registros nacían con la hora
         // actual. Esta prueba pasaba en verde sin ejercer el filtro, porque además
-        // `data` salía vacío (H-08). Se fija la fecha después de crear.
+        // `data` salía vacío (H-08). La fecha se fija al CREAR con `forceFill`: la bitácora es
+        // de solo inserción y un `UPDATE` posterior (el `save()` de antes) ya no se admite.
         AuditLog::withoutEvents(function (): void {
-            $antiguo = AuditLog::create([
+            (new AuditLog)->forceFill([
                 'accion' => 'login',
                 'recurso' => 'session',
                 'causer_id' => $this->user->id,
                 'ip_origen' => '127.0.0.1',
-            ]);
-            $antiguo->forceFill(['created_at' => now()->subDays(10)])->save();
+                'created_at' => now()->subDays(10),
+            ])->save();
 
             AuditLog::create([
                 'accion' => 'logout',

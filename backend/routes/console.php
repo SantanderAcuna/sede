@@ -37,3 +37,9 @@ Schedule::command('consentimientos:depurar')->daily();
 Schedule::command('backup:clean')->dailyAt('01:00')->timezone('America/Bogota')->withoutOverlapping();
 Schedule::command('backup:run')->dailyAt('01:30')->timezone('America/Bogota')->withoutOverlapping();
 Schedule::command('backup:monitor')->dailyAt('06:00')->timezone('America/Bogota');
+
+// Huella (SHA-256) de los archivos que aún no la tienen (Fase 0B, T8). El despliegue ya la
+// calcula; esto cubre lo que se subió con la versión anterior durante la ventana de despliegue
+// o mientras un disco no respondía. Es idempotente (solo toca filas sin huella) y corre a las
+// 03:00 de Bogotá, entre la copia (01:30) y su vigilancia (06:00), para no competir con ella.
+Schedule::command('archivos:calcular-hash')->dailyAt('03:00')->timezone('America/Bogota')->withoutOverlapping();

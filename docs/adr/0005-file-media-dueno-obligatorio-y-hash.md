@@ -33,7 +33,8 @@ incoherentes, 0 huérfanas.
 4. Nueva columna `hash_sha256` (`char(64)`, nullable). `upload` la calcula; los archivos que ya
    existían se rellenan con `php artisan archivos:calcular-hash`, que lee cada disco, es idempotente,
    lista los archivos ausentes y termina con error si hay alguno. Una migración no debe leer discos. El
-   despliegue lo ejecuta tras sembrar; si algún archivo no se lee, avisa y **no** vuelve atrás.
+   despliegue lo ejecuta tras sembrar (tope de 5 minutos; si algo falla, avisa y **no** vuelve atrás) y la
+   agenda lo repite cada noche a las 03:00 de Bogotá para completar lo subido en la ventana de despliegue.
 5. **Expandir–contraer:** `model_uuid` y el campo `model_uuid` de `FileMediaResource` (contrato) **no**
    se retiran aquí; se retiran juntos, con regeneración del contrato, en una entrega posterior.
 

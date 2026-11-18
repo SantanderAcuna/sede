@@ -75,7 +75,9 @@ return new class extends Migration
         foreach ($tipos as $tipo) {
             $clase = (string) $tipo;
 
-            if (! class_exists($clase) || ! is_subclass_of($clase, Model::class)) {
+            // Solo modelos propios: el tipo sale de una fila de datos y no debe llevar a
+            // cargar ni instanciar una clase cualquiera de las dependencias.
+            if (! str_starts_with($clase, 'App\\Models\\') || ! class_exists($clase) || ! is_subclass_of($clase, Model::class)) {
                 continue;
             }
 

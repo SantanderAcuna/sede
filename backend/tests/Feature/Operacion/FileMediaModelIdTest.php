@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Operacion;
 
+use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,6 +25,12 @@ final class FileMediaModelIdTest extends TestCase
 {
     use CreaFilasDeArchivos;
     use RefreshDatabase;
+
+    /** Ejecuta `up` o `down` de la migración: la clase anónima las tiene, el tipo `Migration` no. */
+    private function ejecutar(string $metodo): void
+    {
+        $this->migracion()->{$metodo}();
+    }
 
     private function migracion(): Migration
     {
@@ -61,38 +68,35 @@ final class FileMediaModelIdTest extends TestCase
 
     public function test_rellena_model_id_desde_model_uuid(): void
     {
-        $migracion = $this->migracion();
-        $migracion->down();
+        $this->ejecutar('down');
         $banner = $this->banner();
         $uuid = $this->fila(['model_uuid' => $banner['uuid']]);
 
-        $migracion->up();
+        $this->ejecutar('up');
 
         $this->assertSame($banner['id'], (int) DB::table('file_media')->where('uuid', $uuid)->value('model_id'));
     }
 
     public function test_deja_intacta_una_fila_que_ya_era_coherente(): void
     {
-        $migracion = $this->migracion();
-        $migracion->down();
+        $this->ejecutar('down');
         $banner = $this->banner();
         $uuid = $this->fila(['model_id' => $banner['id'], 'model_uuid' => $banner['uuid']]);
 
-        $migracion->up();
+        $this->ejecutar('up');
 
         $this->assertSame($banner['id'], (int) DB::table('file_media')->where('uuid', $uuid)->value('model_id'));
     }
 
     public function test_se_detiene_y_lista_las_filas_sin_dueno_sin_cambiar_nada(): void
     {
-        $migracion = $this->migracion();
-        $migracion->down();
+        $this->ejecutar('down');
         $banner = $this->banner();
         $arreglable = $this->fila(['model_uuid' => $banner['uuid']]);
         $huerfana = $this->fila(['model_uuid' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
         $sinNada = $this->fila();
 
-        $mensaje = $this->fallaCon(fn () => $migracion->up());
+        $mensaje = $this->fallaCon(fn () => $this->ejecutar('up'));
 
         $this->assertStringContainsString($huerfana, $mensaje);
         $this->assertStringContainsString($sinNada, $mensaje);
@@ -104,13 +108,12 @@ final class FileMediaModelIdTest extends TestCase
 
     public function test_se_detiene_si_el_model_id_no_coincide_con_el_dueno_del_uuid(): void
     {
-        $migracion = $this->migracion();
-        $migracion->down();
+        $this->ejecutar('down');
         $banner = $this->banner();
         $otro = $this->banner();
         $incoherente = $this->fila(['model_id' => $otro['id'], 'model_uuid' => $banner['uuid']]);
 
-        $mensaje = $this->fallaCon(fn () => $migracion->up());
+        $mensaje = $this->fallaCon(fn () => $this->ejecutar('up'));
 
         $this->assertStringContainsString($incoherente, $mensaje);
         $this->assertSame($otro['id'], (int) DB::table('file_media')->where('uuid', $incoherente)->value('model_id'));
@@ -118,12 +121,24 @@ final class FileMediaModelIdTest extends TestCase
 
     public function test_se_detiene_con_un_model_type_que_no_existe(): void
     {
-        $migracion = $this->migracion();
-        $migracion->down();
+        $this->ejecutar('down');
         $banner = $this->banner();
         $ajena = $this->fila(['model_type' => 'App\\Models\\NoExiste', 'model_uuid' => $banner['uuid']]);
 
-        $mensaje = $this->fallaCon(fn () => $migracion->up());
+        $mensaje = $this->fallaCon(fn () => $this->ejecutar('up'));
+
+        $this->assertStringContainsString($ajena, $mensaje);
+    }
+
+    public function test_no_resuelve_un_dueno_que_no_es_un_modelo_propio(): void
+    {
+        $this->ejecutar('down');
+        // Un dueño que SÍ existe (el usuario), pero cuyo tipo es una clase de las dependencias:
+        // sin la restricción a `App\Models` se habría resuelto y rellenado.
+        $usuario = User::factory()->create();
+        $ajena = $this->fila(['model_type' => 'Illuminate\\Foundation\\Auth\\User', 'model_uuid' => $usuario->uuid]);
+
+        $mensaje = $this->fallaCon(fn () => $this->ejecutar('up'));
 
         $this->assertStringContainsString($ajena, $mensaje);
     }
@@ -139,9 +154,7 @@ final class FileMediaModelIdTest extends TestCase
 
     public function test_down_devuelve_el_esquema_anterior(): void
     {
-        $migracion = $this->migracion();
-
-        $migracion->down();
+        $this->ejecutar('down');
 
         $this->assertTrue($this->modelIdAdmiteNulos());
         $this->assertFalse($this->existeHash());

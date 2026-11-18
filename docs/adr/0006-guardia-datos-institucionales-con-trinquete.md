@@ -15,7 +15,7 @@ Los datos de la Entidad (teléfonos, correos, dirección, código postal, NIT, d
 
 1. Un literal que no está en la línea base **rompe la CI**.
 2. Una entrada de la línea base que **ya no existe** en el código también la rompe: la lista solo puede bajar, y cada archivo que la Fase 1 limpie sale de ella.
-3. La única excepción permanente es el respaldo del pie de página (`permanente: true`, 6 de las 18 entradas): si la API y la caché no responden, el pie usa el código (orden: API, caché, código).
+3. La única excepción permanente es el respaldo del pie de página (`permanente: true`, 6 de las 18 entradas): si la API no responde o no trae ninguna red válida, el pie usa el respaldo escrito en el código (`REDES_RESPALDO`, en `layouts/default.vue`). No hay caché intermedia: el orden es API y, si falla, código.
 
 El detector se prueba aparte (correo, teléfono normalizado sin importar los espacios, dirección, código postal, NIT y dependencias; un caso negativo con código limpio).
 

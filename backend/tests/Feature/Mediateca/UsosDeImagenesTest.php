@@ -75,7 +75,7 @@ final class UsosDeImagenesTest extends TestCase
     {
         $id = (int) DB::table('noticias')->where('uuid', $noticiaUuid)->value('id');
 
-        return DB::table('noticia_imagenes')->where('noticia_id', $id)->orderBy('file_media_uuid')->pluck('file_media_uuid')->all();
+        return array_values(array_map('strval', DB::table('noticia_imagenes')->where('noticia_id', $id)->orderBy('file_media_uuid')->pluck('file_media_uuid')->all()));
     }
 
     public function test_al_crear_se_vinculan_las_imagenes_del_cuerpo_sin_repetidas(): void

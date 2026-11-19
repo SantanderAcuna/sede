@@ -11,7 +11,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -59,17 +58,18 @@ final class ReutilizoDeImagenesTest extends TestCase
         return UploadedFile::fake()->createWithContent('foto.png', (string) ob_get_clean());
     }
 
-    private function subir(User $u, UploadedFile $f, string $alt = 'Foto'): TestResponse
+    /** @return array<string, mixed> */
+    private function subir(User $u, UploadedFile $f, string $alt = 'Foto'): array
     {
-        return $this->actingAs($u)->postJson(self::SUBIR, ['imagen' => $f, 'alt' => $alt])->assertCreated();
+        return (array) $this->actingAs($u)->postJson(self::SUBIR, ['imagen' => $f, 'alt' => $alt])->assertCreated()->json();
     }
 
     public function test_la_misma_imagen_subida_dos_veces_es_un_solo_archivo(): void
     {
         $u = $this->editor();
 
-        $a = $this->subir($u, $this->png(0x336699))->json('data.uuid');
-        $b = $this->subir($u, $this->png(0x336699))->json('data.uuid');
+        $a = $this->subir($u, $this->png(0x336699))['data']['uuid'];
+        $b = $this->subir($u, $this->png(0x336699))['data']['uuid'];
 
         $this->assertSame($a, $b);
         $this->assertSame(1, DB::table('file_media')->where('collection', 'contenido')->count());
@@ -79,8 +79,8 @@ final class ReutilizoDeImagenesTest extends TestCase
     {
         $u = $this->editor();
 
-        $a = $this->subir($u, $this->png(0x336699))->json('data.uuid');
-        $b = $this->subir($u, $this->png(0x993366))->json('data.uuid');
+        $a = $this->subir($u, $this->png(0x336699))['data']['uuid'];
+        $b = $this->subir($u, $this->png(0x993366))['data']['uuid'];
 
         $this->assertNotSame($a, $b);
     }
@@ -92,13 +92,13 @@ final class ReutilizoDeImagenesTest extends TestCase
 
         $r = $this->subir($u, $this->png(0x336699), 'Segundo texto');
 
-        $r->assertJsonPath('data.alt', 'Segundo texto');
+        $this->assertSame('Segundo texto', $r['data']['alt']);
     }
 
     public function test_el_reuso_renueva_updated_at_con_la_hora_de_php(): void
     {
         $u = $this->editor();
-        $uuid = $this->subir($u, $this->png(0x336699))->json('data.uuid');
+        $uuid = $this->subir($u, $this->png(0x336699))['data']['uuid'];
         DB::table('file_media')->where('uuid', $uuid)->update(['updated_at' => '2026-01-01 00:00:00']);
         Carbon::setTestNow('2026-11-20 12:00:00');
 
@@ -110,10 +110,10 @@ final class ReutilizoDeImagenesTest extends TestCase
     public function test_si_el_archivo_ya_no_esta_en_el_disco_se_sube_uno_nuevo(): void
     {
         $u = $this->editor();
-        $a = $this->subir($u, $this->png(0x336699))->json('data.uuid');
+        $a = $this->subir($u, $this->png(0x336699))['data']['uuid'];
         Storage::disk((string) config('filesystems.default'))->delete((string) DB::table('file_media')->where('uuid', $a)->value('path'));
 
-        $b = $this->subir($u, $this->png(0x336699))->json('data.uuid');
+        $b = $this->subir($u, $this->png(0x336699))['data']['uuid'];
 
         $this->assertNotSame($a, $b);
         Storage::disk((string) config('filesystems.default'))->assertExists((string) DB::table('file_media')->where('uuid', $b)->value('path'));
@@ -122,10 +122,10 @@ final class ReutilizoDeImagenesTest extends TestCase
     public function test_el_reuso_solo_aplica_a_la_coleccion_contenido(): void
     {
         $u = $this->editor();
-        $a = $this->subir($u, $this->png(0x336699))->json('data.uuid');
+        $a = $this->subir($u, $this->png(0x336699))['data']['uuid'];
         DB::table('file_media')->where('uuid', $a)->update(['collection' => 'imagen']);
 
-        $b = $this->subir($u, $this->png(0x336699))->json('data.uuid');
+        $b = $this->subir($u, $this->png(0x336699))['data']['uuid'];
 
         $this->assertNotSame($a, $b);
     }

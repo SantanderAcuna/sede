@@ -133,9 +133,12 @@ final class PoliticaDocumentosTest extends TestCase
             ->orderBy('id')->get();
 
         $this->assertSame(['politica_documento_adjuntado', 'politica_documento_quitado'], $filas->pluck('accion')->all());
-        $this->assertSame($u->id, (int) $filas[0]->causer_id);
-        $this->assertSame($a, json_decode((string) $filas[1]->cambios, true)['archivo']);
-        $this->assertSame('oficial', json_decode((string) $filas[1]->cambios, true)['era']);
+        $adjuntado = DB::table('audit_log')->where('accion', 'politica_documento_adjuntado')->where('recurso_id', $this->politica->id)->sole();
+        $quitado = DB::table('audit_log')->where('accion', 'politica_documento_quitado')->where('recurso_id', $this->politica->id)->sole();
+        $cambios = (array) json_decode((string) $quitado->cambios, true);
+        $this->assertSame($u->id, (int) $adjuntado->causer_id);
+        $this->assertSame($a, $cambios['archivo']);
+        $this->assertSame('oficial', $cambios['era']);
     }
 
     public function test_el_listado_de_la_api_trae_el_oficial_primero(): void

@@ -131,11 +131,11 @@ final class ImagenPrincipalTest extends TestCase
 
         $this->subirANoticia($editor, $uuid, 'Una playa');
 
-        $noticia = DB::table('noticias')->where('uuid', $uuid)->first();
+        $noticia = DB::table('noticias')->where('uuid', $uuid)->sole();
         $this->assertNotNull($noticia->imagen_principal_uuid);
         $this->assertSame('Una playa', $noticia->imagen_principal_alt);
 
-        $archivo = DB::table('file_media')->where('uuid', $noticia->imagen_principal_uuid)->first();
+        $archivo = DB::table('file_media')->where('uuid', $noticia->imagen_principal_uuid)->sole();
         $this->assertSame('App\\Models\\Noticia', $archivo->model_type);
         $this->assertSame((int) $noticia->id, (int) $archivo->model_id);
         $this->assertSame('imagen', $archivo->collection);
@@ -154,7 +154,7 @@ final class ImagenPrincipalTest extends TestCase
 
         $this->subirANoticia($editor, $uuid, 'Segunda');
 
-        $noticia = DB::table('noticias')->where('uuid', $uuid)->first();
+        $noticia = DB::table('noticias')->where('uuid', $uuid)->sole();
         $this->assertNotSame($primera, $noticia->imagen_principal_uuid);
         $this->assertSame('Segunda', $noticia->imagen_principal_alt);
         $this->assertFalse(DB::table('file_media')->where('uuid', $primera)->exists());
@@ -203,7 +203,7 @@ final class ImagenPrincipalTest extends TestCase
         $this->actingAs($editor)->patchJson("/api/v1/panel/noticias/{$uuid}", ['imagen_alt' => 'Alt corregido'])
             ->assertOk()->assertJsonPath('data.imagen.alt', 'Alt corregido');
 
-        $noticia = DB::table('noticias')->where('uuid', $uuid)->first();
+        $noticia = DB::table('noticias')->where('uuid', $uuid)->sole();
         $this->assertSame('Alt corregido', $noticia->imagen_principal_alt);
         $metadata = json_decode((string) DB::table('file_media')->where('uuid', $noticia->imagen_principal_uuid)->value('metadata'), true);
         $this->assertSame('Alt corregido', $metadata['alt'], 'Sin esto, volver atrás mostraría el alt viejo y una resincronización lo pisaría.');
@@ -215,11 +215,11 @@ final class ImagenPrincipalTest extends TestCase
         $banner = (string) $this->actingAs($gestor)->postJson('/api/v1/panel/banners', ['titulo' => 'Predial'])->assertCreated()->json('data.uuid');
 
         $this->actingAs($gestor)->post("/api/v1/panel/banners/{$banner}/imagen", ['imagen' => $this->png(), 'alt' => 'Fachada'], ['Accept' => 'application/json'])->assertOk();
-        $fila = DB::table('banners')->where('uuid', $banner)->first();
+        $fila = DB::table('banners')->where('uuid', $banner)->sole();
         $primera = (string) $fila->imagen_uuid;
         $this->assertNotSame('', $primera);
         $this->assertSame('Fachada', $fila->imagen_alt);
-        $archivo = DB::table('file_media')->where('uuid', $primera)->first();
+        $archivo = DB::table('file_media')->where('uuid', $primera)->sole();
         $this->assertSame('App\\Models\\Banner', $archivo->model_type);
         $this->assertSame((int) $fila->id, (int) $archivo->model_id);
 

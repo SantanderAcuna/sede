@@ -7,6 +7,7 @@ namespace Tests\Feature\Mediateca;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -61,6 +62,16 @@ final class LimpiezaSinUsoTest extends TestCase
         ]);
     }
 
+    /**
+     * @param  array<string, mixed>  $opciones
+     */
+    private function limpiar(array $opciones = []): string
+    {
+        $this->assertSame(0, Artisan::call('archivos:limpiar-sin-uso', $opciones));
+
+        return Artisan::output();
+    }
+
     private function existe(string $uuid): bool
     {
         return DB::table('file_media')->where('uuid', $uuid)->exists();
@@ -75,7 +86,7 @@ final class LimpiezaSinUsoTest extends TestCase
     {
         $viejo = $this->archivo('contenido', '2026-11-12 11:59:59');
 
-        $this->artisan('archivos:limpiar-sin-uso')->assertSuccessful();
+        $this->limpiar();
 
         $this->assertFalse($this->existe($viejo));
         $this->assertFalse($this->enDisco($viejo));
@@ -86,7 +97,7 @@ final class LimpiezaSinUsoTest extends TestCase
         $limite = $this->archivo('contenido', '2026-11-13 12:00:00');
         $reciente = $this->archivo('contenido', '2026-11-19 12:00:00');
 
-        $this->artisan('archivos:limpiar-sin-uso')->assertSuccessful();
+        $this->limpiar();
 
         $this->assertTrue($this->existe($limite));
         $this->assertTrue($this->existe($reciente));
@@ -97,7 +108,7 @@ final class LimpiezaSinUsoTest extends TestCase
         $solo_creado = $this->archivo('contenido', null, '2026-11-01 00:00:00');
         $sin_fechas = $this->archivo('contenido', null, null);
 
-        $this->artisan('archivos:limpiar-sin-uso')->assertSuccessful();
+        $this->limpiar();
 
         $this->assertFalse($this->existe($solo_creado));
         $this->assertTrue($this->existe($sin_fechas));
@@ -112,7 +123,7 @@ final class LimpiezaSinUsoTest extends TestCase
         $enBanner = $this->archivo('contenido', '2026-10-01 00:00:00');
         DB::table('banners')->insert(['uuid' => (string) Str::uuid(), 'titulo' => 'B', 'imagen_uuid' => $enBanner, 'created_at' => now(), 'updated_at' => now()]);
 
-        $this->artisan('archivos:limpiar-sin-uso')->assertSuccessful();
+        $this->limpiar();
 
         foreach ([$enNoticia, $principal, $enBanner] as $uuid) {
             $this->assertTrue($this->existe($uuid));
@@ -125,9 +136,7 @@ final class LimpiezaSinUsoTest extends TestCase
         $imagen = $this->archivo('imagen', '2026-10-01 00:00:00');
         $documento = $this->archivo('documento-oficial', '2026-10-01 00:00:00');
 
-        $this->artisan('archivos:limpiar-sin-uso')
-            ->expectsOutputToContain($imagen)
-            ->assertSuccessful();
+        $this->assertStringContainsString($imagen, $this->limpiar());
 
         $this->assertTrue($this->existe($imagen));
         $this->assertTrue($this->existe($documento));
@@ -137,7 +146,7 @@ final class LimpiezaSinUsoTest extends TestCase
     {
         $viejo = $this->archivo('contenido', '2026-10-01 00:00:00');
 
-        $this->artisan('archivos:limpiar-sin-uso', ['--simular' => true])->expectsOutputToContain($viejo)->assertSuccessful();
+        $this->assertStringContainsString($viejo, $this->limpiar(['--simular' => true]));
 
         $this->assertTrue($this->existe($viejo));
         $this->assertTrue($this->enDisco($viejo));
@@ -157,7 +166,7 @@ final class LimpiezaSinUsoTest extends TestCase
             }
         });
 
-        $this->artisan('archivos:limpiar-sin-uso')->assertSuccessful();
+        $this->limpiar();
 
         $this->assertTrue($this->existe($carrera), 'La fila que alguien empezó a usar se conserva.');
         $this->assertTrue($this->enDisco($carrera));
@@ -171,7 +180,8 @@ final class LimpiezaSinUsoTest extends TestCase
 
         $this->assertNotNull($evento);
         $this->assertSame('30 3 * * *', $evento->expression);
-        $this->assertSame('America/Bogota', (string) $evento->timezone);
+        $zona = $evento->timezone;
+        $this->assertSame('America/Bogota', $zona instanceof \DateTimeZone ? $zona->getName() : $zona);
         $this->assertTrue($evento->withoutOverlapping);
     }
 }

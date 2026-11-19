@@ -8,6 +8,7 @@ use App\Exceptions\ArchivoEnUso;
 use App\Models\FileMedia;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -151,7 +152,9 @@ final class BorradoProtegidoTest extends TestCase
             $this->fail('La base debió impedir el borrado.');
         } catch (ArchivoEnUso $e) {
             $this->assertSame($uuid, $e->uuid);
-            $this->assertContains($e->getPrevious()?->errorInfo[0] ?? null, ['23001', '23503']);
+            $previo = $e->getPrevious();
+            $this->assertInstanceOf(QueryException::class, $previo);
+            $this->assertContains($previo->errorInfo[0] ?? null, ['23001', '23503']);
         }
 
         $this->assertTrue(DB::table('file_media')->where('uuid', $uuid)->exists(), 'La fila sigue y la transacción de la prueba no quedó abortada.');

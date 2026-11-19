@@ -7,6 +7,7 @@ namespace Tests\Feature\Esquema;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -114,7 +115,14 @@ final class MediatecaResincronizarMigracionTest extends TestCase
             order by array_position(i.indkey::int2[], a.attnum)
         SQL, [$tabla]);
 
-        return array_map(static fn (object $f): string => (string) $f->attname, $filas);
+        return array_values(array_map(static fn (mixed $f): string => (string) data_get($f, 'attname'), $filas));
+    }
+
+    private function ejecutarComando(string $comando): string
+    {
+        $this->assertSame(0, Artisan::call($comando));
+
+        return Artisan::output();
     }
 
     private function hayIndice(string $nombre): bool
@@ -139,11 +147,11 @@ final class MediatecaResincronizarMigracionTest extends TestCase
 
         $migracion->up();
 
-        $fila = DB::table('noticias')->where('id', $noticia)->first();
+        $fila = DB::table('noticias')->where('id', $noticia)->sole();
         $this->assertSame($vieja, $fila->imagen_principal_uuid, 'Gana el archivo más reciente, que es el que lee el código viejo.');
         $this->assertSame('Playa de Taganga', $fila->imagen_principal_alt);
 
-        $filaBanner = DB::table('banners')->where('id', $banner)->first();
+        $filaBanner = DB::table('banners')->where('id', $banner)->sole();
         $this->assertSame($deBanner, $filaBanner->imagen_uuid);
         $this->assertSame('Carrusel', $filaBanner->imagen_alt);
     }
@@ -154,7 +162,7 @@ final class MediatecaResincronizarMigracionTest extends TestCase
         $noticia = $this->noticia();
         $migracion->up();
 
-        $fila = DB::table('noticias')->where('id', $noticia)->first();
+        $fila = DB::table('noticias')->where('id', $noticia)->sole();
         $this->assertNull($fila->imagen_principal_uuid);
         $this->assertNull($fila->imagen_principal_alt);
     }
@@ -339,7 +347,7 @@ final class MediatecaResincronizarMigracionTest extends TestCase
         $imagen = $this->archivo(self::NOTICIA, $noticia, 'imagen', ['metadata' => json_encode(['alt' => 'Mar'])]);
         DB::table('noticias')->where('id', $noticia)->update(['imagen_principal_uuid' => null, 'imagen_principal_alt' => 'desfasado']);
 
-        $this->artisan('mediateca:resincronizar')->assertSuccessful();
+        $this->ejecutarComando('mediateca:resincronizar');
 
         $this->assertSame($imagen, DB::table('noticias')->where('id', $noticia)->value('imagen_principal_uuid'));
         $this->assertSame('Mar', DB::table('noticias')->where('id', $noticia)->value('imagen_principal_alt'));

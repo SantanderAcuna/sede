@@ -13,9 +13,11 @@ use App\Http\Requests\SubirImagenNoticiaRequest;
 use App\Http\Resources\NoticiaPanelFilaResource;
 use App\Http\Resources\NoticiaPanelResource;
 use App\Models\Noticia;
+use App\Support\Acceso\Huella;
 use App\Support\Api\ApiResponse;
 use App\Support\Api\RespuestaDeImagen;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -82,7 +84,12 @@ final class PanelNoticiaController extends Controller
         }
 
         try {
-            $noticia = $this->noticias->crear($peticion->validated(), $peticion->user()?->id);
+            $noticia = DB::transaction(function () use ($peticion) {
+                $creada = $this->noticias->crear($peticion->validated(), $peticion->user()?->id);
+                Huella::deSesion('noticia_creada', 'noticias', $creada->id, ['titulo' => $creada->titulo, 'estado' => self::estado($creada)]);
+
+                return $creada;
+            });
         } catch (NoticiaIncompleta $e) {
             return ApiResponse::validationError(['noticia' => $e->problemas]);
         }
@@ -109,7 +116,16 @@ final class PanelNoticiaController extends Controller
         }
 
         try {
-            $noticia = $this->noticias->actualizar($noticia, $peticion->validated());
+            $noticia = DB::transaction(function () use ($noticia, $peticion) {
+                $guardada = $this->noticias->actualizar($noticia, $peticion->validated());
+                Huella::deSesion('noticia_actualizada', 'noticias', $guardada->id, [
+                    'titulo' => $guardada->titulo,
+                    'campos' => array_keys($peticion->validated()),
+                    'estado' => self::estado($guardada),
+                ]);
+
+                return $guardada;
+            });
         } catch (NoticiaIncompleta $e) {
             return ApiResponse::validationError(['noticia' => $e->problemas]);
         }
@@ -135,6 +151,8 @@ final class PanelNoticiaController extends Controller
             $peticion->validated('imagen'),
             (string) $peticion->validated('alt'),
         );
+
+        Huella::deSesion('noticia_imagen_cambiada', 'noticias', $noticia->id, ['titulo' => $noticia->titulo]);
 
         return ApiResponse::ok(self::elemento($noticia), 'Imagen guardada correctamente.');
     }
@@ -173,9 +191,19 @@ final class PanelNoticiaController extends Controller
         }
         Gate::authorize('delete', $noticia);
 
-        $this->noticias->eliminar($noticia);
+        $titulo = $noticia->titulo;
+        $id = $noticia->id;
+        DB::transaction(function () use ($noticia, $id, $titulo): void {
+            $this->noticias->eliminar($noticia);
+            Huella::deSesion('noticia_eliminada', 'noticias', $id, ['titulo' => $titulo]);
+        });
 
         return ApiResponse::ok(null, 'Noticia eliminada.');
+    }
+
+    private static function estado(Noticia $noticia): string
+    {
+        return $noticia->activo ? 'publicada' : 'borrador';
     }
 
     /**

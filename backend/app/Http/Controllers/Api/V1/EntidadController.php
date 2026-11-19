@@ -8,8 +8,10 @@ use App\Contracts\Services\EntidadServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ActualizarEntidadRequest;
 use App\Models\Entidad;
+use App\Support\Acceso\Huella;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 
@@ -72,9 +74,13 @@ final class EntidadController extends Controller
         Gate::authorize('update', new Entidad);
 
         try {
-            $entidadResource = $this->entidadService->actualizar(
-                $request->validated()
-            );
+            $datos = $request->validated();
+            $entidadResource = DB::transaction(function () use ($datos) {
+                $resultado = $this->entidadService->actualizar($datos);
+                Huella::deSesion('entidad_actualizada', 'entidad', Entidad::query()->value('id'), ['campos' => array_keys($datos)]);
+
+                return $resultado;
+            });
 
             return ApiResponse::ok($entidadResource, 'Entidad actualizada correctamente.');
         } catch (\RuntimeException $e) {

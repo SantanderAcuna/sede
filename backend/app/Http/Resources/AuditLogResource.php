@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\AuditLog;
+use App\Support\Acceso\TextosDeAuditoria;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -26,7 +27,9 @@ final class AuditLogResource extends JsonResource
             'id' => $this->id,
             'type' => 'auditoria',
             'accion' => $this->accion,
+            'descripcion' => TextosDeAuditoria::descripcion((string) $this->accion),
             'recurso' => $this->recurso,
+            'recurso_nombre' => TextosDeAuditoria::recurso((string) $this->recurso),
             'recurso_id' => $this->recurso_id,
             'cambios' => $this->cambios,
             'ip_origen' => $this->ip_origen,

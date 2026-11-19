@@ -13,9 +13,11 @@ use App\Http\Resources\TramitePanelFilaResource;
 use App\Http\Resources\TramitePanelResource;
 use App\Models\Dependencia;
 use App\Models\Tramite;
+use App\Support\Acceso\Huella;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -76,7 +78,12 @@ final class PanelTramiteController extends Controller
         }
 
         try {
-            $tramite = $this->tramites->crear($peticion->datos());
+            $tramite = DB::transaction(function () use ($peticion) {
+                $creado = $this->tramites->crear($peticion->datos());
+                Huella::deSesion('tramite_creado', 'tramites', $creado->id, ['nombre' => $creado->nombre, 'publicado' => $creado->publicado_en !== null]);
+
+                return $creado;
+            });
         } catch (TramiteIncompleto $e) {
             return ApiResponse::validationError(['tramite' => $e->problemas]);
         }
@@ -102,7 +109,16 @@ final class PanelTramiteController extends Controller
         }
 
         try {
-            $tramite = $this->tramites->actualizar($tramite, $peticion->datos());
+            $tramite = DB::transaction(function () use ($tramite, $peticion) {
+                $guardado = $this->tramites->actualizar($tramite, $peticion->datos());
+                Huella::deSesion('tramite_actualizado', 'tramites', $guardado->id, [
+                    'nombre' => $guardado->nombre,
+                    'campos' => array_keys($peticion->datos()),
+                    'publicado' => $guardado->publicado_en !== null,
+                ]);
+
+                return $guardado;
+            });
         } catch (TramiteIncompleto $e) {
             return ApiResponse::validationError(['tramite' => $e->problemas]);
         }
@@ -123,7 +139,12 @@ final class PanelTramiteController extends Controller
         }
         Gate::authorize('delete', $tramite);
 
-        $this->tramites->eliminar($tramite);
+        $nombre = $tramite->nombre;
+        $id = $tramite->id;
+        DB::transaction(function () use ($tramite, $id, $nombre): void {
+            $this->tramites->eliminar($tramite);
+            Huella::deSesion('tramite_eliminado', 'tramites', $id, ['nombre' => $nombre]);
+        });
 
         return response()->noContent();
     }

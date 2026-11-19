@@ -3203,8 +3203,8 @@ paths:
       tags: [Panel — Auditoría]
       operationId: listarAuditoria
       summary: Log de auditoría
-      description: Registro de acciones de usuarios.
-      x-status: pending
+      description: Requiere `auditoria.ver`. Registro de lo que hizo cada cuenta, del más reciente al más antiguo. Cada registro trae `descripcion`, la frase con que se lee en el panel, y `recurso_nombre`, el nombre del módulo. Los cambios rechazados también quedan (`acceso_denegado`, `datos_rechazados`, `conflicto_rechazado`) con los nombres de los campos y nunca con lo escrito. Las lecturas no se registran.
+      x-status: implemented
       parameters:
         - name: usuario_id
           in: query
@@ -3213,6 +3213,11 @@ paths:
         - name: recurso
           in: query
           required: false
+          schema: { type: string }
+        - name: accion
+          in: query
+          required: false
+          description: El nombre interno de la acción, por ejemplo `noticia_eliminada` o `acceso_denegado`.
           schema: { type: string }
         - name: fecha_desde
           in: query
@@ -4279,14 +4284,20 @@ components:
     # ─── Auditoría ────────────────────────────────────────────────────────
     AuditoriaItem:
       type: object
-      required: [id, type, accion, recurso, created_at]
+      required: [id, type, accion, descripcion, recurso, recurso_nombre, created_at]
       properties:
         id: { type: integer }
         type: { type: string, const: auditoria }
         accion:
           type: string
-          enum: [crear, actualizar, eliminar, login, logout]
+          description: Nombre interno de la acción (`noticia_creada`, `acceso_denegado`, `login`...). Para mostrar, usar `descripcion`.
+        descripcion:
+          type: string
+          description: La acción dicha con palabras, lista para mostrar (por ejemplo, «Eliminó una noticia»).
         recurso: { type: string }
+        recurso_nombre:
+          type: string
+          description: El nombre del módulo en lenguaje llano; si no es un módulo conocido, igual que `recurso`.
         recurso_id: { type: [integer, 'null'] }
         cambios: { type: [object, 'null'] }
         ip_origen: { type: [string, 'null'] }

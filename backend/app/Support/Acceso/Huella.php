@@ -10,6 +10,19 @@ use App\Models\User;
 /** Deja constancia en la auditoría de un cambio de usuarios o roles. Nunca recibe claves. */
 final class Huella
 {
+    /**
+     * Igual que `registrar`, con quien tiene la sesión abierta como actor: para los controladores que aún no
+     * reciben al usuario como parámetro. Las rutas que la usan exigen sesión, así que siempre hay usuario.
+     *
+     * @param  array<string, mixed>  $cambios
+     */
+    public static function deSesion(string $accion, string $recurso, ?int $recursoId, array $cambios): void
+    {
+        /** @var User $actor */
+        $actor = auth()->user();
+        self::registrar($actor, $accion, $recurso, $recursoId, $cambios);
+    }
+
     /** @param array<string, mixed> $cambios */
     public static function registrar(User $actor, string $accion, string $recurso, ?int $recursoId, array $cambios): void
     {

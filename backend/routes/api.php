@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\PanelTramiteController;
 use App\Http\Controllers\Api\V1\PanelUsuarioController;
 use App\Http\Controllers\Api\V1\PoliticaController;
 use App\Http\Controllers\Api\V1\TramiteController;
+use App\Http\Middleware\SesionSoloSiYaExiste;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
@@ -118,7 +119,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             ->whereUuid('uuid')
             ->name('contenido.imagenes.ver')
             ->withoutMiddleware(['auth:sanctum', 'throttle:api'])
-            ->middleware('throttle:imagenes-publicas');
+            // Quien edita ve también lo sin publicar: la sesión se carga solo si la petición ya trae su cookie.
+            ->middleware(['throttle:imagenes-publicas', SesionSoloSiYaExiste::class]);
 
         // El catálogo de trámites. Las dos operaciones son públicas —el contrato las
         // declara con `security: []`— y por eso no llevan middleware de sesión.

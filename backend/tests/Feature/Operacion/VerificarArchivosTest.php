@@ -94,12 +94,14 @@ final class VerificarArchivosTest extends TestCase
         $esperada = hash('sha256', 'no coincide');
         $uuid = $this->archivo('contenido real', $esperada);
         $antes = DB::table('file_media')->where('uuid', $uuid)->first();
+        $this->assertNotNull($antes);
 
         Artisan::call('archivos:verificar');
 
         $despues = DB::table('file_media')->where('uuid', $uuid)->first();
+        $this->assertNotNull($despues);
         $this->assertEquals($antes, $despues, 'El comando no debe escribir nada en la base.');
-        $this->assertSame($esperada, $despues->hash_sha256 ?? null);
+        $this->assertSame($esperada, $despues->hash_sha256);
     }
 
     public function test_recorre_mas_filas_que_un_bloque(): void

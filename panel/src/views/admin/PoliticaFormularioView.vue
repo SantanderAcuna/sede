@@ -170,7 +170,10 @@ async function guardar(): Promise<void> {
   try {
     const guardada = await actualizar(actual.slug, entradaDesde(formulario.value, original))
     aplicar(guardada)
-    exito.value = 'Política guardada. El sitio ya muestra el texto nuevo.'
+    // Solo se afirma lo que es cierto: una política oculta no se ve en el sitio, aunque se haya guardado.
+    exito.value = guardada.publicada
+      ? 'Política guardada. El sitio ya muestra el texto nuevo.'
+      : 'Política guardada. Sigue oculta: el sitio todavía no la muestra.'
   } catch (e) {
     motivos.value = motivosDeError(e, 'No se pudo guardar la política.')
     await nextTick()

@@ -9,7 +9,7 @@ use App\Models\Traits\HasUuids;
 use App\Support\Noticias\ContenidoNoticia;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -27,6 +27,8 @@ use Illuminate\Support\Carbon;
  * @property bool $activo
  * @property int|null $autor_id
  * @property Carbon $updated_at
+ * @property string|null $imagen_principal_uuid
+ * @property string|null $imagen_principal_alt
  * @property FileMedia|null $imagenPrincipal
  */
 final class Noticia extends Model
@@ -85,13 +87,11 @@ final class Noticia extends Model
      * (como el resto de adjuntos) y se puede precargar para evitar una consulta
      * por noticia en el listado.
      *
-     * @return HasOne<FileMedia, $this>
+     * @return BelongsTo<FileMedia, $this>
      */
-    public function imagenPrincipal(): HasOne
+    public function imagenPrincipal(): BelongsTo
     {
-        return $this->hasOne(FileMedia::class, 'model_id', 'id')
-            ->where('model_type', self::class)
-            ->where('collection', self::COLECCION_IMAGEN);
+        return $this->belongsTo(FileMedia::class, 'imagen_principal_uuid', 'uuid');
     }
 
     /**
@@ -110,7 +110,7 @@ final class Noticia extends Model
     /** El texto alternativo de la imagen, o nulo si no hay imagen o no lo tiene. */
     public function imagenAlt(): ?string
     {
-        $alt = $this->imagenPrincipal?->metadata['alt'] ?? null;
+        $alt = $this->getAttribute('imagen_principal_alt');
 
         return is_string($alt) ? $alt : null;
     }

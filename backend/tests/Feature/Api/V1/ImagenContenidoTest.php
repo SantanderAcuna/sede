@@ -9,7 +9,9 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -163,16 +165,67 @@ final class ImagenContenidoTest extends TestCase
         $u->postJson(self::SUBIR, ['imagen' => $this->png(4001, 1), 'alt' => 'x'])->assertUnprocessable()->assertJsonValidationErrors('imagen');
     }
 
-    public function test_la_lectura_publica_sirve_la_imagen_con_cabeceras_seguras(): void
+    /** Sube una imagen como editor y la incrusta en una noticia con el estado indicado; devuelve el uuid del archivo. */
+    private function imagenEnNoticia(bool $activo, string $fecha = '2026-01-01 10:00:00', bool $borrada = false): string
     {
         $uuid = (string) $this->actingAs($this->usuario())
             ->postJson(self::SUBIR, ['imagen' => $this->png(), 'alt' => 'x'])->json('data.uuid');
-
+        $noticia = (int) DB::table('noticias')->insertGetId([
+            'uuid' => (string) Str::uuid(), 'slug' => 'n-'.Str::random(8), 'titulo' => 'T',
+            'descripcion_corta' => 'c', 'contenido' => '<p>x</p>', 'activo' => $activo, 'fecha_publicacion' => $fecha,
+            'deleted_at' => $borrada ? now() : null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('noticia_imagenes')->insert(['noticia_id' => $noticia, 'file_media_uuid' => $uuid, 'created_at' => now()]);
         $this->app['auth']->forgetGuards();
+
+        return $uuid;
+    }
+
+    public function test_la_lectura_publica_sirve_la_imagen_de_una_noticia_publicada_con_cabeceras_seguras(): void
+    {
+        $uuid = $this->imagenEnNoticia(true);
+
         $r = $this->get('/api/v1/contenido/imagenes/'.$uuid)->assertOk();
 
         $this->assertStringStartsWith('image/', (string) $r->headers->get('Content-Type'));
         $this->assertSame('nosniff', $r->headers->get('X-Content-Type-Options'));
+        $this->assertStringContainsString('public', (string) $r->headers->get('Cache-Control'));
+        $this->assertStringContainsString('max-age=86400', (string) $r->headers->get('Cache-Control'));
+        $this->assertStringContainsString('immutable', (string) $r->headers->get('Cache-Control'));
+    }
+
+    public function test_el_publico_no_ve_la_imagen_de_un_borrador_programada_eliminada_ni_sin_uso(): void
+    {
+        $borrador = $this->imagenEnNoticia(false);
+        $programada = $this->imagenEnNoticia(true, now()->addYear()->toDateTimeString());
+        $eliminada = $this->imagenEnNoticia(true, '2026-01-01 10:00:00', borrada: true);
+        $sinUso = (string) $this->actingAs($this->usuario())
+            ->postJson(self::SUBIR, ['imagen' => $this->png(), 'alt' => 'x'])->json('data.uuid');
+        $this->app['auth']->forgetGuards();
+
+        foreach ([$borrador, $programada, $eliminada, $sinUso] as $uuid) {
+            $this->get('/api/v1/contenido/imagenes/'.$uuid)->assertNotFound();
+        }
+    }
+
+    public function test_quien_edita_ve_cualquier_imagen_de_contenido_con_cache_privada(): void
+    {
+        $sinUso = (string) $this->actingAs($this->usuario())
+            ->postJson(self::SUBIR, ['imagen' => $this->png(), 'alt' => 'x'])->json('data.uuid');
+
+        $r = $this->actingAs($this->usuario('politicas.editar'))->get('/api/v1/contenido/imagenes/'.$sinUso)->assertOk();
+
+        $this->assertStringContainsString('private', (string) $r->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-store', (string) $r->headers->get('Cache-Control'));
+        $this->assertStringNotContainsString('public', (string) $r->headers->get('Cache-Control'));
+    }
+
+    public function test_una_sesion_sin_permiso_de_contenido_se_trata_como_anonima(): void
+    {
+        $sinUso = (string) $this->actingAs($this->usuario())
+            ->postJson(self::SUBIR, ['imagen' => $this->png(), 'alt' => 'x'])->json('data.uuid');
+
+        $this->actingAs(User::factory()->create())->get('/api/v1/contenido/imagenes/'.$sinUso)->assertNotFound();
     }
 
     public function test_la_lectura_publica_no_sirve_archivos_de_otras_colecciones(): void

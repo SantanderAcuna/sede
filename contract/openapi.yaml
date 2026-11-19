@@ -2609,8 +2609,13 @@ paths:
       summary: Una imagen insertada en el contenido publicado
       description: |
         Pública, con límite de peticiones. Sólo sirve las imágenes subidas por el editor
-        del panel (colección «contenido»); cualquier otro archivo responde 404. Lleva
-        `Cache-Control: public, max-age=86400, immutable` y `X-Content-Type-Options: nosniff`.
+        del panel (colección «contenido»); cualquier otro archivo responde 404. Sin sesión
+        solo se sirve la imagen que alguna noticia YA PUBLICADA (activa, con fecha cumplida y
+        sin eliminar) incrusta, con `Cache-Control: public, max-age=86400, immutable`; una
+        imagen sin uso o de un borrador responde 404. Con sesión de quien edita contenido
+        (`noticias.crear`, `noticias.editar`, `politicas.editar` o `entidad.editar`) se sirve
+        cualquier imagen de la colección, con `Cache-Control: private, no-store`, para ver los
+        borradores. Siempre lleva `X-Content-Type-Options: nosniff`.
       x-status: implemented
       x-criterios: [RF-01-013]
       parameters:
@@ -2642,7 +2647,8 @@ paths:
         Requiere `noticias.crear`, `noticias.editar`, `politicas.editar` o `entidad.editar`. La
         imagen y su texto alternativo (`alt`) van siempre juntos. PNG, JPG o WebP, hasta
         5 MB y 4000 px por lado. Se re-codifica antes de guardarse (sin EXIF ni bytes
-        añadidos). Devuelve la URL pública con la que se inserta en el HTML.
+        añadidos). Si ya existe una imagen con el mismo contenido tras re-codificar, se reutiliza.
+        Devuelve la URL pública con la que se inserta en el HTML y el `alt` recibido.
       x-status: implemented
       x-criterios: [RF-01-013]
       requestBody:
@@ -2753,8 +2759,8 @@ paths:
       operationId: eliminarPolitica
       summary: Eliminar una política propia
       description: |
-        Requiere `politicas.eliminar`. Borra también el documento oficial adjunto (el archivo y su
-        registro). Las cinco políticas obligatorias no se eliminan: `422`.
+        Requiere `politicas.eliminar`. Los documentos adjuntos NO se borran: sus vínculos caen con la política
+        y los archivos quedan en la mediateca (Ley 594/2000). Las cinco políticas obligatorias no se eliminan: `422`.
       x-status: implemented
       x-criterios: [RF-B1-009]
       parameters:
@@ -2835,10 +2841,12 @@ paths:
     get:
       tags: [Panel — Archivos]
       operationId: listarArchivosEntidad
-      summary: Listar archivos de una entidad por colección
+      summary: Listar los documentos de una política
       description: |
-        Devuelve todos los archivos de una colección específica para una entidad.
-        Requiere autenticación. RF-01-XXX.
+        `modelUuid` es el UUID de una POLÍTICA (la ruta conserva el nombre `entidad` por historia; los
+        archivos de entidad se retiraron y su UUID responde 404). La única colección con documentos es
+        `documento-oficial`: el oficial primero y después los anteriores, del más reciente al más antiguo;
+        cualquier otra colección devuelve una lista vacía.
       x-status: implemented
       x-criterios: []
       parameters:
@@ -2866,7 +2874,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '404':
-          description: Entidad no encontrada
+          description: Política no encontrada
         '422':
           $ref: '#/components/responses/ValidacionInvalida'
       security:
@@ -2874,10 +2882,11 @@ paths:
     post:
       tags: [Panel — Archivos]
       operationId: subirArchivoEntidad
-      summary: Subir un archivo a una entidad
+      summary: Adjuntar un documento a una política
       description: |
-        Guarda un archivo en disco y registra sus metadatos en file_media.
-        Requiere autenticación. RF-01-XXX.
+        Guarda el archivo y lo vincula a la política como documento OFICIAL; el oficial que hubiera pasa a
+        `anterior` (se conserva). Solo admite la colección `documento-oficial`. Deja constancia en la bitácora
+        (`politica_documento_adjuntado`). `modelUuid` es el UUID de una política.
       x-status: implemented
       x-criterios: []
       parameters:
@@ -2917,7 +2926,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '404':
-          description: Entidad no encontrada
+          description: Política no encontrada
         '422':
           $ref: '#/components/responses/ValidacionInvalida'
       security:
@@ -2957,7 +2966,12 @@ paths:
       tags: [Panel — Archivos]
       operationId: eliminarArchivo
       summary: Eliminar un archivo por su UUID
-      description: Elimina el archivo físico de disco y su registro. Requiere autenticación.
+      description: |
+        Un archivo SIN uso se elimina (primero su registro, después el disco). Un archivo que una noticia, un
+        banner o un documento de política todavía usa NO se elimina: `409`. Un documento vinculado a una política
+        solo se QUITA: se desvincula, el archivo se conserva en la mediateca (Ley 594/2000) y, si era el oficial,
+        el anterior más reciente lo releva (deja `politica_documento_quitado` en la bitácora). Un documento oficial
+        que ya no está vinculado tampoco se elimina: `409`.
       x-status: implemented
       x-criterios: []
       parameters:
@@ -2977,6 +2991,11 @@ paths:
           $ref: '#/components/responses/NoAutenticado'
         '404':
           description: Archivo no encontrado
+        '409':
+          description: El archivo está en uso (o es un documento oficial) y no se elimina.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
       security:
         - cookieSesion: []
 

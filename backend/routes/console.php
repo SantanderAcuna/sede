@@ -48,3 +48,8 @@ Schedule::command('backup:monitor')->dailyAt('06:00')->timezone('America/Bogota'
 // o mientras un disco no respondía. Es idempotente (solo toca filas sin huella) y corre a las
 // 03:00 de Bogotá, entre la copia (01:30) y su vigilancia (06:00), para no competir con ella.
 Schedule::command('archivos:calcular-hash')->dailyAt('03:00')->timezone('America/Bogota')->withoutOverlapping();
+
+// Imágenes de contenido sin uso (0D, D9): solo las de la colección «contenido» que ninguna relación usa y llevan
+// más de 7 días sin tocarse. A las 03:30 de Bogotá, después del hash (03:00) y mucho antes de la vigilancia de
+// la copia (06:00); la copia (01:30) ya terminó, así que no borra nada que ella esté leyendo.
+Schedule::command('archivos:limpiar-sin-uso')->dailyAt('03:30')->timezone('America/Bogota')->withoutOverlapping();

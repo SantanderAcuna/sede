@@ -108,6 +108,14 @@ final class ApiResponse
     }
 
     /**
+     * La petición choca con el estado actual del recurso, por ejemplo borrar algo que sigue en uso (409).
+     */
+    public static function conflict(string $message = 'La operación entra en conflicto con el estado actual.'): JsonResponse
+    {
+        return self::error($message, 409);
+    }
+
+    /**
      * La petición no pasó la validación (422).
      *
      * El mensaje es fijo y los detalles viajan en `errors`, una entrada por

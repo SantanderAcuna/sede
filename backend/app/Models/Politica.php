@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Models\Traits\HasUuids;
 use App\Support\Busqueda\TextoBuscable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -277,18 +278,34 @@ final class Politica extends Model
     }
 
     /**
-     * El documento oficial adjunto (el acto administrativo o el texto aprobado),
-     * guardado en la tabla común de archivos del sistema, `file_media`. Si se
-     * subieron varios, vale el más reciente.
+     * El documento oficial adjunto (el acto administrativo o el texto aprobado): el vínculo `oficial` de
+     * `politica_documentos`, que es siempre el más reciente subido y que el sitio publica.
      */
     public function documentoOficial(): ?FileMedia
     {
         return FileMedia::query()
-            ->where('model_type', self::class)
-            ->where('model_id', $this->id)
-            ->where('collection', self::COLECCION_DOCUMENTO)
-            ->orderByDesc('created_at')
+            ->select('file_media.*')
+            ->join('politica_documentos as pd', 'pd.file_media_uuid', '=', 'file_media.uuid')
+            ->where('pd.politica_id', $this->id)
+            ->where('pd.rol', 'oficial')
             ->first();
+    }
+
+    /**
+     * Todos los documentos adjuntos: el `oficial` primero y después los `anterior`, del más reciente al más antiguo.
+     *
+     * @return Collection<int, FileMedia>
+     */
+    public function documentos(): Collection
+    {
+        return FileMedia::query()
+            ->select('file_media.*')
+            ->join('politica_documentos as pd', 'pd.file_media_uuid', '=', 'file_media.uuid')
+            ->where('pd.politica_id', $this->id)
+            ->orderByRaw("case pd.rol when 'oficial' then 0 else 1 end")
+            ->orderByRaw('file_media.created_at desc nulls last')
+            ->orderBy('file_media.uuid')
+            ->get();
     }
 
     /**

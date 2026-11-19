@@ -143,16 +143,19 @@ final class MediatecaContraerMigracionTest extends TestCase
         $this->migracion()->down();
 
         $fila = DB::table('file_media')->where('uuid', $imagen)->first();
+        $this->assertNotNull($fila);
         $this->assertSame('App\\Models\\Noticia', $fila->model_type);
         $this->assertSame($noticia, (int) $fila->model_id);
         $this->assertSame('imagen', $fila->collection);
         $this->assertSame('Vista de la bahía', json_decode((string) $fila->metadata, true)['alt']);
 
         $deContenido = DB::table('file_media')->where('uuid', $contenido)->first();
+        $this->assertNotNull($deContenido);
         $this->assertSame('App\\Models\\User', $deContenido->model_type);
         $this->assertSame($usuario, (int) $deContenido->model_id);
 
         $sinDueno = DB::table('file_media')->where('uuid', $suelto)->first();
+        $this->assertNotNull($sinDueno);
         $this->assertNull($sinDueno->model_type, 'Un archivo sin uso no tiene un dueño que se pueda conocer: no se inventa.');
         $this->assertSame('documento-oficial', $sinDueno->collection);
         $this->assertSame('YES', $this->nulable('hash_sha256'));

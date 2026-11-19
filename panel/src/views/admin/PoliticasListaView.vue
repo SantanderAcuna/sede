@@ -293,8 +293,8 @@ const columnas: ColumnDef<DataTableFeatures, PoliticaPanelItem, unknown>[] = [
       @confirmar="confirmarEliminar"
     >
       <p>
-        Se eliminará <strong>«{{ porEliminar?.nombre }}»</strong> con su texto y el documento oficial que tenga adjunto, y
-        dejará de verse en el sitio. Esta acción no se puede deshacer desde el panel.
+        Se eliminará <strong>«{{ porEliminar?.nombre }}»</strong> con su texto, y dejará de verse en el sitio. Los documentos que tenga
+        adjuntos se conservan en la mediateca. Esta acción no se puede deshacer desde el panel.
       </p>
     </ConfirmModal>
   </div>

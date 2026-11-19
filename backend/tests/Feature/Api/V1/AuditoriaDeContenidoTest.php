@@ -49,7 +49,7 @@ final class AuditoriaDeContenidoTest extends TestCase
         $filas = AuditLog::query()->where('accion', $accion)->get();
         $this->assertCount(1, $filas, "Debía haber exactamente una huella «{$accion}».");
 
-        return $filas->first();
+        return $filas->firstOrFail();
     }
 
     private function sinHuella(string $accion): void

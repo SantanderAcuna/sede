@@ -2911,13 +2911,10 @@ paths:
                 archivo:
                   type: string
                   format: binary
-                  description: Archivo binario (máximo 50 MB)
+                  description: Archivo binario (máximo 20 MB)
                 collection:
                   type: string
-                  description: Nombre de la colección (ej. logos, documentos)
-                metadata:
-                  type: object
-                  description: Metadatos opcionales en formato JSON
+                  description: Debe ser `documento-oficial`; cualquier otro valor se rechaza con 422.
       responses:
         '200':
           description: Archivo subido correctamente
@@ -3553,12 +3550,10 @@ components:
 
     FileMediaItem:
       type: object
-      required: [uuid, filename, original_filename, mime_type, size, collection, url, model_id]
+      required: [uuid, filename, original_filename, mime_type, size, collection, url]
       properties:
         uuid: { type: string, format: uuid }
-        model_type: { type: string }
-        model_id: { type: integer }
-        collection: { type: string }
+        collection: { type: string, description: 'Nombre del uso del archivo en la API; hoy solo `documento-oficial` sale por aquí.' }
         filename: { type: string }
         original_filename: { type: string }
         mime_type: { type: string }
@@ -3566,7 +3561,6 @@ components:
         disk: { type: string }
         path: { type: string }
         url: { type: string, format: uri }
-        metadata: { type: [object, 'null'] }
         created_at: { type: [string, 'null'], format: date-time }
         updated_at: { type: [string, 'null'], format: date-time }
 

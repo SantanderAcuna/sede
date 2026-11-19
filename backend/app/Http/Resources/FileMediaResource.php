@@ -22,9 +22,7 @@ final class FileMediaResource extends JsonResource
     {
         return [
             'uuid' => $this->uuid,
-            'model_type' => $this->model_type,
-            'model_id' => $this->model_id,
-            'collection' => $this->collection,
+            'collection' => $this->coleccionApi(),
             'filename' => $this->filename,
             'original_filename' => $this->original_filename,
             'mime_type' => $this->mime_type,
@@ -32,7 +30,6 @@ final class FileMediaResource extends JsonResource
             'disk' => $this->disk,
             'path' => $this->path,
             'url' => $this->url(),
-            'metadata' => $this->metadata,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

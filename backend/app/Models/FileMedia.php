@@ -9,7 +9,6 @@ use App\Models\Traits\HasUuids;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -17,17 +16,15 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Archivo subido al sistema.
  *
- * Modelo polimórfico: un archivo puede pertenecer a cualquier entidad del sistema
- * (trámite, entidad, usuario, etc.) sin tables intermedias. El archivo físico
- * vive en un disco configurado (`FILESYSTEM_DISK`) y este modelo guarda la
- * referencia + metadatos.
- *
- * R-52: FilesMedia polymorphic.
+ * El archivo físico vive en un disco configurado (`FILESYSTEM_DISK`) y este modelo guarda la
+ * referencia. No tiene dueño polimórfico: quién lo usa lo dicen las relaciones explícitas
+ * (`noticias.imagen_principal_uuid`, `banners.imagen_uuid`, `noticia_imagenes`,
+ * `politica_documentos`), todas ON DELETE RESTRICT. `uso` solo distingue qué política de
+ * limpieza le toca: `contenido` sin uso se borra a los 7 días; `documento` nunca (Ley 594/2000).
  *
  * @property string $uuid
- * @property string $model_type
- * @property int $model_id
- * @property string $collection
+ * @property string $uso imagen | contenido | documento
+ * @property int|null $subido_por
  * @property string $filename
  * @property string $original_filename
  * @property string $mime_type
@@ -35,7 +32,6 @@ use Illuminate\Support\Facades\Storage;
  * @property string $disk
  * @property string $path
  * @property string|null $hash_sha256 SHA-256 del contenido; vacío hasta calcularlo (`archivos:calcular-hash`)
- * @property array<string, mixed>|null $metadata
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
@@ -59,11 +55,16 @@ final class FileMedia extends Model
      */
     protected $keyType = 'string';
 
+    public const USO_IMAGEN = 'imagen';
+
+    public const USO_CONTENIDO = 'contenido';
+
+    public const USO_DOCUMENTO = 'documento';
+
     /** @var list<string> */
     protected $fillable = [
-        'model_type',
-        'model_id',
-        'collection',
+        'uso',
+        'subido_por',
         'filename',
         'original_filename',
         'mime_type',
@@ -71,7 +72,6 @@ final class FileMedia extends Model
         'disk',
         'path',
         'hash_sha256',
-        'metadata',
     ];
 
     /** @return array<string, string> */
@@ -79,18 +79,16 @@ final class FileMedia extends Model
     {
         return [
             'size' => 'integer',
-            'metadata' => 'array',
         ];
     }
 
     /**
-     * Relación polimórfica al modelo propietario.
-     *
-     * @phpstan-return MorphTo<Model, $this>
+     * Nombre de la colección tal como lo conoce la API y el panel (`documento-oficial` para los
+     * documentos de política); la columna se llama `uso` y `documento` a secas.
      */
-    public function model(): MorphTo
+    public function coleccionApi(): string
     {
-        return $this->morphTo();
+        return $this->uso === self::USO_DOCUMENTO ? 'documento-oficial' : $this->uso;
     }
 
     /**

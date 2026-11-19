@@ -40,18 +40,10 @@ final class PoliticaDocumentoService
         return $politica->documentos();
     }
 
-    /**
-     * @param  array<string, mixed>|null  $metadata
-     */
-    public function adjuntar(Politica $politica, UploadedFile $archivo, ?array $metadata, User $actor): FileMedia
+    public function adjuntar(Politica $politica, UploadedFile $archivo, User $actor): FileMedia
     {
         // Primero el archivo (disco y fila): si la transacción siguiente falla queda un documento «sin uso», no una pérdida.
-        $nuevo = $this->archivos->upload(
-            file: $archivo,
-            collection: Politica::COLECCION_DOCUMENTO,
-            model: $politica,
-            metadata: $metadata,
-        );
+        $nuevo = $this->archivos->upload(file: $archivo, uso: FileMedia::USO_DOCUMENTO);
 
         DB::transaction(function () use ($politica, $nuevo, $actor): void {
             Politica::query()->whereKey($politica->getKey())->lockForUpdate()->first();

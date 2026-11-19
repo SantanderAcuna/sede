@@ -8,6 +8,7 @@ use App\Contracts\Repositories\NoticiaRepositoryInterface;
 use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Contracts\Services\NoticiaServiceInterface;
 use App\Exceptions\NoticiaIncompleta;
+use App\Models\FileMedia;
 use App\Models\Noticia;
 use App\Support\Html\SanitizadorHtml;
 use App\Support\Noticias\ContenidoNoticia;
@@ -81,13 +82,9 @@ final class NoticiaService implements NoticiaServiceInterface
 
         $noticia->fill($datos);
 
-        $imagen = $noticia->imagenPrincipal;
-        if ($alt !== null && $imagen !== null) {
-            // Escritura doble (hasta D10): la columna nueva manda y `metadata` conserva lo viejo al día,
-            // para que volver atrás o resincronizar no devuelva el alt anterior.
-            $alt = trim((string) $alt);
-            $noticia->imagen_principal_alt = $alt;
-            $imagen->metadata = ['alt' => $alt] + ($imagen->metadata ?? []);
+        // El texto alternativo pertenece al uso de la imagen (la noticia), no al archivo.
+        if ($alt !== null && $noticia->imagenPrincipal !== null) {
+            $noticia->imagen_principal_alt = trim((string) $alt);
         }
 
         // Antes de guardar nada: si queda publicada e incompleta, no cambia ni el texto ni el alt.
@@ -95,11 +92,8 @@ final class NoticiaService implements NoticiaServiceInterface
 
         $usadas = $this->imagenesDelCuerpo($datos);
 
-        DB::transaction(function () use ($noticia, $imagen, $alt, $usadas): void {
+        DB::transaction(function () use ($noticia, $usadas): void {
             $this->noticias->guardar($noticia);
-            if ($alt !== null && $imagen !== null) {
-                $this->noticias->guardarImagen($imagen);
-            }
             if ($usadas !== null) {
                 $this->sincronizarUsos($noticia, $usadas);
             }
@@ -115,9 +109,7 @@ final class NoticiaService implements NoticiaServiceInterface
         // 1) Primero se sube la nueva: si falla, la anterior sigue en su sitio.
         $nueva = $this->archivos->upload(
             file: $imagen,
-            collection: Noticia::COLECCION_IMAGEN,
-            model: $noticia,
-            metadata: ['alt' => $alt],
+            uso: FileMedia::USO_IMAGEN,
         );
 
         // 2) Transacción corta, sin E/S de archivos: el vínculo nuevo y su alt (lo viejo ya quedó escrito por `upload`).
@@ -179,7 +171,7 @@ final class NoticiaService implements NoticiaServiceInterface
             return [];
         }
 
-        $validas = DB::table('file_media')->whereIn('uuid', $usadas)->where('collection', 'contenido')->pluck('uuid')->all();
+        $validas = DB::table('file_media')->whereIn('uuid', $usadas)->where('uso', FileMedia::USO_CONTENIDO)->pluck('uuid')->all();
         $faltan = array_values(array_diff($usadas, $validas));
         if ($faltan !== []) {
             throw ValidationException::withMessages([

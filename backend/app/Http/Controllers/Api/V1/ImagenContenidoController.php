@@ -32,13 +32,12 @@ final class ImagenContenidoController extends Controller
         $imagen = $this->imagenes->subir(
             $peticion->user() ?? abort(401),
             $peticion->validated('imagen'),
-            (string) $peticion->validated('alt'),
         );
 
         return ApiResponse::created([
             'uuid' => $imagen->uuid,
             'url' => $this->imagenes->urlPublica($imagen),
-            // El alt RECIBIDO: si el archivo se reutilizó, el guardado puede ser el de otra subida.
+            // El alt RECIBIDO, que se devuelve al editor para el `<img>`; el archivo no lo guarda.
             'alt' => (string) $peticion->validated('alt'),
         ], 'Imagen subida correctamente.');
     }

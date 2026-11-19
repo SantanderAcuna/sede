@@ -21,7 +21,7 @@ final class ImagenContenidoService implements ImagenContenidoServiceInterface
         private readonly RecodificadorDeImagen $recodificador,
     ) {}
 
-    public function subir(User $autor, UploadedFile $imagen, string $alt): FileMedia
+    public function subir(User $autor, UploadedFile $imagen): FileMedia
     {
         $limpia = $this->recodificador->recodificar($imagen);
 
@@ -31,16 +31,8 @@ final class ImagenContenidoService implements ImagenContenidoServiceInterface
                 return $reutilizado;
             }
 
-            $archivo = $this->archivos->upload(
-                file: $limpia,
-                collection: self::COLECCION,
-                model: $autor,
-                metadata: ['alt' => $alt],
-            );
-            // En «contenido» el dueño ES quien subió; la columna nueva lo dice sin depender de model_type.
-            $archivo->forceFill(['subido_por' => $autor->id])->save();
-
-            return $archivo;
+            // En «contenido» el dueño ES quien subió; el texto alternativo vive en el `<img>` del cuerpo.
+            return $this->archivos->upload(file: $limpia, uso: FileMedia::USO_CONTENIDO, subidoPor: $autor->id);
         } finally {
             @unlink($limpia->getPathname());
         }
@@ -55,7 +47,7 @@ final class ImagenContenidoService implements ImagenContenidoServiceInterface
     private function reutilizar(string $huella): ?FileMedia
     {
         $candidatos = FileMedia::query()
-            ->where('collection', self::COLECCION)->where('hash_sha256', $huella)
+            ->where('uso', FileMedia::USO_CONTENIDO)->where('hash_sha256', $huella)
             ->orderBy('created_at')->orderBy('uuid')->limit(5)->get();
 
         foreach ($candidatos as $candidato) {
@@ -64,8 +56,8 @@ final class ImagenContenidoService implements ImagenContenidoServiceInterface
             }
 
             $filas = DB::select(
-                'update file_media set updated_at = ? where uuid = ? and collection = ? returning uuid',
-                [now(), $candidato->uuid, self::COLECCION],
+                'update file_media set updated_at = ? where uuid = ? and uso = ? returning uuid',
+                [now(), $candidato->uuid, FileMedia::USO_CONTENIDO],
             );
             if ($filas !== []) {
                 return FileMedia::query()->where('uuid', $candidato->uuid)->first();
@@ -79,7 +71,7 @@ final class ImagenContenidoService implements ImagenContenidoServiceInterface
     {
         $archivo = $this->archivos->findByUuid($uuid);
 
-        if ($archivo === null || $archivo->collection !== self::COLECCION) {
+        if ($archivo === null || $archivo->uso !== FileMedia::USO_CONTENIDO) {
             return null;
         }
 

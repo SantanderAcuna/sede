@@ -111,4 +111,29 @@ final class VerificarArchivosTest extends TestCase
         $this->assertSame(0, Artisan::call('archivos:verificar'));
         $this->assertStringContainsString('205 archivo(s) verificado(s)', Artisan::output());
     }
+
+    /**
+     * La limpieza (03:30) borra la FILA primero y el archivo después (`FileMedia::deleteFully`). Si borra mientras
+     * esta verificación corre, el archivo deja de leerse, pero su fila ya no existe: eso no es una pérdida.
+     */
+    public function test_un_archivo_cuya_fila_se_borro_mientras_se_verificaba_no_se_reporta(): void
+    {
+        $uuid = $this->fila(['path' => 'file_media/prueba/borrado-en-vuelo.png', 'hash_sha256' => hash('sha256', 'z')]);
+
+        Storage::set('local', new class($uuid)
+        {
+            public function __construct(private readonly string $uuid) {}
+
+            /** @return resource|false */
+            public function readStream(string $ruta)
+            {
+                DB::table('file_media')->where('uuid', $this->uuid)->delete();
+
+                return false;
+            }
+        });
+
+        $this->assertSame(0, Artisan::call('archivos:verificar'));
+        $this->assertStringNotContainsString($uuid, Artisan::output());
+    }
 }

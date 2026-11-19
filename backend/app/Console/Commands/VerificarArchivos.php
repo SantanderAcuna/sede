@@ -15,7 +15,8 @@ use Throwable;
  *
  * Con D10b `hash_sha256` es obligatoria, así que ya no hay huellas que completar: lo que esta
  * verificación descubre es un archivo que cambió o desapareció del disco después de subirse.
- * Solo LEE. No corrige la huella ni borra nada: corregirla sería aceptar el cambio sin que nadie
+ * Solo LEE (y vuelve a mirar la fila de un archivo ilegible, para no acusar a uno que la limpieza acaba de borrar:
+ * ella quita la fila antes que el archivo). No corrige la huella ni borra nada: corregirla sería aceptar el cambio sin que nadie
  * lo vea. Informa TODOS los problemas (no se detiene en el primero) y termina con error si hay
  * alguno, para que se note.
  */
@@ -37,7 +38,11 @@ final class VerificarArchivos extends Command
                     $actual = $this->hashDe($fila);
 
                     if ($actual === null) {
-                        $ausentes[] = $fila;
+                        // La limpieza borra la FILA antes que el archivo: si el archivo ya no está porque ella lo
+                        // quitó, la fila también ya no existe y no hay nada que reportar (no es una pérdida).
+                        if (DB::table('file_media')->where('uuid', $fila->uuid)->exists()) {
+                            $ausentes[] = $fila;
+                        }
                     } elseif (! hash_equals((string) $fila->hash_sha256, $actual)) {
                         $distintos[] = $fila;
                     } else {

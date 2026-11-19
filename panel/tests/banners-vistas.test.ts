@@ -181,6 +181,13 @@ describe('lista', () => {
 })
 
 describe('formulario', () => {
+  it('no promete que el borrador se guarda «sin completarlo»: el título se exige siempre', async () => {
+    const { wrapper } = await montarForm()
+    const aviso = wrapper.find('[data-checklist] p').text()
+    expect(aviso).not.toContain('sin completarlo')
+    expect(aviso).toContain('título')
+  })
+
   it('guardar vacío no llama al servidor y dice qué falta', async () => {
     const { wrapper } = await montarForm()
     await wrapper.find('form').trigger('submit')

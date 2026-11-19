@@ -8,8 +8,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ActualizarPoliticaRequest;
 use App\Http\Requests\CrearPoliticaRequest;
 use App\Models\Politica;
+use App\Support\Acceso\Huella;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
@@ -76,7 +78,10 @@ final class PanelPoliticaController extends Controller
             return ApiResponse::validationError(['politica' => $problemas]);
         }
 
-        $politica->save();
+        DB::transaction(function () use ($politica): void {
+            $politica->save();
+            Huella::deSesion('politica_creada', 'politicas', $politica->id, ['nombre' => $politica->nombre, 'publicada' => (bool) $politica->publicada]);
+        });
 
         return ApiResponse::created(self::elemento($politica->refresh()), 'Política creada correctamente.');
     }
@@ -102,7 +107,12 @@ final class PanelPoliticaController extends Controller
 
         // Sin E/S de archivos dentro de la transacción: los documentos NO se borran (Ley 594/2000, a la
         // espera de jurídica); al eliminar la política sus vínculos caen en cascada y los archivos quedan «sin uso».
-        $politica->delete();
+        $nombre = $politica->nombre;
+        $id = $politica->id;
+        DB::transaction(function () use ($politica, $id, $nombre): void {
+            $politica->delete();
+            Huella::deSesion('politica_eliminada', 'politicas', $id, ['nombre' => $nombre]);
+        });
 
         return ApiResponse::ok(null, 'Política eliminada. Sus documentos se conservaron en la mediateca.');
     }
@@ -148,7 +158,15 @@ final class PanelPoliticaController extends Controller
             return ApiResponse::validationError(['politica' => $problemas]);
         }
 
-        $politica->save();
+        DB::transaction(function () use ($politica, $datos): void {
+            $politica->save();
+            Huella::deSesion('politica_actualizada', 'politicas', $politica->id, [
+                'nombre' => $politica->nombre,
+                'campos' => array_keys($datos),
+                'version' => $politica->version,
+                'publicada' => (bool) $politica->publicada,
+            ]);
+        });
 
         return ApiResponse::ok(self::elemento($politica->refresh()), 'Política actualizada correctamente.');
     }

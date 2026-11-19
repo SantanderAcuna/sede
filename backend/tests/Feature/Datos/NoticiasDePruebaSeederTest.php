@@ -64,7 +64,7 @@ final class NoticiasDePruebaSeederTest extends TestCase
         $this->seed(NoticiasDePruebaSeeder::class);
 
         $this->assertSame(10, Noticia::query()->withTrashed()->count());
-        $this->assertSame(10, FileMedia::query()->where('model_type', Noticia::class)->count());
+        $this->assertSame(10, FileMedia::query()->where('uso', FileMedia::USO_IMAGEN)->count());
     }
 
     public function test_respeta_lo_que_una_persona_haya_cambiado(): void

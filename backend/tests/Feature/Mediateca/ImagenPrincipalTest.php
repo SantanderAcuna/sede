@@ -74,7 +74,7 @@ final class ImagenPrincipalTest extends TestCase
         $this->actingAs($editor)->post("/api/v1/panel/noticias/{$uuid}/imagen", ['imagen' => $this->png(), 'alt' => $alt], ['Accept' => 'application/json'])->assertOk();
     }
 
-    /** Un archivo cuyo dueño viejo no es la noticia (model_id ajeno): lo lee solo quien siga las columnas nuevas. */
+    /** Un archivo suelto: solo lo encuentra quien siga las claves foráneas de la noticia o del banner. */
     private function archivoSoloNuevo(string $alt): string
     {
         $uuid = (string) Str::uuid();
@@ -83,18 +83,18 @@ final class ImagenPrincipalTest extends TestCase
         Storage::disk($disco)->put($ruta, (string) base64_decode(self::PNG, true));
 
         DB::table('file_media')->insert([
-            'uuid' => $uuid, 'model_type' => 'App\\Models\\Noticia', 'model_id' => 987654, 'collection' => 'imagen',
+            'uuid' => $uuid, 'uso' => 'imagen',
             'filename' => "{$uuid}.png", 'original_filename' => 'foto.png', 'mime_type' => 'image/png', 'size' => 70,
-            'disk' => $disco, 'path' => $ruta, 'metadata' => json_encode(['alt' => 'alt viejo en metadata']),
+            'disk' => $disco, 'path' => $ruta,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
         return $uuid;
     }
 
-    // ---- lecturas por las columnas nuevas ---------------------------------------------------------------
+    // ---- lecturas por las columnas del uso ---------------------------------------------------------------
 
-    public function test_la_noticia_publica_lee_imagen_y_alt_de_las_columnas_nuevas(): void
+    public function test_la_noticia_publica_lee_imagen_y_alt_de_sus_columnas(): void
     {
         $archivo = $this->archivoSoloNuevo('x');
         DB::table('noticias')->insert([
@@ -108,7 +108,7 @@ final class ImagenPrincipalTest extends TestCase
         $this->get('/api/v1/noticias/con-foto/imagen')->assertOk();
     }
 
-    public function test_el_banner_publico_lee_imagen_y_alt_de_las_columnas_nuevas(): void
+    public function test_el_banner_publico_lee_imagen_y_alt_de_sus_columnas(): void
     {
         $archivo = $this->archivoSoloNuevo('x');
         $uuid = (string) Str::uuid();
@@ -122,9 +122,9 @@ final class ImagenPrincipalTest extends TestCase
         $this->get("/api/v1/banners/{$uuid}/imagen")->assertOk();
     }
 
-    // ---- escritura doble ---------------------------------------------------------------------------------
+    // ---- escritura ---------------------------------------------------------------------------------------
 
-    public function test_subir_la_imagen_de_una_noticia_escribe_lo_nuevo_y_lo_viejo(): void
+    public function test_subir_la_imagen_de_una_noticia_vincula_el_archivo_y_guarda_el_alt_en_la_noticia(): void
     {
         $editor = $this->editor();
         $uuid = $this->borrador($editor);
@@ -136,10 +136,8 @@ final class ImagenPrincipalTest extends TestCase
         $this->assertSame('Una playa', $noticia->imagen_principal_alt);
 
         $archivo = DB::table('file_media')->where('uuid', $noticia->imagen_principal_uuid)->sole();
-        $this->assertSame('App\\Models\\Noticia', $archivo->model_type);
-        $this->assertSame((int) $noticia->id, (int) $archivo->model_id);
-        $this->assertSame('imagen', $archivo->collection);
-        $this->assertSame('Una playa', json_decode((string) $archivo->metadata, true)['alt']);
+        $this->assertSame('imagen', $archivo->uso);
+        $this->assertNull($archivo->subido_por, 'Solo el editor de contenido registra quién subió.');
     }
 
     public function test_reemplazar_la_imagen_deja_una_sola_y_borra_la_anterior_de_la_base_y_del_disco(): void
@@ -159,7 +157,7 @@ final class ImagenPrincipalTest extends TestCase
         $this->assertSame('Segunda', $noticia->imagen_principal_alt);
         $this->assertFalse(DB::table('file_media')->where('uuid', $primera)->exists());
         Storage::disk((string) config('filesystems.default'))->assertMissing($ruta);
-        $this->assertSame(1, DB::table('file_media')->where('model_type', 'App\\Models\\Noticia')->where('model_id', $noticia->id)->where('collection', 'imagen')->count());
+        $this->assertSame(1, DB::table('file_media')->where('uso', 'imagen')->count(), 'Solo queda la nueva.');
     }
 
     public function test_si_la_subida_falla_la_imagen_anterior_sigue_en_su_sitio(): void
@@ -178,7 +176,6 @@ final class ImagenPrincipalTest extends TestCase
         $falso = Mockery::mock(FilesMediaServiceInterface::class);
         $falso->shouldReceive('upload')->once()->andThrow(new RuntimeException('disco lleno'));
         $falso->shouldNotReceive('delete');
-        $falso->shouldNotReceive('deleteByCollection');
         $this->app->instance(FilesMediaServiceInterface::class, $falso);
 
         $this->withoutExceptionHandling();
@@ -194,7 +191,7 @@ final class ImagenPrincipalTest extends TestCase
         $this->assertTrue(DB::table('file_media')->where('uuid', $primera)->exists());
     }
 
-    public function test_cambiar_solo_el_alt_de_la_noticia_escribe_la_columna_y_el_metadata(): void
+    public function test_cambiar_solo_el_alt_de_la_noticia_escribe_la_columna_de_la_noticia(): void
     {
         $editor = $this->editor();
         $uuid = $this->borrador($editor);
@@ -205,11 +202,9 @@ final class ImagenPrincipalTest extends TestCase
 
         $noticia = DB::table('noticias')->where('uuid', $uuid)->sole();
         $this->assertSame('Alt corregido', $noticia->imagen_principal_alt);
-        $metadata = json_decode((string) DB::table('file_media')->where('uuid', $noticia->imagen_principal_uuid)->value('metadata'), true);
-        $this->assertSame('Alt corregido', $metadata['alt'], 'Sin esto, volver atrás mostraría el alt viejo y una resincronización lo pisaría.');
     }
 
-    public function test_un_banner_escribe_lo_nuevo_y_lo_viejo_y_reemplazar_borra_la_anterior(): void
+    public function test_un_banner_vincula_su_imagen_y_reemplazar_borra_la_anterior(): void
     {
         $gestor = $this->gestor();
         $banner = (string) $this->actingAs($gestor)->postJson('/api/v1/panel/banners', ['titulo' => 'Predial'])->assertCreated()->json('data.uuid');
@@ -219,9 +214,7 @@ final class ImagenPrincipalTest extends TestCase
         $primera = (string) $fila->imagen_uuid;
         $this->assertNotSame('', $primera);
         $this->assertSame('Fachada', $fila->imagen_alt);
-        $archivo = DB::table('file_media')->where('uuid', $primera)->sole();
-        $this->assertSame('App\\Models\\Banner', $archivo->model_type);
-        $this->assertSame((int) $fila->id, (int) $archivo->model_id);
+        $this->assertSame('imagen', DB::table('file_media')->where('uuid', $primera)->value('uso'));
 
         $this->actingAs($gestor)->post("/api/v1/panel/banners/{$banner}/imagen", ['imagen' => $this->png(), 'alt' => 'Nueva'], ['Accept' => 'application/json'])->assertOk();
         $this->assertFalse(DB::table('file_media')->where('uuid', $primera)->exists());
@@ -230,7 +223,6 @@ final class ImagenPrincipalTest extends TestCase
         $this->actingAs($gestor)->patchJson("/api/v1/panel/banners/{$banner}", ['imagen_alt' => 'Otra'])->assertOk();
         $nueva = (string) DB::table('banners')->where('uuid', $banner)->value('imagen_uuid');
         $this->assertSame('Otra', DB::table('banners')->where('uuid', $banner)->value('imagen_alt'));
-        $this->assertSame('Otra', json_decode((string) DB::table('file_media')->where('uuid', $nueva)->value('metadata'), true)['alt']);
         $this->assertInstanceOf(FileMedia::class, FileMedia::query()->where('uuid', $nueva)->first());
     }
 }

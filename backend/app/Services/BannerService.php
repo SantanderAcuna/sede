@@ -8,6 +8,7 @@ use App\Contracts\Services\BannerServiceInterface;
 use App\Exceptions\BannerIncompleto;
 use App\Exceptions\OrdenDeBannersDesactualizado;
 use App\Models\Banner;
+use App\Models\FileMedia;
 use App\Models\User;
 use App\Support\Acceso\Huella;
 use Illuminate\Http\UploadedFile;
@@ -70,22 +71,15 @@ final class BannerService implements BannerServiceInterface
         unset($datos['imagen_alt']);
 
         $banner->fill($datos);
-        $imagen = $banner->imagenPrincipal;
-        if ($alt !== null && $imagen !== null) {
-            // Escritura doble (hasta D10): la columna nueva manda y `metadata` conserva lo viejo al día.
+        // El texto alternativo pertenece al uso de la imagen (el banner), no al archivo.
+        if ($alt !== null && $banner->imagenPrincipal !== null) {
             $banner->imagen_alt = $alt;
-            $imagen->metadata = ['alt' => $alt] + ($imagen->metadata ?? []);
         }
 
         // Antes de guardar nada: si queda publicada e incompleta, no cambia ni el texto ni el alt.
         $this->exigirCompleto($banner);
 
-        DB::transaction(function () use ($banner, $imagen, $alt): void {
-            $banner->save();
-            if ($alt !== null && $imagen !== null) {
-                $imagen->save();
-            }
-        });
+        $banner->save();
 
         Huella::registrar($actor, 'banner_actualizado', 'banners', $banner->id, [
             'campos' => array_merge(array_keys($datos), $alt !== null ? ['imagen_alt'] : []),
@@ -102,9 +96,7 @@ final class BannerService implements BannerServiceInterface
         // 1) Primero se sube la nueva: si falla, la anterior sigue en su sitio.
         $nueva = $this->archivos->upload(
             file: $imagen,
-            collection: Banner::COLECCION_IMAGEN,
-            model: $banner,
-            metadata: ['alt' => $alt],
+            uso: FileMedia::USO_IMAGEN,
         );
 
         // 2) Transacción corta, sin E/S de archivos.

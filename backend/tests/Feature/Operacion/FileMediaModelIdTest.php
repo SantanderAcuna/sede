@@ -34,6 +34,7 @@ final class FileMediaModelIdTest extends TestCase
     {
         parent::setUp();
 
+        $this->volverAAntesDeUso();
         $this->ejecutarRetiro('down');
     }
 

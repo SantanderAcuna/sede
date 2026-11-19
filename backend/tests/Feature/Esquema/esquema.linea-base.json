@@ -2,9 +2,6 @@
   "descripcion": "Línea base de la guarda del esquema (0D, D1; ADR 0008). Solo puede bajar: cada tarea de la 0D que corrige un defecto lo borra de aquí. 'permanente' = excepción a propósito, con razón.",
   "defectos": [
     {
-      "id": "clave_compuesta|file_media(model_type,model_id,collection,filename)"
-    },
-    {
       "id": "clave_compuesta|model_has_permissions(permission_id,model_id,model_type)",
       "permanente": true,
       "razon": "Clave de Spatie Permission (relación binaria con tipo de modelo)."

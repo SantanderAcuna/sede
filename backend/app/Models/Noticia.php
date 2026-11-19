@@ -37,8 +37,6 @@ final class Noticia extends Model
     use GuardaFechasEnUtc, HasUuids, SoftDeletes;
 
     /** Colección de `file_media` donde se adjunta la imagen de la noticia. */
-    public const COLECCION_IMAGEN = 'imagen';
-
     /** Límites del requisito RF-01-013. */
     public const TITULO_MAX = 150;
 

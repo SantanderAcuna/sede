@@ -94,7 +94,8 @@ final class ImagenContenidoTest extends TestCase
 
     public function test_sube_y_devuelve_la_url_publica_y_el_alt(): void
     {
-        $r = $this->actingAs($this->usuario())
+        $usuario = $this->usuario();
+        $r = $this->actingAs($usuario)
             ->postJson(self::SUBIR, ['imagen' => $this->png(), 'alt' => 'Alcalde en la sede'])
             ->assertCreated()
             ->assertJsonPath('success', true)
@@ -104,8 +105,8 @@ final class ImagenContenidoTest extends TestCase
         $this->assertSame('/api/v1/contenido/imagenes/'.$uuid, $r->json('data.url'));
 
         $fila = FileMedia::where('uuid', $uuid)->firstOrFail();
-        $this->assertSame('contenido', $fila->collection);
-        $this->assertSame('Alcalde en la sede', ($fila->metadata ?? [])['alt'] ?? null);
+        $this->assertSame('contenido', $fila->uso);
+        $this->assertSame($usuario->id, $fila->subido_por, 'Quien la sube queda registrado.');
     }
 
     public function test_la_imagen_se_recodifica_y_pierde_el_exif(): void
@@ -228,13 +229,12 @@ final class ImagenContenidoTest extends TestCase
         $this->actingAs(User::factory()->create())->get('/api/v1/contenido/imagenes/'.$sinUso)->assertNotFound();
     }
 
-    public function test_la_lectura_publica_no_sirve_archivos_de_otras_colecciones(): void
+    public function test_la_lectura_publica_no_sirve_archivos_de_otros_usos(): void
     {
         $usuario = $this->usuario();
         Storage::disk((string) config('filesystems.default'))->put('x/secreto.pdf', '%PDF');
         $ajeno = FileMedia::create([
-            'model_type' => User::class, 'model_id' => $usuario->id,
-            'collection' => 'documento_oficial', 'filename' => 'secreto.pdf', 'original_filename' => 'secreto.pdf',
+            'uso' => FileMedia::USO_DOCUMENTO, 'subido_por' => $usuario->id, 'filename' => 'secreto.pdf', 'original_filename' => 'secreto.pdf',
             'mime_type' => 'application/pdf', 'size' => 4, 'disk' => (string) config('filesystems.default'), 'path' => 'x/secreto.pdf',
         ]);
 

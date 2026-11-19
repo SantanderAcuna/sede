@@ -32,8 +32,6 @@ final class Banner extends Model
 {
     use GuardaFechasEnUtc, HasUuids, SoftDeletes;
 
-    public const COLECCION_IMAGEN = 'imagen';
-
     public const TITULO_MAX = 80;
 
     public const DESCRIPCION_MAX = 200;

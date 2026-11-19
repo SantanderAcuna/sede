@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature\Api\V1;
 
 use App\Http\Resources\FileMediaResource;
-use App\Models\Banner;
 use App\Models\FileMedia;
 use App\Services\FilesMediaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreaFilasDeArchivos;
 use Tests\TestCase;
@@ -26,16 +26,17 @@ final class FileMediaSinModelUuidTest extends TestCase
     use CreaFilasDeArchivos;
     use RefreshDatabase;
 
-    public function test_upload_guarda_el_dueno_por_model_id_y_sin_model_uuid(): void
+    public function test_upload_guarda_el_uso_y_no_deja_dueno_polimorfico(): void
     {
         Storage::fake('local');
         config(['filesystems.default' => 'local']);
-        $banner = Banner::query()->findOrFail($this->banner()['id']);
 
-        $fila = (new FilesMediaService)->upload(UploadedFile::fake()->createWithContent('foto.png', 'x'), 'imagen', $banner);
+        $fila = (new FilesMediaService)->upload(UploadedFile::fake()->createWithContent('foto.png', 'x'), FileMedia::USO_IMAGEN);
 
-        $this->assertDatabaseHas('file_media', ['uuid' => $fila->uuid, 'model_id' => $banner->id]);
+        $this->assertDatabaseHas('file_media', ['uuid' => $fila->uuid, 'uso' => 'imagen']);
         $this->assertArrayNotHasKey('model_uuid', $fila->getAttributes());
+        $this->assertNull(DB::table('file_media')->where('uuid', $fila->uuid)->value('model_type'));
+        $this->assertNull(DB::table('file_media')->where('uuid', $fila->uuid)->value('model_id'));
     }
 
     public function test_el_recurso_no_expone_model_uuid(): void
@@ -55,13 +56,16 @@ final class FileMediaSinModelUuidTest extends TestCase
         $this->assertArrayNotHasKey('model_uuid', array_flip($contrato['propiedades']));
     }
 
-    public function test_el_contrato_declara_model_id_entero_y_obligatorio(): void
+    public function test_el_recurso_y_el_contrato_ya_no_exponen_el_dueno_ni_los_metadatos(): void
     {
         $contrato = $this->esquemaFileMediaItem();
+        $claves = array_keys((new FileMediaResource(FileMedia::factory()->create()))->toArray(Request::create('/')));
 
-        $this->assertContains('model_id', $contrato['requeridas']);
-        $this->assertSame('integer', $contrato['tipos']['model_id'], 'model_id es NOT NULL desde T8: ya no admite null.');
-        $this->assertIsInt((new FileMediaResource(FileMedia::factory()->create()))->toArray(Request::create('/'))['model_id']);
+        foreach (['model_type', 'model_id', 'metadata'] as $retirada) {
+            $this->assertNotContains($retirada, $contrato['propiedades'], "{$retirada} salió del contrato.");
+            $this->assertNotContains($retirada, $claves, "{$retirada} salió de la respuesta.");
+        }
+        $this->assertContains('collection', $claves, 'El panel sigue leyendo collection.');
     }
 
     /**

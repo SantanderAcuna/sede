@@ -1,5 +1,5 @@
 {
-  "descripcion": "Línea base de la guarda del esquema (0D, D1; ADR 0008). Solo puede bajar: cada tarea de la 0D que corrige un defecto lo borra de aquí. 'permanente' = excepción a propósito, con razón.",
+  "descripcion": "Línea base de la guarda del esquema (0D, D1; archivo 0007). Solo puede bajar: cada tarea de la 0D que corrige un defecto lo borra de aquí. 'permanente' = excepción a propósito, con razón.",
   "defectos": [
     {
       "id": "clave_compuesta|model_has_permissions(permission_id,model_id,model_type)",
@@ -10,10 +10,6 @@
       "id": "clave_compuesta|model_has_roles(role_id,model_id,model_type)",
       "permanente": true,
       "razon": "Clave de Spatie Permission (relación binaria con tipo de modelo)."
-    },
-    {
-      "id": "enum_sin_check|file_media.collection",
-      "destino": "D10: la columna se retira con la mediateca"
     },
     {
       "id": "enum_sin_check|file_media.disk",
@@ -64,9 +60,6 @@
       "id": "json|entidads.redes"
     },
     {
-      "id": "json|file_media.metadata"
-    },
-    {
       "id": "json|menus.roles"
     },
     {
@@ -79,9 +72,6 @@
       "id": "polimorfica|audit_log.causer",
       "permanente": true,
       "razon": "La bitácora debe sobrevivir al borrado de quien actuó; una clave foránea lo impediría."
-    },
-    {
-      "id": "polimorfica|file_media.model"
     },
     {
       "id": "polimorfica|model_has_permissions.model",

@@ -7,7 +7,6 @@ namespace Tests\Feature\Esquema;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -22,14 +21,18 @@ use Tests\TestCase;
  * filas, ajusta `politica_documentos` para admitir varios documentos por política (uno solo `oficial`)
  * y crea el índice de la huella. Se prueba con el migrador real: se retrocede a la forma de D8, se
  * siembra el estado «de antes» (con desfases) y se vuelve a subir.
- *
- * Regla que protege esta prueba: el comando `mediateca:resincronizar` NO toca documentos, porque
- * «quitar» un documento solo lo desvincula y una copia viejo→nuevo lo resucitaría.
  */
 final class MediatecaResincronizarMigracionTest extends TestCase
 {
     use RefreshDatabase;
     use RevierteUsoDeArchivos;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->volverAAntesDeUso();
+    }
 
     private const MIGRACION = '2026_11_20_100000_mediateca_resincronizar.php';
 
@@ -118,13 +121,6 @@ final class MediatecaResincronizarMigracionTest extends TestCase
         SQL, [$tabla]);
 
         return array_values(array_map(static fn (mixed $f): string => (string) data_get($f, 'attname'), $filas));
-    }
-
-    private function ejecutarComando(string $comando): string
-    {
-        $this->assertSame(0, Artisan::call($comando));
-
-        return Artisan::output();
     }
 
     private function hayIndice(string $nombre): bool
@@ -286,7 +282,6 @@ final class MediatecaResincronizarMigracionTest extends TestCase
 
     public function test_aborta_y_lista_los_archivos_con_un_dueno_que_nadie_vincularia(): void
     {
-        $this->volverAAntesDeUso(); // sin D10a el esquema admite una colección que hoy el CHECK de `uso` rechaza
         $migracion = $this->antes();
         $suelto = $this->archivo('App\\Models\\Entidad', 1, 'logos');
 
@@ -336,29 +331,5 @@ final class MediatecaResincronizarMigracionTest extends TestCase
         $this->assertSame([$oficial], DB::table('politica_documentos')->where('politica_id', $politica)->pluck('file_media_uuid')->all());
         $this->assertSame(3, DB::table('file_media')->where('collection', 'documento-oficial')->count(), 'Solo se pierden vínculos, nunca archivos.');
         $this->assertFalse($this->hayIndice('file_media_hash_sha256_index'));
-    }
-
-    public function test_el_comando_corrige_imagenes_pero_no_resucita_un_documento_desvinculado(): void
-    {
-        $politica = $this->politica();
-        $vigente = $this->archivo(self::POLITICA, $politica, 'documento-oficial', ['created_at' => now()->subDay()]);
-        $quitado = $this->archivo(self::POLITICA, $politica, 'documento-oficial', ['created_at' => now()->subDays(2)]);
-        DB::table('politica_documentos')->insert(['politica_id' => $politica, 'rol' => 'oficial', 'file_media_uuid' => $vigente]);
-        // `$quitado` conserva su fila vieja (dueño política, colección documento-oficial) pero no tiene vínculo.
-
-        $noticia = $this->noticia();
-        $imagen = $this->archivo(self::NOTICIA, $noticia, 'imagen', ['metadata' => json_encode(['alt' => 'Mar'])]);
-        DB::table('noticias')->where('id', $noticia)->update(['imagen_principal_uuid' => null, 'imagen_principal_alt' => 'desfasado']);
-
-        $this->ejecutarComando('mediateca:resincronizar');
-
-        $this->assertSame($imagen, DB::table('noticias')->where('id', $noticia)->value('imagen_principal_uuid'));
-        $this->assertSame('Mar', DB::table('noticias')->where('id', $noticia)->value('imagen_principal_alt'));
-        $this->assertSame(
-            [$vigente],
-            DB::table('politica_documentos')->where('politica_id', $politica)->pluck('file_media_uuid')->all(),
-            'El documento que el editor quitó no vuelve.',
-        );
-        $this->assertNotContains($quitado, DB::table('politica_documentos')->pluck('file_media_uuid')->all());
     }
 }

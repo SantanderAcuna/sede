@@ -24,7 +24,9 @@ incoherentes, 0 huérfanas.
    borra ni inventa. Todo va en una transacción. También se detiene, listando las filas, si una fila con
    `model_id` apunta a un dueño que no existe o de un tipo que no es un modelo propio, y si dos filas
    chocarían en el índice único al asignarles dueño (antes salía el error opaco de PostgreSQL).
-2. Las lecturas pasan a `model_type` + `model_id` (`Banner::imagenPrincipal`, `Noticia::imagenPrincipal`,
+2. > **Sustituida por el archivo 0008 (2026-11-19), igual que la parte de `getByCollection` de la 3:** `model_type` y `model_id` se retiraron con la mediateca y `FilesMediaService::getByCollection` ya no existe. Se conserva de la 3 que `upload` valida antes de escribir en disco.
+
+   Las lecturas pasan a `model_type` + `model_id` (`Banner::imagenPrincipal`, `Noticia::imagenPrincipal`,
    `Politica::documentoOficial`, el borrado de una política y `FilesMediaService::getByCollection`).
    `model_type` se conserva en cada una: dos modelos pueden tener el mismo id.
 3. `FilesMediaService::getByCollection` de un objeto sin id devuelve vacío (antes, sin id ni uuid, no
@@ -72,5 +74,5 @@ incoherentes, 0 huérfanas.
 
 ## Evidencia
 
-`tests/Feature/Operacion/FileMediaModelIdTest.php` (12), `tests/Feature/Api/V1/FileMediaPorModelIdTest.php`
-(8), `tests/Feature/Operacion/CalcularHashArchivosTest.php` (3).
+`tests/Feature/Operacion/FileMediaModelIdTest.php` (12), `tests/Feature/Operacion/CalcularHashArchivosTest.php` (3).
+`FileMediaPorModelIdTest` (8) se reemplazó por `FileMediaPorUsoTest` con la decisión 2 sustituida (archivo 0008).

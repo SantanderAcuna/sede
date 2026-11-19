@@ -135,7 +135,7 @@ final class UsosDeImagenesTest extends TestCase
         $u = $this->editor();
         $ajena = '22222222-2222-4222-8222-222222222222';
         DB::table('file_media')->insert([
-            'uuid' => $ajena, 'uso' => 'imagen',
+            'uuid' => $ajena, 'uso' => 'imagen', 'hash_sha256' => hash('sha256', $ajena),
             'filename' => 'x.png', 'original_filename' => 'x.png', 'mime_type' => 'image/png', 'size' => 1,
             'disk' => 'local', 'path' => 'x/x.png', 'created_at' => now(), 'updated_at' => now(),
         ]);

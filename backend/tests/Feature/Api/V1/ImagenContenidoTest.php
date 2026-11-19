@@ -234,7 +234,7 @@ final class ImagenContenidoTest extends TestCase
         $usuario = $this->usuario();
         Storage::disk((string) config('filesystems.default'))->put('x/secreto.pdf', '%PDF');
         $ajeno = FileMedia::create([
-            'uso' => FileMedia::USO_DOCUMENTO, 'subido_por' => $usuario->id, 'filename' => 'secreto.pdf', 'original_filename' => 'secreto.pdf',
+            'uso' => FileMedia::USO_DOCUMENTO, 'subido_por' => $usuario->id, 'hash_sha256' => hash('sha256', 'secreto'), 'filename' => 'secreto.pdf', 'original_filename' => 'secreto.pdf',
             'mime_type' => 'application/pdf', 'size' => 4, 'disk' => (string) config('filesystems.default'), 'path' => 'x/secreto.pdf',
         ]);
 

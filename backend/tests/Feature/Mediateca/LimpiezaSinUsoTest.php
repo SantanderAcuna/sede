@@ -46,7 +46,7 @@ final class LimpiezaSinUsoTest extends TestCase
         Storage::disk($disco)->put($ruta, 'x');
 
         DB::table('file_media')->insert([
-            'uuid' => $uuid, 'uso' => $uso,
+            'uuid' => $uuid, 'uso' => $uso, 'hash_sha256' => hash('sha256', $uuid),
             'filename' => "{$uuid}.png", 'original_filename' => 'f.png', 'mime_type' => 'image/png', 'size' => 1,
             'disk' => $disco, 'path' => $ruta, 'created_at' => $creado ?? $actualizado, 'updated_at' => $actualizado,
         ]);

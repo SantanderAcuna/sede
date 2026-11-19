@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Lee el catálogo de PostgreSQL y devuelve los defectos de diseño del esquema
- * `public` como cadenas estables `categoria|objeto` (0D, D1; ADR 0008).
+ * `public` como cadenas estables `categoria|objeto` (0D, D1; archivo 0007 de docs/adr).
  *
  * Categorías: `polimorfica`, `json`, `fecha_sin_zona`, `fk_sin_indice`,
  * `enum_sin_check` y `clave_compuesta` (clave candidata de 3 o más columnas,

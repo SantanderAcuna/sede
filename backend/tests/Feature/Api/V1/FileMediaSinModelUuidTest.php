@@ -10,7 +10,7 @@ use App\Services\FilesMediaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreaFilasDeArchivos;
 use Tests\TestCase;
@@ -35,8 +35,9 @@ final class FileMediaSinModelUuidTest extends TestCase
 
         $this->assertDatabaseHas('file_media', ['uuid' => $fila->uuid, 'uso' => 'imagen']);
         $this->assertArrayNotHasKey('model_uuid', $fila->getAttributes());
-        $this->assertNull(DB::table('file_media')->where('uuid', $fila->uuid)->value('model_type'));
-        $this->assertNull(DB::table('file_media')->where('uuid', $fila->uuid)->value('model_id'));
+        foreach (['model_type', 'model_id', 'collection', 'metadata'] as $columna) {
+            $this->assertFalse(Schema::hasColumn('file_media', $columna), "{$columna} ya no existe.");
+        }
     }
 
     public function test_el_recurso_no_expone_model_uuid(): void

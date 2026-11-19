@@ -56,7 +56,10 @@ trait CreaFilasDeArchivos
             ? ['uso' => 'imagen']
             : ['model_type' => 'App\\Models\\Banner', 'model_id' => null, 'collection' => 'imagen'];
 
-        DB::table('file_media')->insert(array_merge($duenoYColeccion, [
+        // Con D10b la huella es obligatoria; antes de D10b (pruebas que la revierten) puede faltar.
+        $huella = Schema::hasColumn('file_media', 'collection') ? [] : ['hash_sha256' => hash('sha256', $uuid)];
+
+        DB::table('file_media')->insert(array_merge($duenoYColeccion, $huella, [
             'uuid' => $uuid,
             'filename' => $archivo,
             'original_filename' => 'foto.png',

@@ -2,7 +2,7 @@
 
 > **Documento generado.** No se edita a mano: se produce con `make trazabilidad`
 > (`npm run trazabilidad` desde `sitio/`), que lee el expediente, el contrato OpenAPI y el
-> código, y escribe lo que encuentra. Última generación: **2026-11-18**.
+> código, y escribe lo que encuentra. Última generación: **2026-11-19**.
 
 ## Qué mide esta matriz, y qué no
 
@@ -118,7 +118,7 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | DELETE | `/panel/transparencia/documentos/{id}` | RF-02-021 | pending |
 | GET | `/panel/alertas` | RF-02-022 | pending |
 | GET | `/panel/ita/tablero` | RF-02-029 | pending |
-| GET | `/panel/auditoria` | — | pending |
+| GET | `/panel/auditoria` | — | implemented |
 
 El contrato declara **76 operaciones**, de las cuales **68** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
 
@@ -129,9 +129,9 @@ Enunciados en `docs/Sección 2 §2.4`.
 | Criterio | Estado | Evidencia (fichero:línea) |
 |---|---|---|
 | **CAG-01** | desviación declarada | `sitio/app/components/govco/CarruselGovco.vue:25` · `sitio/tests/diseno.mjs:2` · `sitio/tests/puerta-visual.test.ts:6` |
-| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:611` |
+| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:619` |
 | **CAG-03** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:29` · `sitio/tests/diseno.mjs:272` |
-| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/app/utils/banners.ts:5` · `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:611` |
+| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/app/utils/banners.ts:5` · `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:619` |
 | **CAG-05** | **prueba** | `sitio/tests/ayudas/api-simulada.mjs:38` · `sitio/tests/diseno.mjs:309` |
 | **CAG-06** | desviación declarada | `sitio/app/components/govco/BarraSuperior.vue:19` · `sitio/scripts/trazabilidad.mjs:251` · `sitio/tests/diseno.mjs:81` |
 | **CAG-07** | **prueba** | `sitio/app/components/govco/BotonAccesibilidad.vue:51` · `sitio/app/components/govco/PanelAccesibilidad.vue:38` · `sitio/tests/diseno.mjs:319` · `sitio/tests/movil.mjs:15` |

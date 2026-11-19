@@ -297,6 +297,9 @@ jobs:
             exit 1
           fi
           echo "nginx declara /sanctum/csrf-cookie y /api/v1/panel/login."
+      - name: El index del panel se revalida en cada visita (caché tras desplegar)
+        run: bash deploy/pruebas/guarda-cache-index-panel.sh
+
       - name: El canal interno del sitio no se publica (ADR-0018)
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=

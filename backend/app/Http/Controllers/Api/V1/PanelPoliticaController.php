@@ -158,11 +158,15 @@ final class PanelPoliticaController extends Controller
             return ApiResponse::validationError(['politica' => $problemas]);
         }
 
-        DB::transaction(function () use ($politica, $datos): void {
+        // Antes de guardar: lo que el modelo tiene distinto del original es lo que de verdad cambió (el
+        // formulario manda también lo que la persona no tocó).
+        $cambiados = array_values(array_diff(array_keys($politica->getDirty()), ['updated_at']));
+
+        DB::transaction(function () use ($politica, $cambiados): void {
             $politica->save();
             Huella::deSesion('politica_actualizada', 'politicas', $politica->id, [
                 'nombre' => $politica->nombre,
-                'campos' => array_keys($datos),
+                'campos' => $cambiados,
                 'version' => $politica->version,
                 'publicada' => (bool) $politica->publicada,
             ]);

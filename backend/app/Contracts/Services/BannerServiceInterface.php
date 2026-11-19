@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Contracts\Services;
 
+use App\Exceptions\OrdenDeBannersDesactualizado;
 use App\Models\Banner;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 interface BannerServiceInterface
 {
@@ -27,8 +29,14 @@ interface BannerServiceInterface
 
     public function guardarImagen(User $actor, Banner $banner, UploadedFile $imagen, string $alt): Banner;
 
-    /** @param list<string> $uuids todos los banners, en el nuevo orden */
-    public function reordenar(User $actor, array $uuids): void;
+    /**
+     * @param  list<string>  $uuids  todos los banners, en el nuevo orden
+     * @param  list<string>  $antes  el orden que vio quien guarda, para detectar que otra persona lo cambió
+     *
+     * @throws OrdenDeBannersDesactualizado si el orden actual ya no es `$antes`
+     * @throws ValidationException si `$uuids` no es la lista completa, una vez cada una
+     */
+    public function reordenar(User $actor, array $uuids, array $antes): void;
 
     public function eliminar(User $actor, Banner $banner): void;
 }

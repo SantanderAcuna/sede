@@ -139,9 +139,28 @@ describe('lista', () => {
     const w = await montarLista()
     await w.find('[aria-label="Bajar «A»"]').trigger('click')
     await flushPromises()
-    expect(m.ordenar).toHaveBeenCalledWith(['b', 'a'])
+    expect(m.ordenar).toHaveBeenCalledWith(['b', 'a'], ['a', 'b'])
     expect(w.findAll('ol > li')[0]!.text()).toContain('B')
     expect(w.find('[data-anuncio]').text()).toBe('«A» quedó en la posición 2 de 2.')
+  })
+
+  it('si otra persona cambió el orden (409), recarga la lista real y lo explica', async () => {
+    const a = banner({ uuid: 'a', titulo: 'A' })
+    const b = banner({ uuid: 'b', titulo: 'B' })
+    m.listar.mockResolvedValueOnce([a, b])
+    const conflicto = Object.assign(new Error('409'), {
+      isAxiosError: true,
+      response: { status: 409, data: { message: 'El carrusel cambió mientras usted lo editaba. Se recargó la lista: revise el orden e inténtelo de nuevo.' } },
+    })
+    m.ordenar.mockRejectedValue(conflicto)
+    const w = await montarLista()
+    // La lista real ahora es [B, A]: otra persona ya bajó A.
+    m.listar.mockResolvedValue([banner({ uuid: 'b', titulo: 'B' }), banner({ uuid: 'a', titulo: 'A' })])
+    await w.find('[aria-label="Bajar «A»"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[role=alert]').text()).toContain('El carrusel cambió mientras usted lo editaba')
+    expect(w.findAll('ol > li')[0]!.text()).toContain('B')
+    expect(m.listar).toHaveBeenCalledTimes(2)
   })
 
   it('si guardar el orden falla, lo dice y no cambia la lista', async () => {

@@ -33,6 +33,7 @@ final class FileMediaFactory extends Factory
             'size' => $this->faker->numberBetween(1024, 10485760),
             'disk' => 'public',
             'path' => 'file_media/prueba/'.$filename,
+            'hash_sha256' => hash('sha256', $filename),
         ];
     }
 }

@@ -9,7 +9,7 @@ use Tests\Support\InspectorEsquema;
 use Tests\TestCase;
 
 /**
- * Guarda del esquema con línea base y trinquete (0D, D1; ADR 0008).
+ * Guarda del esquema con línea base y trinquete (0D, D1; archivo 0007 de docs/adr).
  *
  * 1. Un defecto que no está en la línea base rompe la CI.
  * 2. Una entrada de la línea base que ya no existe en el esquema también la

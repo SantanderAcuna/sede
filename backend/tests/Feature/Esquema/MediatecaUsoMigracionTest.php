@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
 use stdClass;
+use Tests\Concerns\RevierteUsoDeArchivos;
 use Tests\TestCase;
 
 /**
@@ -25,6 +26,14 @@ use Tests\TestCase;
 final class MediatecaUsoMigracionTest extends TestCase
 {
     use RefreshDatabase;
+    use RevierteUsoDeArchivos;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->volverAAntesDeContraer();
+    }
 
     private const MIGRACION = '2026_11_20_200000_mediateca_uso.php';
 

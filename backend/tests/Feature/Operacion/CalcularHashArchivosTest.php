@@ -25,6 +25,8 @@ final class CalcularHashArchivosTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Con D10b ninguna fila puede quedar sin huella: este comando se prueba sobre el esquema de antes.
+        $this->volverAAntesDeContraer();
         Storage::fake('local');
     }
 

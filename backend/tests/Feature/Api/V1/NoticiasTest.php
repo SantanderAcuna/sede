@@ -85,6 +85,7 @@ final class NoticiasTest extends TestCase
         DB::table('file_media')->insert([
             'uuid' => $fileUuid,
             'uso' => 'imagen',
+            'hash_sha256' => hash('sha256', $fileUuid),
             'filename' => 'foto.png',
             'original_filename' => 'foto.png',
             'mime_type' => 'image/png',

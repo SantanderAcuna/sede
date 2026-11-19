@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Concerns\RevierteUsoDeArchivos;
 use Tests\TestCase;
 
 /**
@@ -28,6 +29,7 @@ use Tests\TestCase;
 final class MediatecaResincronizarMigracionTest extends TestCase
 {
     use RefreshDatabase;
+    use RevierteUsoDeArchivos;
 
     private const MIGRACION = '2026_11_20_100000_mediateca_resincronizar.php';
 
@@ -284,6 +286,7 @@ final class MediatecaResincronizarMigracionTest extends TestCase
 
     public function test_aborta_y_lista_los_archivos_con_un_dueno_que_nadie_vincularia(): void
     {
+        $this->volverAAntesDeUso(); // sin D10a el esquema admite una colección que hoy el CHECK de `uso` rechaza
         $migracion = $this->antes();
         $suelto = $this->archivo('App\\Models\\Entidad', 1, 'logos');
 

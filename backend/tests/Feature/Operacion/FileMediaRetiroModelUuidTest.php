@@ -26,6 +26,14 @@ final class FileMediaRetiroModelUuidTest extends TestCase
     use CreaFilasDeArchivos;
     use RefreshDatabase;
 
+    /** Estas pruebas siembran filas con dueño polimórfico: el esquema de antes de D10a. */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->volverAAntesDeUso();
+    }
+
     /** Ejecuta `up` o `down` de la migración: la clase anónima las tiene, el tipo `Migration` no. */
     private function ejecutar(string $metodo): void
     {

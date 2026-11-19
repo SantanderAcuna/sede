@@ -38,7 +38,7 @@ final class BorradoProtegidoTest extends TestCase
     }
 
     /** @return array{0: string, 1: string} uuid y ruta del archivo en disco */
-    private function archivo(string $coleccion = 'contenido', string $tipo = 'App\\Models\\User', int $dueno = 1): array
+    private function archivo(string $uso = 'contenido'): array
     {
         $uuid = (string) Str::uuid();
         $disco = (string) config('filesystems.default');
@@ -46,9 +46,9 @@ final class BorradoProtegidoTest extends TestCase
         Storage::disk($disco)->put($ruta, (string) base64_decode(self::PNG, true));
 
         DB::table('file_media')->insert([
-            'uuid' => $uuid, 'model_type' => $tipo, 'model_id' => $dueno, 'collection' => $coleccion,
+            'uuid' => $uuid, 'uso' => $uso,
             'filename' => "{$uuid}.png", 'original_filename' => 'foto.png', 'mime_type' => 'image/png', 'size' => 70,
-            'disk' => $disco, 'path' => $ruta, 'metadata' => json_encode(['alt' => 'x']),
+            'disk' => $disco, 'path' => $ruta,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -89,7 +89,7 @@ final class BorradoProtegidoTest extends TestCase
 
     public function test_la_imagen_principal_de_una_noticia_no_se_borra_aunque_la_noticia_este_eliminada(): void
     {
-        [$uuid, $ruta] = $this->archivo('imagen', 'App\\Models\\Noticia');
+        [$uuid, $ruta] = $this->archivo('imagen');
         $this->noticia($uuid, borrada: true);
 
         $this->expectException(ArchivoEnUso::class);
@@ -103,7 +103,7 @@ final class BorradoProtegidoTest extends TestCase
 
     public function test_la_imagen_de_un_banner_no_se_borra(): void
     {
-        [$uuid] = $this->archivo('imagen', 'App\\Models\\Banner');
+        [$uuid] = $this->archivo('imagen');
         DB::table('banners')->insert(['uuid' => (string) Str::uuid(), 'titulo' => 'B', 'imagen_uuid' => $uuid, 'created_at' => now(), 'updated_at' => now()]);
 
         $this->expectException(ArchivoEnUso::class);
@@ -122,7 +122,7 @@ final class BorradoProtegidoTest extends TestCase
 
     public function test_un_documento_vinculado_a_una_politica_no_se_borra(): void
     {
-        [$uuid] = $this->archivo('documento-oficial', 'App\\Models\\Politica', 1);
+        [$uuid] = $this->archivo('documento');
         $politica = (int) DB::table('politicas')->insertGetId([
             'uuid' => (string) Str::uuid(), 'slug' => 'p-'.Str::random(6), 'nombre' => 'P', 'secciones' => '[]',
             'created_at' => now(), 'updated_at' => now(),
@@ -163,7 +163,7 @@ final class BorradoProtegidoTest extends TestCase
 
     public function test_la_api_responde_409_y_no_500_cuando_el_archivo_esta_en_uso(): void
     {
-        [$uuid, $ruta] = $this->archivo('imagen', 'App\\Models\\Noticia');
+        [$uuid, $ruta] = $this->archivo('imagen');
         $this->noticia($uuid);
 
         $this->actingAs($this->gestor())->deleteJson("/api/v1/panel/archivos/{$uuid}")

@@ -379,8 +379,7 @@ final class PoliticasTest extends TestCase
         $this->adjuntar($this->editorConArchivos(), 'uso-de-cookies', $contenido);
 
         $this->assertDatabaseHas('file_media', [
-            'model_type' => Politica::class,
-            'collection' => Politica::COLECCION_DOCUMENTO,
+            'uso' => 'documento',
             'original_filename' => 'acto.pdf',
         ]);
 

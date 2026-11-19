@@ -13,10 +13,11 @@ use Illuminate\Http\UploadedFile;
  */
 interface ImagenContenidoServiceInterface
 {
-    public const COLECCION = 'contenido';
-
-    /** Re-codifica la imagen y la guarda con `FilesMediaService`; el propietario es quien la sube. */
-    public function subir(User $autor, UploadedFile $imagen, string $alt): FileMedia;
+    /**
+     * Re-codifica la imagen y la guarda con `FilesMediaService` (uso `contenido`; `subido_por` es quien la sube).
+     * El texto alternativo no se guarda con el archivo: vive en el `<img>` del cuerpo donde se usa.
+     */
+    public function subir(User $autor, UploadedFile $imagen): FileMedia;
 
     /**
      * Sólo las de la colección «contenido»: ningún otro archivo se publica por aquí.

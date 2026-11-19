@@ -38,7 +38,7 @@ final class LimpiezaSinUsoTest extends TestCase
         parent::tearDown();
     }
 
-    private function archivo(string $coleccion, ?string $actualizado, ?string $creado = null): string
+    private function archivo(string $uso, ?string $actualizado, ?string $creado = null): string
     {
         $uuid = (string) Str::uuid();
         $disco = (string) config('filesystems.default');
@@ -46,7 +46,7 @@ final class LimpiezaSinUsoTest extends TestCase
         Storage::disk($disco)->put($ruta, 'x');
 
         DB::table('file_media')->insert([
-            'uuid' => $uuid, 'model_type' => 'App\\Models\\User', 'model_id' => 1, 'collection' => $coleccion,
+            'uuid' => $uuid, 'uso' => $uso,
             'filename' => "{$uuid}.png", 'original_filename' => 'f.png', 'mime_type' => 'image/png', 'size' => 1,
             'disk' => $disco, 'path' => $ruta, 'created_at' => $creado ?? $actualizado, 'updated_at' => $actualizado,
         ]);
@@ -134,7 +134,7 @@ final class LimpiezaSinUsoTest extends TestCase
     public function test_las_imagenes_huerfanas_y_los_documentos_oficiales_no_se_borran(): void
     {
         $imagen = $this->archivo('imagen', '2026-10-01 00:00:00');
-        $documento = $this->archivo('documento-oficial', '2026-10-01 00:00:00');
+        $documento = $this->archivo('documento', '2026-10-01 00:00:00');
 
         $this->assertStringContainsString($imagen, $this->limpiar());
 

@@ -36,7 +36,7 @@ final class LimpiarArchivosSinUso extends Command
         $borrados = 0;
         $enUso = 0;
 
-        $candidatos = $this->sinUso()->where('collection', 'contenido')
+        $candidatos = $this->sinUso()->where('uso', FileMedia::USO_CONTENIDO)
             ->whereRaw('coalesce(updated_at, created_at) < ?', [$corte])
             ->orderBy('uuid')->pluck('uuid');
 
@@ -64,7 +64,7 @@ final class LimpiarArchivosSinUso extends Command
             ? 'Simulación: '.count($candidatos).' archivo(s) se borrarían.'
             : "Borrados: {$borrados}. Conservados por quedar en uso: {$enUso}.");
 
-        $huerfanas = $this->sinUso()->where('collection', 'imagen')->orderBy('uuid')->pluck('uuid');
+        $huerfanas = $this->sinUso()->where('uso', FileMedia::USO_IMAGEN)->orderBy('uuid')->pluck('uuid');
         if ($huerfanas->isNotEmpty()) {
             $this->warn($huerfanas->count().' imagen(es) de noticia o banner sin uso (no se borran, revísalas):');
             foreach ($huerfanas as $uuid) {

@@ -130,12 +130,12 @@ final class UsosDeImagenesTest extends TestCase
         $this->assertSame(0, DB::table('noticias')->count());
     }
 
-    public function test_una_imagen_de_otra_coleccion_no_se_puede_incrustar(): void
+    public function test_una_imagen_de_otro_uso_no_se_puede_incrustar(): void
     {
         $u = $this->editor();
         $ajena = '22222222-2222-4222-8222-222222222222';
         DB::table('file_media')->insert([
-            'uuid' => $ajena, 'model_type' => 'App\\Models\\Banner', 'model_id' => 1, 'collection' => 'imagen',
+            'uuid' => $ajena, 'uso' => 'imagen',
             'filename' => 'x.png', 'original_filename' => 'x.png', 'mime_type' => 'image/png', 'size' => 1,
             'disk' => 'local', 'path' => 'x/x.png', 'created_at' => now(), 'updated_at' => now(),
         ]);

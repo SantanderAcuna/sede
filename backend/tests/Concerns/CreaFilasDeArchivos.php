@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Concerns;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -15,6 +16,8 @@ use Illuminate\Support\Str;
  */
 trait CreaFilasDeArchivos
 {
+    use RevierteUsoDeArchivos;
+
     /** @return array{id: int, uuid: string} */
     private function banner(): array
     {
@@ -47,11 +50,14 @@ trait CreaFilasDeArchivos
         $uuid = (string) Str::uuid();
         $archivo = Str::uuid()->toString().'.png';
 
-        DB::table('file_media')->insert(array_merge([
+        // Las pruebas de migraciones anteriores a D10a revierten `uso` (ver `volverAAntesDeUso`): ahí la fila
+        // se escribe con la forma vieja, que es justo lo que esas migraciones leen.
+        $duenoYColeccion = Schema::hasColumn('file_media', 'uso')
+            ? ['uso' => 'imagen']
+            : ['model_type' => 'App\\Models\\Banner', 'model_id' => null, 'collection' => 'imagen'];
+
+        DB::table('file_media')->insert(array_merge($duenoYColeccion, [
             'uuid' => $uuid,
-            'model_type' => 'App\\Models\\Banner',
-            'model_id' => null,
-            'collection' => 'imagen',
             'filename' => $archivo,
             'original_filename' => 'foto.png',
             'mime_type' => 'image/png',

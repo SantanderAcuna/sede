@@ -72,7 +72,7 @@ final class ReutilizoDeImagenesTest extends TestCase
         $b = $this->subir($u, $this->png(0x336699))['data']['uuid'];
 
         $this->assertSame($a, $b);
-        $this->assertSame(1, DB::table('file_media')->where('collection', 'contenido')->count());
+        $this->assertSame(1, DB::table('file_media')->where('uso', 'contenido')->count());
     }
 
     public function test_una_imagen_distinta_es_otro_archivo(): void
@@ -119,11 +119,11 @@ final class ReutilizoDeImagenesTest extends TestCase
         Storage::disk((string) config('filesystems.default'))->assertExists((string) DB::table('file_media')->where('uuid', $b)->value('path'));
     }
 
-    public function test_el_reuso_solo_aplica_a_la_coleccion_contenido(): void
+    public function test_el_reuso_solo_aplica_al_uso_contenido(): void
     {
         $u = $this->editor();
         $a = $this->subir($u, $this->png(0x336699))['data']['uuid'];
-        DB::table('file_media')->where('uuid', $a)->update(['collection' => 'imagen']);
+        DB::table('file_media')->where('uuid', $a)->update(['uso' => 'imagen']);
 
         $b = $this->subir($u, $this->png(0x336699))['data']['uuid'];
 

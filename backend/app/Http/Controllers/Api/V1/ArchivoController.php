@@ -9,6 +9,7 @@ use App\Exceptions\ArchivoEnUso;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SubirArchivoRequest;
 use App\Http\Resources\FileMediaResource;
+use App\Models\FileMedia;
 use App\Models\Politica;
 use App\Services\PoliticaDocumentoService;
 use App\Support\Api\ApiResponse;
@@ -93,7 +94,7 @@ final class ArchivoController extends Controller
             // Un documento de política NUNCA se borra desde la API (Ley 594/2000, a la espera de jurídica):
             // «quitar» solo lo desvincula y el archivo queda en la mediateca.
             $politicaId = DB::table('politica_documentos')->where('file_media_uuid', $archivo->uuid)->value('politica_id');
-            if ($politicaId !== null || $archivo->collection === Politica::COLECCION_DOCUMENTO) {
+            if ($politicaId !== null || $archivo->uso === FileMedia::USO_DOCUMENTO) {
                 if (! $this->puedeTocar($request, Politica::class)) {
                     return ApiResponse::forbidden();
                 }
@@ -105,10 +106,6 @@ final class ArchivoController extends Controller
                 $this->documentos->quitar($politica, $archivo, $request->user() ?? abort(401));
 
                 return ApiResponse::ok(null, 'Documento quitado. El archivo se conserva.');
-            }
-
-            if (! $this->puedeTocar($request, $archivo->model_type)) {
-                return ApiResponse::forbidden();
             }
 
             $this->filesService->delete($uuid);
@@ -189,7 +186,6 @@ final class ArchivoController extends Controller
             $archivo = $this->documentos->adjuntar(
                 $model,
                 $request->validated('archivo'),
-                $request->validated('metadata'),
                 $request->user() ?? abort(401),
             );
 

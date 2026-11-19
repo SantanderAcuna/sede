@@ -2119,7 +2119,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: ordenarBanners
       summary: Fijar el orden del carrusel
-      description: Requiere `banners.editar`. La lista completa de diapositivas (sin repetidas ni desconocidas); la primera es la que se ve primero. Una lista incompleta es 422.
+      description: Requiere `banners.editar`. La lista completa de diapositivas (sin repetidas ni desconocidas); la primera es la que se ve primero. Una lista incompleta, o que dejó de ser la completa mientras se guardaba (otra persona creó o eliminó una diapositiva), es 422 y no cambia nada. Las filas se bloquean en un orden fijo, así que dos personas que reordenan a la vez se esperan y no se abortan.
       x-status: implemented
       x-criterios: [CAG-02]
       requestBody:

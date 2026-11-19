@@ -10,6 +10,7 @@ use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -215,6 +216,72 @@ final class BannersTest extends TestCase
         $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$b['uuid'], $a['uuid']]])->assertOk();
         $lista = $this->actingAs($gestor)->getJson('/api/v1/panel/banners')->assertOk()->json('data');
         $this->assertSame(['B', 'A'], array_column($lista, 'titulo'));
+    }
+
+    /**
+     * Dos personas que reordenan a la vez, una X→Y y otra Y→X, se bloquean entre sí si cada una actualiza
+     * las filas en el orden que le llega: PostgreSQL aborta una con `deadlock detected` y la API responde 500
+     * (reproducido con dos sesiones reales). Si antes de actualizar se bloquean todas las filas en un orden fijo,
+     * la segunda espera a la primera y no hay ciclo.
+     */
+    public function test_reordenar_bloquea_las_filas_en_un_orden_fijo_antes_de_actualizar(): void
+    {
+        $gestor = $this->gestor();
+        $a = $this->crear($gestor, 'A');
+        $b = $this->crear($gestor, 'B');
+        $c = $this->crear($gestor, 'C');
+
+        /** @var list<string> $sentencias */
+        $sentencias = [];
+        DB::listen(function ($consulta) use (&$sentencias): void {
+            $sentencias[] = strtolower($consulta->sql);
+        });
+
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$c['uuid'], $b['uuid'], $a['uuid']]])->assertOk();
+
+        $bloqueo = null;
+        $primeraActualizacion = null;
+        foreach ($sentencias as $i => $sql) {
+            if ($bloqueo === null && str_contains($sql, 'from "banners"') && str_contains($sql, 'for update')) {
+                $bloqueo = $i;
+                $this->assertStringContainsString('order by "id"', $sql, 'El bloqueo debe pedir las filas por id, no en el orden recibido.');
+            }
+            if ($primeraActualizacion === null && str_starts_with($sql, 'update "banners"')) {
+                $primeraActualizacion = $i;
+            }
+        }
+        $this->assertNotNull($bloqueo, 'No se bloquearon las filas de banners con FOR UPDATE.');
+        $this->assertNotNull($primeraActualizacion);
+        $this->assertLessThan($primeraActualizacion, $bloqueo, 'El bloqueo debe ir antes de la primera actualización.');
+    }
+
+    /**
+     * Entre la validación de la petición y el bloqueo otra persona puede borrar o crear una diapositiva.
+     * Con el bloqueo tomado se vuelve a comprobar la lista completa: si cambió, 422 y no se toca ningún orden.
+     */
+    public function test_si_la_lista_cambia_mientras_se_ordena_responde_422_y_no_cambia_nada(): void
+    {
+        $gestor = $this->gestor();
+        $a = $this->crear($gestor, 'A');
+        $b = $this->crear($gestor, 'B');
+        $c = $this->crear($gestor, 'C');
+
+        $borrada = false;
+        DB::beforeExecuting(function (string $sql) use (&$borrada, $c): void {
+            if (! $borrada && str_contains(strtolower($sql), 'for update') && str_contains(strtolower($sql), 'from "banners"')) {
+                $borrada = true;
+                DB::table('banners')->where('uuid', $c['uuid'])->update(['deleted_at' => now()]);
+            }
+        });
+
+        $this->actingAs($gestor)
+            ->putJson('/api/v1/panel/banners/orden', ['uuids' => [$c['uuid'], $b['uuid'], $a['uuid']]])
+            ->assertUnprocessable();
+
+        $this->assertTrue($borrada, 'La prueba no llegó a simular el borrado concurrente.');
+        $ordenes = DB::table('banners')->whereIn('uuid', [$a['uuid'], $b['uuid']])->orderBy('uuid')->pluck('orden', 'uuid')->all();
+        $this->assertSame(1, (int) $ordenes[$a['uuid']]);
+        $this->assertSame(2, (int) $ordenes[$b['uuid']]);
     }
 
     public function test_cambiar_solo_el_alt_no_pide_subir_otra_vez_la_imagen(): void

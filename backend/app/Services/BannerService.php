@@ -13,6 +13,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
@@ -122,6 +123,22 @@ final class BannerService implements BannerServiceInterface
     public function reordenar(User $actor, array $uuids): void
     {
         DB::transaction(function () use ($actor, $uuids): void {
+            // Se bloquean todas las filas en un orden fijo (por id) antes de actualizar: si dos personas reordenan
+            // a la vez cada una actualizaría en su propio orden, y PostgreSQL abortaría una por interbloqueo.
+            // Con el bloqueo tomado se vuelve a comprobar la lista, porque entre la validación de la petición y
+            // aquí pudo borrarse o crearse una diapositiva.
+            /** @var list<string> $vigentes */
+            $vigentes = Banner::query()->orderBy('id')->lockForUpdate()->pluck('uuid')->map(fn ($u) => (string) $u)->all();
+            $enviados = array_map('strval', array_values($uuids));
+            $esperados = $vigentes;
+            sort($enviados);
+            sort($esperados);
+            if ($enviados !== $esperados) {
+                throw ValidationException::withMessages([
+                    'uuids' => ['El orden debe incluir todas las diapositivas, una sola vez cada una. Recargue la lista e inténtelo de nuevo.'],
+                ]);
+            }
+
             foreach (array_values($uuids) as $posicion => $uuid) {
                 Banner::query()->where('uuid', $uuid)->update(['orden' => $posicion + 1]);
             }

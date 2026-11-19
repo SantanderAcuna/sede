@@ -212,6 +212,9 @@ final class AuditoriaDeContenidoTest extends TestCase
         $this->con('tramites');
         $uuid = (string) $this->postJson('/api/v1/panel/tramites', ['nombre' => 'Certificado'])->assertCreated()->json('data.uuid');
 
+        // Pasa el tiempo entre crear y guardar: la fecha de «actualizado» cambia sola y no es algo que la persona editó
+        // (en staging aparecía como campo cambiado).
+        $this->travel(2)->minutes();
         $this->patchJson("/api/v1/panel/tramites/{$uuid}", ['nombre' => 'Certificado', 'resumen' => 'Un resumen nuevo.'])->assertOk();
 
         $campos = $this->cambios($this->huella('tramite_actualizado'))['campos'];

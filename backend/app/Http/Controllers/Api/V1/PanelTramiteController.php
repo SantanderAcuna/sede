@@ -137,7 +137,11 @@ final class PanelTramiteController extends Controller
     {
         $tramite->loadMissing(['categoria', 'dependencia', ...Tramite::RELACIONES_FICHA]);
 
-        return [...(new TramiteFichaResource($tramite))->resolve(), 'publicado' => $tramite->publicado_en !== null];
+        $ficha = (new TramiteFichaResource($tramite))->resolve();
+        // Las marcas de tiempo las pone el sistema al guardar: no son algo que la persona editó.
+        unset($ficha['actualizado_en'], $ficha['publicado_en']);
+
+        return [...$ficha, 'publicado' => $tramite->publicado_en !== null];
     }
 
     /**

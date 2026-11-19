@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 
 const raiz = resolve(__dirname, '..')
 const archivosApi = [
-  'auth', 'banners', 'client', 'contenido', 'entidad',
+  'auditoria', 'auth', 'banners', 'client', 'contenido', 'entidad',
   'noticias', 'politicas', 'roles', 'tramites', 'usuarios',
 ].map((n) => `${n}.ts`)
 
@@ -23,7 +23,7 @@ function listar(dir: string): string[] {
 }
 
 describe('capa api del panel', () => {
-  it('existe src/api con los 10 archivos esperados', () => {
+  it('existe src/api con los 11 archivos esperados', () => {
     const dir = join(raiz, 'src/api')
     expect(existsSync(dir)).toBe(true)
     expect(readdirSync(dir).sort()).toEqual(archivosApi)

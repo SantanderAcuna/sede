@@ -263,6 +263,52 @@ describe('crear desde el formulario', () => {
   })
 })
 
+describe('crear y adjuntar sin recargar la página', () => {
+  // `nueva` y `editar` usan el mismo componente: al pasar de una a otra el router reutiliza la instancia
+  // y `onMounted` no vuelve a correr. Este montaje usa un RouterView real; `montar` pone el componente suelto.
+  async function conRouterView() {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/configuracion/politicas/nueva', name: 'panel.politicas.nueva', component: PoliticaFormularioView },
+        { path: '/configuracion/politicas/:slug', name: 'panel.politicas.editar', component: PoliticaFormularioView },
+        { path: '/configuracion/politicas', name: 'panel.politicas', component: { template: '<i/>' } },
+      ],
+    })
+    await router.push('/configuracion/politicas/nueva')
+    await router.isReady()
+    const wrapper = mount({ template: '<RouterView />' }, {
+      attachTo: document.body, global: { plugins: [router], stubs: { FaIcon: true, teleport: true } },
+    })
+    await flushPromises()
+    return { wrapper, router }
+  }
+
+  it('recién creada la política, el campo de adjuntar ya funciona', async () => {
+    const creada = propia({ slug: 'accesibilidad', nombre: 'Accesibilidad' })
+    m.crear.mockResolvedValue(creada)
+    m.listar.mockResolvedValue([politica(), creada])
+    m.adjuntarDocumento.mockResolvedValue(undefined as never)
+    const { wrapper } = await conRouterView()
+    await wrapper.find('input[type="text"]').setValue('Accesibilidad')
+    const apartado = wrapper.find('[data-apartado]')
+    await apartado.find('input[type="text"]').setValue('Objeto')
+    await apartado.find('textarea').setValue('Primero.')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(m.listar).toHaveBeenCalled()
+    const entrada = wrapper.find('input[type="file"]')
+    expect(entrada.exists()).toBe(true)
+    const archivo = new File(['%PDF'], 'acto.pdf', { type: 'application/pdf' })
+    Object.defineProperty(entrada.element, 'files', { value: [archivo], configurable: true })
+    await entrada.trigger('change')
+    await flushPromises()
+
+    expect(m.adjuntarDocumento).toHaveBeenCalledWith(creada.uuid, archivo)
+  })
+})
+
 describe('publicar y eliminar desde la política', () => {
   const marca = (w: { find: (s: string) => { element: Element; exists: () => boolean } }) =>
     w.find('input[data-campo="publicada"]')

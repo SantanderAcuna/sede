@@ -297,8 +297,14 @@ onBeforeUnmount(() => {
   quitarGuardia?.()
 })
 
-watch(slug, () => {
-  if (slug.value !== '' && politica.value !== null && slug.value !== politica.value.slug) void cargar()
+// «nueva» y «editar» son el mismo componente: al pasar de una a otra el router reutiliza esta instancia y
+// `onMounted` no vuelve a correr. Se recarga al cambiar de modo y al cambiar a otra política distinta de la ya cargada.
+watch([slug, esNueva], ([slugNuevo, nuevaAhora], [, eraNueva]) => {
+  if (nuevaAhora !== eraNueva) {
+    void cargar()
+    return
+  }
+  if (slugNuevo !== '' && politica.value !== null && slugNuevo !== politica.value.slug) void cargar()
 })
 </script>
 

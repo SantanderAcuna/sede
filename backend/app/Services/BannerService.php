@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Contracts\Services\BannerServiceInterface;
 use App\Exceptions\BannerIncompleto;
+use App\Exceptions\OrdenDeBannersDesactualizado;
 use App\Models\Banner;
 use App\Models\User;
 use App\Support\Acceso\Huella;
@@ -24,6 +25,9 @@ use Throwable;
  */
 final class BannerService implements BannerServiceInterface
 {
+    /** Clave del bloqueo de aviso que serializa quien asigna o cambia el `orden` del carrusel. */
+    private const BLOQUEO_ORDEN = 'sede.banners.orden';
+
     public function __construct(private readonly FilesMediaService $archivos) {}
 
     public function todos(): Collection
@@ -45,10 +49,15 @@ final class BannerService implements BannerServiceInterface
     {
         unset($datos['imagen_alt']);
         $banner = new Banner($datos);
-        $banner->orden = ((int) Banner::query()->max('orden')) + 1;
         $banner->activo = (bool) ($datos['activo'] ?? false);
         $this->exigirCompleto($banner);
-        $banner->save();
+
+        // Dos altas a la vez leerían el mismo máximo y quedarían con el mismo número: se serializan.
+        DB::transaction(function () use ($banner): void {
+            $this->bloquearOrden();
+            $banner->orden = ((int) Banner::query()->max('orden')) + 1;
+            $banner->save();
+        });
 
         Huella::registrar($actor, 'banner_creado', 'banners', $banner->id, ['titulo' => $banner->titulo]);
 
@@ -120,17 +129,25 @@ final class BannerService implements BannerServiceInterface
         return $this->porUuid($banner->uuid) ?? $banner;
     }
 
-    public function reordenar(User $actor, array $uuids): void
+    public function reordenar(User $actor, array $uuids, array $antes): void
     {
-        DB::transaction(function () use ($actor, $uuids): void {
+        DB::transaction(function () use ($actor, $uuids, $antes): void {
+            $this->bloquearOrden();
+
             // Se bloquean todas las filas en un orden fijo (por id) antes de actualizar: si dos personas reordenan
             // a la vez cada una actualizaría en su propio orden, y PostgreSQL abortaría una por interbloqueo.
-            // Con el bloqueo tomado se vuelve a comprobar la lista, porque entre la validación de la petición y
-            // aquí pudo borrarse o crearse una diapositiva.
-            /** @var list<string> $vigentes */
-            $vigentes = Banner::query()->orderBy('id')->lockForUpdate()->pluck('uuid')->map(fn ($u) => (string) $u)->all();
+            $filas = Banner::query()->orderBy('id')->lockForUpdate()->get(['id', 'uuid', 'orden']);
+            /** @var list<string> $actual */
+            $actual = $filas->sortBy([['orden', 'asc'], ['id', 'asc']])->pluck('uuid')->map(fn ($u) => (string) $u)->values()->all();
+
+            // Con las filas bloqueadas: si el orden que vio quien guarda ya no es el que hay, otra persona lo cambió
+            // y guardar pisaría su cambio sin avisar.
+            if (array_map('strval', $antes) !== $actual) {
+                throw new OrdenDeBannersDesactualizado;
+            }
+
             $enviados = array_map('strval', array_values($uuids));
-            $esperados = $vigentes;
+            $esperados = $actual;
             sort($enviados);
             sort($esperados);
             if ($enviados !== $esperados) {
@@ -153,6 +170,12 @@ final class BannerService implements BannerServiceInterface
         $banner->delete();
 
         Huella::registrar($actor, 'banner_eliminado', 'banners', $id, ['titulo' => $titulo]);
+    }
+
+    /** Bloqueo de aviso de la transacción en curso (se libera solo al terminar); sin transacción no serviría. */
+    private function bloquearOrden(): void
+    {
+        DB::select('select pg_advisory_xact_lock(?)', [crc32(self::BLOQUEO_ORDEN)]);
     }
 
     /** @throws BannerIncompleto */

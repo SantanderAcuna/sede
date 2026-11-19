@@ -49,8 +49,11 @@ export async function subirImagen(uuid: string, archivo: File, alt: string): Pro
   return desenvolver(r.data)
 }
 
-/** El nuevo orden: todos los `uuid`, en la posición en que deben quedar. */
-export async function ordenar(uuids: string[]): Promise<BannerPanelItem[]> {
-  const r = await http.put<ApiEnvelope<BannerPanelItem[]>>('/panel/banners/orden', { uuids })
+/**
+ * El nuevo orden: todos los `uuid`, en la posición en que deben quedar, y el orden que se tenía a la vista (`antes`).
+ * Si otra persona lo cambió mientras tanto, el servidor responde 409 y no guarda nada.
+ */
+export async function ordenar(uuids: string[], antes: string[]): Promise<BannerPanelItem[]> {
+  const r = await http.put<ApiEnvelope<BannerPanelItem[]>>('/panel/banners/orden', { uuids, antes })
   return desenvolver(r.data)
 }

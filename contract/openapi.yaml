@@ -2119,7 +2119,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: ordenarBanners
       summary: Fijar el orden del carrusel
-      description: Requiere `banners.editar`. La lista completa de diapositivas (sin repetidas ni desconocidas); la primera es la que se ve primero. Una lista incompleta, o que dejó de ser la completa mientras se guardaba (otra persona creó o eliminó una diapositiva), es 422 y no cambia nada. Las filas se bloquean en un orden fijo, así que dos personas que reordenan a la vez se esperan y no se abortan.
+      description: Requiere `banners.editar`. `uuids` es la lista completa de diapositivas, sin repetidas ni desconocidas; la primera es la que se ve primero. `antes` es el orden que tenía a la vista quien guarda. Si ya no es el orden actual porque otra persona reordenó, creó o eliminó una diapositiva mientras tanto, responde 409 y no cambia nada, para no pisar su cambio. Una lista final incompleta o con repetidas es 422. Los uuid se aceptan en mayúsculas o minúsculas. Las altas y los reordenamientos se serializan y las filas se bloquean en un orden fijo, así que dos personas a la vez se esperan y no se abortan.
       x-status: implemented
       x-criterios: [CAG-02]
       requestBody:
@@ -2128,9 +2128,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [uuids]
+              required: [uuids, antes]
               properties:
-                uuids: { type: array, items: { type: string, format: uuid } }
+                uuids: { type: array, minItems: 1, uniqueItems: true, items: { type: string, format: uuid } }
+                antes: { type: array, minItems: 1, uniqueItems: true, items: { type: string, format: uuid } }
       responses:
         '200':
           description: Orden guardado
@@ -2148,6 +2149,11 @@ paths:
           $ref: '#/components/responses/NoAutenticado'
         '403':
           description: Falta el permiso `banners.editar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '409':
+          description: El orden cambió mientras se editaba; recargue la lista.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }

@@ -194,6 +194,14 @@ describe('es una vista propia, no un panel dentro de la lista', () => {
 })
 
 describe('qué falta antes de publicar', () => {
+  it('no promete que el borrador se guarda «sin completarlo»: título, descripción y contenido se exigen siempre', async () => {
+    const { wrapper } = await montar()
+    const aviso = wrapper.find('[data-checklist] p').text()
+    expect(aviso).not.toContain('sin completarlo')
+    expect(aviso).toContain('borrador')
+    expect(aviso).toContain('contenido')
+  })
+
   it('lista cada requisito y marca los cumplidos con texto, no sólo con color', async () => {
     const { wrapper } = await montar()
     const lista = wrapper.find('[data-checklist]')

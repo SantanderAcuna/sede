@@ -195,6 +195,25 @@ describe('edición de una política', () => {
     expect(wrapper.text()).toContain('Política guardada')
   })
 
+  it('si la política está publicada, el aviso dice que el sitio ya muestra el texto', async () => {
+    m.actualizar.mockResolvedValue(politica({ nombre: 'Cookies', publicada: true }))
+    const { wrapper } = await montarFormulario()
+    await wrapper.find('input[type="text"]').setValue('Cookies')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).toContain('El sitio ya muestra el texto nuevo')
+  })
+
+  it('si la política está oculta, el aviso NO dice que el sitio la muestra', async () => {
+    m.actualizar.mockResolvedValue(politica({ nombre: 'Cookies', publicada: false }))
+    const { wrapper } = await montarFormulario()
+    await wrapper.find('input[type="text"]').setValue('Cookies')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('El sitio ya muestra')
+    expect(wrapper.text()).toContain('Política guardada. Sigue oculta')
+  })
+
   it('explica el rechazo del servidor sin perder lo escrito', async () => {
     const error = Object.assign(new Error('x'), {
       isAxiosError: true,

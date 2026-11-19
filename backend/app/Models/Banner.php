@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Traits\GuardaFechasEnUtc;
 use App\Models\Traits\HasUuids;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,7 +30,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 final class Banner extends Model
 {
-    use HasUuids, SoftDeletes;
+    use GuardaFechasEnUtc, HasUuids, SoftDeletes;
 
     public const COLECCION_IMAGEN = 'imagen';
 

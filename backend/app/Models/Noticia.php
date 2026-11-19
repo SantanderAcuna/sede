@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\EstadoNoticia;
+use App\Models\Traits\GuardaFechasEnUtc;
 use App\Models\Traits\HasUuids;
 use App\Support\Noticias\ContenidoNoticia;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,7 +34,7 @@ use Illuminate\Support\Carbon;
  */
 final class Noticia extends Model
 {
-    use HasUuids, SoftDeletes;
+    use GuardaFechasEnUtc, HasUuids, SoftDeletes;
 
     /** Colección de `file_media` donde se adjunta la imagen de la noticia. */
     public const COLECCION_IMAGEN = 'imagen';

@@ -9,6 +9,7 @@ use App\Exceptions\TramiteIncompleto;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarTramiteRequest;
 use App\Http\Requests\ListarTramitesPanelRequest;
+use App\Http\Resources\TramiteFichaResource;
 use App\Http\Resources\TramitePanelFilaResource;
 use App\Http\Resources\TramitePanelResource;
 use App\Models\Dependencia;
@@ -109,11 +110,12 @@ final class PanelTramiteController extends Controller
         }
 
         try {
-            $tramite = DB::transaction(function () use ($tramite, $peticion) {
+            $antes = $this->instantanea($tramite);
+            $tramite = DB::transaction(function () use ($tramite, $peticion, $antes) {
                 $guardado = $this->tramites->actualizar($tramite, $peticion->datos());
                 Huella::deSesion('tramite_actualizado', 'tramites', $guardado->id, [
                     'nombre' => $guardado->nombre,
-                    'campos' => array_keys($peticion->datos()),
+                    'campos' => Huella::diferencias($antes, $this->instantanea($guardado)),
                     'publicado' => $guardado->publicado_en !== null,
                 ]);
 
@@ -124,6 +126,18 @@ final class PanelTramiteController extends Controller
         }
 
         return ApiResponse::ok((new TramitePanelResource($tramite))->resolve(), 'Trámite actualizado correctamente.');
+    }
+
+    /**
+     * La ficha del trámite como está ahora, para saber qué cambió al guardar.
+     *
+     * @return array<string, mixed>
+     */
+    private function instantanea(Tramite $tramite): array
+    {
+        $tramite->loadMissing(['categoria', 'dependencia', ...Tramite::RELACIONES_FICHA]);
+
+        return [...(new TramiteFichaResource($tramite))->resolve(), 'publicado' => $tramite->publicado_en !== null];
     }
 
     /**

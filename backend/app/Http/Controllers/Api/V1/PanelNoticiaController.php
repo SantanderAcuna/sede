@@ -116,11 +116,12 @@ final class PanelNoticiaController extends Controller
         }
 
         try {
-            $noticia = DB::transaction(function () use ($noticia, $peticion) {
+            $antes = self::instantanea($noticia);
+            $noticia = DB::transaction(function () use ($noticia, $peticion, $antes) {
                 $guardada = $this->noticias->actualizar($noticia, $peticion->validated());
                 Huella::deSesion('noticia_actualizada', 'noticias', $guardada->id, [
                     'titulo' => $guardada->titulo,
-                    'campos' => array_keys($peticion->validated()),
+                    'campos' => Huella::diferencias($antes, self::instantanea($guardada)),
                     'estado' => self::estado($guardada),
                 ]);
 
@@ -199,6 +200,24 @@ final class PanelNoticiaController extends Controller
         });
 
         return ApiResponse::ok(null, 'Noticia eliminada.');
+    }
+
+    /**
+     * Los campos que la persona puede editar, como están ahora (para saber cuáles cambiaron).
+     *
+     * @return array<string, mixed>
+     */
+    private static function instantanea(Noticia $noticia): array
+    {
+        return [
+            'titulo' => $noticia->titulo,
+            'descripcion_corta' => $noticia->descripcion_corta,
+            'contenido' => $noticia->contenido,
+            'fecha_publicacion' => $noticia->fecha_publicacion->toIso8601String(),
+            'destacada' => (bool) $noticia->destacada,
+            'activo' => (bool) $noticia->activo,
+            'imagen_alt' => $noticia->imagen_principal_alt,
+        ];
     }
 
     private static function estado(Noticia $noticia): string

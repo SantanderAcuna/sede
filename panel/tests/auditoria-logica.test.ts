@@ -11,6 +11,23 @@ describe('nombreDeCampo', () => {
     expect(nombreDeCampo('contenido')).toBe('texto')
     expect(nombreDeCampo('campo_nuevo')).toBe('campo_nuevo')
   })
+
+  it('dice con palabras de la persona los campos de la ficha del trámite', () => {
+    expect(nombreDeCampo('requisitos')).toBe('requisitos')
+    expect(nombreDeCampo('pasos')).toBe('pasos')
+    expect(nombreDeCampo('documentos')).toBe('documentos')
+    expect(nombreDeCampo('puntos_atencion')).toBe('dónde se atiende')
+    expect(nombreDeCampo('normativa')).toBe('normativa')
+    expect(nombreDeCampo('canales_consulta_estado')).toBe('consulta del estado')
+    expect(nombreDeCampo('solicitantes')).toBe('para quién es')
+    expect(nombreDeCampo('costo')).toBe('costo')
+    expect(nombreDeCampo('tiempo_solucion_dias')).toBe('tiempo de solución')
+    expect(nombreDeCampo('canal_inicio')).toBe('dónde se inicia')
+    expect(nombreDeCampo('consulta_estado')).toBe('cómo se consulta el estado')
+    expect(nombreDeCampo('resultado')).toBe('resultado')
+    expect(nombreDeCampo('dependencia')).toBe('dependencia')
+    expect(nombreDeCampo('categoria')).toBe('tema')
+  })
 })
 
 describe('esRechazo', () => {

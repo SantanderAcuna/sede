@@ -184,6 +184,50 @@ final class AuditoriaDeContenidoTest extends TestCase
         $this->sinHuella('tramite_creado');
     }
 
+    // ── Solo lo que cambió ─────────────────────────────────────────────────────
+
+    public function test_politicas_los_campos_registrados_son_los_que_cambiaron_no_los_enviados(): void
+    {
+        $this->con('politicas');
+        $slug = (string) $this->postJson('/api/v1/panel/politicas', [
+            'nombre' => 'Accesibilidad',
+            'secciones' => [['id' => 'objeto', 'titulo' => 'Objeto', 'parrafos' => ['Uno.']]],
+        ])->assertCreated()->json('data.slug');
+
+        // El formulario manda siempre el nombre y los datos del acto aunque la persona no los toque.
+        $this->patchJson("/api/v1/panel/politicas/{$slug}", [
+            'nombre' => 'Accesibilidad',
+            'es_ejemplo' => true,
+            'secciones' => [['id' => 'objeto', 'titulo' => 'Objeto', 'parrafos' => ['Dos.']]],
+        ])->assertOk();
+
+        $campos = $this->cambios($this->huella('politica_actualizada'))['campos'];
+        $this->assertContains('secciones', $campos);
+        $this->assertNotContains('nombre', $campos);
+        $this->assertNotContains('es_ejemplo', $campos);
+    }
+
+    public function test_tramites_los_campos_registrados_son_los_que_cambiaron_no_los_enviados(): void
+    {
+        $this->con('tramites');
+        $uuid = (string) $this->postJson('/api/v1/panel/tramites', ['nombre' => 'Certificado'])->assertCreated()->json('data.uuid');
+
+        $this->patchJson("/api/v1/panel/tramites/{$uuid}", ['nombre' => 'Certificado', 'resumen' => 'Un resumen nuevo.'])->assertOk();
+
+        $campos = $this->cambios($this->huella('tramite_actualizado'))['campos'];
+        $this->assertSame(['resumen'], $campos);
+    }
+
+    public function test_noticias_los_campos_registrados_son_los_que_cambiaron_no_los_enviados(): void
+    {
+        $this->con('noticias');
+        $uuid = (string) $this->postJson('/api/v1/panel/noticias', ['titulo' => 'Obras', 'contenido' => 'x', 'descripcion_corta' => 'A', 'fecha_publicacion' => '2026-11-01'])->assertCreated()->json('data.uuid');
+
+        $this->patchJson("/api/v1/panel/noticias/{$uuid}", ['titulo' => 'Obras', 'descripcion_corta' => 'B'])->assertOk();
+
+        $this->assertSame(['descripcion_corta'], $this->cambios($this->huella('noticia_actualizada'))['campos']);
+    }
+
     // ── Entidad ─────────────────────────────────────────────────────────────────
 
     public function test_entidad_actualizar_deja_huella_con_los_campos_y_no_los_valores(): void

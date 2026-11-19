@@ -126,7 +126,7 @@ final class VerificarArchivosTest extends TestCase
         {
             public function __construct(private readonly string $uuid) {}
 
-            /** @return resource|false */
+            /** @return false */
             public function readStream(string $ruta)
             {
                 DB::table('file_media')->where('uuid', $this->uuid)->delete();

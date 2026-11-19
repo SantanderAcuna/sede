@@ -181,6 +181,9 @@ describe('lista', () => {
     await wrapper.find('tbody button[aria-label*="Eliminar"]').trigger('click')
     expect(m.eliminar).not.toHaveBeenCalled()
     expect(wrapper.find('[role="dialog"]').text()).toContain('Mi política')
+    // D9: los documentos no se borran con la política; la confirmación no puede decir lo contrario.
+    expect(wrapper.find('[role="dialog"]').text()).toContain('se conservan en la mediateca')
+    expect(wrapper.find('[role="dialog"]').text()).not.toContain('con su texto y el documento oficial')
 
     m.listar.mockResolvedValue([politica()])
     await wrapper.findAll('[role="dialog"] button').find((b) => b.text().includes('Sí, eliminar'))!.trigger('click')
@@ -360,6 +363,7 @@ describe('publicar y eliminar desde la política', () => {
     const { wrapper, router } = await editar('mi-politica')
     await wrapper.find('[data-accion="eliminar-politica"]').trigger('click')
     expect(m.eliminar).not.toHaveBeenCalled()
+    expect(wrapper.find('[role="dialog"]').text()).toContain('se conservan en la mediateca')
     await wrapper.findAll('[role="dialog"] button').find((b) => b.text().includes('Sí, eliminar'))!.trigger('click')
     await flushPromises()
     expect(m.eliminar).toHaveBeenCalledWith('mi-politica')

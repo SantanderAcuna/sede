@@ -192,7 +192,7 @@ final class PoliticasCrudTest extends TestCase
         $this->assertSame('politica-de-accesibilidad', $slugs[5]);
     }
 
-    public function test_eliminar_exige_el_permiso_y_borra_tambien_el_archivo_adjunto(): void
+    public function test_eliminar_exige_el_permiso_y_conserva_los_documentos_en_la_mediateca(): void
     {
         Storage::fake('local');
         $this->con(...CatalogoPermisos::de('politicas'));
@@ -211,10 +211,12 @@ final class PoliticasCrudTest extends TestCase
         $this->deleteJson("/api/v1/panel/politicas/{$slug}")->assertForbidden();
 
         $this->con('politicas.ver', 'politicas.eliminar');
-        $this->deleteJson("/api/v1/panel/politicas/{$slug}")->assertOk();
+        $this->deleteJson("/api/v1/panel/politicas/{$slug}")
+            ->assertOk()
+            ->assertJsonPath('message', 'Política eliminada. Sus documentos se conservaron en la mediateca.');
         $this->assertDatabaseMissing('politicas', ['slug' => $slug]);
-        $this->assertDatabaseMissing('file_media', ['model_type' => Politica::class, 'model_id' => $politica->id]);
-        Storage::disk('local')->assertMissing('politicas/acto.pdf');
+        $this->assertDatabaseHas('file_media', ['model_type' => Politica::class, 'model_id' => $politica->id]);
+        Storage::disk('local')->assertExists('politicas/acto.pdf');
         $this->deleteJson("/api/v1/panel/politicas/{$slug}")->assertNotFound();
     }
 

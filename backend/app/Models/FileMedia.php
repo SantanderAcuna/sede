@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Exceptions\ArchivoEnUso;
 use App\Models\Traits\HasUuids;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -47,6 +50,14 @@ final class FileMedia extends Model
 
     /** @var false No es auto-increment. */
     public $incrementing = false;
+
+    /**
+     * La clave es un uuid (texto). Sin declararlo, Laravel la trata como entera y en la carga ansiosa de
+     * una relación hacia este modelo convierte los uuid a `0` (`where uuid in (0)`), que PostgreSQL rechaza.
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
 
     /** @var list<string> */
     protected $fillable = [
@@ -103,11 +114,43 @@ final class FileMedia extends Model
     }
 
     /**
-     * Elimina el archivo físico y el registro de la base de datos.
+     * ¿Alguna noticia, banner, imagen de texto o documento de política usa este archivo?
+     */
+    public function enUso(): bool
+    {
+        return DB::table('noticias')->where('imagen_principal_uuid', $this->uuid)->exists()
+            || DB::table('banners')->where('imagen_uuid', $this->uuid)->exists()
+            || DB::table('noticia_imagenes')->where('file_media_uuid', $this->uuid)->exists()
+            || DB::table('politica_documentos')->where('file_media_uuid', $this->uuid)->exists();
+    }
+
+    /**
+     * Elimina el registro y después el archivo físico.
+     *
+     * El orden importa: si falla el disco queda un archivo suelto (basura inofensiva y detectable); con el orden
+     * contrario, si fallara la fila quedaría un registro que apunta a un archivo inexistente (imagen rota para el
+     * público). Un archivo en uso no se borra: la base lo impide con `RESTRICT`.
+     *
+     * @throws ArchivoEnUso
      */
     public function deleteFully(): void
     {
+        if ($this->enUso()) {
+            throw new ArchivoEnUso($this->uuid);
+        }
+
+        try {
+            // Con su propio punto de guardado: un fallo de la base no aborta una transacción que ya esté abierta.
+            DB::transaction(fn () => self::where('uuid', $this->uuid)->delete());
+        } catch (QueryException $e) {
+            // 23001 (PostgreSQL 18) o 23503 (16): una clave foránea RESTRICT lo impidió, porque alguien lo empezó a usar.
+            if (in_array($e->errorInfo[0] ?? null, ['23001', '23503'], true)) {
+                throw new ArchivoEnUso($this->uuid, $e);
+            }
+
+            throw $e;
+        }
+
         Storage::disk($this->disk)->delete($this->path);
-        self::where('uuid', $this->uuid)->delete();
     }
 }

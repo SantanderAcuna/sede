@@ -10,6 +10,7 @@ use App\Models\Politica;
 use App\Services\FilesMediaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Tests\Concerns\CreaFilasDeArchivos;
@@ -28,15 +29,16 @@ final class FileMediaPorModelIdTest extends TestCase
     use CreaFilasDeArchivos;
     use RefreshDatabase;
 
-    public function test_la_imagen_de_un_banner_se_encuentra_por_model_id(): void
+    public function test_la_imagen_de_un_banner_se_encuentra_por_su_clave_foranea(): void
     {
         $banner = $this->banner();
-        $this->fila(['model_type' => Banner::class, 'model_id' => $banner['id']]);
+        $uuid = $this->fila(['model_type' => Banner::class, 'model_id' => $banner['id']]);
+        DB::table('banners')->where('id', $banner['id'])->update(['imagen_uuid' => $uuid]);
 
         $this->assertNotNull(Banner::query()->findOrFail($banner['id'])->imagenPrincipal);
     }
 
-    public function test_la_imagen_de_un_banner_no_se_confunde_con_otro_modelo_del_mismo_id(): void
+    public function test_un_archivo_con_el_mismo_model_id_pero_sin_vinculo_no_es_la_imagen_del_banner(): void
     {
         $banner = $this->banner();
         $this->fila(['model_type' => Noticia::class, 'model_id' => $banner['id']]);
@@ -44,21 +46,22 @@ final class FileMediaPorModelIdTest extends TestCase
         $this->assertNull(Banner::query()->findOrFail($banner['id'])->imagenPrincipal);
     }
 
-    public function test_la_relacion_de_noticia_usa_model_id(): void
+    public function test_la_relacion_de_noticia_usa_la_clave_foranea_al_uuid(): void
     {
         $relacion = (new Noticia)->imagenPrincipal();
 
-        $this->assertSame('model_id', $relacion->getForeignKeyName());
-        $this->assertSame('id', $relacion->getLocalKeyName());
+        $this->assertSame('imagen_principal_uuid', $relacion->getForeignKeyName());
+        $this->assertSame('uuid', $relacion->getOwnerKeyName());
     }
 
     public function test_el_documento_oficial_de_una_politica_se_encuentra_por_model_id(): void
     {
         $politica = $this->politica();
-        $this->fila([
+        $uuid = $this->fila([
             'model_type' => Politica::class, 'model_id' => $politica['id'],
             'collection' => Politica::COLECCION_DOCUMENTO,
         ]);
+        DB::table('politica_documentos')->insert(['politica_id' => $politica['id'], 'rol' => 'oficial', 'file_media_uuid' => $uuid]);
 
         $this->assertNotNull(Politica::query()->findOrFail($politica['id'])->documentoOficial());
     }

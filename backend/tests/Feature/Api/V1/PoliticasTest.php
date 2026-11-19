@@ -469,7 +469,7 @@ final class PoliticasTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_quitar_el_adjunto_borra_el_archivo_y_la_descarga_da_404(): void
+    public function test_quitar_el_adjunto_lo_desvincula_conserva_el_archivo_y_la_descarga_da_404(): void
     {
         Storage::fake((string) config('filesystems.default'));
         $editor = $this->editorConArchivos();
@@ -477,7 +477,9 @@ final class PoliticasTest extends TestCase
 
         $this->como($editor)->deleteJson("/api/v1/panel/archivos/{$archivo}")->assertOk();
 
-        $this->assertDatabaseMissing('file_media', ['uuid' => $archivo]);
+        // Ley 594/2000: el archivo se conserva en la mediateca; solo se rompe el vínculo con la política.
+        $this->assertDatabaseHas('file_media', ['uuid' => $archivo]);
+        $this->assertDatabaseMissing('politica_documentos', ['file_media_uuid' => $archivo]);
         $this->get('/politicas/uso-de-cookies/documento')->assertNotFound();
         $this->assertNull($this->getJson('/api/v1/politicas/uso-de-cookies')->json('data.documento_oficial'));
     }

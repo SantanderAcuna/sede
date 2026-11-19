@@ -7,11 +7,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ActualizarPoliticaRequest;
 use App\Http\Requests\CrearPoliticaRequest;
-use App\Models\FileMedia;
 use App\Models\Politica;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
@@ -84,7 +82,7 @@ final class PanelPoliticaController extends Controller
     }
 
     /**
-     * Elimina una política propia y el documento oficial que tenía adjunto.
+     * Elimina una política propia. Sus documentos se conservan en la mediateca.
      * Las cinco obligatorias no se eliminan.
      *
      * @operationId eliminarPolitica
@@ -102,16 +100,11 @@ final class PanelPoliticaController extends Controller
         }
         Gate::authorize('delete', $politica);
 
-        DB::transaction(static function () use ($politica): void {
-            FileMedia::query()
-                ->where('model_type', Politica::class)
-                ->where('model_id', $politica->id)
-                ->get()
-                ->each(static fn (FileMedia $archivo) => $archivo->deleteFully());
-            $politica->delete();
-        });
+        // Sin E/S de archivos dentro de la transacción: los documentos NO se borran (Ley 594/2000, a la
+        // espera de jurídica); al eliminar la política sus vínculos caen en cascada y los archivos quedan «sin uso».
+        $politica->delete();
 
-        return ApiResponse::ok(null, 'Política eliminada correctamente.');
+        return ApiResponse::ok(null, 'Política eliminada. Sus documentos se conservaron en la mediateca.');
     }
 
     /**

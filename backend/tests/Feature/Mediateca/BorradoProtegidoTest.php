@@ -46,7 +46,7 @@ final class BorradoProtegidoTest extends TestCase
         Storage::disk($disco)->put($ruta, (string) base64_decode(self::PNG, true));
 
         DB::table('file_media')->insert([
-            'uuid' => $uuid, 'uso' => $uso,
+            'uuid' => $uuid, 'uso' => $uso, 'hash_sha256' => hash('sha256', $uuid),
             'filename' => "{$uuid}.png", 'original_filename' => 'foto.png', 'mime_type' => 'image/png', 'size' => 70,
             'disk' => $disco, 'path' => $ruta,
             'created_at' => now(), 'updated_at' => now(),

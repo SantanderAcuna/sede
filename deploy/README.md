@@ -129,7 +129,8 @@ arriba y no hay nada que revertir. Dos consecuencias:
 1. Trae las imágenes de la versión.
 2. `php artisan migrate --force`.
 3. **`php artisan db:seed --class=SedeSeeder --force`**.
-4. `php artisan archivos:calcular-hash`: huella SHA-256 de los archivos que aún no la tienen. Es
+4. `php artisan archivos:calcular-hash`: huella SHA-256 de los archivos que aún no la tienen (desde D10b
+   la huella es obligatoria y no queda ninguno; la vigilancia nocturna es `archivos:verificar`). Es
    idempotente y **no revierte el despliegue** si algún archivo no se lee: avisa y sigue.
 5. Levanta los contenedores y espera a que `/ready` responda.
 6. Si algo falla (migrar, sembrar o responder), vuelve solo a la versión anterior.

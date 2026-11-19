@@ -265,8 +265,8 @@ const columnas: ColumnDef<DataTableFeatures, TramitePanelFila, unknown>[] = [
         <h1 class="text-xl font-semibold text-slate-900">Trámites y servicios</h1>
         <p class="mt-1 max-w-2xl text-sm text-slate-600">
           Aquí se administra el catálogo de trámites del sitio. Un trámite publicado y completo aparece en el sitio
-          con su ficha; un borrador no se ve hasta que se publique. Los del catálogo oficial se pueden corregir y
-          despublicar, pero no eliminar.
+          con su ficha; un borrador no se ve hasta que se publique. Cualquier trámite se puede corregir, despublicar o
+          eliminar; lo eliminado va a la papelera y no vuelve al sitio.
         </p>
       </div>
       <RouterLink

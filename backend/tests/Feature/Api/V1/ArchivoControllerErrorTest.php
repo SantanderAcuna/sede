@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace Tests\Feature\Api\V1;
 
 use App\Contracts\Services\FilesMediaServiceInterface;
-use App\Models\Entidad;
+use App\Models\Politica;
 use App\Models\User;
 use Database\Seeders\EntidadSeeder;
 use Database\Seeders\PermissionSeeder;
+use Database\Seeders\PoliticaSeeder;
 use Database\Seeders\SuperAdminSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Mockery;
 use Tests\TestCase;
 
@@ -26,7 +28,7 @@ final class ArchivoControllerErrorTest extends TestCase
 
     private User $superAdmin;
 
-    private Entidad $entidad;
+    private Politica $politica;
 
     protected function setUp(): void
     {
@@ -37,12 +39,13 @@ final class ArchivoControllerErrorTest extends TestCase
 
         $this->seed([
             EntidadSeeder::class,
+            PoliticaSeeder::class,
             PermissionSeeder::class,
             SuperAdminSeeder::class,
         ]);
 
         $this->superAdmin = User::query()->where('email', config('superadmin.email'))->firstOrFail();
-        $this->entidad = Entidad::firstOrFail();
+        $this->politica = Politica::query()->where('slug', 'uso-de-cookies')->firstOrFail();
     }
 
     protected function tearDown(): void
@@ -84,7 +87,7 @@ final class ArchivoControllerErrorTest extends TestCase
     public function test_index_devuelve_422_cuando_collection_es_null(): void
     {
         $response = $this->actingAs($this->superAdmin, 'sanctum')
-            ->getJson("/api/v1/panel/entidad/{$this->entidad->uuid}/archivos");
+            ->getJson("/api/v1/panel/entidad/{$this->politica->uuid}/archivos");
 
         $response->assertStatus(422)
             ->assertJsonPath('success', false)
@@ -93,14 +96,14 @@ final class ArchivoControllerErrorTest extends TestCase
 
     public function test_index_devuelve_500_cuando_servicio_lanza_excepcion(): void
     {
-        $mock = Mockery::mock(FilesMediaServiceInterface::class);
-        $mock->shouldReceive('getByCollection')
-            ->andThrow(new \Exception('Error de base de datos'));
-
-        $this->app->instance(FilesMediaServiceInterface::class, $mock);
+        DB::beforeExecuting(function (string $sql): void {
+            if (str_contains($sql, 'politica_documentos')) {
+                throw new \Exception('Error de base de datos');
+            }
+        });
 
         $response = $this->actingAs($this->superAdmin, 'sanctum')
-            ->getJson("/api/v1/panel/entidad/{$this->entidad->uuid}/archivos?collection=logos");
+            ->getJson("/api/v1/panel/entidad/{$this->politica->uuid}/archivos?collection=".Politica::COLECCION_DOCUMENTO);
 
         $response->assertStatus(500)
             ->assertJsonPath('success', false);
@@ -115,9 +118,9 @@ final class ArchivoControllerErrorTest extends TestCase
         $this->app->instance(FilesMediaServiceInterface::class, $mock);
 
         $response = $this->actingAs($this->superAdmin, 'sanctum')
-            ->postJson("/api/v1/panel/entidad/{$this->entidad->uuid}/archivos", [
-                'archivo' => UploadedFile::fake()->create('test.pdf', 1024),
-                'collection' => 'logos',
+            ->postJson("/api/v1/panel/entidad/{$this->politica->uuid}/archivos", [
+                'archivo' => UploadedFile::fake()->createWithContent('test.pdf', "%PDF-1.4\n"),
+                'collection' => Politica::COLECCION_DOCUMENTO,
             ]);
 
         $response->assertStatus(500)

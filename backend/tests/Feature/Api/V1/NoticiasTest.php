@@ -81,8 +81,9 @@ final class NoticiasTest extends TestCase
         $ruta = "noticias/{$uuid}/imagen/foto.png";
         Storage::disk($disco)->put($ruta, (string) base64_decode(self::PNG, true));
 
+        $fileUuid = (string) Str::uuid();
         DB::table('file_media')->insert([
-            'uuid' => (string) Str::uuid(),
+            'uuid' => $fileUuid,
             'model_type' => 'App\\Models\\Noticia',
             'model_id' => $id,
             'collection' => 'imagen',
@@ -96,6 +97,7 @@ final class NoticiasTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        DB::table('noticias')->where('id', $id)->update(['imagen_principal_uuid' => $fileUuid, 'imagen_principal_alt' => $alt]);
     }
 
     private function png(string $nombre = 'foto.png'): UploadedFile

@@ -58,6 +58,28 @@ final class SanitizadorHtml
         return $this->soloImagenesPropias($limpio);
     }
 
+    /**
+     * Los uuid de las imágenes propias que un HTML YA SANEADO incrusta: en minúsculas, sin repetir y en orden
+     * de aparición. Usa la misma regla que `soloImagenesPropias` (prefijo propio, uuid en minúsculas, alt no
+     * vacío), así que lo que el saneador deja es exactamente lo que cuenta como «uso».
+     *
+     * @return list<string>
+     */
+    public function imagenesUsadas(string $htmlSaneado): array
+    {
+        preg_match_all('#<img\b[^>]*>#i', $htmlSaneado, $etiquetas);
+        $uuids = [];
+        foreach ($etiquetas[0] as $etiqueta) {
+            $src = preg_match('#\ssrc="([^"]*)"#i', $etiqueta, $s) ? html_entity_decode($s[1]) : '';
+            $alt = preg_match('#\salt="([^"]*)"#i', $etiqueta, $a) ? trim($a[1]) : '';
+            if ($alt !== '' && preg_match($this->patronImagen, $src) === 1 && preg_match('#('.self::RESTO_IMAGEN.')\z#', $src, $u) === 1) {
+                $uuids[$u[1]] = $u[1];
+            }
+        }
+
+        return array_values($uuids);
+    }
+
     /** Quita toda <img> que no sea propia o no tenga alt no vacío. */
     private function soloImagenesPropias(string $html): string
     {

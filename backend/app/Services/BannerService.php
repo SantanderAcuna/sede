@@ -12,6 +12,8 @@ use App\Support\Acceso\Huella;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * El carrusel de la portada. La imagen se guarda en la tabla común de archivos (`FilesMediaService`).
@@ -60,6 +62,8 @@ final class BannerService implements BannerServiceInterface
         $banner->fill($datos);
         $imagen = $banner->imagenPrincipal;
         if ($alt !== null && $imagen !== null) {
+            // Escritura doble (hasta D10): la columna nueva manda y `metadata` conserva lo viejo al día.
+            $banner->imagen_alt = $alt;
             $imagen->metadata = ['alt' => $alt] + ($imagen->metadata ?? []);
         }
 
@@ -83,16 +87,32 @@ final class BannerService implements BannerServiceInterface
 
     public function guardarImagen(User $actor, Banner $banner, UploadedFile $imagen, string $alt): Banner
     {
-        foreach ($this->archivos->getByCollection($banner, Banner::COLECCION_IMAGEN) as $anterior) {
-            $this->archivos->delete($anterior->uuid);
-        }
+        $anterior = $banner->imagenPrincipal;
 
-        $this->archivos->upload(
+        // 1) Primero se sube la nueva: si falla, la anterior sigue en su sitio.
+        $nueva = $this->archivos->upload(
             file: $imagen,
             collection: Banner::COLECCION_IMAGEN,
             model: $banner,
             metadata: ['alt' => $alt],
         );
+
+        // 2) Transacción corta, sin E/S de archivos.
+        DB::transaction(function () use ($banner, $nueva, $alt): void {
+            $banner->imagen_uuid = $nueva->uuid;
+            $banner->imagen_alt = $alt;
+            $banner->save();
+        });
+
+        // 3) Después del commit se borra la anterior; si falla, queda un archivo sin uso que la limpieza lista.
+        if ($anterior !== null && $anterior->uuid !== $nueva->uuid) {
+            try {
+                $this->archivos->delete($anterior->uuid);
+            } catch (Throwable $e) {
+                Log::warning('No se pudo borrar la imagen anterior del banner.', ['archivo' => $anterior->uuid, 'exception' => $e]);
+            }
+        }
+        $banner->unsetRelation('imagenPrincipal');
 
         Huella::registrar($actor, 'banner_imagen_cambiada', 'banners', $banner->id, ['titulo' => $banner->titulo]);
 

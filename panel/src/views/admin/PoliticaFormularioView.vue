@@ -596,7 +596,7 @@ watch(slug, () => {
       >
         <h2 id="politica-peligro" class="font-medium text-red-800">Zona de peligro</h2>
         <p class="mt-1 text-sm text-slate-600">
-          Eliminar borra la política, su texto y el documento oficial adjunto. No se puede deshacer desde el panel.
+          Eliminar borra la política y su texto. Los documentos adjuntos se conservan en la mediateca. No se puede deshacer desde el panel.
         </p>
         <BaseButton class="mt-3" variant="danger" type="button" data-accion="eliminar-politica" @click="confirmandoEliminar = true">
           Eliminar política

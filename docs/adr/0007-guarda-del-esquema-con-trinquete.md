@@ -1,6 +1,6 @@
 # Archivo 0007 (no es el `ADR-0007` del registro): guarda del esquema de la base de datos, con línea base y trinquete
 
-> **Estado:** PROPUESTA (entrega 0D, tarea D1; pasa a ACEPTADA cuando José apruebe el cierre de la fase)
+> **Estado:** ACEPTADA (entrega 0D, tarea D1; José aprobó el cierre de la fase 0D el 2026-11-22)
 > **Fecha:** 2026-11-18
 > **Decisor:** José (aprobó la ficha 0D y el plan de robustez, 2026-11-18)
 > **Tags:** base de datos, pruebas, integridad

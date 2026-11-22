@@ -33,7 +33,7 @@ Estado: **cerrada por José el 2026-11-22.** Este documento solo registra lo med
 
 - Los 13 documentos de prueba sin uso en staging se quedan: no hay camino soportado para borrarlos (la API responde 409 por la Ley 594/2000) y José decidió no borrarlos. La limpieza nocturna los lista.
 - Retención documental de los documentos oficiales: sigue pendiente la respuesta de jurídica (Ley 594/2000).
-- Sin medir: la duración de `archivos:verificar` con el volumen de producción.
-- Sin revisar: 2 vulnerabilidades altas de Dependabot.
+- Sin medir con volumen de producción: `archivos:verificar`. En staging (59 archivos, unos 2,8 MB) tardó 20,8 s en una ejecución manual, pero esa medida incluye la espera de la contraseña de `sudo` y el arranque de artisan, así que no sirve como referencia de escala.
+- Dependabot: las 2 vulnerabilidades altas ya están solucionadas (José lo confirmó el 2026-11-22 con la lista de alertas abiertas vacía). Además, `composer audit` y `npm audit` (panel y sitio, con dependencias de desarrollo) dan 0 vulnerabilidades.
 - INFERENCIA no verificable desde el repositorio: que ningún consumidor externo de la API lea `model_type`, `model_id` ni `metadata` (José respondió que no hay).
-- Los archivos 0004, 0005 y 0006 siguen en PROPUESTA: dependen del cierre de las entregas 0A y 0B, que este documento no decide.
+- Los archivos 0004, 0005 y 0006 pasaron a ACEPTADA el 2026-11-22: José confirmó en el chat que aprobó las entregas 0A y 0B.

@@ -142,6 +142,32 @@ final class LimpiezaSinUsoTest extends TestCase
         $this->assertTrue($this->existe($documento));
     }
 
+    public function test_lista_los_documentos_sin_uso_para_que_no_queden_invisibles_y_no_los_borra(): void
+    {
+        $suelto = $this->archivo('documento', '2026-10-01 00:00:00');
+        $adjunto = $this->archivo('documento', '2026-10-01 00:00:00');
+        $politica = (int) DB::table('politicas')->insertGetId([
+            'uuid' => (string) Str::uuid(), 'slug' => 'p-'.Str::random(8), 'nombre' => 'P',
+            'secciones' => '[]', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('politica_documentos')->insert(['politica_id' => $politica, 'rol' => 'oficial', 'file_media_uuid' => $adjunto]);
+
+        $salida = $this->limpiar();
+
+        $this->assertStringContainsString('1 documento(s) sin uso', $salida);
+        $this->assertStringContainsString($suelto, $salida);
+        $this->assertStringNotContainsString($adjunto, $salida, 'Un documento que una política usa no se avisa.');
+        $this->assertTrue($this->existe($suelto), 'Se lista, no se borra: retención a la espera de jurídica.');
+        $this->assertTrue($this->enDisco($suelto));
+    }
+
+    public function test_sin_documentos_sin_uso_no_imprime_el_aviso(): void
+    {
+        $this->archivo('contenido', '2026-11-19 12:00:00');
+
+        $this->assertStringNotContainsString('documento(s) sin uso', $this->limpiar());
+    }
+
     public function test_en_simulacion_lista_y_no_borra(): void
     {
         $viejo = $this->archivo('contenido', '2026-10-01 00:00:00');

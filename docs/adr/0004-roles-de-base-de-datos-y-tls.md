@@ -1,6 +1,6 @@
 # ADR-0004: Roles de base de datos separados y TLS a la base
 
-> **Estado:** PROPUESTA (entrega 0A de la Fase 0; pasa a ACEPTADA cuando José apruebe la entrega)
+> **Estado:** ACEPTADA (entrega 0A de la Fase 0; José aprobó la entrega, confirmado el 2026-11-22)
 > **Fecha:** 2026-11-13
 > **Decisor:** José (decisión D-0.1 de la ficha de la Fase 0)
 > **Tags:** base de datos, seguridad, copias, despliegue

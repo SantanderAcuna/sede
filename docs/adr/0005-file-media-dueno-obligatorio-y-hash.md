@@ -1,6 +1,6 @@
 # Archivo 0005 (no es el `ADR-0005` del registro): `file_media` con dueño obligatorio (`model_id`) y hash del contenido
 
-> **Estado:** PROPUESTA (entrega 0B, tarea T8, de la Fase 0; pasa a ACEPTADA cuando José apruebe la fase)
+> **Estado:** ACEPTADA (entrega 0B, tarea T8, de la Fase 0; José aprobó la entrega, confirmado el 2026-11-22). La decisión 2 y la parte de `getByCollection` de la decisión 3 las sustituye el archivo 0008.
 > **Fecha:** 2026-11-17
 > **Decisor:** José (decisión D-0.5 de la ficha de la Fase 0)
 > **Tags:** base de datos, archivos, migraciones

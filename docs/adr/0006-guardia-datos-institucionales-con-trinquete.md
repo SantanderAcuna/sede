@@ -1,6 +1,6 @@
 # Archivo 0006 (no es el `ADR-0006` del registro): guardia de datos institucionales en el sitio, con línea base y trinquete
 
-> **Estado:** PROPUESTA (entrega 0B, tarea T7, de la Fase 0; pasa a ACEPTADA cuando José apruebe el cierre de la fase)
+> **Estado:** ACEPTADA (entrega 0B, tarea T7, de la Fase 0; José aprobó la entrega, confirmado el 2026-11-22)
 > **Fecha:** 2026-11-17
 > **Decisor:** José, que delegó la elección («soluciones limpias, con profundidad y rigor PhD»); decisión D-0.4 de la ficha de la Fase 0
 > **Tags:** sitio, datos institucionales, pruebas

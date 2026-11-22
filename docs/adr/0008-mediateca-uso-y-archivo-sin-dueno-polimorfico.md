@@ -1,6 +1,6 @@
 # Archivo 0008 (no es el `ADR-0008` del registro): `file_media` sin dueño polimórfico, con `uso` y huella obligatoria
 
-> **Estado:** PROPUESTA (entrega 0D, tareas D10 y D11; pasa a ACEPTADA cuando José apruebe el cierre de la fase)
+> **Estado:** ACEPTADA (entrega 0D, tareas D10 y D11; José aprobó el cierre de la fase 0D el 2026-11-22)
 > **Fecha:** 2026-11-19
 > **Decisor:** José (aprobó las cuatro decisiones de D10 con las opciones recomendadas, 2026-11-19)
 > **Tags:** base de datos, archivos, migraciones

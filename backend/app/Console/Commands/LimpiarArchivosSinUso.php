@@ -17,8 +17,9 @@ use Illuminate\Support\Facades\DB;
  * útil. Solo se tocan las de la colección «contenido» que NO aparecen en ninguna de las cuatro relaciones
  * (imagen principal de noticia, banner, imágenes incrustadas, documentos de política) y que llevan más de 7
  * días sin tocarse: `coalesce(updated_at, created_at)`, porque al desvincularlas se renueva `updated_at`. Sin
- * ninguna fecha, nunca se borran. Las huérfanas de `imagen` solo se LISTAN y los documentos oficiales no se
- * tocan jamás (Ley 594/2000). El corte se calcula en PHP para que no dependa del reloj de la base.
+ * ninguna fecha, nunca se borran. Las huérfanas de `imagen` solo se LISTAN; los documentos oficiales no se
+ * tocan jamás (Ley 594/2000) pero los que ya no usa ninguna política también se LISTAN, para que no queden
+ * invisibles (quitar un adjunto o borrar la política conserva el archivo por diseño). El corte se calcula en PHP para que no dependa del reloj de la base.
  * Se borra primero la fila (la base impide borrar lo que alguien acaba de usar) y después el disco.
  */
 final class LimpiarArchivosSinUso extends Command
@@ -27,7 +28,7 @@ final class LimpiarArchivosSinUso extends Command
 
     protected $signature = 'archivos:limpiar-sin-uso {--simular : Solo lista lo que borraría}';
 
-    protected $description = 'Borra las imágenes de contenido sin uso desde hace más de 7 días y lista las huérfanas de imagen.';
+    protected $description = 'Borra las imágenes de contenido sin uso desde hace más de 7 días y lista las huérfanas de imagen y los documentos sin uso.';
 
     public function handle(): int
     {
@@ -68,6 +69,16 @@ final class LimpiarArchivosSinUso extends Command
         if ($huerfanas->isNotEmpty()) {
             $this->warn($huerfanas->count().' imagen(es) de noticia o banner sin uso (no se borran, revísalas):');
             foreach ($huerfanas as $uuid) {
+                $this->line("  - {$uuid}");
+            }
+        }
+
+        // Los documentos sin uso (un adjunto quitado, una política borrada, una subida que falló a medias) NO se borran,
+        // pero tampoco pueden quedar invisibles: sin este aviso solo se verían con SQL.
+        $documentos = $this->sinUso()->where('uso', FileMedia::USO_DOCUMENTO)->orderBy('uuid')->pluck('uuid');
+        if ($documentos->isNotEmpty()) {
+            $this->warn($documentos->count().' documento(s) sin uso (no se borran: retención a la espera de jurídica, revísalos):');
+            foreach ($documentos as $uuid) {
                 $this->line("  - {$uuid}");
             }
         }

@@ -15,7 +15,7 @@
 # ---------------------------------------------------------------------------
 # Base común: PHP con las extensiones que la aplicación necesita
 # ---------------------------------------------------------------------------
-FROM php:8.5-fpm-alpine@sha256:951fb5b1780219b81d5daffa4cebef8e0077c537f3893d9790a5dfcd66ca334d AS base
+FROM php:8.6-fpm-alpine@sha256:3892978a38794b348f73d6926fb63e352b5338f8b302cdd2cf0ed968f63b50c5 AS base
 
 # Los paquetes de la imagen base se actualizan en la construcción.
 #

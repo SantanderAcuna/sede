@@ -169,6 +169,19 @@ WORKDIR /app
 
 COPY docker/app/php.ini /usr/local/etc/php/conf.d/99-sede.ini
 
+# Punto de entrada: genera las cachés de configuración, rutas y eventos de Laravel al arrancar
+# (solo si `SEDE_CACHE_MARCO=1`, que compose.yaml activa en app, horizon y scheduler) y cede
+# el control al punto de entrada oficial de PHP. Ver el encabezado del script.
+COPY --chmod=0755 docker/app/entrypoint.sh /usr/local/bin/sede-entrypoint
+
+# Dónde guarda Laravel esas cachés: en `/tmp`, que en cada contenedor es un tmpfs propio. NO en
+# `/app/bootstrap/cache`, que es un volumen compartido entre servicios con distinto entorno y
+# que sobrevive a los despliegues. Que las rutas estén en la imagen (y no solo en el script) hace
+# que `docker exec ... php artisan ...` y los procesos hijos lean las mismas cachés.
+ENV APP_CONFIG_CACHE=/tmp/laravel-cache/config.php \
+    APP_ROUTES_CACHE=/tmp/laravel-cache/routes-v7.php \
+    APP_EVENTS_CACHE=/tmp/laravel-cache/events.php
+
 COPY --from=vendor /app/vendor ./vendor
 COPY backend/ ./
 
@@ -249,4 +262,5 @@ EXPOSE 9000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
     CMD SCRIPT_NAME=/health REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 > /dev/null 2>&1 || exit 1
 
+ENTRYPOINT ["sede-entrypoint"]
 CMD ["php-fpm", "--nodaemonize"]

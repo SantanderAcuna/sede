@@ -49,6 +49,10 @@ FROM php:8.6-fpm-alpine@sha256:3892978a38794b348f73d6926fb63e352b5338f8b302cdd2c
 # despliegue: el código estaba bien y el despliegue no llegó por un parpadeo de la
 # red. Reintentar con espera creciente cuesta unos segundos cuando pasa, y evita
 # una hora de diagnóstico equivocado cuando pasa.
+# `mbstring` se instala a propósito: la imagen php:8.5 lo traía compilado, la php:8.6 ya no
+# (medido el 2026-11-24 con `php -m`). Sin él, el despliegue a staging falló al sembrar la
+# base con «Call to undefined function mb_strimwidth()» y el servidor volvió a la versión
+# anterior. Necesita `oniguruma-dev` para compilar y `oniguruma` en ejecución.
 # phpredis se compila desde el tarball de PECL con su huella comprobada, y no con
 # `pecl install`, por dos motivos medidos el 2026-11-23 con la imagen php:8.6:
 #   - la imagen ya no trae `pecl` («pecl: not found»);
@@ -69,10 +73,10 @@ RUN set -eu; \
     }; \
     reintentar apk --no-cache upgrade; \
     reintentar apk add --no-cache --virtual .construccion \
-        $PHPIZE_DEPS postgresql-dev icu-dev libzip-dev libpng-dev freetype-dev jpeg-dev; \
+        $PHPIZE_DEPS postgresql-dev icu-dev libzip-dev libpng-dev freetype-dev jpeg-dev oniguruma-dev; \
     docker-php-ext-configure gd --with-freetype --with-jpeg; \
     docker-php-ext-install -j"$(nproc)" \
-        pdo_pgsql pgsql intl zip gd bcmath exif pcntl; \
+        pdo_pgsql pgsql intl zip gd bcmath exif pcntl mbstring; \
     REDIS_VERSION=6.4.0RC1; \
     REDIS_SHA256=876434dff29603c83e33cb69bbcfdcff1f7846d968a396436b6c026cc15fc492; \
     reintentar curl -fsSL -o /tmp/redis.tgz "https://pecl.php.net/get/redis-${REDIS_VERSION}.tgz"; \
@@ -83,7 +87,7 @@ RUN set -eu; \
     docker-php-ext-enable redis; \
     rm -rf /tmp/redis-src /tmp/redis.tgz; \
     apk del .construccion; \
-    reintentar apk add --no-cache libpq icu-libs libzip freetype libpng libjpeg-turbo; \
+    reintentar apk add --no-cache libpq icu-libs libzip freetype libpng libjpeg-turbo oniguruma; \
     rm -rf /tmp/pear /var/cache/apk/*
 
 # Las extensiones se COMPRUEBAN, no se dan por hechas.
@@ -97,7 +101,7 @@ RUN set -eu; \
 # que faltaba `ext-zip` y hablaba de actualizar el archivo de bloqueo, que no era
 # el problema. Fallar en el sitio donde está la causa es la mitad de arreglarlo.
 RUN faltan=""; \
-    for m in pdo_pgsql pgsql intl zip gd bcmath exif pcntl redis; do \
+    for m in pdo_pgsql pgsql intl zip gd bcmath exif pcntl mbstring redis; do \
       php -m | grep -qix "$m" || faltan="$faltan $m"; \
     done; \
     if [ -n "$faltan" ]; then \
@@ -105,7 +109,7 @@ RUN faltan=""; \
       echo "Suele faltar su biblioteca de ejecución tras retirar las de compilación."; \
       exit 1; \
     fi; \
-    echo "Las nueve extensiones cargan."
+    echo "Las diez extensiones cargan."
 
 # Lo único que hace falta en ejecución. `fcgi` aporta el cliente con el que la
 # sonda de salud habla con PHP-FPM, que no entiende HTTP.

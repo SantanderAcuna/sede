@@ -20,11 +20,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Al hidratar, el servidor ya la leyó y la trajo en el HTML: no se repite.
   if (import.meta.client && nuxtApp.isHydrating && precargada.value?.ruta === to.path) return
 
-  const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-  const traer = useRequestFetch()
+  const api = useClienteApi()
 
   try {
-    const respuesta = await leerFicha<unknown>(traer as never, urlApi, ficha)
+    const respuesta = await leerFicha<unknown>(api, ficha)
     precargada.value = { ruta: to.path, clave: ficha.clave, seccion: ficha.seccion, respuesta }
   } catch {
     precargada.value = null

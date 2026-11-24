@@ -19,8 +19,7 @@ const TAMANO_PAGINA = 9
 
 const ruta = useRoute()
 const enrutador = useRouter()
-const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-const traer = useRequestFetch()
+const api = useClienteApi()
 
 /** `?pagina=` leída con cuidado: lo que no sea un entero ≥ 1 es la página 1. */
 const pagina = computed(() => {
@@ -32,7 +31,7 @@ const { data, status } = await useAsyncData<RespuestaNoticias | null>(
   'noticias-listado',
   async () => {
     try {
-      return await traer<RespuestaNoticias>(`${urlApi}/noticias`, {
+      return await api.leer<RespuestaNoticias>('/noticias', {
         query: { page: pagina.value, per_page: TAMANO_PAGINA },
       })
     } catch {

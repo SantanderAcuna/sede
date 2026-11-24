@@ -75,8 +75,7 @@ const filtro = computed(() => leerFiltro(ruta.query.tipo))
 const pagina = computed(() => leerPagina(ruta.query.page))
 const estadoTermino = computed(() => estadoDelTermino(termino.value))
 
-const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-const traer = useRequestFetch()
+const api = useClienteApi()
 
 /**
  * Pide los resultados. Sólo se llama a la API con un término que ya cumple de 3
@@ -90,7 +89,7 @@ async function consultar(): Promise<Resultado | null> {
   let estado = 0
   let reintentarEn: string | null = null
   try {
-    const cuerpo: unknown = await traer(`${urlApi}/buscar`, {
+    const cuerpo: unknown = await api.leer('/buscar', {
       query: {
         q: termino.value,
         tipo: filtro.value === '' ? undefined : filtro.value,

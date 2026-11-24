@@ -132,12 +132,11 @@ const secciones = [
  */
 type TramiteApi = components['schemas']['TramiteItem']
 
-const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-const traer = useRequestFetch()
+const api = useClienteApi()
 
 const { data: tramitesPortada } = await useAsyncData('portada-tramites', async () => {
   try {
-    return await traer<{ data: TramiteApi[] }>(`${urlApi}/tramites`, {
+    return await api.leer<{ data: TramiteApi[] }>('/tramites', {
       query: { per_page: 3 },
     })
   } catch {
@@ -151,7 +150,7 @@ const { data: tramitesPortada } = await useAsyncData('portada-tramites', async (
  */
 const { data: bannersPortada } = await useAsyncData('portada-banners', async () => {
   try {
-    return await traer<{ data: unknown }>(`${urlApi}/banners`)
+    return await api.leer<{ data: unknown }>('/banners')
   } catch {
     return null
   }
@@ -167,7 +166,7 @@ const diapositivas = computed(() => diapositivasDePortada(bannersPortada.value ?
  */
 const { data: noticiasPortada } = await useAsyncData('portada-noticias', async () => {
   try {
-    return await traer<{ data: NoticiaResumen[] }>(`${urlApi}/noticias`, {
+    return await api.leer<{ data: NoticiaResumen[] }>('/noticias', {
       query: { per_page: 6 },
     })
   } catch {

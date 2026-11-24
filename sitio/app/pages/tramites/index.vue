@@ -130,8 +130,7 @@ const gruposAbiertos = reactive({
 // Lectura del catálogo
 // ---------------------------------------------------------------------------
 
-const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-const traer = useRequestFetch()
+const api = useClienteApi()
 
 const { data, status, refresh } = await useAsyncData<RespuestaCatalogo>(
   'tramites-catalogo',
@@ -148,7 +147,7 @@ const { data, status, refresh } = await useAsyncData<RespuestaCatalogo>(
     if (dependenciaElegida.value !== null) consulta.dependencia = dependenciaElegida.value
     if (solicitanteElegido.value !== '') consulta.solicitante = solicitanteElegido.value
 
-    return await traer<RespuestaCatalogo>(`${urlApi}/tramites`, { query: consulta })
+    return await api.leer<RespuestaCatalogo>('/tramites', { query: consulta })
   },
   {
     watch: [

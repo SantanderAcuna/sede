@@ -42,11 +42,10 @@ useMetadatosComparticion()
  * caída. `useRequestFetch` por la misma razón que en el catálogo de trámites: en
  * el servidor la URL relativa de la API se resuelve contra la petición en curso.
  */
-const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-const traer = useRequestFetch()
+const api = useClienteApi()
 const { data: pieDeApi } = await useAsyncData('pie-redes', async () => {
   try {
-    const respuesta = await traer<{ data?: { redes?: RedDeApi[] } }>(`${urlApi}/identidad/footer`)
+    const respuesta = await api.leer<{ data?: { redes?: RedDeApi[] } }>('/identidad/footer')
     return {
       redes: respuesta.data?.redes ?? [],
       // Las cinco obligatorias son fijas; el pie suma las que la Entidad haya publicado.

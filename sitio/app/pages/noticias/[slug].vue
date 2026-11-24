@@ -18,8 +18,7 @@ import { useFichaPrecargada, leerFicha } from '~/composables/useFichaPrecargada'
 import { fichaDeRuta } from '~/utils/miga'
 import { fechaLarga, urlDeImagen, type NoticiaResumen } from '~/utils/noticias'
 
-const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-const traer = useRequestFetch()
+const api = useClienteApi()
 const slug = String(useRoute().params.slug ?? '')
 
 const precargada = useFichaPrecargada()
@@ -35,7 +34,7 @@ const { data, status, error } = await useAsyncData<{ data: NoticiaResumen } | nu
   async () => {
     const respuesta = precargada.value?.clave === `noticia-${slug}`
       ? (precargada.value.respuesta as { data: NoticiaResumen } | null)
-      : ficha ? await leerFicha<{ data: NoticiaResumen }>(traer as never, urlApi, ficha) : null
+      : ficha ? await leerFicha<{ data: NoticiaResumen }>(api, ficha) : null
     return await conCuerpoSaneado(respuesta)
   },
 )

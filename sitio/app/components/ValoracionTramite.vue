@@ -12,11 +12,12 @@
  * reales (navegables con el teclado) con etiqueta de texto; el agradecimiento se anuncia en una
  * región viva.
  */
+import type { Traer } from '~/utils/cliente-api'
 import { cuerpoValoracion, hayValoracion, type ValorExperiencia } from '~/utils/valoracion'
 
 const props = defineProps<{ slug: string }>()
 
-const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
+const api = useClienteApi($fetch as unknown as Traer)
 
 const valor = ref<ValorExperiencia>('')
 const estrellas = ref(0)
@@ -36,7 +37,7 @@ async function enviar(): Promise<void> {
   enviando.value = true
   error.value = ''
   try {
-    await $fetch(`${urlApi}/tramites/${encodeURIComponent(props.slug)}/valoracion`, {
+    await api.leer(`/tramites/${encodeURIComponent(props.slug)}/valoracion`, {
       method: 'POST',
       body: cuerpoValoracion(valor.value, estrellas.value, comentario.value),
     })

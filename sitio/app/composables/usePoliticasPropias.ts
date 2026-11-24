@@ -9,11 +9,10 @@ import { POLITICAS } from '~/config/sitemap'
  * sigue mostrando las cinco obligatorias, que son un catálogo cerrado y no dependen de esta lectura.
  */
 export async function usePoliticasPropias() {
-  const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-  const traer = useRequestFetch()
+  const api = useClienteApi()
   const { data } = await useAsyncData<PoliticaPropia[]>('politicas-propias', async () => {
     try {
-      const respuesta = await traer<unknown>(`${urlApi}/politicas`)
+      const respuesta = await api.leer<unknown>('/politicas')
       return politicasPropiasDesdeApi(respuesta, POLITICAS.map((p) => p.slug))
     } catch {
       return []

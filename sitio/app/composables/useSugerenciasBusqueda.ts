@@ -40,7 +40,9 @@ import { getCurrentScope, onScopeDispose, readonly, ref } from 'vue'
 
 import type { components } from '~~/types/openapi'
 
+import type { Traer } from '~/utils/cliente-api'
 import { buscarSecciones, indiceDelSitio, type SeccionBuscable } from './seccionesBusqueda'
+import { useClienteApi } from './useClienteApi'
 
 /** Sugerencia tal como la devuelve el contrato (`SugerenciaBusquedaItem`). */
 type SugerenciaApi = components['schemas']['SugerenciaBusquedaItem']
@@ -518,5 +520,5 @@ export function useSugerenciasBusqueda(opciones: OpcionesSugerencias = {}) {
 
 /** La petición real, con la dirección de la API del entorno. */
 function pedirPorDefecto(): PedirSugerencias {
-  return crearPeticionSugerencias($fetch.raw as unknown as FetchCrudo, useRuntimeConfig().public.apiUrl)
+  return crearPeticionSugerencias($fetch.raw as unknown as FetchCrudo, useClienteApi($fetch as unknown as Traer).base)
 }

@@ -14,12 +14,13 @@
  * preguntarle a toda la ciudadanía. No se guarda nada en el navegador para esto.
  */
 import { configurarVersionPolitica } from '~/composables/useConsentimientoCookies'
+import type { Traer } from '~/utils/cliente-api'
 
 export default defineNuxtPlugin(async () => {
-  const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
+  const api = useClienteApi($fetch as unknown as Traer)
 
   try {
-    const respuesta = await $fetch<{ data?: { version?: unknown } }>(`${urlApi}/politicas/uso-de-cookies`, {
+    const respuesta = await api.leer<{ data?: { version?: unknown } }>('/politicas/uso-de-cookies', {
       timeout: 1000,
       credentials: 'omit',
     })

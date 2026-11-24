@@ -8,14 +8,16 @@
  * servidor y no viaja ningún identificador.
  */
 import { configurarRegistroConsentimiento } from '~/composables/useConsentimientoCookies'
+import type { Traer } from '~/utils/cliente-api'
 
 export default defineNuxtPlugin(() => {
-  const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
+  // `$fetch` desnudo: el registro necesita `keepalive` y `credentials`, y este plugin solo corre en el navegador.
+  const api = useClienteApi($fetch as unknown as Traer)
 
   configurarRegistroConsentimiento((registro) => {
     // `keepalive` para que la petición sobreviva a una recarga inmediata (la que
     // hace la analítica al revocar).
-    return $fetch(`${urlApi}/consentimientos`, {
+    return api.leer('/consentimientos', {
       method: 'POST',
       body: registro,
       keepalive: true,

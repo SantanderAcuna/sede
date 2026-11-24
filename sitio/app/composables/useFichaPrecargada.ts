@@ -1,4 +1,5 @@
 import { useState } from '#imports'
+import type { ClienteApi } from '~/utils/cliente-api'
 import type { FichaDeRuta } from '~/utils/miga'
 
 /**
@@ -22,18 +23,10 @@ export function useFichaPrecargada() {
   return useState<FichaPrecargada | null>('ficha-precargada', () => null)
 }
 
-type Traer = <T>(url: string) => Promise<T>
-
 /**
  * Lee una ficha de la API. `404` → `null` (la ficha no existe o no está publicada);
  * cualquier otro fallo se propaga: que la API no conteste no es «no existe».
  */
-export async function leerFicha<T>(traer: Traer, urlApi: string, ficha: FichaDeRuta): Promise<T | null> {
-  try {
-    return await traer<T>(`${urlApi}${ficha.endpoint}`)
-  } catch (fallo) {
-    const respuesta = fallo as { statusCode?: number; response?: { status?: number } }
-    if ((respuesta.statusCode ?? respuesta.response?.status) === 404) return null
-    throw fallo
-  }
+export function leerFicha<T>(api: Pick<ClienteApi, 'leerONulo'>, ficha: FichaDeRuta): Promise<T | null> {
+  return api.leerONulo<T>(ficha.endpoint)
 }

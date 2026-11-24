@@ -81,22 +81,21 @@ final class NoticiasTest extends TestCase
         $ruta = "noticias/{$uuid}/imagen/foto.png";
         Storage::disk($disco)->put($ruta, (string) base64_decode(self::PNG, true));
 
+        $fileUuid = (string) Str::uuid();
         DB::table('file_media')->insert([
-            'uuid' => (string) Str::uuid(),
-            'model_type' => 'App\\Models\\Noticia',
-            'model_id' => $id,
-            'model_uuid' => $uuid,
-            'collection' => 'imagen',
+            'uuid' => $fileUuid,
+            'uso' => 'imagen',
+            'hash_sha256' => hash('sha256', $fileUuid),
             'filename' => 'foto.png',
             'original_filename' => 'foto.png',
             'mime_type' => 'image/png',
             'size' => 70,
             'disk' => $disco,
             'path' => $ruta,
-            'metadata' => json_encode(['alt' => $alt], JSON_THROW_ON_ERROR),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        DB::table('noticias')->where('id', $id)->update(['imagen_principal_uuid' => $fileUuid, 'imagen_principal_alt' => $alt]);
     }
 
     private function png(string $nombre = 'foto.png'): UploadedFile
@@ -319,7 +318,8 @@ final class NoticiasTest extends TestCase
                 ->assertJsonValidationErrors(['alt'], 'errors');
         }
 
-        $this->assertSame(0, DB::table('file_media')->where('model_uuid', $uuid)->count(), 'Sin alt no se guarda nada.');
+        $this->assertSame(0, DB::table('file_media')->count(), 'Sin alt no se guarda nada.');
+        $this->assertNull(DB::table('noticias')->where('uuid', $uuid)->value('imagen_principal_uuid'));
     }
 
     public function test_solo_se_aceptan_imagenes(): void
@@ -349,7 +349,8 @@ final class NoticiasTest extends TestCase
                 ->assertJsonPath('data.imagen.alt', $alt);
         }
 
-        $this->assertSame(1, DB::table('file_media')->where('model_uuid', $uuid)->where('collection', 'imagen')->count());
+        $this->assertSame(1, DB::table('file_media')->where('uso', 'imagen')->count(), 'La anterior se borra: queda una sola.');
+        $this->assertSame(1, DB::table('noticias')->where('uuid', $uuid)->whereNotNull('imagen_principal_uuid')->count());
     }
 
     public function test_publica_con_imagen_y_alt_y_la_noticia_aparece_en_el_home(): void

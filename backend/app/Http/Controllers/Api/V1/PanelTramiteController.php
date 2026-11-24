@@ -9,13 +9,16 @@ use App\Exceptions\TramiteIncompleto;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarTramiteRequest;
 use App\Http\Requests\ListarTramitesPanelRequest;
+use App\Http\Resources\TramiteFichaResource;
 use App\Http\Resources\TramitePanelFilaResource;
 use App\Http\Resources\TramitePanelResource;
 use App\Models\Dependencia;
 use App\Models\Tramite;
+use App\Support\Acceso\Huella;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -76,7 +79,12 @@ final class PanelTramiteController extends Controller
         }
 
         try {
-            $tramite = $this->tramites->crear($peticion->datos());
+            $tramite = DB::transaction(function () use ($peticion) {
+                $creado = $this->tramites->crear($peticion->datos());
+                Huella::deSesion('tramite_creado', 'tramites', $creado->id, ['nombre' => $creado->nombre, 'publicado' => $creado->publicado_en !== null]);
+
+                return $creado;
+            });
         } catch (TramiteIncompleto $e) {
             return ApiResponse::validationError(['tramite' => $e->problemas]);
         }
@@ -102,12 +110,38 @@ final class PanelTramiteController extends Controller
         }
 
         try {
-            $tramite = $this->tramites->actualizar($tramite, $peticion->datos());
+            $antes = $this->instantanea($tramite);
+            $tramite = DB::transaction(function () use ($tramite, $peticion, $antes) {
+                $guardado = $this->tramites->actualizar($tramite, $peticion->datos());
+                Huella::deSesion('tramite_actualizado', 'tramites', $guardado->id, [
+                    'nombre' => $guardado->nombre,
+                    'campos' => Huella::diferencias($antes, $this->instantanea($guardado)),
+                    'publicado' => $guardado->publicado_en !== null,
+                ]);
+
+                return $guardado;
+            });
         } catch (TramiteIncompleto $e) {
             return ApiResponse::validationError(['tramite' => $e->problemas]);
         }
 
         return ApiResponse::ok((new TramitePanelResource($tramite))->resolve(), 'Trámite actualizado correctamente.');
+    }
+
+    /**
+     * La ficha del trámite como está ahora, para saber qué cambió al guardar.
+     *
+     * @return array<string, mixed>
+     */
+    private function instantanea(Tramite $tramite): array
+    {
+        $tramite->loadMissing(['categoria', 'dependencia', ...Tramite::RELACIONES_FICHA]);
+
+        $ficha = (new TramiteFichaResource($tramite))->resolve();
+        // Las marcas de tiempo las pone el sistema al guardar: no son algo que la persona editó.
+        unset($ficha['actualizado_en'], $ficha['publicado_en']);
+
+        return [...$ficha, 'publicado' => $tramite->publicado_en !== null];
     }
 
     /**
@@ -123,7 +157,12 @@ final class PanelTramiteController extends Controller
         }
         Gate::authorize('delete', $tramite);
 
-        $this->tramites->eliminar($tramite);
+        $nombre = $tramite->nombre;
+        $id = $tramite->id;
+        DB::transaction(function () use ($tramite, $id, $nombre): void {
+            $this->tramites->eliminar($tramite);
+            Huella::deSesion('tramite_eliminado', 'tramites', $id, ['nombre' => $nombre]);
+        });
 
         return response()->noContent();
     }

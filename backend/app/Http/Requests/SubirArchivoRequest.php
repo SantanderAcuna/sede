@@ -32,7 +32,6 @@ final class SubirArchivoRequest extends FormRequest
         return [
             'archivo' => ['required', 'file', 'max:20480', 'mimes:pdf,png,jpg,jpeg,gif,webp,doc,docx,odt,xls,xlsx,ppt,pptx,zip,rar'],
             'collection' => ['required', 'string', 'max:64'],
-            'metadata' => ['sometimes', 'array'],
         ];
     }
 

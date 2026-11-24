@@ -7,8 +7,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ActualizarPoliticaRequest;
 use App\Http\Requests\CrearPoliticaRequest;
-use App\Models\FileMedia;
 use App\Models\Politica;
+use App\Support\Acceso\Huella;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -78,13 +78,16 @@ final class PanelPoliticaController extends Controller
             return ApiResponse::validationError(['politica' => $problemas]);
         }
 
-        $politica->save();
+        DB::transaction(function () use ($politica): void {
+            $politica->save();
+            Huella::deSesion('politica_creada', 'politicas', $politica->id, ['nombre' => $politica->nombre, 'publicada' => (bool) $politica->publicada]);
+        });
 
         return ApiResponse::created(self::elemento($politica->refresh()), 'Política creada correctamente.');
     }
 
     /**
-     * Elimina una política propia y el documento oficial que tenía adjunto.
+     * Elimina una política propia. Sus documentos se conservan en la mediateca.
      * Las cinco obligatorias no se eliminan.
      *
      * @operationId eliminarPolitica
@@ -102,16 +105,16 @@ final class PanelPoliticaController extends Controller
         }
         Gate::authorize('delete', $politica);
 
-        DB::transaction(static function () use ($politica): void {
-            FileMedia::query()
-                ->where('model_type', Politica::class)
-                ->where('model_uuid', $politica->uuid)
-                ->get()
-                ->each(static fn (FileMedia $archivo) => $archivo->deleteFully());
+        // Sin E/S de archivos dentro de la transacción: los documentos NO se borran (Ley 594/2000, a la
+        // espera de jurídica); al eliminar la política sus vínculos caen en cascada y los archivos quedan «sin uso».
+        $nombre = $politica->nombre;
+        $id = $politica->id;
+        DB::transaction(function () use ($politica, $id, $nombre): void {
             $politica->delete();
+            Huella::deSesion('politica_eliminada', 'politicas', $id, ['nombre' => $nombre]);
         });
 
-        return ApiResponse::ok(null, 'Política eliminada correctamente.');
+        return ApiResponse::ok(null, 'Política eliminada. Sus documentos se conservaron en la mediateca.');
     }
 
     /**
@@ -155,7 +158,19 @@ final class PanelPoliticaController extends Controller
             return ApiResponse::validationError(['politica' => $problemas]);
         }
 
-        $politica->save();
+        // Antes de guardar: lo que el modelo tiene distinto del original es lo que de verdad cambió (el
+        // formulario manda también lo que la persona no tocó).
+        $cambiados = array_values(array_diff(array_keys($politica->getDirty()), ['updated_at']));
+
+        DB::transaction(function () use ($politica, $cambiados): void {
+            $politica->save();
+            Huella::deSesion('politica_actualizada', 'politicas', $politica->id, [
+                'nombre' => $politica->nombre,
+                'campos' => $cambiados,
+                'version' => $politica->version,
+                'publicada' => (bool) $politica->publicada,
+            ]);
+        });
 
         return ApiResponse::ok(self::elemento($politica->refresh()), 'Política actualizada correctamente.');
     }

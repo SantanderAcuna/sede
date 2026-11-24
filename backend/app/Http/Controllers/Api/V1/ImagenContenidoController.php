@@ -10,6 +10,7 @@ use App\Http\Requests\SubirImagenContenidoRequest;
 use App\Support\Api\ApiResponse;
 use App\Support\Api\RespuestaDeImagen;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -31,27 +32,38 @@ final class ImagenContenidoController extends Controller
         $imagen = $this->imagenes->subir(
             $peticion->user() ?? abort(401),
             $peticion->validated('imagen'),
-            (string) $peticion->validated('alt'),
         );
 
         return ApiResponse::created([
             'uuid' => $imagen->uuid,
             'url' => $this->imagenes->urlPublica($imagen),
-            'alt' => (string) ($imagen->metadata['alt'] ?? ''),
+            // El alt RECIBIDO, que se devuelve al editor para el `<img>`; el archivo no lo guarda.
+            'alt' => (string) $peticion->validated('alt'),
         ], 'Imagen subida correctamente.');
     }
 
     /**
      * La imagen de un contenido publicado. Pública, con límite de peticiones; sólo sirve
-     * la colección «contenido».
+     * la colección «contenido» y, sin sesión de editor, solo la de una noticia ya publicada.
      *
      * @operationId obtenerImagenContenido
      */
-    public function show(string $uuid): Response
+    public function show(Request $peticion, string $uuid): Response
     {
-        $imagen = $this->imagenes->publica($uuid);
+        // Sesión opcional: la ruta es pública, pero quien edita contenido ve también las imágenes aún sin publicar.
+        $usuario = $peticion->user('sanctum');
+        $comoEditor = false;
+        foreach (SubirImagenContenidoRequest::PERMISOS as $permiso) {
+            if ($usuario?->can($permiso) === true) {
+                $comoEditor = true;
+                break;
+            }
+        }
+
+        $imagen = $this->imagenes->publica($uuid, $comoEditor);
         abort_if($imagen === null, 404);
 
-        return RespuestaDeImagen::desde($imagen, 'public, max-age=86400, immutable');
+        // Lo que solo ve el editor no debe quedar en la caché compartida del proxy.
+        return RespuestaDeImagen::desde($imagen, $comoEditor ? 'private, no-store' : 'public, max-age=86400, immutable');
     }
 }

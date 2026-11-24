@@ -16,7 +16,7 @@ import ConfirmModal from '@/components/base/ConfirmModal.vue'
 import EditorTexto from '@/components/base/EditorTexto.vue'
 import FormField from '@/components/base/FormField.vue'
 import SubirImagen from '@/components/base/SubirImagen.vue'
-import { actualizar, crear, eliminar, obtener, subirImagen } from '@/services/noticias'
+import { actualizar, crear, eliminar, obtener, subirImagen } from '@/api/noticias'
 import type { NoticiaPanelItem } from '@/types/api'
 import { dejarAviso } from './avisos'
 import {
@@ -380,7 +380,7 @@ watch(
 
       <div class="rounded-xl border border-slate-200 bg-white p-5 sm:p-6" role="group" aria-labelledby="noticia-lista" data-checklist>
         <h2 id="noticia-lista" class="font-medium text-slate-900">Antes de publicar</h2>
-        <p class="mt-1 text-sm text-slate-600">Para que una noticia se pueda publicar necesita todo esto. Puede guardar como borrador sin completarlo.</p>
+        <p class="mt-1 text-sm text-slate-600">Para guardarla como borrador bastan el título, la descripción corta y el contenido. Para publicarla necesita todo esto.</p>
         <ul class="mt-3 space-y-1.5">
           <li v-for="item in lista" :key="item.texto" class="flex items-start gap-2 text-sm">
             <FaIcon

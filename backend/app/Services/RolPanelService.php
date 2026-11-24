@@ -54,6 +54,9 @@ final class RolPanelService implements RolPanelServiceInterface
         }
 
         return DB::transaction(function () use ($actor, $rol, $nombre, $permisos): Role {
+            // El rol que llega trae `users_count`, que no es una columna: guardar ese modelo hacía que Eloquent
+            // lo escribiera en la tabla y el cambio de nombre fallaba con 500. Se parte de una copia limpia.
+            $rol = Role::query()->findOrFail($rol->id);
             $antes = $rol->permissions->pluck('name')->sort()->values()->all();
             if ($nombre !== null && $nombre !== $rol->name) {
                 $rol->name = $nombre;

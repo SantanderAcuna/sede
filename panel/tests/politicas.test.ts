@@ -166,14 +166,14 @@ describe('servicio', () => {
   beforeEach(() => {
     vi.resetModules()
     for (const f of Object.values(peticion)) f.mockReset()
-    vi.doMock('../src/services/http', () => ({
+    vi.doMock('../src/api/client', () => ({
       http: peticion,
       desenvolver: (s: { data: unknown }) => s.data,
     }))
   })
 
   it('lista, actualiza por slug y consulta los adjuntos de la colección', async () => {
-    const servicio = await import('../src/services/politicas')
+    const servicio = await import('../src/api/politicas')
     peticion.get.mockResolvedValue({ data: { success: true, data: [] } })
     peticion.patch.mockResolvedValue({ data: { success: true, data: { slug: 'uso-de-cookies' } } })
 
@@ -190,7 +190,7 @@ describe('servicio', () => {
   })
 
   it('adjunta con multipart a la colección documento-oficial y quita por uuid', async () => {
-    const servicio = await import('../src/services/politicas')
+    const servicio = await import('../src/api/politicas')
     peticion.post.mockResolvedValue({ data: { success: true, data: { uuid: 'a' } } })
     peticion.delete.mockResolvedValue({ data: {} })
 

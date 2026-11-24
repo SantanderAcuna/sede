@@ -19,7 +19,7 @@ vi.stubGlobal('fetch', mockFetch)
 // ---------------------------------------------------------------------------
 // Mock del módulo http — definido DENTRO del factory para evitar elevación.
 // ---------------------------------------------------------------------------
-vi.mock('../src/services/http', () => {
+vi.mock('../src/api/client', () => {
   const mockUser = {
     id: 1,
     type: 'usuario' as const,
@@ -64,8 +64,8 @@ vi.mock('../src/services/http', () => {
   }
 })
 
-import { login, logout, perfil } from '../src/services/auth'
-import { http } from '../src/services/http'
+import { login, logout, perfil } from '../src/api/auth'
+import { http } from '../src/api/client'
 
 beforeEach(() => {
   vi.clearAllMocks()

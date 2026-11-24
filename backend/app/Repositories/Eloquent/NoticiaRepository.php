@@ -6,7 +6,6 @@ namespace App\Repositories\Eloquent;
 
 use App\Contracts\Repositories\NoticiaRepositoryInterface;
 use App\Enums\EstadoNoticia;
-use App\Models\FileMedia;
 use App\Models\Noticia;
 use App\Support\Noticias\FiltrosNoticiasPanel;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -82,10 +81,5 @@ final class NoticiaRepository implements NoticiaRepositoryInterface
     public function eliminar(Noticia $noticia): void
     {
         $noticia->delete();
-    }
-
-    public function guardarImagen(FileMedia $imagen): void
-    {
-        $imagen->save();
     }
 }

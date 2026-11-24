@@ -66,12 +66,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
-          php-version: '8.5'
+          php-version: '8.6'
           extensions: pdo_pgsql, pgsql, redis, intl, zip, gd, bcmath, exif, pcntl
           coverage: none
+      # `--ignore-platform-req=php`: mpdf/mpdf 8.3.1 declara PHP ~8.5.0 como máximo y aún no admite
+      # 8.6 (verificado en la CI el 2026-11-23, ver ci.yml). Retirar al actualizar mpdf.
       - name: Instalar dependencias
         working-directory: backend
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req=php
       - name: Preparar el entorno
         working-directory: backend
         run: |
@@ -367,15 +369,19 @@ jobs:
         # `install --with-deps` (descarga del navegador + librerías por apt) se quedó
         # reintentando hasta agotar los 30 min del trabajo; los reintentos puestos aquí en #533
         # lo empeoraron (4 × ~8 min). Se separa: el navegador es obligatorio; las librerías de
-        # apt se intentan una vez, con tope de 3 min, y si apt no responde se sigue con aviso.
+        # apt se intentan una vez, con tope, y si apt no responde se sigue con aviso.
         # La comprobación final lanza el navegador de verdad y falla si no arranca.
+        # Tope de 10 min (antes 3): en los despliegues 44471356672 y 44475770121 webkit
+        # (≈187 paquetes, 140 MB) llegó a los 180 s con 71 descargados, a menos de 1 MB/s; sin
+        # sus librerías el navegador no arranca. Con DNS caído no se llega aquí: `install`
+        # falla antes, así que el peor caso sigue dentro de los 30 min del trabajo.
         run: |
           if [ "$NAVEGADOR" = "msedge" ]; then
             bash ../scripts/reintentar.sh 3 npx playwright install msedge
           else
             bash ../scripts/reintentar.sh 3 npx playwright install "$NAVEGADOR"
-            timeout 180 npx playwright install-deps "$NAVEGADOR" \
-              || echo "::warning::apt no respondió en 3 min: se sigue con las librerías que trae la imagen (las fuentes pueden diferir)"
+            timeout 600 npx playwright install-deps "$NAVEGADOR" \
+              || echo "::warning::apt no respondió en 10 min: se sigue con las librerías que trae la imagen (las fuentes pueden diferir)"
           fi
           node --input-type=module -e "import { lanzar } from './tests/ayudas/motor.mjs'; const b = await lanzar(); console.log('el navegador arranca:', b.version()); await b.close()"
       - name: Compilar (la prueba de diseño arranca su propio servidor)

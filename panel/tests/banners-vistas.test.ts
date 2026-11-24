@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('../src/services/banners', () => ({
+vi.mock('../src/api/banners', () => ({
   listar: vi.fn(),
   obtener: vi.fn(),
   crear: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('../src/services/banners', () => ({
 
 import { PERMISO_POR_RUTA } from '../src/config/permisos'
 import enrutadorReal from '../src/router/index'
-import * as servicio from '../src/services/banners'
+import * as servicio from '../src/api/banners'
 import type { BannerPanelItem } from '../src/types/api'
 import BannerFormularioView from '../src/views/admin/BannerFormularioView.vue'
 import BannersListaView from '../src/views/admin/BannersListaView.vue'
@@ -139,9 +139,28 @@ describe('lista', () => {
     const w = await montarLista()
     await w.find('[aria-label="Bajar «A»"]').trigger('click')
     await flushPromises()
-    expect(m.ordenar).toHaveBeenCalledWith(['b', 'a'])
+    expect(m.ordenar).toHaveBeenCalledWith(['b', 'a'], ['a', 'b'])
     expect(w.findAll('ol > li')[0]!.text()).toContain('B')
     expect(w.find('[data-anuncio]').text()).toBe('«A» quedó en la posición 2 de 2.')
+  })
+
+  it('si otra persona cambió el orden (409), recarga la lista real y lo explica', async () => {
+    const a = banner({ uuid: 'a', titulo: 'A' })
+    const b = banner({ uuid: 'b', titulo: 'B' })
+    m.listar.mockResolvedValueOnce([a, b])
+    const conflicto = Object.assign(new Error('409'), {
+      isAxiosError: true,
+      response: { status: 409, data: { message: 'El carrusel cambió mientras usted lo editaba. Se recargó la lista: revise el orden e inténtelo de nuevo.' } },
+    })
+    m.ordenar.mockRejectedValue(conflicto)
+    const w = await montarLista()
+    // La lista real ahora es [B, A]: otra persona ya bajó A.
+    m.listar.mockResolvedValue([banner({ uuid: 'b', titulo: 'B' }), banner({ uuid: 'a', titulo: 'A' })])
+    await w.find('[aria-label="Bajar «A»"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[role=alert]').text()).toContain('El carrusel cambió mientras usted lo editaba')
+    expect(w.findAll('ol > li')[0]!.text()).toContain('B')
+    expect(m.listar).toHaveBeenCalledTimes(2)
   })
 
   it('si guardar el orden falla, lo dice y no cambia la lista', async () => {
@@ -162,6 +181,13 @@ describe('lista', () => {
 })
 
 describe('formulario', () => {
+  it('no promete que el borrador se guarda «sin completarlo»: el título se exige siempre', async () => {
+    const { wrapper } = await montarForm()
+    const aviso = wrapper.find('[data-checklist] p').text()
+    expect(aviso).not.toContain('sin completarlo')
+    expect(aviso).toContain('título')
+  })
+
   it('guardar vacío no llama al servidor y dice qué falta', async () => {
     const { wrapper } = await montarForm()
     await wrapper.find('form').trigger('submit')

@@ -107,7 +107,7 @@ Esto se confirmó con logging dinámico añadido a `setId()` en `Session/Store.p
 | `main.ts` | `panel/src/main.ts` | 31-87 |
 | `router/index.ts` | `panel/src/router/index.ts` | 168-191 |
 | `stores/sesion.ts` | `panel/src/stores/sesion.ts` | 89-156 |
-| `services/http.ts` | `panel/src/services/http.ts` | 49-79 |
+| `api/client.ts` | `panel/src/api/client.ts` | 49-79 |
 | `layouts/AdminLayout.vue` | `panel/src/layouts/AdminLayout.vue` | 143-150 |
 | `tests/Feature/Api/V1/AuthTest.php` | `backend/tests/Feature/Api/V1/AuthTest.php` | 46-86 |
 | `test_sesion.mjs` | `panel/test_sesion.mjs` | Completo |
@@ -147,7 +147,7 @@ Se realizaron **cuatro correcciones complementarias** porque había cuatro probl
 | 5 | `panel/src/main.ts` | Modificado | `await router.isReady()` antes de `app.mount()` |
 | 6 | `panel/src/router/index.ts` | Modificado | `beforeEach` ahora es `async` con `await sesion.init()` |
 | 7 | `panel/src/stores/sesion.ts` | Modificado | `init()` y `cerrarSesion()` idempotentes; eliminada la lógica de sessionStorage que causaba polling bloqueante |
-| 8 | `panel/src/services/http.ts` | Modificado | Interceptor 401 no llama `window.location`; solo `cerrarSesion()` |
+| 8 | `panel/src/api/client.ts` | Modificado | Interceptor 401 no llama `window.location`; solo `cerrarSesion()` |
 | 9 | `panel/src/layouts/AdminLayout.vue` | Modificado | `window.location.replace('/admin/acceso')` para logout |
 | 10 | `panel/test_sesion.mjs` | Creado | Test E2E con Playwright para validar F5 y logout |
 | 11 | `panel/tests/sesion.test.ts` | Sin cambios | Test unitario del store (ya existía) |
@@ -293,7 +293,7 @@ Se realizaron **cuatro correcciones complementarias** porque había cuatro probl
   }
 ```
 
-#### `panel/src/services/http.ts`
+#### `panel/src/api/client.ts`
 
 ```diff
   if (axios.isAxiosError(error) && error.response?.status === 401) {

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Contracts\Repositories;
 
-use App\Models\FileMedia;
 use App\Models\Noticia;
 use App\Support\Noticias\FiltrosNoticiasPanel;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -46,7 +45,4 @@ interface NoticiaRepositoryInterface
 
     /** Archivar (borrado lógico). */
     public function eliminar(Noticia $noticia): void;
-
-    /** Guarda el cambio de metadatos (el `alt`) de la imagen de una noticia. */
-    public function guardarImagen(FileMedia $imagen): void;
 }

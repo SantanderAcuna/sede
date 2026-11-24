@@ -10,6 +10,7 @@ use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -187,7 +188,7 @@ final class BannersTest extends TestCase
             $this->actingAs($gestor)->patchJson("/api/v1/panel/banners/{$banner['uuid']}", ['activo' => true])->assertOk();
         }
         $this->actingAs($gestor)->patchJson("/api/v1/panel/banners/{$programado['uuid']}", ['activo' => true, 'vigente_desde' => now()->addWeek()->toIso8601String()])->assertOk();
-        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$c['uuid'], $a['uuid'], $b['uuid'], $borrador['uuid'], $programado['uuid']]])->assertOk();
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$c['uuid'], $a['uuid'], $b['uuid'], $borrador['uuid'], $programado['uuid']], 'antes' => $this->ordenActual($gestor)])->assertOk();
 
         $respuesta = $this->getJson('/api/v1/banners')->assertOk();
         /** @var list<array<string, mixed>> $datos */
@@ -208,13 +209,200 @@ final class BannersTest extends TestCase
         $gestor = $this->gestor();
         $a = $this->crear($gestor, 'A');
         $b = $this->crear($gestor, 'B');
+        $antes = $this->ordenActual($gestor);
 
-        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$a['uuid']]])->assertUnprocessable();
-        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$a['uuid'], '00000000-0000-0000-0000-000000000000']])->assertUnprocessable();
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$a['uuid']], 'antes' => $antes])->assertUnprocessable();
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$a['uuid'], '00000000-0000-0000-0000-000000000000'], 'antes' => $antes])->assertUnprocessable();
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$a['uuid'], $a['uuid']], 'antes' => $antes])->assertUnprocessable();
 
-        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$b['uuid'], $a['uuid']]])->assertOk();
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$b['uuid'], $a['uuid']], 'antes' => $antes])->assertOk();
         $lista = $this->actingAs($gestor)->getJson('/api/v1/panel/banners')->assertOk()->json('data');
         $this->assertSame(['B', 'A'], array_column($lista, 'titulo'));
+    }
+
+    /** Sin `antes` no se sabe qué orden vio quien guarda, y no se puede detectar que otra persona lo cambió. */
+    public function test_reordenar_exige_el_orden_que_vio_quien_guarda(): void
+    {
+        $gestor = $this->gestor();
+        $a = $this->crear($gestor, 'A');
+        $b = $this->crear($gestor, 'B');
+
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$b['uuid'], $a['uuid']]])
+            ->assertUnprocessable()->assertJsonValidationErrors(['antes']);
+    }
+
+    /**
+     * Dos administradores abren la lista [A, B, C]. Uno baja A y guarda [B, A, C]. El otro, con la lista vieja,
+     * sube C y envía [A, C, B]: es una lista completa y válida, así que antes se aceptaba y el cambio del
+     * primero se perdía en silencio. Ahora el orden que vio quien guarda debe ser el que hay: si no, 409.
+     */
+    public function test_reordenar_con_una_lista_vieja_responde_409_y_no_pisa_el_cambio_de_otra_persona(): void
+    {
+        $gestor = $this->gestor();
+        $a = $this->crear($gestor, 'A');
+        $b = $this->crear($gestor, 'B');
+        $c = $this->crear($gestor, 'C');
+        $vieja = [$a['uuid'], $b['uuid'], $c['uuid']];
+
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$b['uuid'], $a['uuid'], $c['uuid']], 'antes' => $vieja])->assertOk();
+
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$a['uuid'], $c['uuid'], $b['uuid']], 'antes' => $vieja])
+            ->assertStatus(409);
+
+        $this->assertSame(['B', 'A', 'C'], array_column($this->actingAs($gestor)->getJson('/api/v1/panel/banners')->json('data'), 'titulo'));
+    }
+
+    /** Un cliente que envía el orden actual pero una lista final incompleta se equivoca él: 422, no 409. */
+    public function test_reordenar_con_lista_final_incompleta_y_orden_vigente_es_422(): void
+    {
+        $gestor = $this->gestor();
+        $a = $this->crear($gestor, 'A');
+        $this->crear($gestor, 'B');
+
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$a['uuid']], 'antes' => $this->ordenActual($gestor)])
+            ->assertUnprocessable();
+    }
+
+    /** Un uuid en mayúsculas es el mismo uuid (RFC 4122); no debe rechazarse ni dejar de coincidir. */
+    public function test_reordenar_acepta_uuid_en_mayusculas(): void
+    {
+        $gestor = $this->gestor();
+        $a = $this->crear($gestor, 'A');
+        $b = $this->crear($gestor, 'B');
+        $antes = array_map('strtoupper', $this->ordenActual($gestor));
+
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [strtoupper($b['uuid']), strtoupper($a['uuid'])], 'antes' => $antes])->assertOk();
+
+        $this->assertSame(['B', 'A'], array_column($this->actingAs($gestor)->getJson('/api/v1/panel/banners')->json('data'), 'titulo'));
+    }
+
+    /**
+     * Dos altas a la vez leen el mismo `max(orden)` y quedan con el mismo número. Se serializan con un
+     * bloqueo de aviso de PostgreSQL tomado antes de leer el máximo.
+     */
+    public function test_crear_toma_el_bloqueo_de_orden_antes_de_leer_el_maximo(): void
+    {
+        $gestor = $this->gestor();
+        /** @var list<string> $sentencias */
+        $sentencias = [];
+        DB::listen(function ($consulta) use (&$sentencias): void {
+            $sentencias[] = strtolower($consulta->sql);
+        });
+
+        $this->crear($gestor, 'A');
+
+        $this->assertOrdenDeSentencias($sentencias, 'pg_advisory_xact_lock', 'max("orden")');
+    }
+
+    /** Reordenar y crear comparten el bloqueo: si no, un alta a mitad de un reordenamiento repite números. */
+    public function test_reordenar_toma_el_mismo_bloqueo_antes_de_bloquear_las_filas(): void
+    {
+        $gestor = $this->gestor();
+        $a = $this->crear($gestor, 'A');
+        $antes = $this->ordenActual($gestor);
+        /** @var list<string> $sentencias */
+        $sentencias = [];
+        DB::listen(function ($consulta) use (&$sentencias): void {
+            $sentencias[] = strtolower($consulta->sql);
+        });
+
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$a['uuid']], 'antes' => $antes])->assertOk();
+
+        $this->assertOrdenDeSentencias($sentencias, 'pg_advisory_xact_lock', 'for update');
+    }
+
+    /** @param list<string> $sentencias */
+    private function assertOrdenDeSentencias(array $sentencias, string $primero, string $despues): void
+    {
+        $i = $j = null;
+        foreach ($sentencias as $n => $sql) {
+            if ($i === null && str_contains($sql, $primero)) {
+                $i = $n;
+            }
+            if ($j === null && str_contains($sql, $despues)) {
+                $j = $n;
+            }
+        }
+        $this->assertNotNull($i, "No se ejecutó {$primero}.");
+        $this->assertNotNull($j, "No se ejecutó {$despues}.");
+        $this->assertLessThan($j, $i, "{$primero} debe ir antes que {$despues}.");
+    }
+
+    /** @return list<string> */
+    private function ordenActual(User $gestor): array
+    {
+        /** @var list<array{uuid: string}> $lista */
+        $lista = $this->actingAs($gestor)->getJson('/api/v1/panel/banners')->assertOk()->json('data');
+
+        return array_column($lista, 'uuid');
+    }
+
+    /**
+     * Dos personas que reordenan a la vez, una X→Y y otra Y→X, se bloquean entre sí si cada una actualiza
+     * las filas en el orden que le llega: PostgreSQL aborta una con `deadlock detected` y la API responde 500
+     * (reproducido con dos sesiones reales). Si antes de actualizar se bloquean todas las filas en un orden fijo,
+     * la segunda espera a la primera y no hay ciclo.
+     */
+    public function test_reordenar_bloquea_las_filas_en_un_orden_fijo_antes_de_actualizar(): void
+    {
+        $gestor = $this->gestor();
+        $a = $this->crear($gestor, 'A');
+        $b = $this->crear($gestor, 'B');
+        $c = $this->crear($gestor, 'C');
+
+        $antesDelOrden = $this->ordenActual($gestor);
+        /** @var list<string> $sentencias */
+        $sentencias = [];
+        DB::listen(function ($consulta) use (&$sentencias): void {
+            $sentencias[] = strtolower($consulta->sql);
+        });
+
+        $this->actingAs($gestor)->putJson('/api/v1/panel/banners/orden', ['uuids' => [$c['uuid'], $b['uuid'], $a['uuid']], 'antes' => $antesDelOrden])->assertOk();
+
+        $bloqueo = null;
+        $primeraActualizacion = null;
+        foreach ($sentencias as $i => $sql) {
+            if ($bloqueo === null && str_contains($sql, 'from "banners"') && str_contains($sql, 'for update')) {
+                $bloqueo = $i;
+                $this->assertStringContainsString('order by "id"', $sql, 'El bloqueo debe pedir las filas por id, no en el orden recibido.');
+            }
+            if ($primeraActualizacion === null && str_starts_with($sql, 'update "banners"')) {
+                $primeraActualizacion = $i;
+            }
+        }
+        $this->assertNotNull($bloqueo, 'No se bloquearon las filas de banners con FOR UPDATE.');
+        $this->assertNotNull($primeraActualizacion);
+        $this->assertLessThan($primeraActualizacion, $bloqueo, 'El bloqueo debe ir antes de la primera actualización.');
+    }
+
+    /**
+     * Entre la validación de la petición y el bloqueo otra persona puede borrar o crear una diapositiva.
+     * Con el bloqueo tomado se vuelve a comparar con el orden que vio quien guarda: si cambió, 409 y no se toca ningún orden.
+     */
+    public function test_si_la_lista_cambia_mientras_se_ordena_responde_409_y_no_cambia_nada(): void
+    {
+        $gestor = $this->gestor();
+        $a = $this->crear($gestor, 'A');
+        $b = $this->crear($gestor, 'B');
+        $c = $this->crear($gestor, 'C');
+
+        $antesDelOrden = $this->ordenActual($gestor);
+        $borrada = false;
+        DB::beforeExecuting(function (string $sql) use (&$borrada, $c): void {
+            if (! $borrada && str_contains(strtolower($sql), 'for update') && str_contains(strtolower($sql), 'from "banners"')) {
+                $borrada = true;
+                DB::table('banners')->where('uuid', $c['uuid'])->update(['deleted_at' => now()]);
+            }
+        });
+
+        $this->actingAs($gestor)
+            ->putJson('/api/v1/panel/banners/orden', ['uuids' => [$c['uuid'], $b['uuid'], $a['uuid']], 'antes' => $antesDelOrden])
+            ->assertStatus(409);
+
+        $this->assertTrue($borrada, 'La prueba no llegó a simular el borrado concurrente.');
+        $ordenes = DB::table('banners')->whereIn('uuid', [$a['uuid'], $b['uuid']])->orderBy('uuid')->pluck('orden', 'uuid')->all();
+        $this->assertSame(1, (int) $ordenes[$a['uuid']]);
+        $this->assertSame(2, (int) $ordenes[$b['uuid']]);
     }
 
     public function test_cambiar_solo_el_alt_no_pide_subir_otra_vez_la_imagen(): void

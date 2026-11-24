@@ -247,6 +247,38 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
+  # Imagen de la aplicación
+  # ---------------------------------------------------------------------------
+  # Hasta ahora la imagen solo se construía al promover (`despliegue.yml`): un cambio de
+  # PHP o de dependencias podía pasar todos los checks de un PR y romper el despliegue
+  # (caso real: PHP 8.6 y mpdf, 2026-11-23). Aquí se construye igual que allí, sin
+  # publicarla, y se comprueba lo que importa de ella.
+  imagen-app:
+    name: Imagen de la app
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Construir la imagen
+        run: docker build --file docker/app/Dockerfile --tag sede-app:ci .
+      - name: Comprobar la imagen
+        run: |
+          set -euo pipefail
+          esperada="${PHP_VERSION}."
+          real="$(docker run --rm --entrypoint php sede-app:ci -r 'echo PHP_VERSION;')"
+          echo "PHP de la imagen: ${real}"
+          case "${real}" in
+            "${esperada}"*) ;;
+            *) echo "La imagen corre PHP ${real} y la CI prueba con ${PHP_VERSION}."; exit 1 ;;
+          esac
+          docker run --rm --entrypoint php sede-app:ci -r '
+            require "/app/vendor/autoload.php";
+            foreach (["Mpdf\\Mpdf", "Illuminate\\Foundation\\Application"] as $clase) {
+                if (! class_exists($clase)) { fwrite(STDERR, "Falta la clase {$clase}\n"); exit(1); }
+            }
+            echo "autoload y clases clave: ok\n";'
+
+  # ---------------------------------------------------------------------------
   # Pila de contenedores
   # ---------------------------------------------------------------------------
   pila:

@@ -82,6 +82,10 @@ jobs:
           php-version: ${{ env.PHP_VERSION }}
           extensions: pdo_pgsql, pgsql, redis, intl, zip, gd, bcmath, exif, pcntl
           coverage: none
+      # `--ignore-platform-req=php`: mpdf/mpdf 8.3.1 (la última versión) declara PHP ~8.5.0 como
+      # máximo y aún no admite 8.6. Verificado el 2026-11-23: con PHP 8.6.0 la suite pasa completa
+      # (942 pruebas), incluida la generación real del PDF de una política (PoliticasTest). Retirar
+      # esta opción cuando mpdf declare 8.6; hasta entonces es un riesgo aceptado por José.
       - name: Instalar dependencias
         working-directory: backend
         run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req=php

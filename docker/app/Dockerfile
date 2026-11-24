@@ -124,13 +124,17 @@ WORKDIR /app
 
 COPY backend/composer.json backend/composer.lock ./
 
+# `--ignore-platform-req=php`: mpdf/mpdf 8.3.1 declara PHP ~8.5.0 como máximo y aún no admite 8.6.
+# Verificado en la CI el 2026-11-23 con PHP 8.6.0 (suite completa y PDF real de una política).
+# Retirar la opción al actualizar mpdf a una versión que declare 8.6.
 RUN composer install \
         --no-dev \
         --no-interaction \
         --no-progress \
         --no-scripts \
         --no-autoloader \
-        --prefer-dist
+        --prefer-dist \
+        --ignore-platform-req=php
 
 # ---------------------------------------------------------------------------
 # Imagen final

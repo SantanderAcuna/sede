@@ -80,8 +80,14 @@ final class SuperAdminSeeder extends Seeder
             $usuario->forceFill(['uuid' => Uuid::uuid4()->toString()])->save();
         }
 
-        // `syncRoles` y no `assignRole`: repetir la siembra no debe acumular filas
-        // en el pivote ni conservar un rol que ya no se declara aquí.
-        $usuario->syncRoles([$rol]);
+        // Solo se sincroniza si el conjunto de roles NO es ya el declarado. `syncRoles`
+        // desasigna y vuelve a asignar aunque nada cambie, y esta siembra corre en cada
+        // despliegue: sin la comprobación, cada uno dejaba dos filas falsas («Quitó» y
+        // «Asignó» un rol) en la bitácora de solo inserción. Si la cuenta tiene un rol de
+        // más o de menos, sí se corrige, y eso sí queda registrado.
+        $actuales = $usuario->roles()->pluck('name')->all();
+        if ($actuales !== [$rol->name]) {
+            $usuario->syncRoles([$rol]);
+        }
     }
 }

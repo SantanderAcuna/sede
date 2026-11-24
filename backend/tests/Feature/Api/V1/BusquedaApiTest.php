@@ -9,6 +9,7 @@ use App\Models\Tramite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
@@ -189,6 +190,22 @@ final class BusquedaApiTest extends TestCase
         );
         $this->assertArrayHasKey('autor', $primero);
         $this->assertArrayHasKey('miniatura', $primero);
+    }
+
+    public function test_la_fecha_del_resultado_no_depende_de_la_zona_de_la_sesion(): void
+    {
+        $this->publicar([
+            'nombre' => 'Certificado de residencia',
+            'slug' => 'certificado-de-residencia',
+            'publicado_en' => Carbon::parse('2026-09-15 03:00:00', 'UTC'),
+        ]);
+
+        // Un cliente con otra zona (un reporte, `psql`, una réplica) no debe mover el día.
+        DB::statement("set time zone 'America/Bogota'");
+
+        $this->getJson('/api/v1/buscar?q=residencia')
+            ->assertOk()
+            ->assertJsonPath('data.0.fecha', '2026-09-15');
     }
 
     public function test_el_extracto_se_recorta_sin_partir_palabras(): void

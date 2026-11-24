@@ -209,7 +209,14 @@ const rutas: RouteRecordRaw[] = [
         component: () => import('@/views/admin/RolFormularioView.vue'),
         meta: { requiereSesion: true, titulo: 'Editar rol', permiso: PERMISO_POR_RUTA['/usuarios/roles'] },
       },
-      ...MODULOS.map(
+      // Auditoría: lectura de la bitácora (el módulo ya no está «En construcción»).
+      {
+        path: 'auditoria',
+        name: 'auditoria',
+        component: () => import('@/views/admin/AuditoriaView.vue'),
+        meta: { requiereSesion: true, titulo: 'Auditoría', permiso: PERMISO_POR_RUTA['/auditoria'] },
+      },
+      ...MODULOS.filter((modulo) => modulo.nombre !== 'auditoria').map(
         (modulo): RouteRecordRaw => ({
           path: modulo.ruta,
           name: modulo.nombre,

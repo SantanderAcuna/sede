@@ -236,6 +236,33 @@ renderizar() {
 
 # Deja en $BASE el `.env` y el `compose.yaml` de ESTA versión.
 #   0 = listo    1 = error (no se toca nada)    2 = la imagen no trae entorno
+# ¿Este guion es el que trae el repositorio para ESTA versión? (deriva repositorio ↔ servidor)
+#
+# `/usr/local/bin/desplegar.sh` es una COPIA instalada a mano. Si el guion del repositorio
+# cambia y nadie la reinstala, el despliegue corre el viejo y termina en verde sin hacer
+# lo nuevo (pasó con el cálculo de huellas de la Fase 0B, T8). La imagen trae la huella
+# SHA-256 del guion de su versión (`despliegue-remoto.sha256`, que una guarda de la CI
+# mantiene al día) y aquí se compara con la de este archivo, ANTES de tocar nada: si
+# difiere se rechaza y no hay nada que revertir.
+#   0 = coincide, o la imagen es anterior a esta comprobación (se avisa y se sigue);
+#   1 = difiere.
+guion_al_dia() {
+  local extraido="$1" propio="${2:-${BASH_SOURCE[0]}}" esperada actual
+  if [ ! -f "$extraido/despliegue-remoto.sha256" ]; then
+    echo "  AVISO: la imagen no trae la huella del guion; no se puede comprobar que $propio esté al día." >&2
+    return 0
+  fi
+  esperada="$(tr -d '[:space:]' < "$extraido/despliegue-remoto.sha256")"
+  actual="$(sha256sum "$propio" | cut -d' ' -f1)"
+  if [ "$esperada" != "$actual" ]; then
+    rojo "Este guion no es el de la versión que se despliega (huella distinta)."
+    rojo "  Reinstala /usr/local/bin/desplegar.sh desde deploy/droplet/despliegue-remoto.sh"
+    rojo "  (ver deploy/README.md, «La trampa: el guion vive en dos sitios») y repite el despliegue."
+    return 1
+  fi
+  return 0
+}
+
 preparar_entorno() {
   local imagen tmp cid modo dueno clave faltan n
   imagen="$REGISTRO_CONFIABLE/$NOMBRE_APP-app:$VERSION"
@@ -291,6 +318,12 @@ preparar_entorno() {
       return 2
     }
   done
+
+  # 3b. El guion que está corriendo tiene que ser el de esta versión.
+  if ! guion_al_dia "$tmp" "${BASH_SOURCE[0]}"; then
+    rm -rf "$tmp"
+    return 1
+  fi
 
   # 4. Valores de la imagen (datos, nunca ejecutados) con los nombres de secretos
   #    PROHIBIDOS, y después los secretos del servidor, que así ganan siempre.
@@ -498,6 +531,21 @@ if ! $COMPOSE run --rm app php artisan db:seed --class=SedeSeeder --force; then
   exit 1
 fi
 verde "  datos institucionales sembrados"
+
+# Huella (SHA-256) de los archivos que ya existían (Fase 0B, T8). La migración deja la columna
+# vacía a propósito: una migración no lee discos. El comando es idempotente (solo toca filas sin
+# huella) y **no es motivo para volver atrás**: la huella es evidencia de integridad, no algo de
+# lo que dependa servir la sede. Si algún archivo no se puede leer lo avisa y sigue; queda el
+# comando para repetirlo a mano.
+# Con tope de 5 minutos: un disco que no responde no debe dejar el despliegue colgado sin
+# volver atrás (los archivos de hoy son pocos; el tope es una red de seguridad, no un cálculo).
+if ! timeout 300 $COMPOSE run --rm app php artisan archivos:calcular-hash; then
+  echo "AVISO: el cálculo de huellas falló, se agotó el tiempo o dejó archivos sin leer." >&2
+  echo "       El despliegue continúa. Revise lo anterior y repita en el servidor:" >&2
+  echo "       $COMPOSE run --rm app php artisan archivos:calcular-hash" >&2
+else
+  verde "  huellas de archivos al día"
+fi
 
 $COMPOSE rm -f >/dev/null 2>&1 || true
 $COMPOSE up -d --remove-orphans

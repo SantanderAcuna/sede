@@ -7,8 +7,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../src/services/contenido', () => ({ subirImagenContenido: vi.fn() }))
-import { subirImagenContenido } from '../src/services/contenido'
+vi.mock('../src/api/contenido', () => ({ subirImagenContenido: vi.fn() }))
+import { subirImagenContenido } from '../src/api/contenido'
 import EditorTexto from '../src/components/base/EditorTexto.vue'
 
 // jsdom no calcula geometría; ProseMirror la pide al enfocar.

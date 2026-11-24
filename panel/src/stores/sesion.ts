@@ -15,7 +15,7 @@
  */
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { login as loginApi, logout as logoutApi, perfil as perfilApi, type Credenciales, type UsuarioItem } from '@/services/auth'
+import { login as loginApi, logout as logoutApi, perfil as perfilApi, type Credenciales, type UsuarioItem } from '@/api/auth'
 
 export interface UsuarioSesion {
   id: number

@@ -112,13 +112,28 @@ ssh ops@<servidor> 'sudo bash -n /tmp/despliegue-remoto.sh &&
 El `bash -n` valida la sintaxis **antes** de sustituir el guion que despliega: un
 guion roto en `/usr/local/bin` deja el servidor sin poder desplegar.
 
+**Ya no depende de que te acuerdes.** La huella SHA-256 del guion
+(`deploy/despliegue-remoto.sha256`) viaja en la imagen y el guion del servidor la compara con
+la suya antes de tocar nada: si difieren, el despliegue se **rechaza** con el mensaje de
+arriba y no hay nada que revertir. Dos consecuencias:
+
+- Al cambiar `despliegue-remoto.sh` hay que regenerar la huella, o la CI falla
+  (`deploy/pruebas/guarda-guion-instalado.sh`):
+  `sha256sum deploy/droplet/despliegue-remoto.sh | cut -d' ' -f1 > deploy/despliegue-remoto.sha256`
+- Una imagen anterior a esta comprobación no trae la huella: se avisa y se sigue. Y un servidor
+  con el guion viejo (sin esta comprobación) no puede detectarse a sí mismo: **se reinstala una
+  vez a mano** y desde entonces se vigila solo.
+
 ## Qué hace un despliegue
 
 1. Trae las imágenes de la versión.
 2. `php artisan migrate --force`.
 3. **`php artisan db:seed --class=SedeSeeder --force`**.
-4. Levanta los contenedores y espera a que `/ready` responda.
-5. Si algo falla, vuelve solo a la versión anterior.
+4. `php artisan archivos:calcular-hash`: huella SHA-256 de los archivos que aún no la tienen (desde D10b
+   la huella es obligatoria y no queda ninguno; la vigilancia nocturna es `archivos:verificar`). Es
+   idempotente y **no revierte el despliegue** si algún archivo no se lee: avisa y sigue.
+5. Levanta los contenedores y espera a que `/ready` responda.
+6. Si algo falla (migrar, sembrar o responder), vuelve solo a la versión anterior.
 
 ### Por qué siembra, y por qué así
 

@@ -4,9 +4,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const post = vi.fn()
-vi.mock('../src/services/http', () => ({ http: { post: (...a: unknown[]) => post(...a) }, desenvolver: (r: { data: unknown }) => r.data }))
+vi.mock('../src/api/client', () => ({ http: { post: (...a: unknown[]) => post(...a) }, desenvolver: (r: { data: unknown }) => r.data }))
 
-import { subirImagenContenido } from '../src/services/contenido'
+import { subirImagenContenido } from '../src/api/contenido'
 
 describe('subirImagenContenido', () => {
   beforeEach(() => post.mockReset())

@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\Services\FilesMediaServiceInterface;
+use App\Exceptions\ArchivoEnUso;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SubirArchivoRequest;
 use App\Http\Resources\FileMediaResource;
-use App\Models\Entidad;
+use App\Models\FileMedia;
 use App\Models\Politica;
+use App\Services\PoliticaDocumentoService;
 use App\Support\Api\ApiResponse;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -25,16 +28,17 @@ final class ArchivoController extends Controller
 {
     public function __construct(
         private readonly FilesMediaServiceInterface $filesService,
+        private readonly PoliticaDocumentoService $documentos,
     ) {}
 
     /**
-     * El modelo al que se adjuntan los archivos, por su UUID público: la entidad o
-     * una política. La ruta se llama `/entidad/{uuid}/archivos` por historia; el
-     * recurso real es «cualquier modelo con archivos».
+     * La política a la que se adjuntan los documentos, por su UUID público. La ruta se llama
+     * `/entidad/{uuid}/archivos` por historia, pero solo acepta políticas: los archivos de Entidad se
+     * retiraron en D9 (si el módulo Entidad necesita adjuntos, se diseñan con una relación explícita).
      */
-    private function resolverModelo(string $uuid): ?Model
+    private function resolverModelo(string $uuid): ?Politica
     {
-        return Entidad::where('uuid', $uuid)->first() ?? Politica::where('uuid', $uuid)->first();
+        return Politica::where('uuid', $uuid)->first();
     }
 
     /**
@@ -76,6 +80,7 @@ final class ArchivoController extends Controller
      *
      * @response 200 { "success": true, "message": "Archivo eliminado" }
      * @response 404
+     * @response 409
      */
     public function destroy(Request $request, string $uuid): JsonResponse
     {
@@ -86,13 +91,29 @@ final class ArchivoController extends Controller
                 return ApiResponse::notFound('Archivo no encontrado.');
             }
 
-            if (! $this->puedeTocar($request, $archivo->model_type)) {
-                return ApiResponse::forbidden();
+            // Un documento de política NUNCA se borra desde la API (Ley 594/2000, a la espera de jurídica):
+            // «quitar» solo lo desvincula y el archivo queda en la mediateca.
+            $politicaId = DB::table('politica_documentos')->where('file_media_uuid', $archivo->uuid)->value('politica_id');
+            if ($politicaId !== null || $archivo->uso === FileMedia::USO_DOCUMENTO) {
+                if (! $this->puedeTocar($request, Politica::class)) {
+                    return ApiResponse::forbidden();
+                }
+                if ($politicaId === null) {
+                    return ApiResponse::conflict('Los documentos oficiales no se eliminan del sistema.');
+                }
+
+                $politica = Politica::query()->findOrFail((int) $politicaId);
+                $this->documentos->quitar($politica, $archivo, $request->user() ?? abort(401));
+
+                return ApiResponse::ok(null, 'Documento quitado. El archivo se conserva.');
             }
 
             $this->filesService->delete($uuid);
 
             return ApiResponse::ok(null, 'Archivo eliminado.');
+        } catch (ArchivoEnUso $e) {
+            // Antes del `catch (\Throwable)`: si no, el conflicto saldría como un 500.
+            return ApiResponse::conflict($e->getMessage());
         } catch (\Throwable $e) {
             Log::error('Error al eliminar archivo', ['uuid' => $uuid, 'exception' => $e]);
 
@@ -123,7 +144,10 @@ final class ArchivoController extends Controller
                 return ApiResponse::error('El parámetro collection es obligatorio.', 422);
             }
 
-            $archivos = $this->filesService->getByCollection($model, $collection);
+            // Solo existe una colección de documentos por política; cualquier otra está vacía.
+            $archivos = $collection === Politica::COLECCION_DOCUMENTO
+                ? $this->documentos->listar($model)
+                : collect();
 
             return ApiResponse::ok(FileMediaResource::collection($archivos));
         } catch (\Throwable $e) {
@@ -153,17 +177,16 @@ final class ArchivoController extends Controller
             }
 
             // A una política sólo se le adjunta el documento oficial.
-            if ($model instanceof Politica && $request->validated('collection') !== Politica::COLECCION_DOCUMENTO) {
+            if ($request->validated('collection') !== Politica::COLECCION_DOCUMENTO) {
                 return ApiResponse::validationError([
                     'collection' => ['A una política sólo se le adjunta la colección «'.Politica::COLECCION_DOCUMENTO.'».'],
                 ]);
             }
 
-            $archivo = $this->filesService->upload(
-                file: $request->validated('archivo'),
-                collection: $request->validated('collection'),
-                model: $model,
-                metadata: $request->validated('metadata'),
+            $archivo = $this->documentos->adjuntar(
+                $model,
+                $request->validated('archivo'),
+                $request->user() ?? abort(401),
             );
 
             return ApiResponse::ok(new FileMediaResource($archivo), 'Archivo subido correctamente.');

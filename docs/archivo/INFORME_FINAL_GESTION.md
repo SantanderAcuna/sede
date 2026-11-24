@@ -129,7 +129,7 @@
 | 2 | `panel/tests/auth.test.ts` | Auditar y ajustar tests de `login()` para la nueva API | HIGH |
 | 3 | `backend/tests/Feature/Api/V1/AuthTest.php` | Investigar interacción `'authenticate_session' => null` con `actingAs` | HIGH |
 | 4 | `panel/src/layouts/AdminLayout.vue:151` | Considerar `router.push` con flag en lugar de `window.location.replace()` | MEDIUM |
-| 5 | `panel/src/services/http.ts:71` | Considerar evento o `router.push` en lugar de `window.location.href` para 429 | MEDIUM |
+| 5 | `panel/src/api/client.ts:71` | Considerar evento o `router.push` en lugar de `window.location.href` para 429 | MEDIUM |
 | 6 | Renombrar rama con prefijo estándar (`fix/sesion-sanctum-bug`) | MEDIUM |
 | 7 | Dividir PR de 2644 líneas en chained-PRs | MEDIUM |
 

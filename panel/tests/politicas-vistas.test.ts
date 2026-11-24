@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('../src/services/politicas', () => ({
+vi.mock('../src/api/politicas', () => ({
   COLECCION_DOCUMENTO: 'documento-oficial',
   listar: vi.fn(),
   crear: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('../src/services/politicas', () => ({
   quitarArchivo: vi.fn(),
 }))
 
-import * as servicio from '../src/services/politicas'
+import * as servicio from '../src/api/politicas'
 import PoliticasListaView from '../src/views/admin/PoliticasListaView.vue'
 import PoliticaFormularioView from '../src/views/admin/PoliticaFormularioView.vue'
 import type { PoliticaPanelItem } from '../src/types/api'
@@ -193,6 +193,25 @@ describe('edición de una política', () => {
     expect(slug).toBe('uso-de-cookies')
     expect(entrada).not.toHaveProperty('secciones')
     expect(wrapper.text()).toContain('Política guardada')
+  })
+
+  it('si la política está publicada, el aviso dice que el sitio ya muestra el texto', async () => {
+    m.actualizar.mockResolvedValue(politica({ nombre: 'Cookies', publicada: true }))
+    const { wrapper } = await montarFormulario()
+    await wrapper.find('input[type="text"]').setValue('Cookies')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).toContain('El sitio ya muestra el texto nuevo')
+  })
+
+  it('si la política está oculta, el aviso NO dice que el sitio la muestra', async () => {
+    m.actualizar.mockResolvedValue(politica({ nombre: 'Cookies', publicada: false }))
+    const { wrapper } = await montarFormulario()
+    await wrapper.find('input[type="text"]').setValue('Cookies')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('El sitio ya muestra')
+    expect(wrapper.text()).toContain('Política guardada. Sigue oculta')
   })
 
   it('explica el rechazo del servidor sin perder lo escrito', async () => {

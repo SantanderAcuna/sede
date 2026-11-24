@@ -5,12 +5,13 @@
  * Reordenar con «Subir» y «Bajar» (botones, no arrastrar): funciona con teclado, con lector
  * de pantalla y con el dedo. Cada cambio se guarda al instante y se anuncia en palabras.
  */
+import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import BaseBadge from '@/components/base/BaseBadge.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
-import { listar, ordenar } from '@/services/banners'
+import { listar, ordenar } from '@/api/banners'
 import type { BannerPanelItem, EstadoBanner } from '@/types/api'
 import { tomarAviso } from './avisos'
 import { explicacionDeEstado, mover, textoDeEstado } from './banners-logica'
@@ -51,11 +52,20 @@ async function moverFila(b: BannerPanelItem, delta: -1 | 1): Promise<void> {
   guardandoOrden.value = true
   errorOrden.value = null
   try {
-    filas.value = await ordenar(despues)
+    filas.value = await ordenar(despues, antes)
     const pos = despues.indexOf(b.uuid) + 1
     anuncio.value = `«${b.titulo}» quedó en la posición ${pos} de ${despues.length}.`
   } catch (e) {
     errorOrden.value = motivosDeError(e, 'No se pudo guardar el nuevo orden. Recargue la lista e inténtelo de nuevo.')[0] ?? null
+    // 409: otra persona cambió el carrusel mientras esta lista estaba abierta. Se muestra la lista real
+    // para que no se siga trabajando sobre una vista vieja; el mensaje del error queda a la vista.
+    if (axios.isAxiosError(e) && e.response?.status === 409) {
+      try {
+        filas.value = await listar()
+      } catch {
+        errorOrden.value = `${errorOrden.value ?? ''} No se pudo recargar la lista: recargue la página.`.trim()
+      }
+    }
   } finally {
     guardandoOrden.value = false
   }

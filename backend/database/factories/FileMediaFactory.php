@@ -21,10 +21,7 @@ final class FileMediaFactory extends Factory
         $filename = Str::uuid()->toString().'.'.$extension;
 
         return [
-            'model_uuid' => null,
-            'model_type' => 'App\Models\Entidad',
-            'model_id' => null,
-            'collection' => $this->faker->randomElement(['logos', 'documentos', 'firmas', 'fotos']),
+            'uso' => 'imagen',
             'filename' => $filename,
             'original_filename' => $this->faker->word().'.'.$extension,
             'mime_type' => $this->faker->randomElement([
@@ -35,8 +32,8 @@ final class FileMediaFactory extends Factory
             ]),
             'size' => $this->faker->numberBetween(1024, 10485760),
             'disk' => 'public',
-            'path' => 'file_media/Entidad/'.$this->faker->randomElement(['logos', 'documentos']).'/'.$filename,
-            'metadata' => null,
+            'path' => 'file_media/prueba/'.$filename,
+            'hash_sha256' => hash('sha256', $filename),
         ];
     }
 }

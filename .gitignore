@@ -94,8 +94,9 @@ accesos.md.*
 /pass.md
 /accesos.local.md
 
-# La base SQLite de desarrollo. Se crea con `make preparar`; nunca se versiona:
-# es un artefacto local y puede contener datos de prueba.
+# Restos de la base SQLite de desarrollo: ya no se usa (el único motor es PostgreSQL). Se
+# mantiene ignorada por si queda un archivo viejo en alguna copia local, que podría
+# contener datos de prueba.
 backend/sede
 backend/*.sqlite
 backend/database/*.sqlite

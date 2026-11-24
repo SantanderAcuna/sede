@@ -225,7 +225,7 @@ return {
 | FE-5 | Pinia Composition API (NO Vuex) | ✅ | `defineStore('sesion', () => {...})` |
 | FE-6 | Composables en `src/composables/` | ✅ | Verificado |
 | FE-7 | Zod para validación | ✅ | Schemas en services |
-| FE-8 | Services centralizados | ✅ | API calls en `src/services/` |
+| FE-8 | Services centralizados | ✅ | API calls en `src/api/` |
 | FE-9 | Router guards con meta | ✅ | `meta.requiereSesion` |
 | FE-10 | Estilos scoped | ✅ | `<style scoped>` |
 | **Subtotal** | **10/10** | **✅** |

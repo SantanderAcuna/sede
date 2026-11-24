@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api\V1;
 
-use App\Contracts\Services\FilesMediaServiceInterface;
 use App\Models\Entidad;
 use App\Models\FileMedia;
+use App\Models\Politica;
 use App\Models\User;
 use Database\Seeders\EntidadSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\SuperAdminSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -52,9 +53,9 @@ final class FileMediaFeatureTest extends TestCase
             'original_filename' => 'acta.pdf',
             'mime_type' => 'application/pdf',
             'size' => 2048,
-            'collection' => 'documentos',
+            'uso' => 'documento',
             'disk' => 'public',
-            'path' => 'file_media/Entidad/documentos/acta.pdf',
+            'path' => 'file_media/documento/acta.pdf',
         ]);
 
         $respuesta = $this->actingAs($this->superAdmin, 'sanctum')
@@ -76,42 +77,43 @@ final class FileMediaFeatureTest extends TestCase
         $respuesta->assertNotFound();
     }
 
-    public function test_listar_archivos_por_coleccion(): void
+    public function test_listar_los_documentos_de_una_politica_con_el_oficial_primero(): void
     {
-        $entidad = Entidad::firstOrFail();
-
-        FileMedia::factory()->count(3)->create([
-            'model_type' => Entidad::class,
-            'model_uuid' => $entidad->uuid,
-            'model_id' => $entidad->id,
-            'collection' => 'logos',
-            'disk' => 'public',
-        ]);
-
-        FileMedia::factory()->count(2)->create([
-            'model_type' => Entidad::class,
-            'model_uuid' => $entidad->uuid,
-            'model_id' => $entidad->id,
-            'collection' => 'firmas',
-            'disk' => 'public',
+        $politica = Politica::query()->create(['slug' => 'p-lista', 'nombre' => 'P', 'secciones' => []]);
+        $nuevo = FileMedia::factory()->create(['uso' => FileMedia::USO_DOCUMENTO, 'disk' => 'public']);
+        $viejo = FileMedia::factory()->create(['uso' => FileMedia::USO_DOCUMENTO, 'disk' => 'public']);
+        DB::table('politica_documentos')->insert([
+            ['politica_id' => $politica->id, 'rol' => 'anterior', 'file_media_uuid' => $viejo->uuid],
+            ['politica_id' => $politica->id, 'rol' => 'oficial', 'file_media_uuid' => $nuevo->uuid],
         ]);
 
         $respuesta = $this->actingAs($this->superAdmin, 'sanctum')
-            ->getJson("/api/v1/panel/entidad/{$entidad->uuid}/archivos?collection=logos");
+            ->getJson("/api/v1/panel/entidad/{$politica->uuid}/archivos?collection=".Politica::COLECCION_DOCUMENTO);
 
-        $respuesta->assertOk()
-            ->assertJsonPath('success', true);
+        $respuesta->assertOk()->assertJsonPath('success', true);
+        $this->assertSame([$nuevo->uuid, $viejo->uuid], array_column((array) $respuesta->json('data'), 'uuid'));
+    }
 
-        /** @var list<array<string, mixed>> $data */
-        $data = $respuesta->json('data');
-        $this->assertCount(3, $data);
+    public function test_los_archivos_de_entidad_se_retiraron_su_uuid_ya_no_resuelve(): void
+    {
+        $entidad = Entidad::firstOrFail();
+
+        $this->actingAs($this->superAdmin, 'sanctum')
+            ->getJson("/api/v1/panel/entidad/{$entidad->uuid}/archivos?collection=logos")
+            ->assertNotFound();
+        $this->actingAs($this->superAdmin, 'sanctum')
+            ->postJson("/api/v1/panel/entidad/{$entidad->uuid}/archivos", [
+                'archivo' => UploadedFile::fake()->create('logo.png', 10, 'image/png'),
+                'collection' => 'logos',
+            ])
+            ->assertNotFound();
     }
 
     public function test_eliminar_un_archivo(): void
     {
         $archivo = FileMedia::factory()->create([
             'disk' => 'public',
-            'path' => 'file_media/Entidad/logos/test.png',
+            'path' => 'file_media/imagen/test.png',
         ]);
         Storage::disk('public')->put($archivo->path, 'contenido');
 
@@ -134,28 +136,22 @@ final class FileMediaFeatureTest extends TestCase
         $respuesta->assertNotFound();
     }
 
-    public function test_subir_un_archivo_a_una_entidad(): void
+    public function test_subir_un_documento_a_una_politica_lo_vincula_como_oficial(): void
     {
-        $entidad = Entidad::firstOrFail();
-        $archivo = UploadedFile::fake()->create('logo.png', 1024, 'image/png');
+        $politica = Politica::query()->create(['slug' => 'p-sube', 'nombre' => 'P', 'secciones' => []]);
+        $archivo = UploadedFile::fake()->createWithContent('acto.pdf', "%PDF-1.4\n");
 
         $respuesta = $this->actingAs($this->superAdmin, 'sanctum')
-            ->postJson("/api/v1/panel/entidad/{$entidad->uuid}/archivos", [
+            ->postJson("/api/v1/panel/entidad/{$politica->uuid}/archivos", [
                 'archivo' => $archivo,
-                'collection' => 'logos',
+                'collection' => Politica::COLECCION_DOCUMENTO,
             ]);
 
         $respuesta->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonStructure([
-                'success',
-                'data' => ['uuid', 'filename', 'original_filename', 'collection'],
-            ]);
+            ->assertJsonStructure(['success', 'data' => ['uuid', 'filename', 'original_filename', 'collection']]);
 
-        $this->assertDatabaseHas('file_media', [
-            'model_uuid' => $entidad->uuid,
-            'collection' => 'logos',
-        ]);
+        $this->assertDatabaseHas('politica_documentos', ['politica_id' => $politica->id, 'rol' => 'oficial', 'file_media_uuid' => $respuesta->json('data.uuid')]);
     }
 
     public function test_un_usuario_no_autenticado_no_puede_acceder_a_archivos(): void
@@ -166,52 +162,12 @@ final class FileMediaFeatureTest extends TestCase
         $respuesta->assertUnauthorized();
     }
 
-    public function test_archivo_pertenece_a_entidad_a_traves_del_model_polimorfico(): void
+    public function test_la_respuesta_nombra_la_coleccion_de_la_api_a_partir_del_uso(): void
     {
-        $entidad = Entidad::firstOrFail();
+        $documento = FileMedia::factory()->create(['uso' => FileMedia::USO_DOCUMENTO]);
+        $imagen = FileMedia::factory()->create(['uso' => FileMedia::USO_IMAGEN]);
 
-        $archivo = FileMedia::factory()->create([
-            'model_type' => Entidad::class,
-            'model_id' => $entidad->id,
-            'model_uuid' => $entidad->uuid,
-            'disk' => 'public',
-            'path' => 'test/polymorphic.txt',
-        ]);
-
-        // Línea 76: morphTo() — la relación polimórfica funciona
-        $this->assertInstanceOf(Entidad::class, $archivo->model);
-        $this->assertSame($entidad->id, $archivo->model->id);
-    }
-
-    public function test_delete_by_collection_elimina_todos_los_archivos_de_la_coleccion(): void
-    {
-        $entidad = Entidad::firstOrFail();
-
-        // Crear archivos en dos colecciones usando model_uuid (no model_id)
-        // Los archivos de logos tienen collection='logos'
-        FileMedia::factory()->count(2)->create([
-            'model_type' => Entidad::class,
-            'model_uuid' => $entidad->uuid,
-            'model_id' => $entidad->id,
-            'collection' => 'logos',
-            'disk' => 'public',
-        ]);
-        FileMedia::factory()->count(3)->create([
-            'model_type' => Entidad::class,
-            'model_uuid' => $entidad->uuid,
-            'model_id' => $entidad->id,
-            'collection' => 'firmas',
-            'disk' => 'public',
-        ]);
-
-        $this->assertSame(5, FileMedia::query()->count());
-
-        // Llamar deleteByCollection para la colección 'logos'
-        $service = app(FilesMediaServiceInterface::class);
-        $service->deleteByCollection($entidad, 'logos');
-
-        // Quedan los de 'firmas' nomas
-        $this->assertSame(3, FileMedia::query()->count());
-        $this->assertSame(0, FileMedia::query()->where('collection', 'logos')->count());
+        $this->assertSame('documento-oficial', $documento->coleccionApi());
+        $this->assertSame('imagen', $imagen->coleccionApi());
     }
 }

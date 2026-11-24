@@ -1543,12 +1543,12 @@ respalda con la misma evidencia que el proyecto ya había reunido.**
 - **El contrato es la única fuente de verdad declarada y se respeta**: los dos clientes importan
   tipos generados desde `openapi.yaml` (`tramites/index.vue:46`, `tramites/[slug].vue:44`,
   `panel/src/types/api.ts`), y el sobre plano se desempaqueta **en un solo sitio**
-  (`panel/src/services/http.ts:47-66`), no en cada vista.
+  (`panel/src/api/client.ts:47-66`), no en cada vista.
 - **El catálogo de trámites se resuelve en el servidor**, con `useRequestFetch` y la razón explicada
   (`tramites/index.vue:277-280`), y con una colección vacía declarada en lugar de una petición
   inventada para lo que aún no se publica.
 - **La sesión del panel viaja en cookie `HttpOnly` y no en `localStorage`**
-  (`panel/src/services/http.ts:40-43`), que es la decisión correcta y coherente con C-20.
+  (`panel/src/api/client.ts:40-43`), que es la decisión correcta y coherente con C-20.
 - **El backend tiene pruebas reales** (6 clases de prueba más su `TestCase` y un doble de prueba:
   `Api/V1/TramiteTest`, `Datos/TramiteSeederTest`, `Ingesta/IngestaTramitesTest`,
   `Ingesta/ReconciliacionSuitTest`, `SaludTest`, `Unit/Support/ContactoPublicableTest`); el agujero
@@ -2380,7 +2380,7 @@ Se pasó de **55 a 112 pruebas**. Lo que se añadió no es relleno para subir un
   `aria-sort`, el `for`/`id` de las etiquetas, la trampa de foco del modal.
 - **El enrutador real**: 18 módulos que exigen sesión y permiso, y un invitado al que no se le abre
   ninguno.
-- **`services/http.ts`**: por donde sale todo lo que el panel pide al backend.
+- **`api/client.ts`**: por donde sale todo lo que el panel pide al backend.
 
 Una nota de honestidad: **tres pruebas de esta pasada fallaron por errores míos**, no del código —un
 localizador que cogía el botón del buscador en vez del formulario, un evento sin `burbujeo` que por

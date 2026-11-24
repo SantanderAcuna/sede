@@ -355,6 +355,8 @@ paths:
           $ref: '#/components/responses/ValidacionInvalida'
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   # ══════════════════════════════════════════════════════════════════════════════
@@ -534,6 +536,8 @@ paths:
           $ref: '#/components/responses/ValidacionInvalida'
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   /noticias/{slug}:
@@ -565,6 +569,8 @@ paths:
           $ref: '#/components/responses/NoEncontrado'
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   /noticias/{slug}/imagen:
@@ -595,6 +601,8 @@ paths:
           $ref: '#/components/responses/NoEncontrado'
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   /banners:
@@ -624,6 +632,8 @@ paths:
                         items: { $ref: '#/components/schemas/BannerPublico' }
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   /banners/{uuid}/imagen:
@@ -650,6 +660,8 @@ paths:
           $ref: '#/components/responses/NoEncontrado'
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   # ══════════════════════════════════════════════════════════════════════════════
@@ -1012,6 +1024,8 @@ paths:
           $ref: '#/components/responses/ValidacionInvalida'
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   /buscar:
@@ -1058,6 +1072,8 @@ paths:
           $ref: '#/components/responses/ValidacionInvalida'
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   # `/sitemap.xml` y `/robots.txt` NO son operaciones de esta API: los sirve el sitio (Nuxt) en la
@@ -1136,6 +1152,8 @@ paths:
           $ref: '#/components/responses/ValidacionInvalida'
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   /politicas:
@@ -1273,6 +1291,8 @@ paths:
           $ref: '#/components/responses/ValidacionInvalida'
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   /panel/mfa:
@@ -2099,7 +2119,7 @@ paths:
       tags: [Panel — Carrusel]
       operationId: ordenarBanners
       summary: Fijar el orden del carrusel
-      description: Requiere `banners.editar`. La lista completa de diapositivas (sin repetidas ni desconocidas); la primera es la que se ve primero. Una lista incompleta es 422.
+      description: Requiere `banners.editar`. `uuids` es la lista completa de diapositivas, sin repetidas ni desconocidas; la primera es la que se ve primero. `antes` es el orden que tenía a la vista quien guarda. Si ya no es el orden actual porque otra persona reordenó, creó o eliminó una diapositiva mientras tanto, responde 409 y no cambia nada, para no pisar su cambio. Una lista final incompleta o con repetidas es 422. Los uuid se aceptan en mayúsculas o minúsculas. Las altas y los reordenamientos se serializan y las filas se bloquean en un orden fijo, así que dos personas a la vez se esperan y no se abortan.
       x-status: implemented
       x-criterios: [CAG-02]
       requestBody:
@@ -2108,9 +2128,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [uuids]
+              required: [uuids, antes]
               properties:
-                uuids: { type: array, items: { type: string, format: uuid } }
+                uuids: { type: array, minItems: 1, uniqueItems: true, items: { type: string, format: uuid } }
+                antes: { type: array, minItems: 1, uniqueItems: true, items: { type: string, format: uuid } }
       responses:
         '200':
           description: Orden guardado
@@ -2128,6 +2149,11 @@ paths:
           $ref: '#/components/responses/NoAutenticado'
         '403':
           description: Falta el permiso `banners.editar`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+        '409':
+          description: El orden cambió mientras se editaba; recargue la lista.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiEnvelope' }
@@ -2589,8 +2615,13 @@ paths:
       summary: Una imagen insertada en el contenido publicado
       description: |
         Pública, con límite de peticiones. Sólo sirve las imágenes subidas por el editor
-        del panel (colección «contenido»); cualquier otro archivo responde 404. Lleva
-        `Cache-Control: public, max-age=86400, immutable` y `X-Content-Type-Options: nosniff`.
+        del panel (colección «contenido»); cualquier otro archivo responde 404. Sin sesión
+        solo se sirve la imagen que alguna noticia YA PUBLICADA (activa, con fecha cumplida y
+        sin eliminar) incrusta, con `Cache-Control: public, max-age=86400, immutable`; una
+        imagen sin uso o de un borrador responde 404. Con sesión de quien edita contenido
+        (`noticias.crear`, `noticias.editar`, `politicas.editar` o `entidad.editar`) se sirve
+        cualquier imagen de la colección, con `Cache-Control: private, no-store`, para ver los
+        borradores. Siempre lleva `X-Content-Type-Options: nosniff`.
       x-status: implemented
       x-criterios: [RF-01-013]
       parameters:
@@ -2609,6 +2640,8 @@ paths:
           $ref: '#/components/responses/NoEncontrado'
         '429':
           $ref: '#/components/responses/DemasiadasSolicitudes'
+        '503':
+          $ref: '#/components/responses/ServicioNoDisponible'
       security: []
 
   /panel/contenido/imagenes:
@@ -2620,7 +2653,8 @@ paths:
         Requiere `noticias.crear`, `noticias.editar`, `politicas.editar` o `entidad.editar`. La
         imagen y su texto alternativo (`alt`) van siempre juntos. PNG, JPG o WebP, hasta
         5 MB y 4000 px por lado. Se re-codifica antes de guardarse (sin EXIF ni bytes
-        añadidos). Devuelve la URL pública con la que se inserta en el HTML.
+        añadidos). Si ya existe una imagen con el mismo contenido tras re-codificar, se reutiliza.
+        Devuelve la URL pública con la que se inserta en el HTML y el `alt` recibido.
       x-status: implemented
       x-criterios: [RF-01-013]
       requestBody:
@@ -2731,8 +2765,8 @@ paths:
       operationId: eliminarPolitica
       summary: Eliminar una política propia
       description: |
-        Requiere `politicas.eliminar`. Borra también el documento oficial adjunto (el archivo y su
-        registro). Las cinco políticas obligatorias no se eliminan: `422`.
+        Requiere `politicas.eliminar`. Los documentos adjuntos NO se borran: sus vínculos caen con la política
+        y los archivos quedan en la mediateca (Ley 594/2000). Las cinco políticas obligatorias no se eliminan: `422`.
       x-status: implemented
       x-criterios: [RF-B1-009]
       parameters:
@@ -2813,10 +2847,12 @@ paths:
     get:
       tags: [Panel — Archivos]
       operationId: listarArchivosEntidad
-      summary: Listar archivos de una entidad por colección
+      summary: Listar los documentos de una política
       description: |
-        Devuelve todos los archivos de una colección específica para una entidad.
-        Requiere autenticación. RF-01-XXX.
+        `modelUuid` es el UUID de una POLÍTICA (la ruta conserva el nombre `entidad` por historia; los
+        archivos de entidad se retiraron y su UUID responde 404). La única colección con documentos es
+        `documento-oficial`: el oficial primero y después los anteriores, del más reciente al más antiguo;
+        cualquier otra colección devuelve una lista vacía.
       x-status: implemented
       x-criterios: []
       parameters:
@@ -2844,7 +2880,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '404':
-          description: Entidad no encontrada
+          description: Política no encontrada
         '422':
           $ref: '#/components/responses/ValidacionInvalida'
       security:
@@ -2852,10 +2888,11 @@ paths:
     post:
       tags: [Panel — Archivos]
       operationId: subirArchivoEntidad
-      summary: Subir un archivo a una entidad
+      summary: Adjuntar un documento a una política
       description: |
-        Guarda un archivo en disco y registra sus metadatos en file_media.
-        Requiere autenticación. RF-01-XXX.
+        Guarda el archivo y lo vincula a la política como documento OFICIAL; el oficial que hubiera pasa a
+        `anterior` (se conserva). Solo admite la colección `documento-oficial`. Deja constancia en la bitácora
+        (`politica_documento_adjuntado`). `modelUuid` es el UUID de una política.
       x-status: implemented
       x-criterios: []
       parameters:
@@ -2874,13 +2911,10 @@ paths:
                 archivo:
                   type: string
                   format: binary
-                  description: Archivo binario (máximo 50 MB)
+                  description: Archivo binario (máximo 20 MB)
                 collection:
                   type: string
-                  description: Nombre de la colección (ej. logos, documentos)
-                metadata:
-                  type: object
-                  description: Metadatos opcionales en formato JSON
+                  description: Debe ser `documento-oficial`; cualquier otro valor se rechaza con 422.
       responses:
         '200':
           description: Archivo subido correctamente
@@ -2895,7 +2929,7 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '404':
-          description: Entidad no encontrada
+          description: Política no encontrada
         '422':
           $ref: '#/components/responses/ValidacionInvalida'
       security:
@@ -2935,7 +2969,12 @@ paths:
       tags: [Panel — Archivos]
       operationId: eliminarArchivo
       summary: Eliminar un archivo por su UUID
-      description: Elimina el archivo físico de disco y su registro. Requiere autenticación.
+      description: |
+        Un archivo SIN uso se elimina (primero su registro, después el disco). Un archivo que una noticia, un
+        banner o un documento de política todavía usa NO se elimina: `409`. Un documento vinculado a una política
+        solo se QUITA: se desvincula, el archivo se conserva en la mediateca (Ley 594/2000) y, si era el oficial,
+        el anterior más reciente lo releva (deja `politica_documento_quitado` en la bitácora). Un documento oficial
+        que ya no está vinculado tampoco se elimina: `409`.
       x-status: implemented
       x-criterios: []
       parameters:
@@ -2955,6 +2994,11 @@ paths:
           $ref: '#/components/responses/NoAutenticado'
         '404':
           description: Archivo no encontrado
+        '409':
+          description: El archivo está en uso (o es un documento oficial) y no se elimina.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
       security:
         - cookieSesion: []
 
@@ -3156,8 +3200,8 @@ paths:
       tags: [Panel — Auditoría]
       operationId: listarAuditoria
       summary: Log de auditoría
-      description: Registro de acciones de usuarios.
-      x-status: pending
+      description: Requiere `auditoria.ver`. Registro de lo que hizo cada cuenta, del más reciente al más antiguo. Cada registro trae `descripcion`, la frase con que se lee en el panel, y `recurso_nombre`, el nombre del módulo. Los cambios rechazados también quedan (`acceso_denegado`, `datos_rechazados`, `conflicto_rechazado`) con los nombres de los campos y nunca con lo escrito. Las lecturas no se registran.
+      x-status: implemented
       parameters:
         - name: usuario_id
           in: query
@@ -3166,6 +3210,11 @@ paths:
         - name: recurso
           in: query
           required: false
+          schema: { type: string }
+        - name: accion
+          in: query
+          required: false
+          description: El nombre interno de la acción, por ejemplo `noticia_eliminada` o `acceso_denegado`.
           schema: { type: string }
         - name: fecha_desde
           in: query
@@ -3273,6 +3322,28 @@ components:
               value:
                 success: false
                 message: "Demasiadas solicitudes. Intenta más tarde."
+                data: null
+                errors: null
+
+    ServicioNoDisponible:
+      description: |
+        La base de datos cortó la consulta por tiempo o por un bloqueo que no se soltó (0D, D7): es
+        saturación pasajera y no un defecto de la petición. `Retry-After` trae los segundos de espera
+        sugeridos. Cualquier operación que consulte la base puede responderlo, y los clientes deben
+        tratarlo como reintentable.
+      headers:
+        Retry-After:
+          description: Segundos que el cliente debe esperar antes de reintentar.
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+          examples:
+            base_ocupada:
+              value:
+                success: false
+                message: "El servicio está ocupado. Intenta de nuevo en unos segundos."
                 data: null
                 errors: null
 
@@ -3482,10 +3553,7 @@ components:
       required: [uuid, filename, original_filename, mime_type, size, collection, url]
       properties:
         uuid: { type: string, format: uuid }
-        model_uuid: { type: [string, 'null'], format: uuid }
-        model_type: { type: string }
-        model_id: { type: [integer, 'null'] }
-        collection: { type: string }
+        collection: { type: string, description: 'Nombre del uso del archivo en la API; hoy solo `documento-oficial` sale por aquí.' }
         filename: { type: string }
         original_filename: { type: string }
         mime_type: { type: string }
@@ -3493,7 +3561,6 @@ components:
         disk: { type: string }
         path: { type: string }
         url: { type: string, format: uri }
-        metadata: { type: [object, 'null'] }
         created_at: { type: [string, 'null'], format: date-time }
         updated_at: { type: [string, 'null'], format: date-time }
 
@@ -4211,14 +4278,20 @@ components:
     # ─── Auditoría ────────────────────────────────────────────────────────
     AuditoriaItem:
       type: object
-      required: [id, type, accion, recurso, created_at]
+      required: [id, type, accion, descripcion, recurso, recurso_nombre, created_at]
       properties:
         id: { type: integer }
         type: { type: string, const: auditoria }
         accion:
           type: string
-          enum: [crear, actualizar, eliminar, login, logout]
+          description: Nombre interno de la acción (`noticia_creada`, `acceso_denegado`, `login`...). Para mostrar, usar `descripcion`.
+        descripcion:
+          type: string
+          description: La acción dicha con palabras, lista para mostrar (por ejemplo, «Eliminó una noticia»).
         recurso: { type: string }
+        recurso_nombre:
+          type: string
+          description: El nombre del módulo en lenguaje llano; si no es un módulo conocido, igual que `recurso`.
         recurso_id: { type: [integer, 'null'] }
         cambios: { type: [object, 'null'] }
         ip_origen: { type: [string, 'null'] }

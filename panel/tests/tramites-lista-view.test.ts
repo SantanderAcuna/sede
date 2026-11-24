@@ -2,21 +2,21 @@
  * TramitesListaView — la lista de trámites como tabla, con servicio simulado.
  *
  * Se verifica lo que vive quien administra: tabla (no tarjetas), búsqueda/estado/orden/página pedidos al
- * servidor, estados vacíos que dicen la verdad, y que «Eliminar» solo exista para los trámites creados
- * aquí (los del catálogo oficial se despublican, no se borran) y nunca sin confirmar.
+ * servidor, estados vacíos que dicen la verdad, y que «Eliminar» exista para todos (van a la papelera, no
+ * hay excepción por origen) y nunca se ejecute sin confirmar.
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { conSesion } from './ayudas/sesion'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('../src/services/tramites', () => ({
+vi.mock('../src/api/tramites', () => ({
   POR_PAGINA: 20,
   listar: vi.fn(),
   eliminar: vi.fn(),
 }))
 
-import * as servicio from '../src/services/tramites'
+import * as servicio from '../src/api/tramites'
 import TramitesListaView from '../src/views/admin/TramitesListaView.vue'
 import type { TramitePanelFila } from '../src/types/api'
 
@@ -120,6 +120,13 @@ describe('tabla', () => {
     const { wrapper } = await montar()
     const botones = wrapper.findAll('tbody button[aria-label*="Eliminar"]')
     expect(botones).toHaveLength(2)
+  })
+
+  it('el texto de la página no afirma que los del catálogo oficial no se puedan eliminar', async () => {
+    const { wrapper } = await montar()
+    // Todos son borrables (van a la papelera): decir lo contrario engaña a quien administra.
+    expect(wrapper.text()).not.toContain('pero no eliminar')
+    expect(wrapper.text()).toContain('papelera')
   })
 
   it('«Nuevo trámite» lleva a la vista de creación', async () => {

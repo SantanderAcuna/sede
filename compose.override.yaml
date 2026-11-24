@@ -28,6 +28,9 @@ services:
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
+      # En desarrollo no se cachean la configuración ni las rutas: se quiere ver el efecto de
+      # cada cambio. Ver docker/app/entrypoint.sh.
+      SEDE_CACHE_MARCO: "0"
 
   postgres:
     ports:
@@ -41,9 +44,13 @@ services:
   # levantan sólo cuando se trabaja con ellas.
   horizon:
     profiles: ["colas"]
+    environment:
+      SEDE_CACHE_MARCO: "0"
 
   scheduler:
     profiles: ["colas"]
+    environment:
+      SEDE_CACHE_MARCO: "0"
 
   # Correo de mentira. Todo lo que la sede envíe se puede leer aquí y no sale
   # de la máquina.

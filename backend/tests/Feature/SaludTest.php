@@ -28,6 +28,7 @@ final class SaludTest extends TestCase
     {
         // Aunque la base esté caída, la vida debe responder: si esto falla, el
         // orquestador tiene que reiniciar el proceso.
+        $this->permitirDesconexionDeBase();
         DB::shouldReceive('connection')->andThrow(new RuntimeException('sin base'));
 
         $this->get('/health')
@@ -95,6 +96,8 @@ final class SaludTest extends TestCase
      */
     private function simular(?string $componenteQueFalla = null): void
     {
+        $this->permitirDesconexionDeBase();
+
         if ($componenteQueFalla === 'base_de_datos') {
             DB::shouldReceive('connection')->andThrow(new RuntimeException('no disponible'));
         } else {
@@ -130,5 +133,19 @@ final class SaludTest extends TestCase
                 }
             });
         }
+    }
+
+    /**
+     * Deja que el cierre de la prueba consulte las conexiones de la base.
+     *
+     * Desde Laravel 13.43 el `tearDown` de las pruebas llama a
+     * `DatabaseManager::getConnections()` para desconectarlas. Como estas pruebas
+     * sustituyen la fachada `DB` entera por un doble, esa llamada llegaba sin
+     * expectativa y lanzaba `BadMethodCallException` al terminar. Devolver una lista
+     * vacía es correcto aquí: el doble nunca abre una conexión real.
+     */
+    private function permitirDesconexionDeBase(): void
+    {
+        DB::shouldReceive('getConnections')->andReturn([]);
     }
 }

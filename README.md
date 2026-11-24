@@ -51,7 +51,7 @@ Tres aplicaciones, un contrato y un punto de entrada.
 
 | Aplicación | Carpeta | Para quién | Por qué así |
 |---|---|---|---|
-| API REST | `backend/` | Las dos anteriores | Laravel 13, PHP 8.5 |
+| API REST | `backend/` | Las dos anteriores | Laravel 13, PHP 8.6 |
 | Panel | `panel/` | Funcionarios y ciudadanos | SPA: no necesita posicionamiento y sí respuesta inmediata |
 | Sitio | `sitio/` | El público | SSR: su contenido debe ser rastreable y auditable sin ejecutar JavaScript |
 
@@ -65,7 +65,7 @@ Backend y frontends no se acoplan entre sí: se acoplan al mismo contrato.
 | Sistema | Ubuntu LTS | 26.04 |
 | Contenedores | Docker · Compose | 29.8 · 5.5 |
 | Servidor web | nginx (*stable*) | 1.30.5 |
-| Aplicación | PHP-FPM · Laravel | 8.5 · 13 |
+| Aplicación | PHP-FPM · Laravel | 8.6 · 13 |
 | Datos | PostgreSQL · Redis | 18 · 8 |
 | Panel | Vue · TypeScript · Vite | 3.5 · 7 · 8 |
 | Sitio | Nuxt · TypeScript | 4.5 |

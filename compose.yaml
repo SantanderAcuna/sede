@@ -32,6 +32,10 @@ x-comun-app: &comun-app
     # contenedor nunca lleva la clave del dueño. `environment` gana sobre `env_file`.
     DB_USERNAME: ${DB_APP_USERNAME:-sede_app}
     DB_PASSWORD: ${DB_APP_PASSWORD:?La clave del rol de la aplicación (DB_APP_PASSWORD) es obligatoria}
+    # Genera las cachés de configuración, rutas y eventos de Laravel al arrancar, en el /tmp
+    # (tmpfs) de ESTE contenedor. Solo `app` hereda este bloque; horizon y scheduler lo repiten
+    # más abajo porque su `environment` reemplaza el del ancla. Ver docker/app/entrypoint.sh.
+    SEDE_CACHE_MARCO: "1"
   env_file:
     # El archivo se deja OPCIONAL a propósito. Los valores también pueden llegar
     # por el entorno del proceso, que es como los inyecta la canalización. Exigir
@@ -125,6 +129,8 @@ services:
       # (estrictos); estos son mayores porque el borrado diario de consentimientos crece con el
       # tráfico. Un valor por omisión de rol no es un techo: `PGOPTIONS` lo sube para ESTE proceso.
       # Mismos valores que fija `LimitesPorRolTest`; `docs/limites-por-rol-bd.md` da las razones.
+      # Cachés de Laravel al arrancar (docker/app/entrypoint.sh); ver el ancla `comun-app`.
+      SEDE_CACHE_MARCO: "1"
       PGOPTIONS: "-c statement_timeout=120000 -c lock_timeout=5000 -c idle_in_transaction_session_timeout=60000"
     mem_limit: 512m
     pids_limit: 256
@@ -153,6 +159,8 @@ services:
       # (estrictos); estos son mayores porque el borrado diario de consentimientos crece con el
       # tráfico. Un valor por omisión de rol no es un techo: `PGOPTIONS` lo sube para ESTE proceso.
       # Mismos valores que fija `LimitesPorRolTest`; `docs/limites-por-rol-bd.md` da las razones.
+      # Cachés de Laravel al arrancar (docker/app/entrypoint.sh); ver el ancla `comun-app`.
+      SEDE_CACHE_MARCO: "1"
       PGOPTIONS: "-c statement_timeout=120000 -c lock_timeout=5000 -c idle_in_transaction_session_timeout=60000"
     mem_limit: 256m
     pids_limit: 128

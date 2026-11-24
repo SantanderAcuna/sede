@@ -103,6 +103,22 @@ jobs:
       - name: Pruebas
         working-directory: backend
         run: php artisan test
+      # La imagen genera las cachés de configuración, rutas y eventos al arrancar cada contenedor
+      # (docker/app/entrypoint.sh) y, si no puede, arranca sin ellas y solo avisa. Sin esta
+      # comprobación, un cierre (Closure) en un archivo de `config/` o una ruta no serializable
+      # haría que producción dejara de cachear sin que nadie lo notara. Las cachés se escriben en
+      # un directorio temporal, no en el repositorio.
+      - name: Las cachés de Laravel se pueden generar
+        working-directory: backend
+        env:
+          APP_CONFIG_CACHE: ${{ runner.temp }}/laravel-cache/config.php
+          APP_ROUTES_CACHE: ${{ runner.temp }}/laravel-cache/routes-v7.php
+          APP_EVENTS_CACHE: ${{ runner.temp }}/laravel-cache/events.php
+        run: |
+          mkdir -p "$RUNNER_TEMP/laravel-cache"
+          php artisan config:cache
+          php artisan route:cache
+          php artisan event:cache
 
   # ---------------------------------------------------------------------------
   # Panel

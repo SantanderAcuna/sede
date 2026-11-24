@@ -44,6 +44,11 @@ interface DatosDelFallo {
 
 /** Base de los tres errores de la API. */
 export class ErrorApi extends Error {
+  /**
+   * Nombre explícito en cada clase: el paquete de producción minifica y `new.target.name` saldría
+   * como una letra suelta, que es justo lo que el registro de T9.2 quiere escribir.
+   */
+  override name = 'ErrorApi'
   statusCode?: number
   /** Nuxt lo serializa con el error del servidor al navegador: se conserva igual que en `FetchError`. */
   statusMessage?: string
@@ -52,7 +57,6 @@ export class ErrorApi extends Error {
 
   constructor(mensaje: string, datos: DatosDelFallo = {}) {
     super(mensaje, datos.cause === undefined ? undefined : { cause: datos.cause })
-    this.name = new.target.name
     this.statusCode = datos.statusCode
     this.statusMessage = datos.statusMessage
     this.data = datos.data
@@ -61,13 +65,19 @@ export class ErrorApi extends Error {
 }
 
 /** La API contestó 404: el recurso no existe o no está publicado. */
-export class ApiNoEncontrada extends ErrorApi {}
+export class ApiNoEncontrada extends ErrorApi {
+  override name = 'ApiNoEncontrada'
+}
 
 /** La API no pudo contestar: red caída, tiempo agotado o 5xx. */
-export class ApiNoDisponible extends ErrorApi {}
+export class ApiNoDisponible extends ErrorApi {
+  override name = 'ApiNoDisponible'
+}
 
 /** La API contestó y rechazó la petición (cualquier otro 4xx): no es una caída. */
-export class ApiRechazada extends ErrorApi {}
+export class ApiRechazada extends ErrorApi {
+  override name = 'ApiRechazada'
+}
 
 /** La dirección base sin barras finales; un valor ausente es una cadena vacía. */
 export function normalizarBase(url: unknown): string {

@@ -73,7 +73,13 @@ COPY --from=panel /srv/panel /usr/share/nginx/admin
 # contenedor corre con todas las capacidades retiradas salvo ésa.
 EXPOSE 80 443
 
+# Se pide por HTTPS (con -k: el certificado es del dominio, no de 127.0.0.1) y no por el
+# puerto 80: ese puerto solo atiende el desafío de certbot y responde 301 a todo lo demás, y
+# `curl -f` no toma un 301 por error. Con la dirección http:// el chequeo daba «sano» siempre
+# que nginx contestara, aunque PHP-FPM estuviera caído. Así recorre el servidor TLS y llega a
+# PHP por FastCGI (502 si no contesta). El despliegue no espera esta salud (`up -d` sin
+# `--wait`): solo hace que el estado diga la verdad.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -fsS http://127.0.0.1/health > /dev/null || exit 1
+    CMD curl -fsSk https://127.0.0.1/health > /dev/null || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

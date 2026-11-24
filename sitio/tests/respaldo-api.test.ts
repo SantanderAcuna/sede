@@ -327,6 +327,21 @@ describe('resolver: la API no contesta', () => {
     expect(await m.pedir('/banners')).toMatchObject({ origen: 'api', estado })
   })
 
+  it.each([
+    ['429', 429, '17'],
+    ['503 sin respaldo', 503, '30'],
+  ])('un %s lleva su Retry-After a quien llama (cualquier mayúscula) y no otras cabeceras', async (_nombre, estado, segundos) => {
+    const m = montar([{ estado, cabeceras: { 'Retry-After': segundos, 'Set-Cookie': 'a=b', 'X-Otra': '1' }, cuerpo: '{}' }])
+    const r = await m.pedir('/banners')
+    expect(r).toMatchObject({ origen: 'api', estado, retryAfter: segundos })
+    expect(Object.keys(r!)).not.toContain('cabeceras')
+  })
+
+  it('sin Retry-After en la respuesta, el resultado no inventa uno', async () => {
+    const m = montar([conEstado(429)])
+    expect((await m.pedir('/banners'))!.retryAfter).toBeUndefined()
+  })
+
   it('un respaldo más viejo que la edad máxima (24 h) no se sirve', async () => {
     const m = montar([ok(), conEstado(503)])
     await m.pedir('/banners')

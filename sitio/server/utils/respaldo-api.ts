@@ -65,6 +65,12 @@ export interface Resultado {
   edadMs?: number
   /** Solo con origen «respaldo»: por qué no se usó la API (para el registro). */
   motivo?: MotivoRespaldo
+  /**
+   * Solo con origen «api»: el `Retry-After` de la respuesta, si lo trajo (lo pone nginx en un 429 y
+   * el sitio lo muestra en la búsqueda). Es la única cabecera de la API que se conserva: el resto
+   * no cambia lo que ve la persona.
+   */
+  retryAfter?: string
 }
 
 export interface PeticionRespaldable {
@@ -195,6 +201,17 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
     }
   }
 
+  function deLaApi(respuesta: RespuestaApi): Resultado {
+    const retryAfter = cabecera(respuesta, 'retry-after')
+    return {
+      origen: 'api',
+      estado: respuesta.estado,
+      tipo: cabecera(respuesta, 'content-type') ?? '',
+      cuerpo: respuesta.cuerpo,
+      ...(retryAfter !== undefined ? { retryAfter } : {}),
+    }
+  }
+
   function comoRespaldo(entrada: EntradaRespaldo, motivo: MotivoRespaldo): Resultado {
     return { origen: 'respaldo', estado: 200, tipo: entrada.tipo, cuerpo: entrada.cuerpo, edadMs: ahora() - entrada.guardadoEn, motivo }
   }
@@ -270,7 +287,7 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
         const entrada = await leerRespaldo(clave)
         return entrada !== null
           ? comoRespaldo(entrada, '5xx')
-          : { origen: 'api', estado: respuesta.estado, tipo: cabecera(respuesta, 'content-type') ?? '', cuerpo: respuesta.cuerpo }
+          : deLaApi(respuesta)
       }
 
       // La API contestó. El 429 lo pone nginx, no la API: no dice nada de su salud.
@@ -286,7 +303,7 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
           guardadoEn: ahora(),
         })
       }
-      return { origen: 'api', estado: respuesta.estado, tipo: cabecera(respuesta, 'content-type') ?? '', cuerpo: respuesta.cuerpo }
+      return deLaApi(respuesta)
     } finally {
       if (esSonda) {
         probando = false

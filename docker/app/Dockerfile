@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# Imagen de la aplicación: Laravel 13 sobre PHP-FPM 8.5.
+# Imagen de la aplicación: Laravel 13 sobre PHP-FPM 8.6.
 #
 # Todas las bases están fijadas por resumen y no por etiqueta: una etiqueta
 # puede reapuntarse y, con ella, cambiar todo el contenido de la imagen sin que
@@ -15,7 +15,7 @@
 # ---------------------------------------------------------------------------
 # Base común: PHP con las extensiones que la aplicación necesita
 # ---------------------------------------------------------------------------
-FROM php:8.5-fpm-alpine@sha256:951fb5b1780219b81d5daffa4cebef8e0077c537f3893d9790a5dfcd66ca334d AS base
+FROM php:8.6-fpm-alpine@sha256:3892978a38794b348f73d6926fb63e352b5338f8b302cdd2cf0ed968f63b50c5 AS base
 
 # Los paquetes de la imagen base se actualizan en la construcción.
 #
@@ -49,6 +49,14 @@ FROM php:8.5-fpm-alpine@sha256:951fb5b1780219b81d5daffa4cebef8e0077c537f3893d979
 # despliegue: el código estaba bien y el despliegue no llegó por un parpadeo de la
 # red. Reintentar con espera creciente cuesta unos segundos cuando pasa, y evita
 # una hora de diagnóstico equivocado cuando pasa.
+# phpredis se compila desde el tarball de PECL con su huella comprobada, y no con
+# `pecl install`, por dos motivos medidos el 2026-11-23 con la imagen php:8.6:
+#   - la imagen ya no trae `pecl` («pecl: not found»);
+#   - phpredis 6.3.0, la última estable, NO compila en PHP 8.6 (usa `zval_dtor` y
+#     `ZEND_WRONG_PARAM_COUNT`, retiradas). La 6.4.0RC1, publicada ese mismo día, es la
+#     primera que declara compatibilidad con 8.6 («Fix PHP 8.6 compatibility»).
+# Es una versión candidata (beta): al salir la 6.4.0 estable, se cambia la versión y la
+# huella aquí. Verificado con Redis real: conecta, autentica, SET con TTL, GET y DEL.
 RUN set -eu; \
     reintentar() { \
       n=0; \
@@ -65,8 +73,15 @@ RUN set -eu; \
     docker-php-ext-configure gd --with-freetype --with-jpeg; \
     docker-php-ext-install -j"$(nproc)" \
         pdo_pgsql pgsql intl zip gd bcmath exif pcntl; \
-    pecl install redis; \
+    REDIS_VERSION=6.4.0RC1; \
+    REDIS_SHA256=876434dff29603c83e33cb69bbcfdcff1f7846d968a396436b6c026cc15fc492; \
+    reintentar curl -fsSL -o /tmp/redis.tgz "https://pecl.php.net/get/redis-${REDIS_VERSION}.tgz"; \
+    echo "${REDIS_SHA256}  /tmp/redis.tgz" | sha256sum -c -; \
+    mkdir /tmp/redis-src; \
+    tar -xzf /tmp/redis.tgz -C /tmp/redis-src --strip-components=1; \
+    ( cd /tmp/redis-src && phpize && ./configure --enable-redis && make -j"$(nproc)" && make install ); \
     docker-php-ext-enable redis; \
+    rm -rf /tmp/redis-src /tmp/redis.tgz; \
     apk del .construccion; \
     reintentar apk add --no-cache libpq icu-libs libzip freetype libpng libjpeg-turbo; \
     rm -rf /tmp/pear /var/cache/apk/*
@@ -124,13 +139,17 @@ WORKDIR /app
 
 COPY backend/composer.json backend/composer.lock ./
 
+# `--ignore-platform-req=php`: mpdf/mpdf 8.3.1 declara PHP ~8.5.0 como máximo y aún no admite 8.6.
+# Verificado en la CI el 2026-11-23 con PHP 8.6.0 (suite completa y PDF real de una política).
+# Retirar la opción al actualizar mpdf a una versión que declare 8.6.
 RUN composer install \
         --no-dev \
         --no-interaction \
         --no-progress \
         --no-scripts \
         --no-autoloader \
-        --prefer-dist
+        --prefer-dist \
+        --ignore-platform-req=php
 
 # ---------------------------------------------------------------------------
 # Imagen final

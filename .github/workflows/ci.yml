@@ -345,6 +345,25 @@ jobs:
             exit 1
           fi
           echo "nginx declara /sanctum/csrf-cookie y /api/v1/panel/login."
+      - name: La salud de nginx recorre el servidor TLS y llega a PHP
+        run: |
+          # El HEALTHCHECK pedía http://127.0.0.1/health. El puerto 80 solo atiende el desafío
+          # de certbot y responde 301 a todo lo demás, y `curl -f` no toma un 301 por error:
+          # el chequeo salía en 0 con PHP caído (medido con la configuración real de nginx:
+          # 301 → 0 con PHP sano y con PHP caído; https → 200/0 y 502/22). Esta guarda es
+          # estática, como las demás de nginx: la prueba real es la de staging.
+          linea=$(awk '/^HEALTHCHECK/{f=1} f&&/CMD/{print; exit}' docker/nginx/Dockerfile)
+          [ -n "$linea" ] || { echo "El Dockerfile de nginx no declara HEALTHCHECK."; exit 1; }
+          if echo "$linea" | grep -q 'http://'; then
+            echo "El HEALTHCHECK de nginx pide http://: el puerto 80 solo redirige (301) y 'curl -f' no lo toma por error,"
+            echo "así que daría «sano» aunque PHP o el servidor TLS estén caídos. Debe pedir https://127.0.0.1/health."
+            exit 1
+          fi
+          echo "$linea" | grep -Eq 'curl -[a-zA-Z]*f[a-zA-Z]* ' \
+            || { echo "El HEALTHCHECK de nginx debe usar 'curl -f' para fallar ante 4xx/5xx."; exit 1; }
+          echo "$linea" | grep -Eq 'curl -[a-zA-Z]*k[a-zA-Z]* https://127\.0\.0\.1/health' \
+            || { echo "El HEALTHCHECK de nginx debe pedir https://127.0.0.1/health con -k (el certificado es del dominio, no de 127.0.0.1)."; exit 1; }
+          echo "El HEALTHCHECK de nginx recorre el servidor TLS y llega a PHP."
       - name: El index del panel se revalida en cada visita (caché tras desplegar)
         run: bash deploy/pruebas/guarda-cache-index-panel.sh
 

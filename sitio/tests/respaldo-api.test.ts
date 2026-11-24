@@ -57,7 +57,7 @@ function montar(respuestas: Array<RespuestaApi | Error>, extra: Record<string, u
   const respaldo = crearRespaldo({ almacen, traer, ahora: () => t, dominio: DOMINIO, ...extra })
   const pedir = (ruta: string, query: Record<string, string> = {}, cabeceras: Record<string, string> = {}, anfitrion = DOMINIO) =>
     respaldo.resolver({ ruta, query, cabeceras, anfitrion })
-  return { almacen, traer, llamadas, pedir, avanzar: (ms: number) => { t += ms } }
+  return { almacen, traer, llamadas, pedir, respaldo, avanzar: (ms: number) => { t += ms } }
 }
 
 const caida = () => Object.assign(new TypeError('fetch failed'), { name: 'FetchError' })
@@ -226,6 +226,64 @@ describe('resolver: la API responde', () => {
     const { pedir, almacen } = montar([ok()])
     almacen.guardar = async () => { throw new Error('redis caído') }
     expect((await pedir('/banners'))!.origen).toBe('api')
+  })
+})
+
+describe('la escritura del respaldo no demora la respuesta ni se repite en cada visita', () => {
+  it('un almacén que no contesta al guardar NO retrasa la respuesta de la API', async () => {
+    const m = montar([ok()])
+    m.almacen.guardar = () => new Promise<void>(() => {})
+    expect(await m.pedir('/banners')).toMatchObject({ origen: 'api', estado: 200 })
+  })
+
+  it('`esperarEscrituras` espera a las que quedaron en vuelo', async () => {
+    const m = montar([ok()])
+    let terminada = false
+    m.almacen.guardar = async () => { await new Promise(r => setTimeout(r, 20)); terminada = true }
+    await m.pedir('/banners')
+    expect(terminada).toBe(false)
+    await m.respaldo.esperarEscrituras()
+    expect(terminada).toBe(true)
+  })
+
+  it('una misma clave se escribe como mucho una vez cada 10 s', async () => {
+    const m = montar([ok()])
+    await m.pedir('/banners')
+    m.avanzar(9_999)
+    await m.pedir('/banners')
+    expect(m.almacen.guardados).toHaveLength(1)
+    m.avanzar(2)
+    await m.pedir('/banners')
+    expect(m.almacen.guardados).toHaveLength(2)
+  })
+
+  it('el límite es por clave: otra ruta se escribe enseguida', async () => {
+    const m = montar([ok()])
+    await m.pedir('/banners')
+    await m.pedir('/politicas')
+    expect(m.almacen.guardados).toHaveLength(2)
+  })
+
+  it('una respuesta que no se guarda (con Set-Cookie) no consume el turno de escritura', async () => {
+    const m = montar([ok({ data: 1 }, { 'set-cookie': 'a=1' }), ok()])
+    await m.pedir('/banners')
+    await m.pedir('/banners')
+    expect(m.almacen.guardados).toHaveLength(1)
+  })
+
+  it('una escritura fallida deja reintentar en la siguiente visita', async () => {
+    const m = montar([ok()])
+    let intento = 0
+    m.almacen.guardar = async (clave, entrada) => {
+      intento += 1
+      if (intento === 1) throw new Error('redis')
+      m.almacen.datos.set(clave, entrada)
+    }
+    await m.pedir('/banners')
+    await m.respaldo.esperarEscrituras()
+    await m.pedir('/banners')
+    await m.respaldo.esperarEscrituras()
+    expect(m.almacen.datos.size).toBe(1)
   })
 })
 

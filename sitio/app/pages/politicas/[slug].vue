@@ -102,8 +102,7 @@ const slug = computed<string>(() => primerValor(ruta.params.slug))
  * publicada (una política propia en borrador): para las cinco obligatorias no puede pasar, así que
  * ahí se trata como fallo; para cualquier otro slug es una dirección inventada y responde 404 de verdad.
  */
-const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-const traer = useRequestFetch()
+const api = useClienteApi()
 const precargada = useFichaPrecargada()
 const ficha = fichaDeRuta(ruta.path)
 const esObligatoria = slug.value in POLITICAS
@@ -116,7 +115,7 @@ const { data: lectura } = await useAsyncData<{ documento: PoliticaDelSitio | nul
         precargada.value?.clave === `politica-${slug.value}`
           ? (precargada.value.respuesta as { data?: unknown } | null)
           : ficha
-            ? await leerFicha<{ data?: unknown }>(traer as never, urlApi, ficha)
+            ? await leerFicha<{ data?: unknown }>(api, ficha)
             : null
       if (respuesta === null) return { documento: null, noExiste: true }
       return { documento: politicaDesdeApi(respuesta.data), noExiste: false }

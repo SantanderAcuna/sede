@@ -13,6 +13,7 @@
  */
 import { politicasPropiasDesdeApi, slugsAdoptados } from '../../app/config/politicas-contenido'
 import { POLITICAS, todasLasRutas } from '../../app/config/sitemap'
+import { crearClienteApi, type ClienteApi, type Traer } from '../../app/utils/cliente-api'
 import {
   construirSitemapXml,
   fechasDePoliticas,
@@ -28,17 +29,17 @@ import {
  * backend el catálogo entero en cada visita.
  */
 const tramites = new Map<string, () => Promise<EntradaSitemap[]>>()
-const tramitesDe = (urlApi: string): (() => Promise<EntradaSitemap[]>) => {
-  let lector = tramites.get(urlApi)
+const tramitesDe = (api: ClienteApi): (() => Promise<EntradaSitemap[]>) => {
+  let lector = tramites.get(api.base)
   if (!lector) {
     lector = tramitesConCache(
       () =>
         leerTramites((pagina) =>
-          $fetch<unknown>(`${urlApi}/tramites`, { query: { per_page: 100, page: pagina }, timeout: 5000 }),
+          api.leer<unknown>('/tramites', { query: { per_page: 100, page: pagina }, timeout: 5000 }),
         ),
       { vigenciaMs: 10 * 60 * 1000 },
     )
-    tramites.set(urlApi, lector)
+    tramites.set(api.base, lector)
   }
   return lector
 }
@@ -63,12 +64,12 @@ export default defineEventHandler(async (evento): Promise<string> => {
    * Si la API no responde se omiten: es preferible no anunciarlas un rato a
    * anunciar un texto que no se pudo comprobar.
    */
-  const urlApi = String(config.public.apiUrl ?? '').replace(/\/+$/, '')
+  const api = crearClienteApi($fetch as unknown as Traer, config.public.apiUrl)
   let adoptadas: string[] = []
   let propias: { slug: string; nombre: string }[] = []
   let fechasPoliticas = new Map<string, string>()
   try {
-    const respuesta = await $fetch<unknown>(`${urlApi}/politicas`, { timeout: 3000 })
+    const respuesta = await api.leer<unknown>('/politicas', { timeout: 3000 })
     adoptadas = slugsAdoptados(
       respuesta,
       POLITICAS.map((politica) => politica.slug),
@@ -101,7 +102,7 @@ export default defineEventHandler(async (evento): Promise<string> => {
   }
 
   // Las fichas de trámite se leen de la API. Si falla, el mapa sale con las rutas fijas.
-  const fichas = await tramitesDe(urlApi)()
+  const fichas = await tramitesDe(api)()
 
   setHeader(evento, 'content-type', 'application/xml; charset=utf-8')
   // Una hora si el mapa trae fichas; nada si salió sin ellas (ver `cacheDelMapa`).

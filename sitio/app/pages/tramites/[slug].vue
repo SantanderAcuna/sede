@@ -26,12 +26,11 @@ interface RespuestaFicha {
 const route = useRoute()
 const slug = computed(() => String(route.params.slug ?? ''))
 
-const urlApi = useRuntimeConfig().public.apiUrl.replace(/\/+$/, '')
-const traer = useRequestFetch()
+const api = useClienteApi()
 
 const { data, error } = await useAsyncData<RespuestaFicha>(
   () => `tramite-${slug.value}`,
-  () => traer<RespuestaFicha>(`${urlApi}/tramites/${encodeURIComponent(slug.value)}`),
+  () => api.leer<RespuestaFicha>(`/tramites/${encodeURIComponent(slug.value)}`),
 )
 
 // Un slug que no existe es un 404 de verdad, no una página vacía.

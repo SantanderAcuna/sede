@@ -192,8 +192,36 @@ jobs:
         run: npm run build
       # Después de `typecheck` y `build`: ambos preparan `.nuxt`, que las pruebas necesitan
       # (la instalación se hace con `--ignore-scripts`, así que `nuxt prepare` no corre sola).
+      # T9.3: el almacén del respaldo se prueba contra el Redis REAL de producción y con el usuario
+      # ACL del sitio. Un Redis falso no puede decir si `ioredis` necesita un comando que la ACL
+      # niega (así se encontró `CLIENT SETINFO`, ficha 0C B4). La imagen se lee de `compose.yaml`,
+      # con su digest, para que la prueba no pueda divergir de lo que se despliega. Se arranca con
+      # `docker run` y no como `services:`, aunque GitHub documenta `command` y `entrypoint` ahí
+      # (docs.github.com, «Customizing service container entrypoints and commands»): un `service`
+      # obliga a escribir la imagen en el flujo, y el digest quedaría duplicado y podría divergir.
+      # La ACL es la de la ficha 0C (H35); T9.5 la lleva a `compose.yaml`.
+      - name: Redis de producción con el usuario ACL del sitio
+        run: |
+          imagen=$(grep -m1 -oE 'image: redis:[^[:space:]]+' compose.yaml | cut -d' ' -f2)
+          [ -n "$imagen" ] || { echo "No hay imagen de Redis en compose.yaml"; exit 1; }
+          echo "Imagen: $imagen"
+          docker run -d --name redis-prueba -p 127.0.0.1:6391:6379 "$imagen" \
+            redis-server --requirepass adminprueba \
+            --user sitio on '>sitioprueba' '~sitio:*' -@all +get +set +del +ping +auth \
+            --save '' --appendonly no
+          for i in $(seq 1 30); do
+            if docker exec redis-prueba redis-cli -a adminprueba --no-auth-warning ping | grep -q PONG; then exit 0; fi
+            sleep 1
+          done
+          docker logs redis-prueba
+          exit 1
       - name: Pruebas unitarias
         working-directory: sitio
+        env:
+          REDIS_PRUEBA_HOST: 127.0.0.1
+          REDIS_PRUEBA_PORT: "6391"
+          REDIS_PRUEBA_ADMIN_PASSWORD: adminprueba
+          REDIS_PRUEBA_SITIO_PASSWORD: sitioprueba
         run: npx vitest run
 
   # ---------------------------------------------------------------------------

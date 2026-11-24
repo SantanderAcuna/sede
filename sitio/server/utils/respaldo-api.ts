@@ -19,6 +19,10 @@ export const TIEMPO_ESPERA_MS = 4000
 export const FALLOS_PARA_ABRIR = 3
 /** Cuánto sirve el respaldo sin llamar a la API antes de probar con una petición. */
 export const PAUSA_CIRCUITO_MS = 30_000
+/** Una misma clave se escribe como mucho una vez en este intervalo: no un `SET` por visita. */
+export const INTERVALO_ESCRITURA_MS = 10_000
+/** Tope de claves recordadas para el límite anterior; pasado esto se olvida todo (solo cuesta una escritura de más). */
+const CLAVES_RECORDADAS_MAX = 5000
 /** Tope del cuerpo guardado: una lista enorme no debe llenar el almacén. */
 export const TOPE_BYTES = 1024 * 1024
 const PAGINA_MAXIMA = 10_000
@@ -178,6 +182,8 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
   let fallosSeguidos = 0
   let abiertoHasta = 0
   let probando = false
+  const ultimaEscritura = new Map<string, number>()
+  const escrituras = new Set<Promise<void>>()
 
   async function leerRespaldo(clave: string): Promise<EntradaRespaldo | null> {
     try {
@@ -191,6 +197,29 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
 
   function comoRespaldo(entrada: EntradaRespaldo, motivo: MotivoRespaldo): Resultado {
     return { origen: 'respaldo', estado: 200, tipo: entrada.tipo, cuerpo: entrada.cuerpo, edadMs: ahora() - entrada.guardadoEn, motivo }
+  }
+
+  /**
+   * La escritura no se espera: un almacén lento o congelado no debe demorar la página. Y se limita
+   * por clave, porque cada visita a una página sana produciría un `SET`.
+   */
+  function guardarEnSegundoPlano(clave: string, entrada: EntradaRespaldo): void {
+    const t = ahora()
+    const antes = ultimaEscritura.get(clave)
+    if (antes !== undefined && t - antes < INTERVALO_ESCRITURA_MS) return
+    if (ultimaEscritura.size >= CLAVES_RECORDADAS_MAX) ultimaEscritura.clear()
+    ultimaEscritura.set(clave, t)
+
+    const escritura = (async () => {
+      try {
+        await almacen.guardar(clave, entrada, EDAD_MAXIMA_MS / 1000)
+      } catch {
+        // El almacén es una ayuda: si falla, la respuesta ya salió, y la próxima visita reintenta.
+        ultimaEscritura.delete(clave)
+      }
+    })()
+    escrituras.add(escritura)
+    void escritura.finally(() => escrituras.delete(escritura))
   }
 
   function registrarFallo(): void {
@@ -251,15 +280,11 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
       }
 
       if (sePuedeGuardar(peticion, respuesta, opciones)) {
-        try {
-          await almacen.guardar(
-            clave,
-            { cuerpo: respuesta.cuerpo, tipo: cabecera(respuesta, 'content-type') ?? 'application/json', guardadoEn: ahora() },
-            EDAD_MAXIMA_MS / 1000,
-          )
-        } catch {
-          // El almacén es una ayuda: si falla, la respuesta de la API sigue su camino.
-        }
+        guardarEnSegundoPlano(clave, {
+          cuerpo: respuesta.cuerpo,
+          tipo: cabecera(respuesta, 'content-type') ?? 'application/json',
+          guardadoEn: ahora(),
+        })
       }
       return { origen: 'api', estado: respuesta.estado, tipo: cabecera(respuesta, 'content-type') ?? '', cuerpo: respuesta.cuerpo }
     } finally {
@@ -269,5 +294,10 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
     }
   }
 
-  return { resolver }
+  /** Para las pruebas y el apagado ordenado: espera a las escrituras que quedaron en vuelo. */
+  async function esperarEscrituras(): Promise<void> {
+    await Promise.all([...escrituras])
+  }
+
+  return { resolver, esperarEscrituras }
 }

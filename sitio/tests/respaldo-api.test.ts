@@ -4,7 +4,7 @@
  * Lo que se protege: que la sede siga mostrando la última respuesta válida cuando la API NO
  * contesta (red, tiempo, 5xx), y que en ningún otro caso se sirva algo viejo: un 404, un 410 o un
  * 429 son respuestas de la API y se pasan tal cual. Tampoco se guarda nada que sea de una persona
- * (cookies, `private`, URLs firmadas) ni nada que no sea de la sede pública.
+ * (cookies, `no-store`, URLs firmadas) ni nada que no sea de la sede pública.
  */
 import { describe, expect, it, vi } from 'vitest'
 
@@ -100,10 +100,30 @@ describe('claveDeRespaldo: qué rutas se respaldan y con qué clave', () => {
   })
 
   it.each([
-    [{ buscar: 'x' }], [{ categoria: 'a' }], [{ type: 'a' }], [{ modalidad: 'a' }],
+    [{ buscar: 'x' }], [{ categoria: 'a' }], [{ modalidad: 'a' }],
     [{ dependencia: 'a' }], [{ costo: 'a' }], [{ cualquiera: '1' }],
   ])('un filtro (%j) no se respalda (H32)', (query) => {
     expect(claveDeRespaldo('/tramites', query)).toBeNull()
+  })
+
+  it.each([['tramites'], ['opa'], ['consultas']])('/tramites con type=%s sí se respalda', (t) => {
+    expect(claveDeRespaldo('/tramites', { page: '1', per_page: '10', type: t })).toBe(`sitio:respaldo:/tramites?page=1&per_page=10&type=${t}`)
+  })
+
+  it.each([[''], ['TRAMITES'], ['otro'], ['tramites,opa'], ['opa '], ['__proto__']])('type=«%s» fuera del enum no se respalda', (t) => {
+    expect(claveDeRespaldo('/tramites', { type: t })).toBeNull()
+  })
+
+  it('type solo existe en /tramites: en noticias, políticas y fichas no se respalda', () => {
+    expect(claveDeRespaldo('/noticias', { type: 'opa' })).toBeNull()
+    expect(claveDeRespaldo('/politicas', { type: 'opa' })).toBeNull()
+    expect(claveDeRespaldo('/tramites/x', { type: 'opa' })).toBeNull()
+  })
+
+  it('claves distintas por type', () => {
+    const a = claveDeRespaldo('/tramites', { type: 'opa' })
+    const b = claveDeRespaldo('/tramites', { type: 'consultas' })
+    expect(a).not.toBe(b)
   })
 
   it.each([['0'], ['-1'], ['1.5'], ['abc'], ['101'], ['']])('per_page=«%s» fuera de rango no se respalda (B7)', (v) => {
@@ -157,13 +177,21 @@ describe('resolver: la API responde', () => {
 
   it.each([
     ['Set-Cookie', 'a=1'],
-    ['Cache-Control', 'private, max-age=0'],
     ['Cache-Control', 'no-store'],
     ['Cache-Control', 'public, NO-STORE'],
+    ['Cache-Control', 'private, no-store'],
   ])('con «%s: %s» se devuelve pero NO se guarda', async (cab, valor) => {
     const { pedir, almacen } = montar([ok({ data: 1 }, { [cab]: valor })])
     expect((await pedir('/banners'))!.origen).toBe('api')
     expect(almacen.guardados).toEqual([])
+  })
+
+  // La petición sale sin cookie ni authorization: `private` (el valor por defecto de Laravel,
+  // «no-cache, private») no dice nada de una persona y bloquearlo dejaba el respaldo inerte.
+  it.each([['no-cache, private'], ['private, max-age=0'], ['PRIVATE'], ['no-cache']])('«Cache-Control: %s» sí se guarda', async (valor) => {
+    const { pedir, almacen } = montar([ok({ data: 1 }, { 'cache-control': valor })])
+    await pedir('/banners')
+    expect(almacen.guardados).toHaveLength(1)
   })
 
   it('«Cache-Control: public, max-age=60» sí se guarda', async () => {

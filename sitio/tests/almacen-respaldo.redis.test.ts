@@ -16,7 +16,7 @@
 import Redis from 'ioredis'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { conectarAlmacen } from '../server/utils/almacen-respaldo'
+import { almacenCompartido, cerrarAlmacenesCompartidos, conectarAlmacen } from '../server/utils/almacen-respaldo'
 import type { EntradaRespaldo } from '../server/utils/respaldo-api'
 
 const host = process.env.REDIS_PRUEBA_HOST ?? ''
@@ -111,6 +111,23 @@ describe.skipIf(!disponible)('con Redis real y el usuario ACL `sitio`', () => {
     }
     const registro = (await inspector.call('ACL', 'LOG')) as unknown[]
     expect(registro).toEqual([])
+  })
+
+  it('pedir el almacén compartido muchas veces abre UNA sola conexión del usuario `sitio`', async () => {
+    const cuantas = async () => ((await inspector.call('CLIENT', 'LIST')) as string).split('\n').filter(l => l.includes('user=sitio')).length
+    // La conexión propia de esta prueba (`sitio`) ya cuenta: se mide la diferencia.
+    const antes = await cuantas()
+    const almacenes = await Promise.all(Array.from({ length: 20 }, () => almacenCompartido({ host, port, usuario: 'sitio', password: clave })))
+    try {
+      expect(new Set(almacenes).size).toBe(1)
+      // `ready` llega antes de que Redis procese el AUTH: se deja un instante para que la lista lo refleje.
+      await new Promise(r => setTimeout(r, 150))
+      expect(await cuantas()).toBe(antes + 1)
+    } finally {
+      await cerrarAlmacenesCompartidos()
+    }
+    await new Promise(r => setTimeout(r, 100))
+    expect(await cuantas()).toBe(antes)
   })
 
   it('una contraseña equivocada no lanza: el almacén responde «sin respaldo»', async () => {

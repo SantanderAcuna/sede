@@ -194,3 +194,51 @@ export async function conectarAlmacen(
   await conectado
   return almacen
 }
+
+type Crear = (config: ConfigRedis, opciones: OpcionesAlmacen) => Promise<AlmacenRedis | null>
+
+const compartidos = new Map<string, Promise<AlmacenRedis | null>>()
+
+/**
+ * El almacén de TODO el proceso: una sola conexión por destino, aunque se pida en cada petición.
+ *
+ * `conectarAlmacen` abre una conexión nueva en cada llamada; llamarlo por petición agotaría las
+ * conexiones del Redis compartido con Laravel. Esto lo hace imposible por construcción: la primera
+ * llamada guarda la promesa y las demás (también las simultáneas) reciben la misma. Si abrir falla
+ * (por ejemplo, no se pudo cargar `ioredis`) devuelve `null`, el sitio sigue sin respaldo, y la
+ * siguiente petición lo reintenta. `crear` se inyecta solo para probar.
+ */
+export function almacenCompartido(
+  config: ConfigRedis,
+  opciones: OpcionesAlmacen = {},
+  crear: Crear = conectarAlmacen,
+): Promise<AlmacenRedis | null> {
+  const clave = `${config.host}:${config.port}:${config.usuario}`
+  const existente = compartidos.get(clave)
+  if (existente !== undefined) return existente
+
+  const completa = config.host !== '' && config.usuario !== '' && config.password !== ''
+    && Number.isInteger(config.port) && config.port > 0
+  if (!completa) return Promise.resolve(null)
+
+  const promesa = crear(config, opciones).catch((error: unknown) => {
+    compartidos.delete(clave)
+    opciones.alFallar?.('conexion', error)
+    return null
+  })
+  compartidos.set(clave, promesa)
+  return promesa
+}
+
+/** Cierra las conexiones compartidas (apagado ordenado del servidor) y permite abrirlas de nuevo. */
+export async function cerrarAlmacenesCompartidos(): Promise<void> {
+  const abiertos = [...compartidos.values()]
+  compartidos.clear()
+  await Promise.all(abiertos.map(async (promesa) => {
+    try {
+      await (await promesa)?.cerrar()
+    } catch {
+      // Ya estaba cerrado.
+    }
+  }))
+}

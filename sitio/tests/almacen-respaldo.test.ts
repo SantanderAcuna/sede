@@ -11,6 +11,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   TIEMPO_COMANDO_MS,
+  almacenCompartido,
+  cerrarAlmacenesCompartidos,
   conectarAlmacen,
   crearAlmacenRedis,
   opcionesRedis,
@@ -220,5 +222,72 @@ describe('conectarAlmacen', () => {
     [{ host: 'redis', port: Number.NaN, usuario: 'sitio', password: 'x' }],
   ])('sin configuración completa (%j) no hay almacén: el sitio sigue sin respaldo', async (config) => {
     expect(await conectarAlmacen(config)).toBeNull()
+  })
+})
+
+describe('almacenCompartido: una sola conexión por destino, aunque se pida en cada petición', () => {
+  const config = { host: 'redis', port: 6379, usuario: 'sitio', password: 'x' }
+  const falso = () => {
+    const cierres: number[] = []
+    const almacen = { ...crearAlmacenRedis(clienteFalso().cliente), cerrar: vi.fn(async () => { cierres.push(1) }) }
+    return { almacen, cierres }
+  }
+
+  it('pedirlo muchas veces crea UNA conexión y devuelve el mismo almacén', async () => {
+    await cerrarAlmacenesCompartidos()
+    const { almacen } = falso()
+    const crear = vi.fn(async () => almacen)
+    const resultados = await Promise.all([1, 2, 3, 4, 5].map(() => almacenCompartido(config, {}, crear)))
+    expect(crear).toHaveBeenCalledTimes(1)
+    expect(new Set(resultados).size).toBe(1)
+    expect(await almacenCompartido(config, {}, crear)).toBe(almacen)
+    expect(crear).toHaveBeenCalledTimes(1)
+    await cerrarAlmacenesCompartidos()
+  })
+
+  it('destinos distintos tienen conexiones distintas', async () => {
+    await cerrarAlmacenesCompartidos()
+    const crear = vi.fn(async () => falso().almacen)
+    const a = await almacenCompartido(config, {}, crear)
+    const b = await almacenCompartido({ ...config, host: 'otro' }, {}, crear)
+    expect(crear).toHaveBeenCalledTimes(2)
+    expect(a).not.toBe(b)
+    await cerrarAlmacenesCompartidos()
+  })
+
+  it('sin configuración completa devuelve null y no abre nada', async () => {
+    await cerrarAlmacenesCompartidos()
+    const crear = vi.fn(async () => falso().almacen)
+    expect(await almacenCompartido({ ...config, password: '' }, {}, crear)).toBeNull()
+    expect(crear).not.toHaveBeenCalled()
+  })
+
+  it('si crear falla, devuelve null (sin respaldo) y la siguiente petición lo reintenta', async () => {
+    await cerrarAlmacenesCompartidos()
+    const { almacen } = falso()
+    const crear = vi.fn()
+      .mockRejectedValueOnce(new Error('no se pudo cargar ioredis'))
+      .mockResolvedValueOnce(almacen)
+    expect(await almacenCompartido(config, {}, crear)).toBeNull()
+    expect(await almacenCompartido(config, {}, crear)).toBe(almacen)
+    expect(crear).toHaveBeenCalledTimes(2)
+    await cerrarAlmacenesCompartidos()
+  })
+
+  it('cerrarAlmacenesCompartidos cierra cada conexión y deja crear de nuevo', async () => {
+    await cerrarAlmacenesCompartidos()
+    const uno = falso()
+    const dos = falso()
+    const crear = vi.fn().mockResolvedValueOnce(uno.almacen).mockResolvedValueOnce(dos.almacen)
+    await almacenCompartido(config, {}, crear)
+    await cerrarAlmacenesCompartidos()
+    expect(uno.cierres).toHaveLength(1)
+    expect(await almacenCompartido(config, {}, crear)).toBe(dos.almacen)
+    await cerrarAlmacenesCompartidos()
+  })
+
+  it('cerrar sin nada abierto no lanza', async () => {
+    await cerrarAlmacenesCompartidos()
+    await expect(cerrarAlmacenesCompartidos()).resolves.toBeUndefined()
   })
 })

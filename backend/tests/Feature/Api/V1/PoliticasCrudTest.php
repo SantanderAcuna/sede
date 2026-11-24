@@ -13,6 +13,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\PoliticaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -192,28 +193,33 @@ final class PoliticasCrudTest extends TestCase
         $this->assertSame('politica-de-accesibilidad', $slugs[5]);
     }
 
-    public function test_eliminar_exige_el_permiso_y_borra_tambien_el_archivo_adjunto(): void
+    public function test_eliminar_exige_el_permiso_y_conserva_los_documentos_en_la_mediateca(): void
     {
         Storage::fake('local');
         $this->con(...CatalogoPermisos::de('politicas'));
         $slug = $this->postJson('/api/v1/panel/politicas', $this->nueva())->json('data.slug');
-        $uuid = Politica::query()->where('slug', $slug)->value('uuid');
+        $politica = Politica::query()->where('slug', $slug)->firstOrFail();
+        $uuid = $politica->uuid;
         Storage::disk('local')->put('politicas/acto.pdf', 'contenido');
-        FileMedia::query()->create([
-            'model_uuid' => $uuid, 'model_type' => Politica::class, 'collection' => Politica::COLECCION_DOCUMENTO,
+        $documento = FileMedia::query()->create([
+            'uso' => FileMedia::USO_DOCUMENTO, 'hash_sha256' => hash('sha256', 'acto'),
             'filename' => 'acto.pdf', 'original_filename' => 'acto.pdf', 'mime_type' => 'application/pdf',
             'size' => 9, 'disk' => 'local', 'path' => 'politicas/acto.pdf',
         ]);
-        $this->assertDatabaseHas('file_media', ['model_uuid' => $uuid]);
+        DB::table('politica_documentos')->insert(['politica_id' => $politica->id, 'rol' => 'oficial', 'file_media_uuid' => $documento->uuid]);
+        $this->assertDatabaseHas('file_media', ['uuid' => $documento->uuid]);
 
         $this->con('politicas.ver', 'politicas.editar');
         $this->deleteJson("/api/v1/panel/politicas/{$slug}")->assertForbidden();
 
         $this->con('politicas.ver', 'politicas.eliminar');
-        $this->deleteJson("/api/v1/panel/politicas/{$slug}")->assertOk();
+        $this->deleteJson("/api/v1/panel/politicas/{$slug}")
+            ->assertOk()
+            ->assertJsonPath('message', 'Política eliminada. Sus documentos se conservaron en la mediateca.');
         $this->assertDatabaseMissing('politicas', ['slug' => $slug]);
-        $this->assertDatabaseMissing('file_media', ['model_uuid' => $uuid]);
-        Storage::disk('local')->assertMissing('politicas/acto.pdf');
+        $this->assertDatabaseHas('file_media', ['uuid' => $documento->uuid]);
+        $this->assertDatabaseMissing('politica_documentos', ['file_media_uuid' => $documento->uuid]);
+        Storage::disk('local')->assertExists('politicas/acto.pdf');
         $this->deleteJson("/api/v1/panel/politicas/{$slug}")->assertNotFound();
     }
 

@@ -10,8 +10,8 @@ import { AxiosError } from 'axios'
 import { describe, expect, it } from 'vitest'
 
 import type { ApiEnvelope, PaginatedEnvelope } from '../src/types/api'
-import { ErrorApi, http } from '../src/services/http'
-import { desenvolver, desenvolverPagina, esErrorApi, mensajeDeError } from '../src/services/http'
+import { ErrorApi, http } from '../src/api/client'
+import { desenvolver, desenvolverPagina, esErrorApi, mensajeDeError } from '../src/api/client'
 
 // ---------------------------------------------------------------------------
 // ErrorApi

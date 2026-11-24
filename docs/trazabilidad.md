@@ -2,7 +2,7 @@
 
 > **Documento generado.** No se edita a mano: se produce con `make trazabilidad`
 > (`npm run trazabilidad` desde `sitio/`), que lee el expediente, el contrato OpenAPI y el
-> código, y escribe lo que encuentra. Última generación: **2026-11-12**.
+> código, y escribe lo que encuentra. Última generación: **2026-11-19**.
 
 ## Qué mide esta matriz, y qué no
 
@@ -105,6 +105,8 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | GET | `/contenido/imagenes/{uuid}` | RF-01-013 | implemented |
 | POST | `/panel/contenido/imagenes` | RF-01-013 | implemented |
 | GET | `/panel/politicas` | RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010 | implemented |
+| POST | `/panel/politicas` | RF-B1-009, RF-B2-008 | implemented |
+| DELETE | `/panel/politicas/{slug}` | RF-B1-009 | implemented |
 | PATCH | `/panel/politicas/{slug}` | RF-B1-009, RF-B2-008, RF-B2-009, RF-B2-010, RN-01-D01 | implemented |
 | GET | `/panel/entidad/{modelUuid}/archivos` | — | implemented |
 | POST | `/panel/entidad/{modelUuid}/archivos` | — | implemented |
@@ -116,9 +118,9 @@ Las columnas **no suman el total** a propósito: un criterio puede estar citado 
 | DELETE | `/panel/transparencia/documentos/{id}` | RF-02-021 | pending |
 | GET | `/panel/alertas` | RF-02-022 | pending |
 | GET | `/panel/ita/tablero` | RF-02-029 | pending |
-| GET | `/panel/auditoria` | — | pending |
+| GET | `/panel/auditoria` | — | implemented |
 
-El contrato declara **74 operaciones**, de las cuales **66** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
+El contrato declara **76 operaciones**, de las cuales **68** llevan `x-criterios`. Las que no lo llevan no se pueden trazar a un criterio del expediente desde el contrato: la relación está en el código que las consume.
 
 ## CAG — Diseño
 
@@ -127,16 +129,16 @@ Enunciados en `docs/Sección 2 §2.4`.
 | Criterio | Estado | Evidencia (fichero:línea) |
 |---|---|---|
 | **CAG-01** | desviación declarada | `sitio/app/components/govco/CarruselGovco.vue:25` · `sitio/tests/diseno.mjs:2` · `sitio/tests/puerta-visual.test.ts:6` |
-| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:611` |
+| **CAG-02** | **prueba** | `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:619` |
 | **CAG-03** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:29` · `sitio/tests/diseno.mjs:272` |
-| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/app/utils/banners.ts:5` · `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:611` |
+| **CAG-04** | **prueba** | `sitio/app/components/govco/CarruselGovco.vue:52` · `sitio/app/utils/banners.ts:5` · `sitio/tests/diseno.mjs:233` · `contract/openapi.yaml:619` |
 | **CAG-05** | **prueba** | `sitio/tests/ayudas/api-simulada.mjs:38` · `sitio/tests/diseno.mjs:309` |
 | **CAG-06** | desviación declarada | `sitio/app/components/govco/BarraSuperior.vue:19` · `sitio/scripts/trazabilidad.mjs:251` · `sitio/tests/diseno.mjs:81` |
 | **CAG-07** | **prueba** | `sitio/app/components/govco/BotonAccesibilidad.vue:51` · `sitio/app/components/govco/PanelAccesibilidad.vue:38` · `sitio/tests/diseno.mjs:319` · `sitio/tests/movil.mjs:15` |
 | **CAG-08** | **prueba** | `sitio/app/layouts/default.vue:9` · `sitio/tests/diseno.mjs:484` |
 | **CAG-09** | **prueba** | `sitio/.vitest/json/output.json:1` · `sitio/app/components/govco/MenuNavegacionGovco.vue:91` · `sitio/app/config/sitemap.ts:8` · `sitio/tests/diseno.mjs:501` · +1 |
 | **CAG-10** | implementación | `sitio/app/components/govco/MenuNavegacionGovco.vue:98` |
-| **CAG-11** | **prueba** | `sitio/app/components/govco/MigaDePanGovco.vue:5` · `sitio/app/layouts/default.vue:108` · `sitio/app/middleware/ficha-miga.global.ts:6` · `sitio/app/utils/miga.ts:2` · +2 |
+| **CAG-11** | **prueba** | `sitio/app/components/govco/MigaDePanGovco.vue:5` · `sitio/app/layouts/default.vue:114` · `sitio/app/middleware/ficha-miga.global.ts:6` · `sitio/app/utils/miga.ts:2` · +2 |
 | **CAG-12** | **prueba** | `sitio/app/components/govco/PiePaginaGovco.vue:28` · `sitio/tests/ayudas/api-simulada.mjs:38` · `sitio/tests/diseno.mjs:535` · `contract/openapi-original-backup.yaml:66` · +1 |
 | **CAG-13** | **prueba** | `sitio/tests/diseno.mjs:567` · `panel/.vitest/json/output.json:1` · `panel/tests/componentes.test.ts:35` |
 | **CAG-14** | **prueba** | `sitio/tests/diseno.mjs:577` |
@@ -177,10 +179,10 @@ Enunciados en `docs/Sección 5 §5.3.1`.
 | **FUN-008** | desviación declarada | — |
 | **FUN-009** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:106` |
 | **FUN-010** | desviación declarada | — |
-| **FUN-011** | implementación | `sitio/app/layouts/default.vue:242` |
+| **FUN-011** | implementación | `sitio/app/layouts/default.vue:248` |
 | **FUN-012** | **prueba** | `sitio/.vitest/json/output.json:1` · `sitio/app/config/sitemap.ts:351` · `sitio/app/types/menu.ts:10` · `sitio/tests/sitemap.test.ts:58` |
 | **FUN-013** | implementación | `sitio/app/components/SeccionEnPreparacion.vue:5` · `sitio/app/pages/index.vue:10` · `sitio/app/pages/portales.vue:5` · `sitio/app/pages/servicios.vue:5` · +2 |
-| **FUN-014** | implementación | `sitio/app/components/govco/PiePaginaGovco.vue:174` · `contract/openapi-additional-paths.yaml:100` · `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:106` |
+| **FUN-014** | implementación | `sitio/app/components/govco/PiePaginaGovco.vue:177` · `contract/openapi-additional-paths.yaml:100` · `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:106` |
 | **FUN-015** | implementación | `contract/openapi-original-backup.yaml:66` · `contract/openapi.yaml:106` |
 | **FUN-016** | sin evidencia | — |
 | **FUN-017** | sin evidencia | — |
@@ -239,7 +241,7 @@ Enunciados en `docs/Sección 4 §4.3`.
 | **SEG-003** | sin evidencia | — |
 | **SEG-004** | sin evidencia | — |
 | **SEG-005** | sin evidencia | — |
-| **SEG-006** | implementación | `sitio/app/components/govco/PiePaginaGovco.vue:143` · `sitio/app/config/sitemap.ts:293` · `sitio/app/pages/politicas/[slug].vue:3` · `sitio/app/pages/politicas/index.vue:3` · +2 |
+| **SEG-006** | implementación | `sitio/app/components/govco/PiePaginaGovco.vue:144` · `sitio/app/config/sitemap.ts:293` · `sitio/app/pages/politicas/[slug].vue:3` · `sitio/app/pages/politicas/index.vue:3` · +2 |
 | **SEG-007** | sin evidencia | — |
 | **SEG-008** | sin evidencia | — |
 | **SEG-009** | sin evidencia | — |

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Seguridad;
 
-use App\Models\Entidad;
 use App\Models\FileMedia;
+use App\Models\Politica;
 use App\Models\User;
-use Database\Seeders\EntidadSeeder;
 use Database\Seeders\PermissionSeeder;
+use Database\Seeders\PoliticaSeeder;
 use Database\Seeders\SuperAdminSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -32,7 +32,7 @@ final class SubidaDeArchivosTest extends TestCase
 
     private User $superAdmin;
 
-    private Entidad $entidad;
+    private Politica $politica;
 
     protected function setUp(): void
     {
@@ -42,9 +42,9 @@ final class SubidaDeArchivosTest extends TestCase
         // disco, la subida intentaría hablar con S3 de verdad.
         config(['filesystems.default' => 'local']);
 
-        $this->seed([EntidadSeeder::class, PermissionSeeder::class, SuperAdminSeeder::class]);
+        $this->seed([PoliticaSeeder::class, PermissionSeeder::class, SuperAdminSeeder::class]);
         $this->superAdmin = User::query()->where('email', config('superadmin.email'))->firstOrFail();
-        $this->entidad = Entidad::firstOrFail();
+        $this->politica = Politica::query()->where('slug', 'uso-de-cookies')->firstOrFail();
     }
 
     /** Un archivo real en disco, con el nombre que mande el «cliente». */
@@ -60,7 +60,7 @@ final class SubidaDeArchivosTest extends TestCase
 
     private function rutaSubida(): string
     {
-        return "/api/v1/panel/entidad/{$this->entidad->uuid}/archivos";
+        return "/api/v1/panel/entidad/{$this->politica->uuid}/archivos";
     }
 
     /**
@@ -68,7 +68,7 @@ final class SubidaDeArchivosTest extends TestCase
      */
     private function datos(UploadedFile $archivo): array
     {
-        return ['archivo' => $archivo, 'collection' => 'documentos'];
+        return ['archivo' => $archivo, 'collection' => Politica::COLECCION_DOCUMENTO];
     }
 
     public function test_el_archivo_termina_en_el_disco_por_defecto_de_la_configuracion(): void

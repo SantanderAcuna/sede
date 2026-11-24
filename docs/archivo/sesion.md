@@ -69,7 +69,7 @@ $middleware->statefulApi();
 ],
 ```
 
-### `panel/src/services/http.ts`
+### `panel/src/api/client.ts`
 
 ```typescript
 export const http: AxiosInstance = axios.create({
@@ -146,7 +146,7 @@ backend/tests/Feature/Api/V1/AuthTest.php      — Añadir Origin para tests sta
 panel/src/main.ts                               — await router.isReady() antes de app.mount()
 panel/src/router/index.ts                       — beforeEach async con await sesion.init()
 panel/src/stores/sesion.ts                      — init() y cerrarSesion() idempotentes
-panel/src/services/http.ts                     — Interceptor sin window.location
+panel/src/api/client.ts                     — Interceptor sin window.location
 panel/src/layouts/AdminLayout.vue               — window.location.replace() para logout
 panel/test_sesion.mjs                          — Test E2E con Playwright
 ```

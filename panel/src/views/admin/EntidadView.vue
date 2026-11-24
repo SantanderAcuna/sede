@@ -13,7 +13,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import { useRouter } from 'vue-router'
 import BaseButton from '@/components/base/BaseButton.vue'
 import FormField from '@/components/base/FormField.vue'
-import { actualizar, obtener, politicasDisponibles } from '@/services/entidad'
+import { actualizar, obtener, politicasDisponibles } from '@/api/entidad'
 import {
   REDES_SOCIALES,
   entradaDesde,

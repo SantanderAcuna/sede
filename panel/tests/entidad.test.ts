@@ -11,7 +11,7 @@ import { ref } from 'vue'
 // SECCIÓN 1 — Servicio entidad.ts
 // =============================================================================
 
-vi.mock('../src/services/http', () => {
+vi.mock('../src/api/client', () => {
   const mockEntidadData = {
     id: 1,
     type: 'entidad' as const,
@@ -67,8 +67,8 @@ vi.mock('../src/services/http', () => {
   }
 })
 
-import { obtener, actualizar } from '../src/services/entidad'
-import { http } from '../src/services/http'
+import { obtener, actualizar } from '../src/api/entidad'
+import { http } from '../src/api/client'
 
 beforeEach(() => vi.clearAllMocks())
 

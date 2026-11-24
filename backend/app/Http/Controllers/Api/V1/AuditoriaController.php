@@ -47,6 +47,10 @@ final class AuditoriaController extends Controller
             $query->where('recurso', $request->input('recurso'));
         }
 
+        if ($request->filled('accion')) {
+            $query->where('accion', $request->input('accion'));
+        }
+
         if ($request->filled('fecha_desde')) {
             $query->whereDate('created_at', '>=', $request->input('fecha_desde'));
         }

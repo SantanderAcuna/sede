@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { conSesion } from './ayudas/sesion'
 
-vi.mock('../src/services/politicas', () => ({
+vi.mock('../src/api/politicas', () => ({
   COLECCION_DOCUMENTO: 'documento-oficial',
   listar: vi.fn(),
   crear: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock('../src/services/politicas', () => ({
   quitarArchivo: vi.fn(),
 }))
 
-import * as servicio from '../src/services/politicas'
+import * as servicio from '../src/api/politicas'
 import {
   entradaDesde,
   entradaParaCrear,
@@ -130,9 +130,9 @@ describe('servicio: crear y eliminar', () => {
 
   it('POST a /panel/politicas y DELETE por slug', async () => {
     vi.resetModules()
-    vi.doUnmock('../src/services/politicas')
-    vi.doMock('../src/services/http', () => ({ http: peticion, desenvolver: (s: { data: unknown }) => s.data }))
-    const real = await import('../src/services/politicas')
+    vi.doUnmock('../src/api/politicas')
+    vi.doMock('../src/api/client', () => ({ http: peticion, desenvolver: (s: { data: unknown }) => s.data }))
+    const real = await import('../src/api/politicas')
     peticion.post.mockResolvedValue({ data: { success: true, data: { slug: 'a' } } })
     peticion.delete.mockResolvedValue({ data: {} })
 
@@ -140,7 +140,7 @@ describe('servicio: crear y eliminar', () => {
     expect(peticion.post).toHaveBeenCalledWith('/panel/politicas', { nombre: 'A' })
     await real.eliminar('a')
     expect(peticion.delete).toHaveBeenCalledWith('/panel/politicas/a')
-    vi.doUnmock('../src/services/http')
+    vi.doUnmock('../src/api/client')
   })
 })
 
@@ -181,6 +181,9 @@ describe('lista', () => {
     await wrapper.find('tbody button[aria-label*="Eliminar"]').trigger('click')
     expect(m.eliminar).not.toHaveBeenCalled()
     expect(wrapper.find('[role="dialog"]').text()).toContain('Mi política')
+    // D9: los documentos no se borran con la política; la confirmación no puede decir lo contrario.
+    expect(wrapper.find('[role="dialog"]').text()).toContain('se conservan en la mediateca')
+    expect(wrapper.find('[role="dialog"]').text()).not.toContain('con su texto y el documento oficial')
 
     m.listar.mockResolvedValue([politica()])
     await wrapper.findAll('[role="dialog"] button').find((b) => b.text().includes('Sí, eliminar'))!.trigger('click')
@@ -263,6 +266,52 @@ describe('crear desde el formulario', () => {
   })
 })
 
+describe('crear y adjuntar sin recargar la página', () => {
+  // `nueva` y `editar` usan el mismo componente: al pasar de una a otra el router reutiliza la instancia
+  // y `onMounted` no vuelve a correr. Este montaje usa un RouterView real; `montar` pone el componente suelto.
+  async function conRouterView() {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/configuracion/politicas/nueva', name: 'panel.politicas.nueva', component: PoliticaFormularioView },
+        { path: '/configuracion/politicas/:slug', name: 'panel.politicas.editar', component: PoliticaFormularioView },
+        { path: '/configuracion/politicas', name: 'panel.politicas', component: { template: '<i/>' } },
+      ],
+    })
+    await router.push('/configuracion/politicas/nueva')
+    await router.isReady()
+    const wrapper = mount({ template: '<RouterView />' }, {
+      attachTo: document.body, global: { plugins: [router], stubs: { FaIcon: true, teleport: true } },
+    })
+    await flushPromises()
+    return { wrapper, router }
+  }
+
+  it('recién creada la política, el campo de adjuntar ya funciona', async () => {
+    const creada = propia({ slug: 'accesibilidad', nombre: 'Accesibilidad' })
+    m.crear.mockResolvedValue(creada)
+    m.listar.mockResolvedValue([politica(), creada])
+    m.adjuntarDocumento.mockResolvedValue(undefined as never)
+    const { wrapper } = await conRouterView()
+    await wrapper.find('input[type="text"]').setValue('Accesibilidad')
+    const apartado = wrapper.find('[data-apartado]')
+    await apartado.find('input[type="text"]').setValue('Objeto')
+    await apartado.find('textarea').setValue('Primero.')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(m.listar).toHaveBeenCalled()
+    const entrada = wrapper.find('input[type="file"]')
+    expect(entrada.exists()).toBe(true)
+    const archivo = new File(['%PDF'], 'acto.pdf', { type: 'application/pdf' })
+    Object.defineProperty(entrada.element, 'files', { value: [archivo], configurable: true })
+    await entrada.trigger('change')
+    await flushPromises()
+
+    expect(m.adjuntarDocumento).toHaveBeenCalledWith(creada.uuid, archivo)
+  })
+})
+
 describe('publicar y eliminar desde la política', () => {
   const marca = (w: { find: (s: string) => { element: Element; exists: () => boolean } }) =>
     w.find('input[data-campo="publicada"]')
@@ -314,6 +363,7 @@ describe('publicar y eliminar desde la política', () => {
     const { wrapper, router } = await editar('mi-politica')
     await wrapper.find('[data-accion="eliminar-politica"]').trigger('click')
     expect(m.eliminar).not.toHaveBeenCalled()
+    expect(wrapper.find('[role="dialog"]').text()).toContain('se conservan en la mediateca')
     await wrapper.findAll('[role="dialog"] button').find((b) => b.text().includes('Sí, eliminar'))!.trigger('click')
     await flushPromises()
     expect(m.eliminar).toHaveBeenCalledWith('mi-politica')

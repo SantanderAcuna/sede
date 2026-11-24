@@ -108,6 +108,14 @@ final class ApiResponse
     }
 
     /**
+     * La petición choca con el estado actual del recurso, por ejemplo borrar algo que sigue en uso (409).
+     */
+    public static function conflict(string $message = 'La operación entra en conflicto con el estado actual.'): JsonResponse
+    {
+        return self::error($message, 409);
+    }
+
+    /**
      * La petición no pasó la validación (422).
      *
      * El mensaje es fijo y los detalles viajan en `errors`, una entrada por
@@ -130,6 +138,17 @@ final class ApiResponse
     public static function tooManyRequests(string $message = 'Demasiadas solicitudes.'): JsonResponse
     {
         return self::error($message, 429);
+    }
+
+    /**
+     * El servicio no puede atender ahora (503), con `Retry-After` en segundos.
+     *
+     * La base cortó la consulta por tiempo o por un bloqueo (0D, D7): saturación pasajera, no un
+     * defecto de la petición. El cliente lee `Retry-After` —expuesto en CORS— para saber cuándo volver.
+     */
+    public static function serviceUnavailable(string $message = 'El servicio está ocupado. Intenta de nuevo en unos segundos.', int $reintentarEn = 5): JsonResponse
+    {
+        return self::error($message, 503)->withHeaders(['Retry-After' => (string) $reintentarEn]);
     }
 
     /**

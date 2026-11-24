@@ -14,7 +14,7 @@ import ConfirmModal from '@/components/base/ConfirmModal.vue'
 import DataTable from '@/components/base/DataTable.vue'
 import type { DataTableFeatures } from '@/components/base/dataTableFeatures'
 import { usePermisosDeModulo } from '@/composables/usePermisosDeModulo'
-import { POR_PAGINA, eliminar, listar, type EstadoTramiteFiltro } from '@/services/tramites'
+import { POR_PAGINA, eliminar, listar, type EstadoTramiteFiltro } from '@/api/tramites'
 import type { TramitePanelFila } from '@/types/api'
 import { tomarAviso } from './avisos'
 import { motivosDeError } from './politicas-logica'
@@ -265,8 +265,8 @@ const columnas: ColumnDef<DataTableFeatures, TramitePanelFila, unknown>[] = [
         <h1 class="text-xl font-semibold text-slate-900">Trámites y servicios</h1>
         <p class="mt-1 max-w-2xl text-sm text-slate-600">
           Aquí se administra el catálogo de trámites del sitio. Un trámite publicado y completo aparece en el sitio
-          con su ficha; un borrador no se ve hasta que se publique. Los del catálogo oficial se pueden corregir y
-          despublicar, pero no eliminar.
+          con su ficha; un borrador no se ve hasta que se publique. Cualquier trámite se puede corregir, despublicar o
+          eliminar; lo eliminado va a la papelera y no vuelve al sitio.
         </p>
       </div>
       <RouterLink

@@ -12,7 +12,12 @@ Artisan::command('inspire', function () {
 
 // Retención del registro de consentimientos de cookies (T-26). Corre una vez al día
 // siempre que el servidor ejecute `schedule:run` cada minuto.
-Schedule::command('consentimientos:depurar')->daily();
+//
+// A las 02:15 de Bogotá (0D, D7). Con `->daily()` y la zona de la aplicación en UTC corría a las
+// 19:00 de Bogotá, en plena tarde, borrando de una vez lo que pasó la retención mientras la sede
+// tiene tráfico. Va DESPUÉS de limpiar (01:00) y de copiar (01:30, que puede tardar) para no
+// competir con ellas, y antes del hash (03:00).
+Schedule::command('consentimientos:depurar')->dailyAt('02:15')->timezone('America/Bogota')->withoutOverlapping();
 
 // Copias de seguridad de la base (docs/copias-de-seguridad.md). Las ejecuta el servicio
 // `scheduler`, que es el único proceso con la agenda y con el volumen de copias montado.
@@ -37,3 +42,14 @@ Schedule::command('consentimientos:depurar')->daily();
 Schedule::command('backup:clean')->dailyAt('01:00')->timezone('America/Bogota')->withoutOverlapping();
 Schedule::command('backup:run')->dailyAt('01:30')->timezone('America/Bogota')->withoutOverlapping();
 Schedule::command('backup:monitor')->dailyAt('06:00')->timezone('America/Bogota');
+
+// Verificación de huellas (0D, D10c): compara el SHA-256 guardado de cada archivo con su contenido en disco y avisa
+// (falla el comando) si alguno cambió o desapareció. Solo lee; no corrige nada. Desde D10b la huella es obligatoria,
+// así que ya no hay nada que completar y `archivos:calcular-hash` salió de la agenda (el despliegue aún lo corre,
+// sin efecto). 03:00 de Bogotá, entre la copia (01:30) y su vigilancia (06:00), para no competir con ella.
+Schedule::command('archivos:verificar')->dailyAt('03:00')->timezone('America/Bogota')->withoutOverlapping();
+
+// Imágenes de contenido sin uso (0D, D9): solo las de la colección «contenido» que ninguna relación usa y llevan
+// más de 7 días sin tocarse. A las 03:30 de Bogotá, después de la verificación de huellas (03:00) y mucho antes de la vigilancia de
+// la copia (06:00); la copia (01:30) ya terminó, así que no borra nada que ella esté leyendo.
+Schedule::command('archivos:limpiar-sin-uso')->dailyAt('03:30')->timezone('America/Bogota')->withoutOverlapping();

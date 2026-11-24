@@ -157,7 +157,7 @@ describe('servicio', () => {
   beforeEach(() => {
     vi.resetModules()
     for (const f of Object.values(peticion)) f.mockReset()
-    vi.doMock('../src/services/http', () => ({
+    vi.doMock('../src/api/client', () => ({
       http: peticion,
       desenvolver: (s: { data: unknown }) => s.data,
       desenvolverPagina: (s: { data: unknown; meta: unknown; links: unknown }) => ({
@@ -180,7 +180,7 @@ describe('servicio', () => {
   })
 
   it('crea, edita, consulta y elimina contra las rutas del contrato', async () => {
-    const servicio = await import('../src/services/noticias')
+    const servicio = await import('../src/api/noticias')
     peticion.get.mockResolvedValue({ data: { success: true, data: { uuid: 'u' } } })
     peticion.post.mockResolvedValue({ data: { success: true, data: { uuid: 'u' } } })
     peticion.patch.mockResolvedValue({ data: { success: true, data: { uuid: 'u' } } })
@@ -200,7 +200,7 @@ describe('servicio', () => {
   })
 
   it('listar entrega la página con su meta y envía sólo los filtros que tienen valor', async () => {
-    const servicio = await import('../src/services/noticias')
+    const servicio = await import('../src/api/noticias')
     peticion.get.mockResolvedValue(sobrePagina([{ uuid: 'a' }]))
 
     const pagina = await servicio.listar({
@@ -221,7 +221,7 @@ describe('servicio', () => {
   })
 
   it('listar sin filtros sólo pide la página', async () => {
-    const servicio = await import('../src/services/noticias')
+    const servicio = await import('../src/api/noticias')
     peticion.get.mockResolvedValue(sobrePagina())
 
     await servicio.listar({})
@@ -230,7 +230,7 @@ describe('servicio', () => {
   })
 
   it('listar con estado lo envía tal cual', async () => {
-    const servicio = await import('../src/services/noticias')
+    const servicio = await import('../src/api/noticias')
     peticion.get.mockResolvedValue(sobrePagina())
 
     await servicio.listar({ estado: 'programada' })
@@ -241,7 +241,7 @@ describe('servicio', () => {
   })
 
   it('sube la imagen y su alt juntos, en un solo multipart', async () => {
-    const servicio = await import('../src/services/noticias')
+    const servicio = await import('../src/api/noticias')
     peticion.post.mockResolvedValue({ data: { success: true, data: { uuid: 'u' } } })
     const archivo = new File(['x'], 'foto.png', { type: 'image/png' })
 

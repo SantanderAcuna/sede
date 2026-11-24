@@ -63,8 +63,8 @@
 |---|---|---|
 | `panel/src/stores/sesion.ts` | Modificado | `init()` + `cerrarSesion()` idempotentes |
 | `panel/src/router/index.ts` | Modificado | `beforeEach` async con `await sesion.init()` |
-| `panel/src/services/http.ts` | Modificado | Interceptor 401 sin `router.push()` |
-| `panel/src/services/auth.ts` | Modificado | Cliente de auth |
+| `panel/src/api/client.ts` | Modificado | Interceptor 401 sin `router.push()` |
+| `panel/src/api/auth.ts` | Modificado | Cliente de auth |
 | `panel/src/layouts/AdminLayout.vue` | Modificado | `await sesion.cerrarSesion()` antes de navegar |
 | `panel/src/main.ts` | Modificado | `await router.isReady()` antes de `app.mount()` |
 | `panel/vite.config.ts` | Modificado | Proxy al backend :8010 |
@@ -129,8 +129,8 @@
 | Vue-04 | `v-for` con `:key` | ✅ | Todos los `v-for` tienen `:key` | `panel/src/views/**/*.vue` |
 | Vue-05 | Pinia (NO Vuex) | ✅ | `defineStore('sesion', () => {...})` | `panel/src/stores/sesion.ts` |
 | Vue-06 | Composables separados | ✅ | Lógica en `src/composables/` | `panel/src/composables/*.ts` |
-| Vue-07 | Zod validación | ✅ | Schemas Zod en services | `panel/src/services/*.ts` |
-| Vue-08 | Services centralizados | ✅ | API calls en `src/services/` | `panel/src/services/*.ts` |
+| Vue-07 | Zod validación | ✅ | Schemas Zod en services | `panel/src/api/*.ts` |
+| Vue-08 | Services centralizados | ✅ | API calls en `src/api/` | `panel/src/api/*.ts` |
 | Vue-09 | Router con meta `requiresAuth` y `permission` | ✅ | `meta: { requiereSesion: true, permiso: '...' }` | `panel/src/router/index.ts` |
 | Vue-10 | Estilos con `scoped` | ✅ | `<style scoped>` en componentes | `panel/src/components/**/*.vue` |
 | TS-01 | No `any` | ✅ | 0 occurrences de `any` | `panel/src/` |
@@ -290,7 +290,7 @@ El refactor a Sanctum cookie-based auth eliminó `token` y la persistencia en `l
 | # | Regla | Archivo | Línea | Descripción | Solución |
 |---|-------|---------|-------|-------------|----------|
 | **M-1** | R-09 | `panel/src/layouts/AdminLayout.vue` | 151 | `window.location.replace()` en logout. R-09 de la guia-maestra prohíbe `window.location`. Pero está justificado por SESION-BUG-FIX.md (workaround para evitar loop del `beforeEach`). | Documentar la excepción en la guia-maestra. Considerar usar `router.push` con un flag en la ruta que evite el guard para logout. |
-| **M-2** | R-54 | `panel/src/services/http.ts` | 71 | `window.location.href = '/admin/acceso?rate_limited=1'` para 429. R-09 lo prohíbe, pero aquí es justificable porque es rate-limit. | Usar `router.push` o emitir un evento. |
+| **M-2** | R-54 | `panel/src/api/client.ts` | 71 | `window.location.href = '/admin/acceso?rate_limited=1'` para 429. R-09 lo prohíbe, pero aquí es justificable porque es rate-limit. | Usar `router.push` o emitir un evento. |
 
 ### 9.4 LOW
 

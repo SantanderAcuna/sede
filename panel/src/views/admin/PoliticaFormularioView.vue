@@ -21,7 +21,7 @@ import BaseBadge from '@/components/base/BaseBadge.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import FormField from '@/components/base/FormField.vue'
 import ConfirmModal from '@/components/base/ConfirmModal.vue'
-import { adjuntarDocumento, actualizar, crear, documentosAdjuntos, eliminar, listar, quitarArchivo } from '@/services/politicas'
+import { adjuntarDocumento, actualizar, crear, documentosAdjuntos, eliminar, listar, quitarArchivo } from '@/api/politicas'
 import type { ArchivoItem, PoliticaPanelItem } from '@/types/api'
 import { dejarAviso, tomarAviso } from './avisos'
 import {
@@ -170,7 +170,10 @@ async function guardar(): Promise<void> {
   try {
     const guardada = await actualizar(actual.slug, entradaDesde(formulario.value, original))
     aplicar(guardada)
-    exito.value = 'Política guardada. El sitio ya muestra el texto nuevo.'
+    // Solo se afirma lo que es cierto: una política oculta no se ve en el sitio, aunque se haya guardado.
+    exito.value = guardada.publicada
+      ? 'Política guardada. El sitio ya muestra el texto nuevo.'
+      : 'Política guardada. Sigue oculta: el sitio todavía no la muestra.'
   } catch (e) {
     motivos.value = motivosDeError(e, 'No se pudo guardar la política.')
     await nextTick()
@@ -297,8 +300,14 @@ onBeforeUnmount(() => {
   quitarGuardia?.()
 })
 
-watch(slug, () => {
-  if (slug.value !== '' && politica.value !== null && slug.value !== politica.value.slug) void cargar()
+// «nueva» y «editar» son el mismo componente: al pasar de una a otra el router reutiliza esta instancia y
+// `onMounted` no vuelve a correr. Se recarga al cambiar de modo y al cambiar a otra política distinta de la ya cargada.
+watch([slug, esNueva], ([slugNuevo, nuevaAhora], [, eraNueva]) => {
+  if (nuevaAhora !== eraNueva) {
+    void cargar()
+    return
+  }
+  if (slugNuevo !== '' && politica.value !== null && slugNuevo !== politica.value.slug) void cargar()
 })
 </script>
 
@@ -596,7 +605,7 @@ watch(slug, () => {
       >
         <h2 id="politica-peligro" class="font-medium text-red-800">Zona de peligro</h2>
         <p class="mt-1 text-sm text-slate-600">
-          Eliminar borra la política, su texto y el documento oficial adjunto. No se puede deshacer desde el panel.
+          Eliminar borra la política y su texto. Los documentos adjuntos se conservan en la mediateca. No se puede deshacer desde el panel.
         </p>
         <BaseButton class="mt-3" variant="danger" type="button" data-accion="eliminar-politica" @click="confirmandoEliminar = true">
           Eliminar política
@@ -628,8 +637,8 @@ watch(slug, () => {
       @confirmar="confirmarEliminar"
     >
       <p>
-        Se eliminará <strong>«{{ politica?.nombre }}»</strong> con su texto y el documento oficial que tenga adjunto, y
-        dejará de verse en el sitio. Esta acción no se puede deshacer desde el panel.
+        Se eliminará <strong>«{{ politica?.nombre }}»</strong> con su texto, y dejará de verse en el sitio. Los documentos que tenga
+        adjuntos se conservan en la mediateca. Esta acción no se puede deshacer desde el panel.
       </p>
     </ConfirmModal>
   </div>

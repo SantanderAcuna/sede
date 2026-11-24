@@ -1,0 +1,107 @@
+{
+  "_nota": "Deuda declarada (D-0.4): solo puede bajar. Cada archivo que la Fase 1 limpie sale de esta lista.",
+  "entradas": [
+    {
+      "archivo": "app/components/govco/PiePaginaGovco.vue",
+      "tipo": "codigo_postal",
+      "valor": "470004",
+      "permanente": true,
+      "motivo": "Respaldo del pie si la API y la caché no responden (orden: API, caché, código)."
+    },
+    {
+      "archivo": "app/components/govco/PiePaginaGovco.vue",
+      "tipo": "correo",
+      "valor": "atencionalciudadano@santamarta.gov.co",
+      "permanente": true,
+      "motivo": "Respaldo del pie si la API y la caché no responden (orden: API, caché, código)."
+    },
+    {
+      "archivo": "app/components/govco/PiePaginaGovco.vue",
+      "tipo": "correo",
+      "valor": "notificacionesalcaldiadistrital@santamarta.gov.co",
+      "permanente": true,
+      "motivo": "Respaldo del pie si la API y la caché no responden (orden: API, caché, código)."
+    },
+    {
+      "archivo": "app/components/govco/PiePaginaGovco.vue",
+      "tipo": "direccion",
+      "valor": "Calle 14 n.º 2-49",
+      "permanente": true,
+      "motivo": "Respaldo del pie si la API y la caché no responden (orden: API, caché, código)."
+    },
+    {
+      "archivo": "app/components/govco/PiePaginaGovco.vue",
+      "tipo": "telefono",
+      "valor": "576054209600",
+      "permanente": true,
+      "motivo": "Respaldo del pie si la API y la caché no responden (orden: API, caché, código)."
+    },
+    {
+      "archivo": "app/components/govco/PiePaginaGovco.vue",
+      "tipo": "telefono",
+      "valor": "576054351719",
+      "permanente": true,
+      "motivo": "Respaldo del pie si la API y la caché no responden (orden: API, caché, código)."
+    },
+    {
+      "archivo": "app/pages/accesibilidad.vue",
+      "tipo": "correo",
+      "valor": "atencionalciudadano@santamarta.gov.co"
+    },
+    {
+      "archivo": "app/pages/accesibilidad.vue",
+      "tipo": "correo",
+      "valor": "notificacionesalcaldiadistrital@santamarta.gov.co"
+    },
+    {
+      "archivo": "app/pages/accesibilidad.vue",
+      "tipo": "nit",
+      "valor": "891.780.009-4"
+    },
+    {
+      "archivo": "app/pages/accesibilidad.vue",
+      "tipo": "telefono",
+      "valor": "576054209600"
+    },
+    {
+      "archivo": "app/pages/accesibilidad.vue",
+      "tipo": "telefono",
+      "valor": "576054351719"
+    },
+    {
+      "archivo": "app/pages/atencion.vue",
+      "tipo": "codigo_postal",
+      "valor": "470004"
+    },
+    {
+      "archivo": "app/pages/atencion.vue",
+      "tipo": "correo",
+      "valor": "atencionalciudadano@santamarta.gov.co"
+    },
+    {
+      "archivo": "app/pages/atencion.vue",
+      "tipo": "correo",
+      "valor": "notificacionesalcaldiadistrital@santamarta.gov.co"
+    },
+    {
+      "archivo": "app/pages/atencion.vue",
+      "tipo": "direccion",
+      "valor": "Calle 14 n.º 2-49"
+    },
+    {
+      "archivo": "app/pages/atencion.vue",
+      "tipo": "telefono",
+      "valor": "576054209600"
+    },
+    {
+      "archivo": "app/pages/atencion.vue",
+      "tipo": "telefono",
+      "valor": "576054351719"
+    },
+    {
+      "archivo": "app/pages/realizar-una-peticion.vue",
+      "tipo": "dependencia",
+      "valor": "Despacho del Alcalde"
+    }
+  ]
+}

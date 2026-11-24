@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { conSesion } from './ayudas/sesion'
 
-vi.mock('../src/services/politicas', () => ({
+vi.mock('../src/api/politicas', () => ({
   COLECCION_DOCUMENTO: 'documento-oficial',
   listar: vi.fn(),
   crear: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock('../src/services/politicas', () => ({
   quitarArchivo: vi.fn(),
 }))
 
-import * as servicio from '../src/services/politicas'
+import * as servicio from '../src/api/politicas'
 import { pasosDeAdopcion } from '../src/views/admin/politicas-logica'
 import PoliticasListaView from '../src/views/admin/PoliticasListaView.vue'
 import PoliticaFormularioView from '../src/views/admin/PoliticaFormularioView.vue'

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Traits\GuardaFechasEnUtc;
 use App\Models\Traits\HasUuids;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -23,13 +24,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property bool $activo
  * @property Carbon|null $vigente_desde
  * @property Carbon|null $vigente_hasta
+ * @property string|null $imagen_uuid
+ * @property string|null $imagen_alt
  * @property FileMedia|null $imagenPrincipal
  */
 final class Banner extends Model
 {
-    use HasUuids, SoftDeletes;
-
-    public const COLECCION_IMAGEN = 'imagen';
+    use GuardaFechasEnUtc, HasUuids, SoftDeletes;
 
     public const TITULO_MAX = 80;
 
@@ -59,12 +60,10 @@ final class Banner extends Model
         ];
     }
 
-    /** @return HasOne<FileMedia, $this> */
-    public function imagenPrincipal(): HasOne
+    /** @return BelongsTo<FileMedia, $this> */
+    public function imagenPrincipal(): BelongsTo
     {
-        return $this->hasOne(FileMedia::class, 'model_uuid', 'uuid')
-            ->where('model_type', self::class)
-            ->where('collection', self::COLECCION_IMAGEN);
+        return $this->belongsTo(FileMedia::class, 'imagen_uuid', 'uuid');
     }
 
     /**
@@ -101,7 +100,7 @@ final class Banner extends Model
 
     public function imagenAlt(): ?string
     {
-        $alt = $this->imagenPrincipal?->metadata['alt'] ?? null;
+        $alt = $this->getAttribute('imagen_alt');
 
         return is_string($alt) && trim($alt) !== '' ? $alt : null;
     }

@@ -102,6 +102,22 @@ final class UsuariosRolesPanelTest extends TestCase
         $this->assertStringNotContainsString('remember_token', (string) $porRol->getContent());
     }
 
+    public function test_crear_un_usuario_sin_roles_no_deja_filas_de_rol_vacias_en_la_auditoria(): void
+    {
+        $this->actingAs($this->admin())->postJson('/api/v1/panel/usuarios', [
+            'name' => 'Sin Rol',
+            'email' => 'sinrol@example.com',
+            'password' => self::CLAVE,
+        ])->assertCreated();
+
+        $this->assertSame(1, AuditLog::query()->where('accion', 'usuario_creado')->count());
+        $this->assertSame(
+            0,
+            AuditLog::query()->whereIn('accion', ['role_attached', 'role_detached'])->count(),
+            'Alta sin roles: no debe registrarse una asignación vacía.'
+        );
+    }
+
     public function test_crea_un_usuario_con_clave_cifrada_roles_y_deja_huella(): void
     {
         $this->rolEditor();

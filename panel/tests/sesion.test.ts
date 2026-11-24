@@ -17,12 +17,12 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useSesionStore } from '../src/stores/sesion'
-import * as authModule from '../src/services/auth'
+import * as authModule from '../src/api/auth'
 
 // ---------------------------------------------------------------------------
 // Mock del módulo auth — definido DENTRO del factory (evita elevación).
 // ---------------------------------------------------------------------------
-vi.mock('../src/services/auth', () => ({
+vi.mock('../src/api/auth', () => ({
   login: vi.fn(),
   logout: vi.fn(),
   perfil: vi.fn(),

@@ -59,7 +59,11 @@ final class UsuarioPanelService implements UsuarioPanelServiceInterface
                 'password' => $datos['password'],
                 'estado' => $datos['estado'] ?? 'activo',
             ]);
-            $usuario->syncRoles($roles);
+            // Una cuenta nueva no tiene roles que quitar: sincronizar una lista vacía solo
+            // dejaría en la auditoría una asignación que no ocurrió.
+            if ($roles->isNotEmpty()) {
+                $usuario->syncRoles($roles);
+            }
 
             Huella::registrar($actor, 'usuario_creado', 'usuarios', $usuario->id, [
                 'correo' => $usuario->email,

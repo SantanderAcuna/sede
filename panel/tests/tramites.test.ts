@@ -214,21 +214,21 @@ describe('permiso y rutas', () => {
   })
 })
 
-vi.mock('../src/services/http', async (original) => {
-  const real = await original<typeof import('../src/services/http')>()
+vi.mock('../src/api/client', async (original) => {
+  const real = await original<typeof import('../src/api/client')>()
   return { ...real, http: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() } }
 })
 
 describe('servicio', () => {
   let http: { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn>; patch: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> }
   beforeEach(async () => {
-    http = (await import('../src/services/http')).http as never
+    http = (await import('../src/api/client')).http as never
     Object.values(http).forEach((f) => f.mockReset())
   })
 
   it('listar manda solo los filtros con valor', async () => {
     http.get.mockResolvedValue({ data: { success: true, message: null, data: [], meta: { total: 0 }, links: {}, errors: null } })
-    const { listar } = await import('../src/services/tramites')
+    const { listar } = await import('../src/api/tramites')
     await listar({ pagina: 2, q: '  ', estado: '', ordenarPor: 'nombre', direccion: 'asc' })
     expect(http.get).toHaveBeenCalledWith('/panel/tramites', { params: { page: 2, per_page: 20, ordenar_por: 'nombre', direccion: 'asc' } })
     await listar({ q: ' predial ', estado: 'borrador' })
@@ -241,7 +241,7 @@ describe('servicio', () => {
     http.patch.mockResolvedValue(respuesta)
     http.get.mockResolvedValue(respuesta)
     http.delete.mockResolvedValue({ data: null })
-    const s = await import('../src/services/tramites')
+    const s = await import('../src/api/tramites')
     await s.crear({ nombre: 'Licencia' })
     expect(http.post).toHaveBeenCalledWith('/panel/tramites', { nombre: 'Licencia' })
     await s.actualizar('u', { nombre: 'X' })

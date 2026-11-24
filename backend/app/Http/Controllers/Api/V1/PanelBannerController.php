@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\Services\BannerServiceInterface;
 use App\Exceptions\BannerIncompleto;
+use App\Exceptions\OrdenDeBannersDesactualizado;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarBannerRequest;
 use App\Http\Requests\OrdenarBannersRequest;
@@ -151,7 +152,11 @@ final class PanelBannerController extends Controller
     {
         Gate::authorize('reorder', Banner::class);
 
-        $this->banners->reordenar($this->actor(), $peticion->uuids());
+        try {
+            $this->banners->reordenar($this->actor(), $peticion->uuids(), $peticion->antes());
+        } catch (OrdenDeBannersDesactualizado $e) {
+            return ApiResponse::conflict($e->getMessage());
+        }
 
         return ApiResponse::ok(BannerPanelResource::collection($this->banners->todos())->resolve(), 'Orden guardado.');
     }

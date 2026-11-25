@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api\V1;
 
+use App\Exceptions\UltimoSuperAdmin;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\UsuarioPanelService;
 use App\Support\Acceso\CatalogoPermisos;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -217,17 +219,18 @@ final class UsuariosRolesPanelTest extends TestCase
         $this->assertContains('clave', (array) ($huella->cambios['campos'] ?? []));
     }
 
-    public function test_desactivar_cierra_las_sesiones_abiertas_del_usuario(): void
+    public function test_desactivar_cambia_el_estado_y_lo_registra(): void
     {
+        // Que la sesión abierta de esa cuenta se corte se prueba con sesiones reales en
+        // Tests\Feature\Seguridad\SesionPanelVigenteTest. Aquí antes se contaban tokens de Sanctum,
+        // que el panel no usa: la prueba pasaba sin cerrar ninguna sesión.
         $objetivo = User::factory()->create(['estado' => 'activo']);
-        $objetivo->createToken('panel');
-        $this->assertSame(1, $objetivo->tokens()->count());
 
         $this->actingAs($this->admin())->patchJson("/api/v1/panel/usuarios/{$objetivo->uuid}", [
             'estado' => 'bloqueado',
         ])->assertOk()->assertJsonPath('data.estado', 'bloqueado');
 
-        $this->assertSame(0, $objetivo->tokens()->count());
+        $this->assertSame('bloqueado', $this->recargar($objetivo)->estado);
         $this->assertNotNull(AuditLog::query()->where('accion', 'usuario_estado_cambiado')->first());
     }
 
@@ -237,13 +240,22 @@ final class UsuariosRolesPanelTest extends TestCase
         $actorInactivo = $this->superAdmin('inactivo@example.com');
         $actorInactivo->update(['estado' => 'inactivo']);
 
+        // Una cuenta inactiva ya no puede actuar por el panel: su sesión no vale (SesionPanelVigenteTest).
         $this->actingAs($actorInactivo)->patchJson("/api/v1/panel/usuarios/{$unico->uuid}", [
             'estado' => 'inactivo',
-        ])->assertUnprocessable();
+        ])->assertUnauthorized();
 
-        $this->actingAs($actorInactivo)->patchJson("/api/v1/panel/usuarios/{$unico->uuid}", [
-            'roles' => [],
-        ])->assertUnprocessable();
+        // La regla del último súper administrador activo se sigue exigiendo en el servicio, por si otro
+        // camino (un comando, una tarea) llegara a él con un actor que no está activo.
+        $servicio = app(UsuarioPanelService::class);
+        foreach ([['estado' => 'inactivo'], ['roles' => []]] as $cambio) {
+            try {
+                $servicio->actualizar($actorInactivo, $this->recargar($unico), $cambio);
+                $this->fail('Debió impedir dejar el sistema sin un súper administrador activo.');
+            } catch (UltimoSuperAdmin) {
+                // esperado
+            }
+        }
 
         $this->assertSame('activo', $this->recargar($unico)->estado);
         $this->assertTrue($this->recargar($unico)->hasRole('super-admin'));

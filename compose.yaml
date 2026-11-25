@@ -346,7 +346,10 @@ services:
     # guardan con él (`SESSION_LIFETIME`, 120 min: `CacheBasedSessionHandler::write` usa
     # `put(…, minutos * 60)`) y las copias del respaldo del sitio también (`EX`). Bajo presión de
     # memoria, Redis puede expulsar una sesión (el usuario vuelve a iniciar sesión) antes que una
-    # cola. Las claves del sitio (`sitio:*`) comparten esta memoria: se miden en T9.6 (H30).
+    # cola. Las claves del sitio (`sitio:*`) comparten esta memoria. Medido en T9.6 con el catálogo de
+    # staging (123 trámites): lo que las páginas pueden guardar son 342 claves y 2,3 MiB (0,5 % de
+    # `maxmemory`); lo máximo que admite la lista blanca, 1.946 claves y 28,1 MiB (6,3 %). Crece con
+    # el tamaño del catálogo: ver «Medición (T9.6)» en docs/adr/0009-….md.
     command:
       - redis-server
       - --requirepass

@@ -32,7 +32,7 @@ Tres hechos condicionan el diseño:
 ## Consecuencias
 
 - **Un sitio comprometido** puede leer y escribir copias (`sitio:*`) y nada más: ni sesiones, ni colas, ni `FLUSHALL`, ni `CONFIG`, ni scripts, ni PostgreSQL. Puede **envenenar sus propias copias**: si controla el proceso, controla también lo que el proceso sirve, así que, por razonamiento, esta decisión no amplía lo que ya podía hacer con lo que sirve.
-- **La memoria sigue siendo compartida.** La ACL aísla claves, no memoria. Con `volatile-lru`, las copias y las sesiones (que tienen TTL, 120 min) compiten por expulsión; las listas de las colas no tienen TTL y `volatile-lru` no las expulsa. Se acota con la lista blanca, el tope de 1 MiB por cuerpo y el TTL, y se **mide** en T9.6 (número de claves y bytes). Si superara el umbral que se fije al medir, se revisa el reparto.
+- **La memoria sigue siendo compartida.** La ACL aísla claves, no memoria. Con `volatile-lru`, las copias y las sesiones (que tienen TTL, 120 min) compiten por expulsión; las listas de las colas no tienen TTL y `volatile-lru` no las expulsa. Se acota con la lista blanca, el tope de 1 MiB por cuerpo y el TTL, y se **midió** en T9.6 (sección «Medición (T9.6)»). Si superara el umbral que se fije, se revisa el reparto.
 - **Reiniciar Redis corta sesiones y colas unos segundos** (la línea de comandos cambia con esta decisión, así que el primer despliegue lo recrea). Horizon reconecta. Se despliega en hora de poco tráfico y se avisa antes.
 - **La red `cache-sitio` y la lista de entorno quedan vigiladas por la CI:** `deploy/pruebas/guarda-cache-sitio.sh` lee la pila resuelta (red, regla ACL, entorno exacto del sitio, ausencia de otros secretos) y `deploy/pruebas/prueba-acl-redis-sitio.sh` arranca el Redis de `compose.yaml`, con su comando, y prueba lo que el usuario puede y no puede hacer.
 - **Con el respaldo y una API caída más de 24 h**, la página muestra el estado de error: es el tope aprobado.
@@ -45,3 +45,31 @@ Tres hechos condicionan el diseño:
 - **Poner el sitio en `data`:** alcanzaría PostgreSQL.
 - **Un Redis aparte sólo para el sitio:** aísla memoria y claves, pero suma un servicio y su memoria al servidor; se reconsidera si T9.6 muestra presión de memoria sobre el Redis compartido.
 - **Mantener el `env_file` del sitio y confiar en la ACL:** la ACL se anula leyendo la contraseña principal del propio entorno.
+
+## Medición (T9.6, 2026-11-25)
+
+Hecha con el sitio compilado de `develop` (f243fa1 más la corrección de la ficha), el Redis de producción por su digest con el comando de `compose.yaml`, el usuario ACL `sitio` y un proxy a la API real de staging que se apaga o se degrada. La parte que puede romperse en silencio quedó como prueba permanente: `sitio/tests/respaldo-extremo.test.ts` (corre en el CI, con el sitio compilado y el Redis real).
+
+**Comportamiento observado**
+
+| Caso | Resultado |
+|---|---|
+| API sana | La página responde 200 y el sitio guarda su lectura en `sitio:respaldo:…` con 24 h de vida. Cuatro páginas públicas (portada, catálogo, noticias y políticas) dejaron 7 claves, el mismo número que se contó en el servidor de staging. |
+| API apagada, con copia | 200 en 12–30 ms; texto de la página idéntico al de la API sana (portada, catálogo, noticias, políticas, ficha); una línea `respaldo_servido` por lectura. |
+| API apagada, sin copia | El estado de error de siempre («No se pudo cargar el catálogo de trámites»), idéntico al del sitio anterior al respaldo. |
+| 404 de la API | Se pasa tal cual; no se guarda ni se sirve de la copia. |
+| 503 de la API | Con copia se sirve la copia (motivo `5xx`); sin copia, la página de error. |
+| Redis apagado | La página no se vuelve más lenta (tres rondas alternadas de 20 peticiones: mediana 0,267–0,274 s apagado frente a 0,273–0,285 s encendido; sin copias servidas en ninguna). |
+| Recuperación | Con el cortocircuito abierto, la API vuelve a usarse a los 31 s del último fallo (pausa de 30 s y una sonda). Con menos de 3 fallos, en la primera petición. |
+| Ruta de ficha con la API fallando | **Corregido.** Antes, `/tramites/{slug}` respondía 404 («El trámite no existe») ante cualquier fallo de la API, también en el sitio anterior al respaldo; ahora 404 solo si la API dijo 404 y 503 si no contestó. |
+
+**Límite medido, sin corregir (decisión pendiente):** con la API *colgada* (no rechaza, no contesta), cada lectura espera sus 4 s antes de servir la copia, y las lecturas de una página son consecutivas. La portada tarda 16,2 s (4 lecturas) y el catálogo, las noticias y las políticas 8,2 s (2 lecturas). Con la API apagada o devolviendo 5xx no ocurre: responde en milisegundos.
+
+**Memoria** (catálogo de staging: 123 trámites, 12 noticias, 5 políticas), medida con `MEMORY USAGE` tras guardar con el mismo formato y la misma llamada que el almacén:
+
+| Conjunto | Claves | Bytes en Redis | % de `maxmemory` (448 MiB) |
+|---|---|---|---|
+| Lo que las páginas pueden guardar (`per_page` 3, 6, 9 y 10, o ninguno) | 342 | 2,3 MiB | 0,52 % |
+| Todo lo que admite la lista blanca (`per_page` 1…100, todas las páginas, tres `type`) | 1.946 | 28,1 MiB | 6,28 % |
+
+La clave mayor alcanzable por las páginas ocupa 28,8 KB; la mayor de la lista blanca, 98,4 KB (`/tramites?page=1&per_page=100`). Redis no expulsó ninguna clave (`evicted_keys` 0) y el registro de la ACL quedó vacío. El `per_page` lo fija el código de cada página, no el visitante, y nginx envía `/api/v1` del navegador a PHP sin pasar por la ruta del sitio, así que el segundo conjunto es una cota, no un caso alcanzable. Ambas cifras crecen en proporción al tamaño del catálogo.

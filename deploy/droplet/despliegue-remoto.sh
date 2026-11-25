@@ -105,6 +105,17 @@ ESPERA="${SEDE_ESPERA_SEGUNDOS:-180}"
 [ -d "$ESTADO" ] || { rojo "Falta $ESTADO. Lo crea deploy/publicar-entorno.sh."; exit 1; }
 [ -w "$ESTADO" ] || { rojo "$ESTADO no se puede escribir."; exit 1; }
 
+# UN despliegue por entorno a la vez. Dos simultáneos se pisan al migrar y al recrear los
+# contenedores. El flujo de GitHub ya los encola (grupo de concurrencia), pero no ve uno
+# lanzado a mano en este servidor. El cerrojo lo toma el proceso y se libera solo al salir,
+# también si muere. Se falla enseguida en vez de esperar: un segundo despliegue simultáneo
+# es una anomalía que alguien tiene que mirar, no algo que encolar a ciegas.
+exec 9> "$ESTADO/.cerrojo"
+if ! flock -n 9; then
+  rojo "Ya hay un despliegue en curso en $ENTORNO (cerrojo $ESTADO/.cerrojo). No se toca nada."
+  exit 1
+fi
+
 # ---------------------------------------------------------------------------
 # DE DÓNDE SALE EL ENTORNO (ADR-0019)
 #
@@ -423,8 +434,9 @@ preparar_entorno() {
 # En `--volver` no se renderiza: se despliega lo que ya hay, que es justamente la
 # situación en la que se recurre a este modo.
 if [ "$VOLVER" != "--volver" ]; then
-  preparar_entorno
-  CODIGO_ENTORNO=$?
+  # Dentro de un `if`: con `set -e`, una llamada suelta que devuelve 2 terminaba el guion en
+  # esa misma línea y el `case 2)` de abajo no se alcanzaba nunca.
+  if preparar_entorno; then CODIGO_ENTORNO=0; else CODIGO_ENTORNO=$?; fi
   case "$CODIGO_ENTORNO" in
     0) ;;
     2)

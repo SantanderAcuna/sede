@@ -32,11 +32,17 @@ services:
       # cada cambio. Ver docker/app/entrypoint.sh.
       SEDE_CACHE_MARCO: "0"
 
+  # La red `data` es interna (compose.yaml): Docker NO publica puertos de un contenedor que
+  # solo está en redes internas (medido con Docker 29.9.3: `PortBindings` declarado y `Ports`
+  # nulo). Para que `ports` funcione en desarrollo, la base y Redis se unen además a `local`,
+  # una red NO interna que solo existe aquí. Producción no lee este archivo.
   postgres:
+    networks: [data, local]
     ports:
       - "${POSTGRES_PUERTO_LOCAL:-5432}:5432"
 
   redis:
+    networks: [data, local]
     ports:
       - "${REDIS_PUERTO_LOCAL:-6379}:6379"
 
@@ -65,3 +71,8 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+
+networks:
+  # Solo desarrollo: da salida a los puertos publicados de postgres y redis (ver arriba).
+  local:
+    name: ${APP_NAME:-sede}-local

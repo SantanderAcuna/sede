@@ -424,10 +424,10 @@ describe('tiempo: a los 4 s la copia si existe; sin copia se espera hasta 20 s',
     })
     const respaldo = crearRespaldo({ almacen, traer, ahora: () => Date.now(), dominio: DOMINIO })
     const clave = claveDeRespaldo('/tramites/uno', {})!
-    const conCopia = () => { almacen.datos.set(clave, { cuerpo: '{"copia":1}', tipo: 'application/json', guardadoEn: Date.now() }) }
-    const pedir = (): Pedido => {
+    const conCopia = (ruta = '/tramites/uno') => { almacen.datos.set(claveDeRespaldo(ruta, {})!, { cuerpo: '{"copia":1}', tipo: 'application/json', guardadoEn: Date.now() }) }
+    const pedir = (ruta = '/tramites/uno'): Pedido => {
       const pedido: Pedido = { listo: false }
-      respaldo.resolver({ ruta: '/tramites/uno', query: {}, cabeceras: {}, anfitrion: DOMINIO })
+      respaldo.resolver({ ruta, query: {}, cabeceras: {}, anfitrion: DOMINIO })
         .then((v) => { pedido.listo = true; pedido.valor = v }, (e: unknown) => { pedido.listo = true; pedido.error = e })
       return pedido
     }
@@ -586,6 +586,88 @@ describe('tiempo: a los 4 s la copia si existe; sin copia se espera hasta 20 s',
     const r = respaldo.resolver({ ruta: '/tramites/uno', query: {}, cabeceras: {}, anfitrion: DOMINIO })
     await avanzar(10)
     await expect(r).resolves.toMatchObject({ origen: 'api', estado: 200, cuerpo: '{"data":"sana"}' })
+  })
+
+  describe('ventana de lentitud: tras servir una copia por lentitud, las lecturas siguientes no vuelven a esperar 4 s', () => {
+    it('con la API colgada, una segunda lectura (otra ruta, con copia) sale al instante y la API sigue llamándose', async () => {
+      const t = montarLento([{ ms: 0 }])
+      t.conCopia('/banners'); t.conCopia('/politicas')
+      const primera = t.pedir('/banners')
+      await avanzar(4000)
+      expect(primera.valor).toMatchObject({ origen: 'respaldo', motivo: 'tiempo' })
+      const segunda = t.pedir('/politicas')
+      await avanzar(0)
+      expect(segunda.listo).toBe(true)
+      expect(segunda.valor).toMatchObject({ origen: 'respaldo', motivo: 'tiempo', cuerpo: '{"copia":1}' })
+      expect(t.traer).toHaveBeenCalledTimes(2)
+      await avanzar(30_000)
+    })
+
+    it('la portada (4 lecturas seguidas) con la API colgada tarda 4 s, no 16', async () => {
+      const t = montarLento([{ ms: 0 }])
+      const rutas = ['/banners', '/identidad/footer', '/noticias', '/tramites']
+      rutas.forEach(r => t.conCopia(r))
+      const inicio = Date.now()
+      let terminada = -1
+      void (async () => {
+        for (const r of rutas) await t.respaldo.resolver({ ruta: r, query: {}, cabeceras: {}, anfitrion: DOMINIO })
+        terminada = Date.now() - inicio
+      })()
+      await avanzar(20_000)
+      expect(terminada).toBeGreaterThanOrEqual(4000)
+      expect(terminada).toBe(4000)
+      await avanzar(30_000)
+    })
+
+    it('pasados 30 s la ventana se cierra: la siguiente lectura vuelve a esperar 4 s', async () => {
+      const t = montarLento([{ ms: 0 }])
+      t.conCopia('/banners'); t.conCopia('/politicas')
+      t.pedir('/banners')
+      await avanzar(4000)
+      await avanzar(30_000)
+      const p = t.pedir('/politicas')
+      await avanzar(3999)
+      expect(p.listo).toBe(false)
+      await avanzar(1)
+      expect(p.valor).toMatchObject({ origen: 'respaldo', motivo: expect.stringMatching(/tiempo|circuito/) })
+      await avanzar(30_000)
+    })
+
+    it('si la API contesta bien, la ventana se cierra: la lectura siguiente espera a la API, no sirve la copia vieja', async () => {
+      const t = montarLento([{ ms: 6000, respuesta: ok({ data: 'nueva' }) }, { ms: 1000, respuesta: ok({ data: 'rapida' }) }])
+      t.conCopia('/banners'); t.conCopia('/politicas')
+      t.pedir('/banners')
+      await avanzar(6000) // sirvió la copia a los 4 s y la API contestó bien a los 6 s
+      const p = t.pedir('/politicas')
+      await avanzar(1000)
+      expect(p.valor).toMatchObject({ origen: 'api', cuerpo: '{"data":"rapida"}' })
+    })
+
+    it('sin copia no hay atajo: la lectura sigue esperando a la API', async () => {
+      const t = montarLento([{ ms: 0 }, { ms: 6000, respuesta: ok({ data: 'lenta' }) }])
+      t.conCopia('/banners')
+      t.pedir('/banners')
+      await avanzar(4000)
+      const sinCopia = t.pedir('/politicas')
+      await avanzar(5999)
+      expect(sinCopia.listo).toBe(false)
+      await avanzar(1)
+      expect(sinCopia.valor).toMatchObject({ origen: 'api', cuerpo: '{"data":"lenta"}' })
+      await avanzar(30_000)
+    })
+
+    it('una respuesta 5xx de la API no cierra la ventana (no es una contestación sana)', async () => {
+      const t = montarLento([{ ms: 0 }, { ms: 100, respuesta: conEstado(503) }])
+      t.conCopia('/banners'); t.conCopia('/politicas'); t.conCopia('/noticias')
+      t.pedir('/banners')
+      await avanzar(4000)
+      t.pedir('/politicas')
+      await avanzar(200) // el 503 de la segunda lectura ya llegó
+      const tercera = t.pedir('/noticias')
+      await avanzar(0)
+      expect(tercera.listo).toBe(true)
+      await avanzar(30_000)
+    })
   })
 
   it('el plazo de 4 s no deja temporizadores colgados cuando la API contesta antes', async () => {

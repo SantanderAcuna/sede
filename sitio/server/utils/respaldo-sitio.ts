@@ -11,10 +11,13 @@
  *     con otro Redis y otro dominio.
  *   - **Almacén perezoso.** La conexión se abre en el primer uso, no al arrancar: el sitio arranca
  *     igual con Redis caído o sin configurar (ADR-0018) y nunca espera a Redis para arrancar.
+ *   - **Sin Redis configurado, el respaldo no interviene:** `atender` devuelve `null` y la ruta sigue
+ *     por `proxyRequest` (corte a 20 s), igual que antes de T9.4. Con Redis configurado pero caído,
+ *     sí interviene: es el caso para el que se diseñó el corte de 4 s (H31).
  *   - **Cierre ordenado:** primero se esperan las escrituras en vuelo y después se cierra la
  *     conexión compartida.
  */
-import { almacenCompartido, cerrarAlmacenesCompartidos, type ConfigRedis, type OperacionRedis } from './almacen-respaldo'
+import { almacenCompartido, cerrarAlmacenesCompartidos, redisConfigurado, type ConfigRedis, type OperacionRedis } from './almacen-respaldo'
 import { crearRespaldo, type Almacen, type EntradaRespaldo } from './respaldo-api'
 import {
   atenderConRespaldo,
@@ -111,8 +114,13 @@ export function crearEntornoDelSitio(config: ConfigSitio, dependencias: Dependen
   })
   const entorno: EntornoRespaldo = { respaldo, registrar }
 
+  // Sin Redis no hay copia que servir. Si la lectura pasara por el núcleo, su corte de 4 s
+  // convertiría en 502 una API lenta que el proxy de siempre (20 s) sí espera (medido: API a 6 s →
+  // TimeoutError a los 4,0 s). Así que sin Redis la ruta la sirve como antes de T9.4.
+  const conRespaldo = redisConfigurado(config.redis)
+
   return {
-    atender: lectura => atenderConRespaldo(entorno, lectura),
+    atender: lectura => (conRespaldo ? atenderConRespaldo(entorno, lectura) : Promise.resolve(null)),
     esperarEscrituras: () => respaldo.esperarEscrituras(),
     async cerrar() {
       await respaldo.esperarEscrituras()

@@ -93,15 +93,36 @@ describe('crearEntornoDelSitio', () => {
     expect(registrar.mock.calls[0]![0]).toMatchObject({ evento: 'respaldo_servido', ruta: '/tramites', motivo: 'red' })
   })
 
-  it('Redis sin configurar: la API sana funciona; con la API caída falla como hoy (sin copia)', async () => {
-    let sana = true
-    const entorno = crearEntornoDelSitio({ ...CONFIG, redis: { host: '', port: 0, usuario: '', password: '' } }, {
-      fetch: (async () => { if (!sana) throw new TypeError('fetch failed'); return json({ data: [1] }) }) as unknown as typeof fetch,
+  // Sin Redis no hay copia que servir: el corte de 4 s del núcleo solo convertiría en 502 una API
+  // lenta que el proxy (20 s) sí espera (medido: API a 6 s → TimeoutError a los 4,0 s). Por eso,
+  // con la configuración incompleta, la lectura NO pasa por el respaldo y la ruta la sirve como hoy.
+  it.each([
+    ['sin nada', { host: '', port: 0, usuario: '', password: '' }],
+    ['sin host', { ...REDIS, host: '' }],
+    ['sin usuario', { ...REDIS, usuario: '' }],
+    ['sin contraseña', { ...REDIS, password: '' }],
+    ['puerto 0', { ...REDIS, port: 0 }],
+  ])('Redis sin configurar (%s): devuelve null, no llama a la API ni a Redis, y la ruta usa el proxy', async (_caso, redis) => {
+    const fetchFalso = vi.fn(async () => json({ data: [1] }))
+    const almacen = vi.fn()
+    const entorno = crearEntornoDelSitio({ ...CONFIG, redis }, {
+      fetch: fetchFalso as unknown as typeof fetch,
+      almacenCompartido: almacen as never,
+    })
+    expect(await entorno.atender(lectura())).toBeNull()
+    expect(fetchFalso).not.toHaveBeenCalled()
+    expect(almacen).not.toHaveBeenCalled()
+  })
+
+  it('con Redis configurado SÍ pasa por el respaldo (la API lenta se corta a los 4 s para servir la copia)', async () => {
+    const { almacen } = almacenFalso()
+    const fetchFalso = vi.fn(async () => json({ data: [1] }))
+    const entorno = crearEntornoDelSitio(CONFIG, {
+      fetch: fetchFalso as unknown as typeof fetch,
+      almacenCompartido: (async () => almacen) as never,
     })
     expect((await entorno.atender(lectura()))!.estado).toBe(200)
-    await entorno.esperarEscrituras()
-    sana = false
-    await expect(entorno.atender(lectura())).rejects.toThrow('fetch failed')
+    expect(fetchFalso).toHaveBeenCalledTimes(1)
   })
 
   it('un anfitrión que no es el dominio configurado no guarda nada (H34)', async () => {

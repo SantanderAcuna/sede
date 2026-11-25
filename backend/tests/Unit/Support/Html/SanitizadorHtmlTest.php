@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support\Html;
 
+use App\Support\Html\ParserHtml5Silencioso;
 use App\Support\Html\SanitizadorHtml;
+use Dom\Element;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HtmlSanitizer\Parser\NativeParser;
 
 /**
  * Control principal contra XSS almacenado: lista blanca estricta, al ESCRIBIR.
@@ -108,6 +111,56 @@ final class SanitizadorHtmlTest extends TestCase
         $una = $this->limpiar('<p>a <a href="https://a.test" target="_blank">b</a></p><script>x</script>');
 
         $this->assertSame($una, $this->limpiar($una));
+    }
+
+    /**
+     * Sanear no dispara avisos de PHP, ni siquiera silenciados con `@`.
+     *
+     * El parser nativo de Symfony llama a `Dom\HTMLDocument::createFromString()` con `@` delante. El `@` no
+     * evita el aviso: PHP lo emite igual (con `error_reporting` en 4437 durante la llamada) y cualquier
+     * manejador de errores lo recibe. PHPUnit no lo cuenta, pero lo publica como evento y la salida de
+     * `php artisan test` (Collision) lo pintaba como «!» en tres entradas mal formadas del corpus.
+     */
+    #[DataProvider('ataques')]
+    public function test_sanear_no_dispara_avisos_de_php(string $entrada): void
+    {
+        $avisos = [];
+        set_error_handler(static function (int $nivel, string $mensaje) use (&$avisos): bool {
+            $avisos[] = $mensaje;
+
+            return true;
+        });
+        try {
+            $this->limpiar($entrada);
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame([], $avisos);
+    }
+
+    /**
+     * El parser silencioso arma el MISMO árbol que el nativo de Symfony: solo cambia que no avisa.
+     */
+    #[DataProvider('ataques')]
+    public function test_el_parser_silencioso_arma_el_mismo_arbol_que_el_nativo(string $entrada): void
+    {
+        foreach (['body', 'p', 'td', 'tr'] as $contexto) {
+            // El nativo avisa en las entradas mal formadas; aquí se recoge el aviso para que no llegue a PHPUnit.
+            set_error_handler(static fn (): bool => true);
+            try {
+                $nativo = (new NativeParser)->parse($entrada, $contexto);
+            } finally {
+                restore_error_handler();
+            }
+            $silencioso = (new ParserHtml5Silencioso)->parse($entrada, $contexto);
+
+            $this->assertSame(
+                $nativo instanceof Element ? $nativo->outerHTML : null,
+                $silencioso instanceof Element ? $silencioso->outerHTML : null,
+                "Contexto {$contexto}"
+            );
+        }
     }
 
     public function test_texto_plano_y_vacio(): void

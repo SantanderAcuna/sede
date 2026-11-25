@@ -164,6 +164,16 @@ export function opcionesRedis(config: ConfigRedis): RedisOptions {
 }
 
 /**
+ * ¿Está completa la configuración de Redis? Sin host, usuario, contraseña o un puerto válido no hay
+ * almacén. Es la ÚNICA regla: la usan `conectarAlmacen`, `almacenCompartido` y el ensamblado del
+ * sitio (`respaldo-sitio.ts`), que sin Redis no pasa la lectura por el respaldo.
+ */
+export function redisConfigurado(config: ConfigRedis): boolean {
+  return config.host !== '' && config.usuario !== '' && config.password !== ''
+    && Number.isInteger(config.port) && config.port > 0
+}
+
+/**
  * Conecta el almacén. Devuelve `null` si falta alguna pieza de la configuración: el sitio arranca
  * igual, sin respaldo (el sitio no depende de Redis para arrancar, ADR-0018).
  */
@@ -171,9 +181,7 @@ export async function conectarAlmacen(
   config: ConfigRedis,
   opciones: OpcionesAlmacen = {},
 ): Promise<AlmacenRedis | null> {
-  const completa = config.host !== '' && config.usuario !== '' && config.password !== ''
-    && Number.isInteger(config.port) && config.port > 0
-  if (!completa) return null
+  if (!redisConfigurado(config)) return null
 
   const { default: Redis } = await import('ioredis')
   const cliente = new Redis(opcionesRedis(config))
@@ -217,9 +225,7 @@ export function almacenCompartido(
   const existente = compartidos.get(clave)
   if (existente !== undefined) return existente
 
-  const completa = config.host !== '' && config.usuario !== '' && config.password !== ''
-    && Number.isInteger(config.port) && config.port > 0
-  if (!completa) return Promise.resolve(null)
+  if (!redisConfigurado(config)) return Promise.resolve(null)
 
   const promesa = crear(config, opciones).catch((error: unknown) => {
     compartidos.delete(clave)

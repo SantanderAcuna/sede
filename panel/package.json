@@ -12,8 +12,7 @@
     "test:cobertura": "vitest run --coverage",
     "type-check": "vue-tsc --noEmit",
     "lint": "eslint . --max-warnings=15",
-    "lint:fix": "eslint . --fix",
-    "test:braces": "node ../scripts/audit-deps.sh"
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.3.1",

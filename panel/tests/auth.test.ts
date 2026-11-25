@@ -106,6 +106,22 @@ describe('login()', () => {
     })
   })
 
+  it('lee hasta el final la respuesta de la cookie CSRF antes de enviar las credenciales', async () => {
+    // Medido en el navegador: un `fetch` cuya respuesta no se lee queda en el registro de
+    // red como `net::ERR_ABORTED` aunque el servidor haya respondido 204 y la cookie esté
+    // puesta. Esa marca confunde al diagnosticar un inicio de sesión que sí funcionó.
+    const texto = vi.fn().mockResolvedValue('')
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 204, text: texto } as never)
+    vi.mocked(http.post).mockResolvedValueOnce({
+      data: { success: true, message: null, data: { require_mfa: false, mfa_token: null, csrf_token: 'c', user: null }, errors: null },
+    } as never)
+
+    await login({ email: 'a@b.co', password: 'pass' })
+
+    expect(texto).toHaveBeenCalledTimes(1)
+    expect(texto.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(http.post).mock.invocationCallOrder.at(-1)!)
+  })
+
   it('no envía las credenciales si el servidor no entrega la cookie CSRF', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 404 } as never)
     vi.mocked(http.post).mockClear()

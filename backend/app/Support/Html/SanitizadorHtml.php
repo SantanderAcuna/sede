@@ -45,7 +45,9 @@ final class SanitizadorHtml
             ->allowRelativeMedias(true)
             ->withMaxInputLength(500_000);
 
-        $this->saneador = new HtmlSanitizer($config);
+        // El mismo parser HTML5 nativo que usa Symfony por omisión, pero sin avisos de PHP en las entradas mal
+        // formadas (ver ParserHtml5Silencioso).
+        $this->saneador = new HtmlSanitizer($config, new ParserHtml5Silencioso);
     }
 
     public function limpiar(string $html): string

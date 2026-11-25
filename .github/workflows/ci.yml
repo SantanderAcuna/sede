@@ -484,6 +484,12 @@ jobs:
           # rechazada, la de `sede_app`-like aparece cifrada en pg_stat_ssl, sin certificado la
           # base no arranca y `certificado-bd.sh` emite, no repite y renueva (Fase 0A, T5).
           bash deploy/pruebas/prueba-tls-bd.sh
+      - name: desplegar.sh no admite dos despliegues a la vez y sigue sin entorno en la imagen
+        run: |
+          # Ejecuta el guion real de punta a punta en un Ubuntu 24.04 (el del servidor), con
+          # docker y curl sustituidos por dobles: cerrojo por entorno y el camino «la imagen no
+          # trae entorno», que con `set -e` nunca se alcanzaba.
+          bash deploy/pruebas/prueba-desplegar-flujo.sh
       - name: El actualizador de rangos de Cloudflare valida antes de escribir
         run: |
           # La lista decide en quién confía nginx para creerle a CF-Connecting-IP: un rango de más

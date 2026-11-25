@@ -9,9 +9,10 @@
 # y que es distinto en `app`, `horizon` y `scheduler`. Cachearla al construir hornearía valores
 # de construcción en la imagen.
 #
-# Por qué no en `/app/bootstrap/cache`: ese volumen lo comparten varios servicios y sobrevive
-# a los despliegues. Un `config.php` guardado ahí lo leerían contenedores con otro entorno y
-# seguiría vigente tras desplegar una configuración nueva. El tmpfs de cada contenedor nace
+# Por qué no en `/app/bootstrap/cache`: esa carpeta es de la imagen (sus manifiestos se
+# generan al construir) y, con el sistema de archivos de solo lectura, no se puede escribir;
+# además, un `config.php` ahí lo verían todos los procesos del contenedor sin distinguir su
+# entorno. El tmpfs de cada contenedor nace
 # vacío y muere con él: cada arranque regenera la caché con SU entorno, y recrear el contenedor
 # (lo que hace cualquier despliegue) la renueva.
 #

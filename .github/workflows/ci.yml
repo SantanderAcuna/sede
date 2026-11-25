@@ -454,6 +454,12 @@ jobs:
           # cambiando la frase que cifra todas las copias existentes. Detalle y motivos
           # en el encabezado del propio guion.
           bash deploy/pruebas/guarda-copias.sh
+      - name: bootstrap/cache viaja con la imagen y no sobrevive al despliegue
+        run: |
+          # Un volumen con nombre en /app/bootstrap/cache conservaba el `packages.php` de la
+          # versión que lo creó: quitar un paquete con proveedor dejaba la app sin arrancar solo
+          # en los servidores donde el volumen ya existía. Detalle en el encabezado del guion.
+          bash deploy/pruebas/guarda-bootstrap-cache.sh
       - name: Los montajes del compose existen en el servidor
         run: |
           # Al servidor sólo llegan compose.yaml, plantilla.env y valores-<entorno>.env. Un

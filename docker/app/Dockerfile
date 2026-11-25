@@ -175,8 +175,8 @@ COPY docker/app/php.ini /usr/local/etc/php/conf.d/99-sede.ini
 COPY --chmod=0755 docker/app/entrypoint.sh /usr/local/bin/sede-entrypoint
 
 # Dónde guarda Laravel esas cachés: en `/tmp`, que en cada contenedor es un tmpfs propio. NO en
-# `/app/bootstrap/cache`, que es un volumen compartido entre servicios con distinto entorno y
-# que sobrevive a los despliegues. Que las rutas estén en la imagen (y no solo en el script) hace
+# `/app/bootstrap/cache`, que es contenido de la imagen y de solo lectura en ejecución (ver el
+# `VOLUME` de más abajo). Que las rutas estén en la imagen (y no solo en el script) hace
 # que `docker exec ... php artisan ...` y los procesos hijos lean las mismas cachés.
 ENV APP_CONFIG_CACHE=/tmp/laravel-cache/config.php \
     APP_ROUTES_CACHE=/tmp/laravel-cache/routes-v7.php \
@@ -249,10 +249,15 @@ COPY deploy/plantilla.env deploy/valores-staging.env deploy/valores-produccion.e
      /opt/sede-entorno/
 COPY deploy/despliegue-remoto.sha256 /opt/sede-entorno/despliegue-remoto.sha256
 
-# Se declaran para que la pila sepa que ahí se escribe. Es lo que permite montar
-# volúmenes y, aun así, ejecutar el contenedor con el sistema de archivos de sólo
-# lectura.
-VOLUME ["/app/storage", "/app/bootstrap/cache"]
+# Se declara para que la pila sepa que ahí se escribe. Es lo que permite montar el
+# volumen y, aun así, ejecutar el contenedor con el sistema de archivos de sólo lectura.
+#
+# `/app/bootstrap/cache` NO se declara: sus manifiestos (`packages.php`, `services.php`)
+# los genera `package:discover` más arriba y tienen que ser los de ESTA imagen. Declarado,
+# Docker le daba un volumen que, una vez creado, conservaba los de la primera versión
+# desplegada (deploy/pruebas/guarda-bootstrap-cache.sh). En ejecución nada escribe ahí: las
+# cachés de configuración, rutas y eventos van a `/tmp` (ENV de arriba y entrypoint.sh).
+VOLUME ["/app/storage"]
 
 USER sede
 

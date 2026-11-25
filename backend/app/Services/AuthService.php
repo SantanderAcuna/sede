@@ -9,6 +9,7 @@ use App\Contracts\Services\AuthServiceInterface;
 use App\DTOs\Auth\LoginCredentials;
 use App\Http\Resources\UsuarioResource;
 use App\Models\User;
+use App\Support\Acceso\HuellaDeClave;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Http\Request;
@@ -95,6 +96,8 @@ final class AuthService implements AuthServiceInterface
         // Session fixation se previene regenerando el ID tras el login.
         Auth::guard('web')->login($user);
         request()->session()->regenerate();
+        // Huella de la contraseña de este momento: si cambia, `SesionDelPanelVigente` corta la sesión.
+        request()->session()->put(HuellaDeClave::CLAVE_SESION, HuellaDeClave::de($user));
 
         return [
             'success' => true,

@@ -90,6 +90,8 @@ final class SesionPanelVigenteTest extends TestCase
      * Código de estado de una petición con la cookie de sesión, como la haría el navegador.
      *
      * @param  array{0: string, 1: string}  $cookie
+     *
+     * @phpstan-impure
      */
     private function pedir(array $cookie, string $ruta): int
     {

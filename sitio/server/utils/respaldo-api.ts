@@ -24,6 +24,14 @@ export const TIEMPO_COPIA_MS = 4000
  * la respuesta que se entrega.
  */
 export const TIEMPO_MAXIMO_MS = 20_000
+/**
+ * Tras servir una copia porque la API tardó más de `TIEMPO_COPIA_MS`, las lecturas que tengan copia
+ * durante este lapso la sirven sin volver a esperar esos 4 s: una página lee varias rutas una tras
+ * otra y, con la API colgada, cada una sumaba su espera (la portada, 16 s). Se cierra antes si la
+ * API contesta (no 5xx ni 429): señal de que ya no está colgada. Contrapartida: durante el lapso
+ * se sirve la copia aunque la API ya hubiera contestado a esa ruta, con la edad que ella tenga.
+ */
+export const VENTANA_LENTITUD_MS = 30_000
 /** Fallos seguidos que abren el cortocircuito. */
 export const FALLOS_PARA_ABRIR = 3
 /** Cuánto sirve el respaldo sin llamar a la API antes de probar con una petición. */
@@ -222,6 +230,7 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
   let fallosSeguidos = 0
   let abiertoHasta = 0
   let probando = false
+  let lentoHasta = 0
   const ultimaEscritura = new Map<string, number>()
   const escrituras = new Set<Promise<void>>()
 
@@ -312,9 +321,17 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
         return liquidar(peticion, clave, desenlace)
       })
 
+    // Ventana de lentitud: la API ya tardó más de 4 s hace poco y no ha contestado bien desde
+    // entonces. Con copia se sirve sin esperar; sin copia se espera a la API como siempre.
+    if (ahora() < lentoHasta) {
+      const entrada = await leerRespaldo(clave)
+      if (entrada !== null) return comoRespaldo(entrada, 'tiempo')
+    }
+
     const primero = await esperarHasta(fin, TIEMPO_COPIA_MS)
     let desenlace: Desenlace
     if (primero === LENTO) {
+      lentoHasta = ahora() + VENTANA_LENTITUD_MS
       const entrada = await leerRespaldo(clave)
       if (entrada !== null) return comoRespaldo(entrada, 'tiempo')
       desenlace = await fin // sin copia no hay nada mejor que esperar a la API
@@ -354,6 +371,7 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
     if (respuesta.estado !== 429) {
       fallosSeguidos = 0
       abiertoHasta = 0
+      lentoHasta = 0
     }
     // Guardar la copia es una ayuda: un fallo inesperado aquí no debe afectar a la respuesta de la API.
     try {

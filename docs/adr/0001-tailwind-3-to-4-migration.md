@@ -23,7 +23,7 @@ El proyecto `sitio/` y `panel/` actualmente usan **Tailwind CSS 3.4.19**, que ar
 **Migrar a Tailwind CSS 4.3+ en los próximos 2 sprints**, siguiendo la estrategia gradual:
 
 ### Fase 1 (inmediata)
-- ✅ **Parche temporal de `braces`** con guard de profundidad (CVE-2026-93687) — aplicado
+- ⚠️ **Parche temporal de `braces`** con guard de profundidad (CVE-2026-93687) — **solo en instalaciones locales**. Lo aplica `scripts/patch-deps.mjs` en el `postinstall` del sitio (`npm ci`, `make instalar`). La CI y `docker/sitio/Dockerfile` instalan con `npm ci --ignore-scripts`, así que ahí **no se aplica**; la vulnerabilidad queda tolerada por su identificador en la auditoría de la CI (`GHSA-vfj7-8cjw-p6xm`, `.github/workflows/ci.yml`). Corrección del 2026-11-25: hasta esa fecha el parche dejaba `expand.js` con un error de sintaxis (buscaba `return queue;` con 6 espacios y `braces` 3.0.3 lo tiene con 4), y `make instalar` no terminaba. Ahora se aplica completo o no se aplica, nunca escribe un archivo que no compile, y lo prueba `sitio/tests/patch-deps.test.ts`.
 - ✅ **Override de `postcss-selector-parser >= 7.1.6`** — aplicado
 - ⏳ **Override de `simple-git@^4.0.2`** — aplicado (PR #209)
 

@@ -126,6 +126,7 @@ declare -A SECRETO=(
   [DB_APP_PASSWORD]='app-clave'
   [DB_LECTURA_PASSWORD]='lectura-clave'
   [REDIS_PASSWORD]='r3d1s'
+  [REDIS_SITIO_PASSWORD]='s1t10'
   [BACKUP_PASSPHRASE]='frase-de-respaldo'
   [SUPER_ADMIN_EMAIL]='admin@example.test'
   [SUPER_ADMIN_NAME]='Nombre Apellido'

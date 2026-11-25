@@ -39,7 +39,7 @@ raiz()  { if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo -n env $(env | grep '^SE
 # Valores de mentira, como los del CI: sólo hacen falta para que `compose` resuelva el archivo.
 export APP_KEY="base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 export DB_PASSWORD="prueba-tls-clave"
-export DB_APP_PASSWORD="prueba" DB_LECTURA_PASSWORD="prueba" REDIS_PASSWORD="prueba"
+export DB_APP_PASSWORD="prueba" DB_LECTURA_PASSWORD="prueba" REDIS_PASSWORD="prueba" REDIS_SITIO_PASSWORD="prueba-sitio"
 export BACKUP_PASSPHRASE="prueba" S3_ACCESS_KEY="prueba" S3_SECRET_KEY="prueba"
 
 dc() { docker compose -f "$COMPOSE" --project-directory "$RAIZ" -p "$PROYECTO" "$@"; }

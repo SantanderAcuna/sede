@@ -49,7 +49,7 @@ fi
 
 # --- 3. Ningún servicio monta algo en /app/bootstrap/cache -----------------------------
 if command -v docker > /dev/null 2>&1 && command -v jq > /dev/null 2>&1; then
-  pila="$(APP_KEY=x DB_PASSWORD=x DB_APP_PASSWORD=x DB_LECTURA_PASSWORD=x REDIS_PASSWORD=x BACKUP_PASSPHRASE=x \
+  pila="$(APP_KEY=x DB_PASSWORD=x DB_APP_PASSWORD=x DB_LECTURA_PASSWORD=x REDIS_PASSWORD=x REDIS_SITIO_PASSWORD=x BACKUP_PASSPHRASE=x \
     docker compose -f "$RAIZ/compose.yaml" --profile copias --profile migrar config --format json 2> /dev/null)"
   if [ -z "$pila" ]; then
     mal "la pila no se resolvió: no pude comprobar los montajes"

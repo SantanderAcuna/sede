@@ -12,6 +12,13 @@
  * visitante, que nginx dejó en `X-Real-IP` al entrar. Así la API cuenta el cupo
  * por visitante y no por servidor del sitio.
  *
+ * **Respaldo (T9.4, Fase 0C).** Las lecturas `GET` de la lista blanca (`respaldo-api.ts`) pasan
+ * por el respaldo: si la API no contesta (red, tiempo de 4 s, 5xx) se sirve la última respuesta
+ * válida guardada en Redis, con la cabecera `X-Sede-Respaldo: <edad en s>` y una línea de registro.
+ * Esa petición sale SIN `Cookie` ni `Authorization`: su respuesta es la misma para cualquiera. Todo
+ * lo demás (búsqueda, filtros, `HEAD`, rutas fuera de la lista) sigue por `proxyRequest` como antes,
+ * y si la API cae sin copia disponible el sitio falla igual que antes (502).
+ *
  * **Qué NO hace, a propósito.**
  *   - Sólo GET y HEAD: el renderizado únicamente lee. Una escritura que pasara
  *     por aquí heredaría una confianza que no le corresponde.
@@ -20,8 +27,9 @@
  *   - No es un proxy abierto: `destinoInterno` exige el mismo origen y `/api/v1`.
  */
 import { CABECERA_CLIENTE, destinoInterno, ipDelVisitante } from '../../../utils/canal-interno'
+import { entornoDelSitio } from '../../../utils/respaldo-sitio'
 
-export default defineEventHandler((evento) => {
+export default defineEventHandler(async (evento) => {
   if (evento.method !== 'GET' && evento.method !== 'HEAD') {
     setResponseHeader(evento, 'Allow', 'GET, HEAD')
     throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })
@@ -36,13 +44,38 @@ export default defineEventHandler((evento) => {
   }
 
   const anfitrion = getRequestHeader(evento, 'x-forwarded-host')
+  const cabecerasPropias = {
+    [CABECERA_CLIENTE]: ipDelVisitante(getRequestHeader(evento, 'x-real-ip')),
+    // La API ve el mismo anfitrión que veía por el camino público.
+    ...(anfitrion ? { host: anfitrion } : {}),
+  }
+
+  if (evento.method === 'GET') {
+    let atencion
+    try {
+      atencion = await entornoDelSitio(useRuntimeConfig(evento)).atender({
+        metodo: evento.method,
+        destino,
+        anfitrion: anfitrion ?? '',
+        // Lo que reenviaría el proxy; el respaldo le quita `cookie` y `authorization`.
+        cabeceras: { ...getProxyRequestHeaders(evento), ...cabecerasPropias },
+      })
+    } catch (causa) {
+      // API caída y sin copia: el mismo error que da `proxyRequest` ante un fallo de red.
+      throw createError({ statusCode: 502, statusMessage: 'Bad Gateway', cause: causa })
+    }
+    if (atencion !== null) {
+      setResponseStatus(evento, atencion.estado)
+      if (atencion.tipo !== '') setResponseHeader(evento, 'content-type', atencion.tipo)
+      for (const [nombre, valor] of Object.entries(atencion.cabeceras)) {
+        setResponseHeader(evento, nombre, valor)
+      }
+      return atencion.cuerpo
+    }
+  }
 
   return proxyRequest(evento, destino, {
-    headers: {
-      [CABECERA_CLIENTE]: ipDelVisitante(getRequestHeader(evento, 'x-real-ip')),
-      // La API ve el mismo anfitrión que veía por el camino público.
-      ...(anfitrion ? { host: anfitrion } : {}),
-    },
+    headers: cabecerasPropias,
     // Una API que no contesta no debe dejar colgado el renderizado: a los 20 s se
     // corta y la página muestra su estado de error.
     fetchOptions: { signal: AbortSignal.timeout(20_000), redirect: 'manual' },

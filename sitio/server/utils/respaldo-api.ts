@@ -3,7 +3,7 @@
  *
  * Si la API no contesta (red caída, tiempo agotado, 5xx), la sede sigue mostrando la **última
  * respuesta válida** de las lecturas públicas. Nada más: un 404, un 410 o un 429 son respuestas de
- * la API y se pasan tal cual, y lo que sea de una persona (cookies, `private`, URLs firmadas) no se
+ * la API y se pasan tal cual, y lo que sea de una persona (cookies, `no-store`, URLs firmadas) no se
  * guarda nunca.
  *
  * Es lógica pura, como `canal-interno.ts`: no importa Nitro ni Redis. El almacén (T9.3), el
@@ -65,6 +65,12 @@ export interface Resultado {
   edadMs?: number
   /** Solo con origen «respaldo»: por qué no se usó la API (para el registro). */
   motivo?: MotivoRespaldo
+  /**
+   * Solo con origen «api»: el `Retry-After` de la respuesta, si lo trajo (lo pone nginx en un 429 y
+   * el sitio lo muestra en la búsqueda). Es la única cabecera de la API que se conserva: el resto
+   * no cambia lo que ve la persona.
+   */
+  retryAfter?: string
 }
 
 export interface PeticionRespaldable {
@@ -85,6 +91,8 @@ export interface OpcionesRespaldo {
 }
 
 const ESPACIO = '[a-z0-9][a-z0-9-]{0,199}'
+/** El enum cerrado que valida el backend (`in:tramites,opa,consultas`): acota las claves posibles. */
+const TIPOS_DE_TRAMITE = new Set(['tramites', 'opa', 'consultas'])
 const RUTAS_LISTA = new Set(['/tramites', '/noticias', '/politicas'])
 const RUTAS_SIN_PARAMETROS = [
   /^\/identidad\/footer$/,
@@ -106,13 +114,15 @@ function enteroEnRango(valor: unknown, maximo: number): number | null {
 export function claveDeRespaldo(ruta: string, query: Record<string, string>): string | null {
   const nombres = Object.keys(query)
   let permitidos: string[]
-  if (RUTAS_LISTA.has(ruta)) permitidos = ['page', 'per_page']
+  if (ruta === '/tramites') permitidos = ['page', 'per_page', 'type']
+  else if (RUTAS_LISTA.has(ruta)) permitidos = ['page', 'per_page']
   else if (RUTAS_SIN_PARAMETROS.some(r => r.test(ruta))) permitidos = []
   else return null
 
   if (nombres.some(n => !permitidos.includes(n))) return null
   if (query.page !== undefined && enteroEnRango(query.page, PAGINA_MAXIMA) === null) return null
   if (query.per_page !== undefined && enteroEnRango(query.per_page, 100) === null) return null
+  if (query.type !== undefined && !TIPOS_DE_TRAMITE.has(query.type)) return null
 
   const parametros = nombres.sort().map(n => `${n}=${query[n]}`).join('&')
   return `sitio:respaldo:${ruta}${parametros ? `?${parametros}` : ''}`
@@ -158,7 +168,9 @@ function sePuedeGuardar(
 ): boolean {
   if (respuesta.estado !== 200) return false
   if (cabecera(respuesta, 'set-cookie') !== undefined) return false
-  if (/\b(?:private|no-store)\b/i.test(cabecera(respuesta, 'cache-control') ?? '')) return false
+  // `private` NO bloquea: la petición sale sin cookie ni authorization, así que su respuesta no es de
+  // una persona, y Laravel lo pone por defecto («no-cache, private»). Un `no-store` explícito sí.
+  if (/\bno-store\b/i.test(cabecera(respuesta, 'cache-control') ?? '')) return false
   if (anfitrionLimpio(peticion.anfitrion) !== anfitrionLimpio(opciones.dominio)) return false
   if (new TextEncoder().encode(respuesta.cuerpo).length > (opciones.topeBytes ?? TOPE_BYTES)) return false
   if (URL_FIRMADA.test(respuesta.cuerpo)) return false
@@ -192,6 +204,17 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
       return ahora() - entrada.guardadoEn <= EDAD_MAXIMA_MS ? entrada : null
     } catch {
       return null
+    }
+  }
+
+  function deLaApi(respuesta: RespuestaApi): Resultado {
+    const retryAfter = cabecera(respuesta, 'retry-after')
+    return {
+      origen: 'api',
+      estado: respuesta.estado,
+      tipo: cabecera(respuesta, 'content-type') ?? '',
+      cuerpo: respuesta.cuerpo,
+      ...(retryAfter !== undefined ? { retryAfter } : {}),
     }
   }
 
@@ -270,7 +293,7 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
         const entrada = await leerRespaldo(clave)
         return entrada !== null
           ? comoRespaldo(entrada, '5xx')
-          : { origen: 'api', estado: respuesta.estado, tipo: cabecera(respuesta, 'content-type') ?? '', cuerpo: respuesta.cuerpo }
+          : deLaApi(respuesta)
       }
 
       // La API contestó. El 429 lo pone nginx, no la API: no dice nada de su salud.
@@ -286,7 +309,7 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
           guardadoEn: ahora(),
         })
       }
-      return { origen: 'api', estado: respuesta.estado, tipo: cabecera(respuesta, 'content-type') ?? '', cuerpo: respuesta.cuerpo }
+      return deLaApi(respuesta)
     } finally {
       if (esSonda) {
         probando = false

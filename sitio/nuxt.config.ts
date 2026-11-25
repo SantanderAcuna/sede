@@ -114,6 +114,19 @@ export default defineNuxtConfig({
     apiInterna:
       process.env.NUXT_API_INTERNA ??
       (process.env.NODE_ENV === 'production' ? '' : 'http://127.0.0.1:8000'),
+    /*
+     * Redis del respaldo de la API (T9.4, Fase 0C). Privadas (no están bajo `public`).
+     *
+     * Los valores por defecto son VACÍOS a propósito y NO se leen de `process.env` aquí: este
+     * archivo se evalúa al CONSTRUIR la imagen, y lo que se hornea no se puede cambiar al
+     * desplegar. En ejecución Nuxt las rellena desde `NUXT_REDIS_HOST`, `NUXT_REDIS_PORT`,
+     * `NUXT_REDIS_USUARIO` y `NUXT_REDIS_PASSWORD`. Con alguna vacía el respaldo queda apagado y
+     * el sitio se comporta como antes: no inventa otro camino (el despliegue las pone en T9.5).
+     */
+    redisHost: '',
+    redisPort: 6379,
+    redisUsuario: '',
+    redisPassword: '',
     public: {
       // La URL de la API la pone el entorno. En producción el sitio y la API
       // comparten origen, así que la ruta relativa es suficiente.

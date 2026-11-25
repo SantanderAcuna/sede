@@ -132,10 +132,8 @@ final class UsuarioPanelService implements UsuarioPanelServiceInterface
                 $campos[] = 'roles';
             }
 
-            if ($cambiaEstado || $cambiaClave) {
-                // Una sesión abierta no debe sobrevivir a un bloqueo ni a un cambio de clave.
-                $objetivo->tokens()->delete();
-            }
+            // Una sesión abierta no sobrevive a un bloqueo ni a un cambio de clave: lo comprueba
+            // `SesionDelPanelVigente` en cada petición (estado y huella de la contraseña).
 
             if ($cambiaEstado) {
                 Huella::registrar($actor, 'usuario_estado_cambiado', 'usuarios', $objetivo->id, ['estado' => $estadoNuevo]);

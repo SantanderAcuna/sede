@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -36,8 +35,23 @@ use Spatie\Permission\Traits\HasRoles;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
+    // Sin `HasApiTokens`: el panel entra solo con la cookie de sesión. Con el rasgo, Sanctum aceptaba
+    // también tokens de acceso personal (`Authorization: Bearer`) que no caducan.
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable;
+    use HasFactory, HasRoles, HasUuids, Notifiable;
+
+    /**
+     * Los mismos valores por omisión que la tabla (migración de campos de `users`).
+     *
+     * Sin esto, un modelo recién creado sin `estado` lo tiene en `null` en memoria aunque la base guardó
+     * `activo`, y `SesionDelPanelVigente` lo vería como una cuenta no activa.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'estado' => 'activo',
+        'mfa_habilitado' => false,
+    ];
 
     /**
      * Get the attributes that should be cast.

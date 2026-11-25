@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\PanelUsuarioController;
 use App\Http\Controllers\Api\V1\PoliticaController;
 use App\Http\Controllers\Api\V1\TramiteController;
 use App\Http\Middleware\AuditarRechazosDelPanel;
+use App\Http\Middleware\SesionDelPanelVigente;
 use App\Http\Middleware\SesionSoloSiYaExiste;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
@@ -162,12 +163,13 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/login', [AuthController::class, 'login'])
             ->name('login')
             ->middleware('throttle:login');
-        Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth:sanctum');
-        Route::get('/perfil', [AuthController::class, 'perfil'])->name('perfil')->middleware('auth:sanctum');
+        Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware(['auth:sanctum', SesionDelPanelVigente::class]);
+        Route::get('/perfil', [AuthController::class, 'perfil'])->name('perfil')->middleware(['auth:sanctum', SesionDelPanelVigente::class]);
 
         // Cada ruta exige el permiso de SU acción (`modulo.accion`): «ver» no da «editar» ni «eliminar».
         // Las Policies de cada modelo lo vuelven a comprobar en el controlador.
-        Route::middleware(['auth:sanctum', AuditarRechazosDelPanel::class])->group(function (): void {
+        // `SesionDelPanelVigente`: la sesión deja de valer si la cuenta no está activa o su contraseña cambió.
+        Route::middleware(['auth:sanctum', SesionDelPanelVigente::class, AuditarRechazosDelPanel::class])->group(function (): void {
             // Auditoría — quién hizo qué (H-07: sin el permiso, cualquier cuenta lo leía).
             Route::get('/auditoria', [AuditoriaController::class, 'index'])
                 ->name('auditoria.index')->middleware('can:auditoria.ver');

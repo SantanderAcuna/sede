@@ -13,7 +13,7 @@
  * por visitante y no por servidor del sitio.
  *
  * **Respaldo (T9.4, Fase 0C).** Las lecturas `GET` de la lista blanca (`respaldo-api.ts`) pasan
- * por el respaldo: si la API no contesta (red, tiempo de 4 s, 5xx) se sirve la última respuesta
+ * por el respaldo: si la API no contesta (red, 5xx o más de 4 s) y hay copia, se sirve la última respuesta
  * válida guardada en Redis, con la cabecera `X-Sede-Respaldo: <edad en s>` y una línea de registro.
  * Esa petición sale SIN `Cookie` ni `Authorization`: su respuesta es la misma para cualquiera. Todo
  * lo demás (búsqueda, filtros, `HEAD`, rutas fuera de la lista) sigue por `proxyRequest` como antes,

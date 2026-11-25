@@ -13,8 +13,17 @@
 
 /** Cuánto vive un respaldo: pasado esto no se sirve, aunque el almacén aún lo tenga. */
 export const EDAD_MAXIMA_MS = 24 * 60 * 60 * 1000
-/** Tiempo de espera de las lecturas respaldables. HIPÓTESIS (H31): se mide en T9.6. */
-export const TIEMPO_ESPERA_MS = 4000
+/**
+ * A los 4 s sin respuesta se busca la copia: si existe se sirve; si no, se sigue esperando a la API.
+ * El corte de 4 s solo sirve cuando hay algo que mostrar (H31, revisada el 2026-11-25).
+ */
+export const TIEMPO_COPIA_MS = 4000
+/**
+ * Plazo de la petición a la API: el mismo que tenía el proxy antes del respaldo. La petición NO se
+ * cancela a los 4 s: si llega después y es válida se guarda como copia nueva, y si no hay copia es
+ * la respuesta que se entrega.
+ */
+export const TIEMPO_MAXIMO_MS = 20_000
 /** Fallos seguidos que abren el cortocircuito. */
 export const FALLOS_PARA_ABRIR = 3
 /** Cuánto sirve el respaldo sin llamar a la API antes de probar con una petición. */
@@ -189,6 +198,25 @@ function motivoDeExcepcion(fallo: unknown): MotivoRespaldo {
   return nombre === 'TimeoutError' || nombre === 'AbortError' ? 'tiempo' : 'red'
 }
 
+/** Cómo terminó la llamada a la API: una respuesta o un fallo (red, plazo agotado). */
+interface Desenlace {
+  respuesta?: RespuestaApi
+  fallo?: unknown
+}
+
+const LENTO = Symbol('lento')
+
+/** Espera `fin` hasta `ms`; devuelve `LENTO` si no terminó (sin dejar el temporizador colgado). */
+async function esperarHasta(fin: Promise<Desenlace>, ms: number): Promise<Desenlace | typeof LENTO> {
+  let temporizador: ReturnType<typeof setTimeout> | undefined
+  const plazo = new Promise<typeof LENTO>((resolver) => { temporizador = setTimeout(() => resolver(LENTO), ms) })
+  try {
+    return await Promise.race([fin, plazo])
+  } finally {
+    clearTimeout(temporizador)
+  }
+}
+
 export function crearRespaldo(opciones: OpcionesRespaldo) {
   const { almacen, traer, ahora } = opciones
   let fallosSeguidos = 0
@@ -272,36 +300,63 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
       }
     }
 
+    // La petición sale con el plazo máximo y sigue su curso aunque la copia se sirva antes: lo que
+    // pase con ella (circuito, copia nueva) se resuelve en `liquidar`, no en quien espera la respuesta.
+    // `async` convierte también un fallo síncrono de `traer` en un rechazo que se cuenta como fallo.
+    const fin = (async () => traer(peticion.ruta, peticion.query, cabecerasSinCredenciales(peticion.cabeceras), TIEMPO_MAXIMO_MS))()
+      .then<Desenlace, Desenlace>(respuesta => ({ respuesta }), fallo => ({ fallo }))
+      .then((desenlace) => {
+        // La sonda se da por terminada cuando la API contesta (o agota su plazo), no cuando se sirve
+        // la copia: así no se lanza otra mientras la primera sigue sin respuesta.
+        if (esSonda) probando = false
+        return liquidar(peticion, clave, desenlace)
+      })
+
+    const primero = await esperarHasta(fin, TIEMPO_COPIA_MS)
+    let desenlace: Desenlace
+    if (primero === LENTO) {
+      const entrada = await leerRespaldo(clave)
+      if (entrada !== null) return comoRespaldo(entrada, 'tiempo')
+      desenlace = await fin // sin copia no hay nada mejor que esperar a la API
+    } else {
+      desenlace = primero
+    }
+
+    if (desenlace.fallo !== undefined) {
+      const entrada = await leerRespaldo(clave)
+      if (entrada !== null) return comoRespaldo(entrada, motivoDeExcepcion(desenlace.fallo))
+      throw desenlace.fallo
+    }
+    const respuesta = desenlace.respuesta!
+    if (respuesta.estado >= 500) {
+      const entrada = await leerRespaldo(clave)
+      return entrada !== null ? comoRespaldo(entrada, '5xx') : deLaApi(respuesta)
+    }
+    return deLaApi(respuesta)
+  }
+
+  /**
+   * Lo que se hace SIEMPRE cuando la API termina, también si su respuesta llega después de haberse
+   * servido la copia: contar el fallo o reiniciar la cuenta del circuito y guardar la copia nueva.
+   * Una respuesta lenta que llega bien no cuenta como fallo.
+   */
+  function liquidar(peticion: PeticionRespaldable, clave: string, desenlace: Desenlace): Desenlace {
+    if (desenlace.fallo !== undefined) {
+      registrarFallo()
+      return desenlace
+    }
+    const respuesta = desenlace.respuesta!
+    if (respuesta.estado >= 500) {
+      registrarFallo()
+      return desenlace
+    }
+    // La API contestó. El 429 lo pone nginx, no la API: no dice nada de su salud.
+    if (respuesta.estado !== 429) {
+      fallosSeguidos = 0
+      abiertoHasta = 0
+    }
+    // Guardar la copia es una ayuda: un fallo inesperado aquí no debe afectar a la respuesta de la API.
     try {
-      let respuesta: RespuestaApi
-      try {
-        respuesta = await traer(
-          peticion.ruta,
-          peticion.query,
-          cabecerasSinCredenciales(peticion.cabeceras),
-          TIEMPO_ESPERA_MS,
-        )
-      } catch (fallo) {
-        registrarFallo()
-        const entrada = await leerRespaldo(clave)
-        if (entrada !== null) return comoRespaldo(entrada, motivoDeExcepcion(fallo))
-        throw fallo
-      }
-
-      if (respuesta.estado >= 500) {
-        registrarFallo()
-        const entrada = await leerRespaldo(clave)
-        return entrada !== null
-          ? comoRespaldo(entrada, '5xx')
-          : deLaApi(respuesta)
-      }
-
-      // La API contestó. El 429 lo pone nginx, no la API: no dice nada de su salud.
-      if (respuesta.estado !== 429) {
-        fallosSeguidos = 0
-        abiertoHasta = 0
-      }
-
       if (sePuedeGuardar(peticion, respuesta, opciones)) {
         guardarEnSegundoPlano(clave, {
           cuerpo: respuesta.cuerpo,
@@ -309,12 +364,10 @@ export function crearRespaldo(opciones: OpcionesRespaldo) {
           guardadoEn: ahora(),
         })
       }
-      return deLaApi(respuesta)
-    } finally {
-      if (esSonda) {
-        probando = false
-      }
+    } catch {
+      // sin copia nueva; la respuesta sigue su camino
     }
+    return desenlace
   }
 
   /** Para las pruebas y el apagado ordenado: espera a las escrituras que quedaron en vuelo. */

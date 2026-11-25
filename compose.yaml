@@ -194,18 +194,31 @@ services:
       context: .
       dockerfile: docker/sitio/Dockerfile
     restart: unless-stopped
-    env_file:
-    # El archivo se deja OPCIONAL a propósito. Los valores también pueden llegar
-    # por el entorno del proceso, que es como los inyecta la canalización. Exigir
-    # el archivo obligaba a que existiera .env aunque no hiciera falta, y por eso
-    # `docker compose config` fallaba en la canalización. Los secretos críticos
-    # siguen exigidos uno a uno con ":?" en cada servicio: un despliegue sin
-    # valores sigue fallando, y con un mensaje que dice cuál falta.
-      - path: .env
-        required: false
+    # El sitio NO carga el `.env`. Antes lo cargaba entero y el contenedor que renderiza y
+    # reenvía contenido de terceros recibía la clave de la aplicación, la del dueño de la base,
+    # la frase de las copias y `REDIS_PASSWORD`. Con acceso a Redis (T9.5) eso anulaba el usuario
+    # ACL: bastaba leer `REDIS_PASSWORD` del propio entorno para entrar como `default`. Ahora
+    # recibe SÓLO lo que usa; `deploy/pruebas/guarda-cache-sitio.sh` falla si aparece algo más.
+    #
+    # Nuxt sólo acepta en ejecución las variables con prefijo `NUXT_` (ruta del ajuste en
+    # mayúsculas). La dirección de Redis no es configurable por entorno a propósito: es la de la
+    # red `cache-sitio`, que declara este mismo archivo.
+    environment:
+      NUXT_API_INTERNA: ${NUXT_API_INTERNA:-http://nginx:8080}
+      NUXT_PUBLIC_API_URL: ${NUXT_PUBLIC_API_URL:-/api/v1}
+      # Las copias sólo se guardan para el dominio de la sede (H34). `public.dominio` se hornea al
+      # CONSTRUIR la imagen; este valor lo corrige al ARRANCAR con el del despliegue (la plantilla
+      # lo entrega como `SEDE_DOMINIO`).
+      NUXT_PUBLIC_DOMINIO: ${SEDE_DOMINIO:-localhost}
+      NUXT_REDIS_HOST: redis
+      NUXT_REDIS_PORT: "6379"
+      NUXT_REDIS_USUARIO: sitio
+      NUXT_REDIS_PASSWORD: ${REDIS_SITIO_PASSWORD:?La contraseña del usuario ACL «sitio» de Redis es obligatoria}
     depends_on:
       app: { condition: service_healthy }
-    networks: [backend]
+    # Sin `depends_on: redis`: el respaldo falla ABIERTO (ADR-0018). Si Redis no estuviera sano,
+    # el sitio tiene que arrancar igual, sin copia, y no quedar caído por la caché.
+    networks: [backend, cache-sitio]
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
@@ -326,14 +339,33 @@ services:
   redis:
     image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
     restart: unless-stopped
-    networks: [data]
-    # La política de expulsión NO es `allkeys-lru`: expulsaría sesiones y
-    # trabajos en cola, que no se pueden reconstruir. Con `volatile-lru` sólo se
-    # expulsa lo que tiene tiempo de vida declarado, es decir, la caché.
+    networks: [data, cache-sitio]
+    # La política de expulsión NO es `allkeys-lru`: expulsaría también las claves SIN tiempo de
+    # vida, como las listas de las colas, que no se pueden reconstruir. Con `volatile-lru` sólo se
+    # expulsa lo que tiene tiempo de vida, y eso NO es sólo la caché: las sesiones de Laravel se
+    # guardan con él (`SESSION_LIFETIME`, 120 min: `CacheBasedSessionHandler::write` usa
+    # `put(…, minutos * 60)`) y las copias del respaldo del sitio también (`EX`). Bajo presión de
+    # memoria, Redis puede expulsar una sesión (el usuario vuelve a iniciar sesión) antes que una
+    # cola. Las claves del sitio (`sitio:*`) comparten esta memoria: se miden en T9.6 (H30).
     command:
       - redis-server
       - --requirepass
       - ${REDIS_PASSWORD:?La contraseña de la caché es obligatoria}
+      # Usuario del respaldo del sitio (T9.5, ADR-0009): sólo lee, escribe y borra claves
+      # `sitio:*`, y hace PING. Sin `+@all`, `-@all` deja fuera `FLUSHALL`, `KEYS`, `CONFIG`,
+      # `EVAL`... y `~sitio:*` lo deja sin ver las sesiones ni las colas de la aplicación.
+      # Su contraseña es OTRA: la principal no sale del servidor ni llega al sitio.
+      - --user
+      - sitio
+      - "on"
+      - ">${REDIS_SITIO_PASSWORD:?La contraseña del usuario ACL «sitio» de Redis es obligatoria}"
+      - "~sitio:*"
+      - "-@all"
+      - "+get"
+      - "+set"
+      - "+del"
+      - "+ping"
+      - "+auth"
       - --appendonly
       - "yes"
       - --appendfsync
@@ -479,6 +511,11 @@ networks:
   # descuido.
   data:
     name: ${APP_NAME:-sede}-data
+    internal: true
+  # Sólo el sitio y Redis (T9.5). Aparte de `data` para que el sitio, el servicio más expuesto,
+  # no llegue a PostgreSQL; interna para que nada entre ni salga de la pila por ella.
+  cache-sitio:
+    name: ${APP_NAME:-sede}-cache-sitio
     internal: true
 
 volumes:

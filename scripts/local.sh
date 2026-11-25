@@ -55,6 +55,8 @@ REDIS_CLIENT=phpredis
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=$(aleatorio)
+# Usuario ACL `sitio` del respaldo del sitio (T9.5): otra contraseña, a propósito.
+REDIS_SITIO_PASSWORD=$(aleatorio)
 
 SESSION_DRIVER=redis
 SESSION_SECURE_COOKIE=false

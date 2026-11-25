@@ -27,10 +27,11 @@ que un incidente en `staging` alcanzara a producción.
 | `APP_KEY` | staging, production | La canalización | Clave de cifrado de Laravel; ambos extremos son de la sede |
 | `DB_PASSWORD` | staging, production | La canalización | La base es de la sede |
 | `REDIS_PASSWORD` | staging, production | La canalización | Redis es de la sede |
+| `REDIS_SITIO_PASSWORD` | staging, production | `deploy/agregar-secretos-roles.py` (registro local) y `deploy/publicar-entorno.sh` (servidor) | Contraseña del usuario ACL `sitio` de Redis (T9.5, archivo 0009). **Distinta** de `REDIS_PASSWORD`: el sitio no debe poder entrar como `default` |
 | `S3_ACCESS_KEY` | staging, production | La canalización | El almacenamiento es SeaweedFS self-hosted (`docker/s3/Dockerfile`) |
 | `S3_SECRET_KEY` | staging, production | La canalización | Igual que el anterior |
 
-Estos cinco **no son intercambiables ni decorativos**: `compose.yaml` los declara
+Estos seis **no son intercambiables ni decorativos**: `compose.yaml` los declara
 obligatorios con `:?`, así que sin ellos la pila ni siquiera se resuelve. Las
 credenciales de `S3_*` llegaron a estar horneadas en la imagen con los valores de
 ejemplo (`sede_local`), de modo que la aplicación se autenticaba con una cosa y

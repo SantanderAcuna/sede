@@ -305,6 +305,7 @@ jobs:
           DB_APP_PASSWORD: prueba
           DB_LECTURA_PASSWORD: prueba
           REDIS_PASSWORD: prueba
+          REDIS_SITIO_PASSWORD: prueba-sitio
           BACKUP_PASSPHRASE: prueba
           S3_ACCESS_KEY: prueba
           S3_SECRET_KEY: prueba
@@ -315,6 +316,7 @@ jobs:
           DB_APP_PASSWORD: prueba
           DB_LECTURA_PASSWORD: prueba
           REDIS_PASSWORD: prueba
+          REDIS_SITIO_PASSWORD: prueba-sitio
           BACKUP_PASSPHRASE: prueba
         run: |
           # Comprobación NEGATIVA. La puerta anterior demuestra que la pila se
@@ -328,6 +330,19 @@ jobs:
             exit 1
           fi
           echo "Sin DB_PASSWORD la pila no se resuelve, como debe."
+      - name: El sitio llega a Redis acotado por red, credencial y entorno (T9.5)
+        run: |
+          # El respaldo del sitio guarda copias en Redis. Lo que limita el daño de un sitio
+          # comprometido son tres cosas a la vez (red propia sin PostgreSQL, usuario ACL de
+          # mínimos privilegios y un entorno sin más secretos que los suyos); la guarda lee la
+          # pila ya resuelta y falla si cualquiera de las tres se afloja.
+          bash deploy/pruebas/guarda-cache-sitio.sh
+      - name: El usuario ACL «sitio» hace lo que el respaldo necesita y nada más (Redis real)
+        run: |
+          # Arranca el Redis de compose.yaml, con su comando, y prueba la ACL tal como Redis la
+          # interpreta. Una regla bien escrita que Redis lee distinto no la detecta ninguna
+          # guarda de texto.
+          bash deploy/pruebas/prueba-acl-redis-sitio.sh
       - name: nginx atiende las rutas de autenticación
         run: |
           # `/sanctum/csrf-cookie` cayó durante meses en el comodín del sitio (404) y
@@ -374,6 +389,7 @@ jobs:
           DB_APP_PASSWORD: prueba
           DB_LECTURA_PASSWORD: prueba
           REDIS_PASSWORD: prueba
+          REDIS_SITIO_PASSWORD: prueba-sitio
           BACKUP_PASSPHRASE: prueba
           S3_ACCESS_KEY: prueba
           S3_SECRET_KEY: prueba
@@ -502,6 +518,7 @@ jobs:
           DB_APP_PASSWORD: prueba
           DB_LECTURA_PASSWORD: prueba
           REDIS_PASSWORD: prueba
+          REDIS_SITIO_PASSWORD: prueba-sitio
           BACKUP_PASSPHRASE: prueba
           S3_ACCESS_KEY: prueba
           S3_SECRET_KEY: prueba

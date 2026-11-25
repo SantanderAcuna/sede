@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Añade al registro local las claves de los roles de la base (Fase 0A, ADR-0004).
+"""Añade al registro local las claves que faltan: las de los roles de la base (Fase 0A, ADR-0004)
+y la del usuario ACL `sitio` de Redis (Fase 0C, T9.5).
 
     python3 deploy/agregar-secretos-roles.py
 
-Añade, SI FALTAN, `DB_APP_PASSWORD_*` y `DB_LECTURA_PASSWORD_*` (staging y producción) a
+Añade, SI FALTAN, `DB_APP_PASSWORD_*`, `DB_LECTURA_PASSWORD_*` y `REDIS_SITIO_PASSWORD_*` (staging y producción) a
 `.accesos.local.env` y sus filas a `pass.md`. **No sobrescribe nada que ya exista** y no
 imprime ningún valor: sólo los nombres. Es idempotente: una segunda ejecución no cambia nada.
 
@@ -21,7 +22,12 @@ spec = importlib.util.spec_from_file_location("rotar", RAIZ / "deploy" / "rotar-
 rotar = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rotar)
 
-CLAVES = ["DB_APP_PASSWORD", "DB_LECTURA_PASSWORD"]
+# clave nueva -> fila de pass.md tras la cual se inserta
+CLAVES = {
+    "DB_APP_PASSWORD": "DB_PASSWORD",
+    "DB_LECTURA_PASSWORD": "DB_PASSWORD",
+    "REDIS_SITIO_PASSWORD": "REDIS_PASSWORD",
+}
 
 
 def agregar(env_path: pathlib.Path, pass_path: pathlib.Path) -> list[str]:
@@ -30,7 +36,7 @@ def agregar(env_path: pathlib.Path, pass_path: pathlib.Path) -> list[str]:
     pas = pass_path.read_text(encoding="utf-8").splitlines()
     nuevas: list[str] = []
 
-    for clave in CLAVES:
+    for clave, ancla in CLAVES.items():
         st, pr = f"{clave}_STAGING", f"{clave}_PRODUCTION"
         existentes = {m.group(1) for l in env if (m := re.match(r"^([A-Z0-9_]+)=", l))}
         if st not in existentes:
@@ -48,11 +54,11 @@ def agregar(env_path: pathlib.Path, pass_path: pathlib.Path) -> list[str]:
         if not tiene_fila:
             fila = f"| {clave} | `{valores[st]}` | `{valores[pr]}` |"
             destino = next(
-                (i for i, l in enumerate(pas) if l.startswith("|") and l.strip().strip("|").split("|")[0].strip().strip("`") == "DB_PASSWORD"),
+                (i for i, l in enumerate(pas) if l.startswith("|") and l.strip().strip("|").split("|")[0].strip().strip("`") == ancla),
                 None,
             )
             if destino is None:
-                sys.exit("ABORTADO: no encontré la fila «DB_PASSWORD» en pass.md; no se escribió nada.")
+                sys.exit(f"ABORTADO: no encontré la fila «{ancla}» en pass.md; no se escribió nada.")
             pas.insert(destino + 1, fila)
             nuevas.append(f"fila {clave} en pass.md")
 

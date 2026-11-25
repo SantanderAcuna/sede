@@ -248,7 +248,7 @@ el titular).
   búsqueda y pierde el resultado sin JavaScript.
 
 **Decisión aplicada: opción A (canal interno de confianza), ADR-0018.** Recomendada por mí y aprobada por el titular («hazlo»); ver opciones arriba. El sitio
-reenvía las lecturas del render a un puerto interno de nginx con la IP del visitante.
+reenvía las lecturas del render a un puerto interno de nginx con la IP del visitante. *(Desde T9.4 y T9.5, con Redis configurado, las lecturas de la lista blanca pasan antes por el respaldo de la última respuesta válida; `/buscar` queda fuera de ella. Archivo 0009.)*
 
 **Verificación antes de desplegar (HECHO, sin staging):**
 - nginx 1.24 real: con la cabecera, el cupo se separa por visitante (A pasa a 429 en la 4.ª petición,

@@ -69,6 +69,11 @@ async function csrf(): Promise<void> {
       `No se pudo iniciar la sesión: el servidor no entregó la cookie CSRF (HTTP ${respuesta.status}).`
     )
   }
+
+  // La cookie ya está puesta (viene en las cabeceras). El cuerpo (204: vacío) se lee hasta el
+  // final porque, sin leerlo, Chrome deja la petición en su registro de red como
+  // `net::ERR_ABORTED` aunque haya salido bien, y eso confunde al diagnosticar el acceso.
+  await respuesta.text()
 }
 
 /**

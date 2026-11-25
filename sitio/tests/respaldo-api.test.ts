@@ -6,7 +6,7 @@
  * 429 son respuestas de la API y se pasan tal cual. Tampoco se guarda nada que sea de una persona
  * (cookies, `no-store`, URLs firmadas) ni nada que no sea de la sede pública.
  */
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ApiNoDisponible,
@@ -21,6 +21,7 @@ import {
   type Almacen,
   type EntradaRespaldo,
   type RespuestaApi,
+  type Resultado,
 } from '../server/utils/respaldo-api'
 
 const DOMINIO = 'sede.example.test'
@@ -164,7 +165,7 @@ describe('resolver: la API responde', () => {
     expect(almacen.guardados).toEqual([])
   })
 
-  it('la petición sale SIN cookie ni authorization (H33) y con el tiempo de espera corto', async () => {
+  it('la petición sale SIN cookie ni authorization (H33) y con el tiempo máximo de 20 s (la copia se busca aparte, a los 4 s)', async () => {
     const { pedir, llamadas } = montar([ok()])
     await pedir('/banners', {}, { Cookie: 'sesion=1', Authorization: 'Bearer x', 'Proxy-Authorization': 'y', 'Accept-Language': 'es' })
     const enviadas = Object.keys(llamadas[0]!.cabeceras).map(c => c.toLowerCase())
@@ -172,7 +173,7 @@ describe('resolver: la API responde', () => {
     expect(enviadas).not.toContain('authorization')
     expect(enviadas).not.toContain('proxy-authorization')
     expect(enviadas).toContain('accept-language')
-    expect(llamadas[0]!.tiempoMs).toBe(4000)
+    expect(llamadas[0]!.tiempoMs).toBe(20_000)
   })
 
   it.each([
@@ -394,6 +395,205 @@ describe('resolver: la API no contesta', () => {
     const m = montar([ok({ data: 1, meta: { last_page: 5 } }), conEstado(503)])
     await m.pedir('/noticias', { page: '1' })
     expect(await m.pedir('/noticias', { page: '2' })).toMatchObject({ origen: 'api', estado: 503 })
+  })
+})
+
+// H31 revisada (decisión de José, 2026-11-25): a los 4 s se sirve la copia SI EXISTE; si no existe se
+// sigue esperando a la API hasta 20 s, como el proxy de siempre. La petición a la API NO se cancela
+// a los 4 s: si la respuesta llega después y es válida, se guarda como copia nueva; y una respuesta
+// lenta que llega bien no cuenta como fallo del cortocircuito.
+describe('tiempo: a los 4 s la copia si existe; sin copia se espera hasta 20 s', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  interface Plan { ms: number; respuesta?: RespuestaApi }
+  interface Pedido { listo: boolean; valor?: Resultado | null; error?: unknown }
+
+  /** `respuesta` ausente = la API se cuelga: falla con TimeoutError cuando se agota el tiempo que se le dio. */
+  function montarLento(planes: Plan[]) {
+    const almacen = almacenEnMemoria()
+    const tiempos: number[] = []
+    let i = 0
+    const traer = vi.fn((_r: string, _q: Record<string, string>, _c: Record<string, string>, tiempoMs: number) => {
+      tiempos.push(tiempoMs)
+      const plan = planes[Math.min(i++, planes.length - 1)]!
+      return new Promise<RespuestaApi>((resolver, rechazar) => {
+        if (plan.respuesta !== undefined && plan.ms <= tiempoMs) setTimeout(() => resolver(plan.respuesta!), plan.ms)
+        else setTimeout(() => rechazar(Object.assign(new Error('tiempo agotado'), { name: 'TimeoutError' })), tiempoMs)
+      })
+    })
+    const respaldo = crearRespaldo({ almacen, traer, ahora: () => Date.now(), dominio: DOMINIO })
+    const clave = claveDeRespaldo('/tramites/uno', {})!
+    const conCopia = () => { almacen.datos.set(clave, { cuerpo: '{"copia":1}', tipo: 'application/json', guardadoEn: Date.now() }) }
+    const pedir = (): Pedido => {
+      const pedido: Pedido = { listo: false }
+      respaldo.resolver({ ruta: '/tramites/uno', query: {}, cabeceras: {}, anfitrion: DOMINIO })
+        .then((v) => { pedido.listo = true; pedido.valor = v }, (e: unknown) => { pedido.listo = true; pedido.error = e })
+      return pedido
+    }
+    return { almacen, traer, tiempos, respaldo, clave, conCopia, pedir }
+  }
+  const avanzar = (ms: number) => vi.advanceTimersByTimeAsync(ms)
+
+  it('con copia y la API a 6 s: la copia sale a los 4 s, ni antes ni después', async () => {
+    const t = montarLento([{ ms: 6000, respuesta: ok({ data: 'nueva' }) }])
+    t.conCopia()
+    const p = t.pedir()
+    await avanzar(3999)
+    expect(p.listo).toBe(false)
+    await avanzar(1)
+    expect(p.listo).toBe(true)
+    expect(p.valor).toMatchObject({ origen: 'respaldo', motivo: 'tiempo', cuerpo: '{"copia":1}' })
+    await avanzar(20_000)
+  })
+
+  it('la petición a la API sale con 20 s de plazo: no se cancela a los 4 s', async () => {
+    const t = montarLento([{ ms: 6000, respuesta: ok() }])
+    t.pedir()
+    await avanzar(30_000)
+    expect(t.tiempos).toEqual([20_000])
+  })
+
+  it('sin copia y la API a 6 s: responde 200 a los 6 s, no error a los 4 s', async () => {
+    const t = montarLento([{ ms: 6000, respuesta: ok({ data: 'lenta' }) }])
+    const p = t.pedir()
+    await avanzar(5999)
+    expect(p.listo).toBe(false)
+    await avanzar(1)
+    expect(p.error).toBeUndefined()
+    expect(p.valor).toMatchObject({ origen: 'api', estado: 200, cuerpo: '{"data":"lenta"}' })
+  })
+
+  it('sin copia y la API colgada: TimeoutError a los 20 s, como el proxy de siempre', async () => {
+    const t = montarLento([{ ms: 0 }])
+    const p = t.pedir()
+    await avanzar(19_999)
+    expect(p.listo).toBe(false)
+    await avanzar(1)
+    expect(p.listo).toBe(true)
+    expect((p.error as Error).name).toBe('TimeoutError')
+  })
+
+  it('sin copia y la API contesta 503 a los 6 s: devuelve ese 503 a los 6 s', async () => {
+    const t = montarLento([{ ms: 6000, respuesta: conEstado(503) }])
+    const p = t.pedir()
+    await avanzar(5999)
+    expect(p.listo).toBe(false)
+    await avanzar(1)
+    expect(p.valor).toMatchObject({ origen: 'api', estado: 503 })
+  })
+
+  it('servida la copia a los 4 s, la respuesta válida que llega a los 6 s se guarda como copia nueva', async () => {
+    const t = montarLento([{ ms: 6000, respuesta: ok({ data: 'nueva' }) }])
+    t.conCopia()
+    t.pedir()
+    await avanzar(6000)
+    await t.respaldo.esperarEscrituras()
+    expect(t.almacen.datos.get(t.clave)!.cuerpo).toBe('{"data":"nueva"}')
+  })
+
+  it('una respuesta lenta que llega bien NO cuenta como fallo: el circuito no abre', async () => {
+    const t = montarLento([{ ms: 6000, respuesta: ok() }])
+    t.conCopia()
+    t.pedir(); t.pedir(); t.pedir()
+    await avanzar(4500) // las tres ya sirvieron la copia; la API aún no ha contestado
+    t.pedir()
+    await avanzar(0)
+    expect(t.traer).toHaveBeenCalledTimes(4) // la cuarta SÍ llama a la API: el circuito sigue cerrado
+    await avanzar(30_000)
+  })
+
+  it('una respuesta lenta que acaba en 5xx SÍ cuenta: tras tres, el circuito abre y la cuarta ni llama', async () => {
+    const t = montarLento([{ ms: 6000, respuesta: conEstado(503) }])
+    t.conCopia()
+    t.pedir(); t.pedir(); t.pedir()
+    await avanzar(6000)
+    const cuarta = t.pedir()
+    await avanzar(1)
+    expect(t.traer).toHaveBeenCalledTimes(3)
+    expect(cuarta.valor).toMatchObject({ origen: 'respaldo', motivo: 'circuito' })
+  })
+
+  it('una API colgada con copia: los 3 plazos de 20 s agotados abren el circuito', async () => {
+    const t = montarLento([{ ms: 0 }])
+    t.conCopia()
+    t.pedir(); t.pedir(); t.pedir()
+    await avanzar(20_000)
+    const cuarta = t.pedir()
+    await avanzar(1)
+    expect(t.traer).toHaveBeenCalledTimes(3)
+    expect(cuarta.valor).toMatchObject({ origen: 'respaldo', motivo: 'circuito' })
+  })
+
+  it('la sonda sigue «en vuelo» hasta que la API contesta: otra petición no lanza otra sonda', async () => {
+    const t = montarLento([{ ms: 0 }])
+    t.conCopia()
+    t.pedir(); t.pedir(); t.pedir()
+    await avanzar(20_000) // circuito abierto por 30 s
+    await avanzar(30_001) // pausa cumplida
+    const sonda = t.pedir()
+    await avanzar(4000)
+    expect(sonda.valor).toMatchObject({ origen: 'respaldo', motivo: 'tiempo' }) // la sonda ya sirvió la copia
+    expect(t.traer).toHaveBeenCalledTimes(4)
+    const otra = t.pedir()
+    await avanzar(1)
+    expect(t.traer).toHaveBeenCalledTimes(4) // sin sonda nueva mientras la primera sigue sin contestar
+    expect(otra.valor).toMatchObject({ origen: 'respaldo', motivo: 'circuito' })
+    await avanzar(20_000)
+  })
+
+  it('un almacén que revienta al guardar la copia nueva NO deja un rechazo sin dueño (Node 24 lo trataría como error fatal)', async () => {
+    const t = montarLento([{ ms: 6000, respuesta: ok({ data: 'nueva' }) }])
+    t.conCopia()
+    t.almacen.guardar = (() => { throw new Error('almacén roto') }) as never
+    const sinDueno = vi.fn()
+    process.on('unhandledRejection', sinDueno)
+    try {
+      t.pedir()
+      await avanzar(6000)
+      await t.respaldo.esperarEscrituras()
+      await avanzar(10)
+      expect(sinDueno).not.toHaveBeenCalled()
+    } finally {
+      process.off('unhandledRejection', sinDueno)
+    }
+  })
+
+  it('si liquidar la respuesta tardía lanzara algo, tampoco queda un rechazo sin dueño', async () => {
+    const almacen = almacenEnMemoria()
+    const traer = vi.fn(() => new Promise<RespuestaApi>((resolver) => { setTimeout(() => resolver(ok()), 6000) }))
+    // Un dominio que no es texto hace lanzar a `sePuedeGuardar`: simula un fallo inesperado del código.
+    const respaldo = crearRespaldo({ almacen, traer, ahora: () => Date.now(), dominio: undefined as unknown as string })
+    almacen.datos.set(claveDeRespaldo('/tramites/uno', {})!, { cuerpo: '{}', tipo: 'application/json', guardadoEn: Date.now() })
+    const sinDueno = vi.fn()
+    process.on('unhandledRejection', sinDueno)
+    try {
+      const r = respaldo.resolver({ ruta: '/tramites/uno', query: {}, cabeceras: {}, anfitrion: DOMINIO })
+      await avanzar(4000)
+      await expect(r).resolves.toMatchObject({ origen: 'respaldo', motivo: 'tiempo' })
+      await avanzar(3000)
+      await avanzar(10)
+      expect(sinDueno).not.toHaveBeenCalled()
+    } finally {
+      process.off('unhandledRejection', sinDueno)
+    }
+  })
+
+  it('un fallo inesperado al liquidar (guardar, contar) no convierte en error una respuesta sana de la API', async () => {
+    const almacen = almacenEnMemoria()
+    const traer = vi.fn(async () => ok({ data: 'sana' }))
+    const respaldo = crearRespaldo({ almacen, traer, ahora: () => Date.now(), dominio: undefined as unknown as string })
+    const r = respaldo.resolver({ ruta: '/tramites/uno', query: {}, cabeceras: {}, anfitrion: DOMINIO })
+    await avanzar(10)
+    await expect(r).resolves.toMatchObject({ origen: 'api', estado: 200, cuerpo: '{"data":"sana"}' })
+  })
+
+  it('el plazo de 4 s no deja temporizadores colgados cuando la API contesta antes', async () => {
+    const t = montarLento([{ ms: 100, respuesta: ok() }])
+    const p = t.pedir()
+    await avanzar(100)
+    expect(p.valor).toMatchObject({ origen: 'api' })
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
 

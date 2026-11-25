@@ -13,7 +13,7 @@
  *     igual con Redis caído o sin configurar (ADR-0018) y nunca espera a Redis para arrancar.
  *   - **Sin Redis configurado, el respaldo no interviene:** `atender` devuelve `null` y la ruta sigue
  *     por `proxyRequest` (corte a 20 s), igual que antes de T9.4. Con Redis configurado pero caído,
- *     sí interviene: es el caso para el que se diseñó el corte de 4 s (H31).
+ *     sí interviene: a los 4 s sirve la copia si existe y, si no existe, sigue esperando a la API (H31 revisada).
  *   - **Cierre ordenado:** primero se esperan las escrituras en vuelo y después se cierra la
  *     conexión compartida.
  */
@@ -114,9 +114,8 @@ export function crearEntornoDelSitio(config: ConfigSitio, dependencias: Dependen
   })
   const entorno: EntornoRespaldo = { respaldo, registrar }
 
-  // Sin Redis no hay copia que servir. Si la lectura pasara por el núcleo, su corte de 4 s
-  // convertiría en 502 una API lenta que el proxy de siempre (20 s) sí espera (medido: API a 6 s →
-  // TimeoutError a los 4,0 s). Así que sin Redis la ruta la sirve como antes de T9.4.
+  // Sin Redis no hay copia que servir ni dónde guardarla: el respaldo no aporta nada, así que la
+  // ruta sirve la lectura como antes de T9.4 (proxy, 20 s).
   const conRespaldo = redisConfigurado(config.redis)
 
   return {

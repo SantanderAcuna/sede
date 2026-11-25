@@ -93,7 +93,7 @@ describe('crearEntornoDelSitio', () => {
     expect(registrar.mock.calls[0]![0]).toMatchObject({ evento: 'respaldo_servido', ruta: '/tramites', motivo: 'red' })
   })
 
-  // Sin Redis no hay copia que servir: el corte de 4 s del núcleo solo convertiría en 502 una API
+  // Sin Redis no hay copia que servir: el respaldo no aporta nada y el sitio sigue como antes de T9.4 (proxy, 20 s). Antes del cambio de H31 el corte de 4 s convertía en 502 una API
   // lenta que el proxy (20 s) sí espera (medido: API a 6 s → TimeoutError a los 4,0 s). Por eso,
   // con la configuración incompleta, la lectura NO pasa por el respaldo y la ruta la sirve como hoy.
   it.each([
@@ -114,7 +114,7 @@ describe('crearEntornoDelSitio', () => {
     expect(almacen).not.toHaveBeenCalled()
   })
 
-  it('con Redis configurado SÍ pasa por el respaldo (la API lenta se corta a los 4 s para servir la copia)', async () => {
+  it('con Redis configurado SÍ pasa por el respaldo (a los 4 s sirve la copia si existe; si no, espera a la API)', async () => {
     const { almacen } = almacenFalso()
     const fetchFalso = vi.fn(async () => json({ data: [1] }))
     const entorno = crearEntornoDelSitio(CONFIG, {

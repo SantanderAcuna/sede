@@ -28,13 +28,20 @@ const slug = computed(() => String(route.params.slug ?? ''))
 
 const api = useClienteApi()
 
-const { data, error } = await useAsyncData<RespuestaFicha>(
+// `leerONulo`: solo un 404 de la API es «no existe» (`null`). Cualquier otro fallo (red, 5xx, tiempo
+// agotado) se propaga y NO es un 404: una caída pasajera no puede hacer pasar por inexistente una
+// ficha real (un buscador la retiraría de su índice).
+const { data, error } = await useAsyncData<RespuestaFicha | null>(
   () => `tramite-${slug.value}`,
-  () => api.leer<RespuestaFicha>(`/tramites/${encodeURIComponent(slug.value)}`),
+  () => api.leerONulo<RespuestaFicha>(`/tramites/${encodeURIComponent(slug.value)}`),
 )
 
+if (error.value) {
+  throw createError({ statusCode: 503, statusMessage: 'Service Unavailable', fatal: true })
+}
+
 // Un slug que no existe es un 404 de verdad, no una página vacía.
-if (error.value || !data.value?.data) {
+if (!data.value?.data) {
   throw createError({ statusCode: 404, statusMessage: 'El trámite no existe.', fatal: true })
 }
 

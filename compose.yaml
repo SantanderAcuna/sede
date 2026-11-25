@@ -56,9 +56,11 @@ x-comun-app: &comun-app
   security_opt:
     - no-new-privileges:true
   cap_drop: [ALL]
+  # `/app/bootstrap/cache` NO se monta: sus manifiestos (`packages.php`, `services.php`) los
+  # genera la imagen al construirse y deben ser los de ESA versión. Un volumen con nombre ahí
+  # conservaba los de la versión que lo creó (deploy/pruebas/guarda-bootstrap-cache.sh).
   volumes:
     - almacenamiento-app:/app/storage
-    - cache-app:/app/bootstrap/cache
 
 services:
 
@@ -167,11 +169,10 @@ services:
     # Además de lo común, monta las copias de seguridad: ESTE es el proceso que
     # ejecuta `backup:run` cada noche (backend/routes/console.php). `volumes` en un
     # servicio que hereda por `<<` REEMPLAZA la lista, no la amplía; por eso se
-    # repiten los dos montajes de siempre. Los demás servicios NO montan `/copias`:
+    # repite el montaje de siempre. Los demás servicios NO montan `/copias`:
     # lo que no necesita escribir las copias no debe poder alcanzarlas.
     volumes:
       - almacenamiento-app:/app/storage
-      - cache-app:/app/bootstrap/cache
       - copias:/copias
     # La sonda se DESACTIVA, y no es un descuido: sin declararla, este servicio
     # hereda la de la IMAGEN, que habla FastCGI contra PHP-FPM —un proceso que
@@ -391,7 +392,6 @@ services:
       PGOPTIONS: "-c statement_timeout=120000 -c lock_timeout=5000 -c idle_in_transaction_session_timeout=60000"
     volumes:
       - almacenamiento-app:/app/storage
-      - cache-app:/app/bootstrap/cache
       - copias:/copias
     restart: "no"
 
@@ -490,8 +490,6 @@ volumes:
     name: ${APP_NAME:-sede}-datos-redis
   almacenamiento-app:
     name: ${APP_NAME:-sede}-almacenamiento-app
-  cache-app:
-    name: ${APP_NAME:-sede}-cache-app
   # Copias de seguridad de la base. Volumen PROPIO, separado del almacenamiento de
   # la aplicación. Sigue estando en el mismo servidor: protege de errores lógicos y
   # borrados, no de perder la máquina (docs/copias-de-seguridad.md).

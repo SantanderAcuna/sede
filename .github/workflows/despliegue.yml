@@ -17,14 +17,17 @@ on:
   workflow_dispatch:
     inputs:
       entorno:
-        description: Entorno a desplegar
+        # Se lanza desde la rama del entorno: `staging` para staging, `main` para producción.
+        # Desde otra rama no se despliega nada.
+        description: Entorno a desplegar (lanzar desde su rama)
         required: true
         type: choice
         options: [staging, produccion]
 
 concurrency:
   # Un despliegue por entorno y de uno en uno: dos simultáneos sobre el mismo
-  # servidor se pisan al migrar.
+  # servidor se pisan al migrar. Es por rama porque cada entorno sale de UNA sola rama
+  # (condiciones de los trabajos `staging` y `produccion`).
   group: despliegue-${{ github.ref_name }}
   cancel-in-progress: false
 
@@ -259,8 +262,12 @@ jobs:
     name: Desplegar en pruebas
     needs: [construir]
     timeout-minutes: 20
+    # Solo desde la rama `staging`, por empuje o a mano. Antes bastaba `inputs.entorno`, y un
+    # lanzamiento a mano desde otra rama desplegaba aquí el commit de ESA rama (y desde `main`
+    # disparaba además producción). Ver deploy/pruebas/prueba-condiciones-despliegue.py.
     if: |
-      (github.ref_name == 'staging' || inputs.entorno == 'staging')
+      github.ref_name == 'staging'
+      && (github.event_name == 'push' || inputs.entorno == 'staging')
       && vars.SEDE_DESPLIEGUE_STAGING == 'true'
     runs-on: ubuntu-latest
     # `SEDE_DOMINIO` es una variable del entorno, no del repositorio: el trabajo
@@ -466,8 +473,10 @@ jobs:
     name: Desplegar en producción
     needs: [construir]
     timeout-minutes: 20
+    # Solo desde `main`, por empuje o a mano (misma regla que staging).
     if: |
-      (github.ref_name == 'main' || inputs.entorno == 'produccion')
+      github.ref_name == 'main'
+      && (github.event_name == 'push' || inputs.entorno == 'produccion')
       && vars.SEDE_DESPLIEGUE_PRODUCCION == 'true'
     runs-on: ubuntu-latest
     environment:

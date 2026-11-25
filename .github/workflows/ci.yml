@@ -473,6 +473,11 @@ jobs:
           # suya; esta guarda comprueba que la huella del repositorio sea la del guion
           # actual, que el Dockerfile la copie y que la comprobación distinga los tres casos.
           bash deploy/pruebas/guarda-guion-instalado.sh
+      - name: Cada entorno se despliega solo desde su rama
+        run: |
+          # Evalúa los `if:` reales de despliegue.yml para empujes y lanzamientos a mano desde
+          # cada rama. Antes, lanzar «staging» a mano desde main disparaba también producción.
+          python3 deploy/pruebas/prueba-condiciones-despliegue.py
       - name: El TLS a la base se exige y el certificado se emite y se renueva
         run: |
           # Contra el servicio `postgres` real de compose.yaml: una conexión sin cifrar es

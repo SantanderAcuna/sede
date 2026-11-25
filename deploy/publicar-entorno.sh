@@ -77,6 +77,7 @@ DB_PASSWORD="$(valor "DB_PASSWORD_$SUFIJO")"
 DB_APP_PASSWORD="$(valor "DB_APP_PASSWORD_$SUFIJO")"
 DB_LECTURA_PASSWORD="$(valor "DB_LECTURA_PASSWORD_$SUFIJO")"
 REDIS_PASSWORD="$(valor "REDIS_PASSWORD_$SUFIJO")"
+REDIS_SITIO_PASSWORD="$(valor "REDIS_SITIO_PASSWORD_$SUFIJO")"
 BACKUP_PASSPHRASE="$(valor "BACKUP_PASSPHRASE_$SUFIJO")"
 S3_ACCESS_KEY="$(valor "S3_ACCESS_KEY_$SUFIJO")"
 S3_SECRET_KEY="$(valor "S3_SECRET_KEY_$SUFIJO")"
@@ -117,7 +118,7 @@ paso "1. Renderizado del entorno ($ENTORNO)"
 # Las integraciones sin credenciales se declaran APAGADAS con `mock`, que es la
 # convención de la propia plantilla: ofrecer un botón que no lleva a ninguna parte
 # es peor que decir que no está.
-export APP_KEY DB_PASSWORD DB_APP_PASSWORD DB_LECTURA_PASSWORD REDIS_PASSWORD BACKUP_PASSPHRASE
+export APP_KEY DB_PASSWORD DB_APP_PASSWORD DB_LECTURA_PASSWORD REDIS_PASSWORD REDIS_SITIO_PASSWORD BACKUP_PASSPHRASE
 export S3_ACCESS_KEY S3_SECRET_KEY
 export DOMINIO ENTORNO
 export SUPER_ADMIN_EMAIL SUPER_ADMIN_NAME SUPER_ADMIN_PASSWORD
@@ -164,7 +165,8 @@ verde "  sin marcadores pendientes"
 # al usarlo. Se comprueban uno a uno, por su nombre.
 for pareja in "APP_KEY:$APP_KEY" "DB_PASSWORD:$DB_PASSWORD" \
               "DB_APP_PASSWORD:$DB_APP_PASSWORD" "DB_LECTURA_PASSWORD:$DB_LECTURA_PASSWORD" \
-              "REDIS_PASSWORD:$REDIS_PASSWORD" "BACKUP_PASSPHRASE:$BACKUP_PASSPHRASE"; do
+              "REDIS_PASSWORD:$REDIS_PASSWORD" "REDIS_SITIO_PASSWORD:$REDIS_SITIO_PASSWORD" \
+              "BACKUP_PASSPHRASE:$BACKUP_PASSPHRASE"; do
   nombre="${pareja%%:*}"; contenido="${pareja#*:}"
   if [ -z "$contenido" ]; then rojo "  Falta $nombre en el registro."; exit 1; fi
 done
@@ -175,7 +177,7 @@ verde "  los secretos obligatorios están presentes"
 comprobar_pila() {
   local carpeta="$1"
   ( cd "$carpeta" && \
-    APP_KEY="$APP_KEY" DB_PASSWORD="$DB_PASSWORD" DB_APP_PASSWORD="$DB_APP_PASSWORD" DB_LECTURA_PASSWORD="$DB_LECTURA_PASSWORD" REDIS_PASSWORD="$REDIS_PASSWORD" \
+    APP_KEY="$APP_KEY" DB_PASSWORD="$DB_PASSWORD" DB_APP_PASSWORD="$DB_APP_PASSWORD" DB_LECTURA_PASSWORD="$DB_LECTURA_PASSWORD" REDIS_PASSWORD="$REDIS_PASSWORD" REDIS_SITIO_PASSWORD="$REDIS_SITIO_PASSWORD" \
     BACKUP_PASSPHRASE="$BACKUP_PASSPHRASE" S3_ACCESS_KEY="$S3_ACCESS_KEY" \
     S3_SECRET_KEY="$S3_SECRET_KEY" docker compose -f compose.yaml config --quiet )
 }
@@ -271,7 +273,7 @@ trap 'rm -f "$RENDERIZADO" "$SECRETOS_TMP"; rm -rf "$PAQUETE"' EXIT
   echo "# no está en GitHub y no entra en ninguna imagen. No editar a mano."
   # `${!nombre}` es expansión indirecta de bash: el valor se lee sin pasar por `eval`.
   # Con `eval`, un secreto con acentos graves o `$(...)` se ejecutaría aquí.
-  for nombre in APP_KEY DB_PASSWORD DB_APP_PASSWORD DB_LECTURA_PASSWORD REDIS_PASSWORD BACKUP_PASSPHRASE; do
+  for nombre in APP_KEY DB_PASSWORD DB_APP_PASSWORD DB_LECTURA_PASSWORD REDIS_PASSWORD REDIS_SITIO_PASSWORD BACKUP_PASSPHRASE; do
     printf '%s=%s\n' "$nombre" "${!nombre}"
   done
   for nombre in SUPER_ADMIN_EMAIL SUPER_ADMIN_NAME SUPER_ADMIN_PASSWORD \

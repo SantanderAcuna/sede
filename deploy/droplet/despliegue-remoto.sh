@@ -497,6 +497,72 @@ volver_atras() {
   $COMPOSE up -d --force-recreate nginx
 }
 
+# --- Limpieza de imágenes -----------------------------------------------------
+#
+# Cada despliegue trae tres imágenes nuevas (app, nginx, sitio) y nada las retiraba: el
+# 2026-11-26 había 194 versiones de cada una (137 GB, 134,7 GB recuperables) en un disco
+# de 154 GB con 21 GB libres. Un disco lleno tumba la sede, la base de datos y los
+# despliegues a la vez.
+#
+# Criterio, por ETIQUETA y no por edad. `docker image prune -a --filter until=…` borra
+# TODA imagen sin contenedor y vieja, incluida la versión anterior de un entorno que se
+# despliega poco (la vuelta atrás ya no tendría a dónde volver sin red) y las imágenes de
+# terceros (postgres, redis) si un día están paradas. Aquí:
+#   · solo se miran los tres repositorios del proyecto y solo etiquetas que son una
+#     confirmación (hexadecimal);
+#   · se CONSERVAN la versión y la versión anterior de CADA entorno de este servidor
+#     (`/var/lib/sede/*/version` y `version.anterior`), más la que se acaba de desplegar;
+#   · el resto se borra con `docker rmi` SIN `-f`: si algo la usa, Docker se niega y no
+#     pasa nada;
+#   · las imágenes colgantes se limpian con `image prune -f`, sin `-a`.
+#
+# Solo corre cuando la sede ya respondió: en un despliegue fallido no se borra nada, que
+# es justo cuando hace falta lo que haya. Y NUNCA convierte un despliegue bueno en uno
+# fallido: todo error aquí es un AVISO. Tiene un tope de tiempo; lo que no alcance queda
+# para el siguiente despliegue.
+aviso() { printf '\033[33m%s\033[0m\n' "$*" >&2; }
+
+limpiar_imagenes() {
+  local limite="${SEDE_LIMPIEZA_SEGUNDOS:-240}" inicio="$SECONDS"
+  local conservar=" " f etiqueta ref borradas=0 fallidas=0 pendientes=0
+
+  for f in /var/lib/sede/*/version /var/lib/sede/*/version.anterior; do
+    [ -f "$f" ] || continue
+    etiqueta="$(tr -d '[:space:]' < "$f" 2> /dev/null)" || continue
+    case "$etiqueta" in '' | *[!0-9a-f]*) continue ;; esac
+    conservar+="$etiqueta "
+  done
+  # Aunque un archivo de estado no se pudiera leer, estas dos nunca se tocan.
+  conservar+="$VERSION "
+  [ -n "$ANTERIOR" ] && conservar+="$ANTERIOR "
+
+  while IFS= read -r ref; do
+    case "$ref" in
+      "$REGISTRO_CONFIABLE/$NOMBRE_APP-app:"* | "$REGISTRO_CONFIABLE/$NOMBRE_APP-nginx:"* | "$REGISTRO_CONFIABLE/$NOMBRE_APP-sitio:"*) ;;
+      *) continue ;;
+    esac
+    etiqueta="${ref##*:}"
+    case "$etiqueta" in '' | *[!0-9a-f]*) continue ;; esac
+    case "$conservar" in *" $etiqueta "*) continue ;; esac
+    if [ $((SECONDS - inicio)) -ge "$limite" ]; then
+      pendientes=$((pendientes + 1))
+      continue
+    fi
+    if docker rmi "$ref" > /dev/null 2>&1; then
+      borradas=$((borradas + 1))
+    else
+      fallidas=$((fallidas + 1))
+    fi
+  done < <(docker images --format '{{.Repository}}:{{.Tag}}' 2> /dev/null)
+
+  docker image prune -f > /dev/null 2>&1 || aviso "  AVISO: no se pudieron limpiar las imágenes colgantes."
+
+  verde "  imágenes: $borradas borradas, versiones en uso o anterior conservadas"
+  [ "$fallidas" -eq 0 ] || aviso "  AVISO: Docker no pudo borrar $fallidas imágenes (en uso u otro motivo). No afecta al despliegue."
+  [ "$pendientes" -eq 0 ] || aviso "  AVISO: se agotó el tope de ${limite}s y quedan $pendientes imágenes para el próximo despliegue."
+  return 0
+}
+
 # --- Despliegue ---------------------------------------------------------------
 echo "Desplegando $VERSION en $ENTORNO"
 
@@ -575,6 +641,7 @@ for _ in $(seq 1 "$ESPERADO"); do
     verde "  la sede responde"
     echo
     $COMPOSE ps --format 'table {{.Service}}\t{{.Status}}' | sed 's/^/  /'
+    limpiar_imagenes || true
     exit 0
   fi
   # Si el punto de entrada está en bucle de reinicio, esperar los 180 segundos no

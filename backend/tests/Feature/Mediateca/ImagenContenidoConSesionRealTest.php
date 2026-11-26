@@ -94,6 +94,10 @@ final class ImagenContenidoConSesionRealTest extends TestCase
         $r->assertOk();
         $this->assertStringContainsString('no-store', (string) $r->headers->get('Cache-Control'));
         $this->assertStringContainsString('private', (string) $r->headers->get('Cache-Control'));
+        // T9.7: nginx no guarda una respuesta con `Set-Cookie`; es la segunda defensa (tras la cookie y `private`)
+        // para que el borrador del editor no llegue a la caché compartida. Esta prueba fija que la ruta la emite.
+        $nombres = array_map(static fn ($c): string => $c->getName(), $r->headers->getCookies());
+        $this->assertContains((string) config('session.cookie'), $nombres, 'La respuesta al editor debe renovar su cookie de sesión.');
     }
 
     public function test_sin_cookie_de_sesion_la_lectura_no_abre_sesion_ni_pone_cookies(): void

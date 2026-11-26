@@ -382,6 +382,18 @@ jobs:
       - name: El index del panel se revalida en cada visita (caché tras desplegar)
         run: bash deploy/pruebas/guarda-cache-index-panel.sh
 
+      - name: La caché de nginx para imágenes y documentos está bien declarada (T9.7)
+        run: |
+          # Estática: nombre de la cookie de sesión igual al de Laravel, `fastcgi_read_timeout` una sola vez,
+          # ubicación antes de `~ /\.`, sin `add_header`, servicio de barrido mínimo en compose.
+          bash deploy/pruebas/guarda-cache-nginx.sh
+      - name: La caché de nginx se comporta como el diseño dice (nginx real, origen FastCGI simulado)
+        run: |
+          # Arranca la imagen y la configuración REALES, con las restricciones de compose.yaml, y comprueba
+          # MISS/HIT, el bypass del editor, que lo despublicado no vuelve, el 304, los 403 que ya existían,
+          # una sola generación de documento por ráfaga y el barrido. PHP-FPM no se ejercita aquí.
+          bash deploy/pruebas/prueba-cache-nginx.sh
+
       - name: El canal interno del sitio no se publica (ADR-0018)
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=

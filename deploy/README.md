@@ -133,6 +133,10 @@ arriba y no hay nada que revertir. Dos consecuencias:
    la huella es obligatoria y no queda ninguno; la vigilancia nocturna es `archivos:verificar`). Es
    idempotente y **no revierte el despliegue** si algún archivo no se lee: avisa y sigue.
 5. Levanta los contenedores y espera a que `/ready` responda.
+   Con la versión de T9.7 hay un servicio más, `cache-barrido` (borra de la caché de nginx lo que lleva
+   más de 24 h sin renovarse; ver el archivo 0010). Si aparece como `unhealthy`, el `healthcheck: disable`
+   de `compose.yaml` se perdió. La caché vive en el volumen `<APP_NAME>-cache-sede`; se rellena sola con
+   las peticiones, así que perderla no pierde datos.
 6. Si algo falla (migrar, sembrar o responder), vuelve solo a la versión anterior.
 
 ### Por qué siembra, y por qué así

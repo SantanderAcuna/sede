@@ -214,7 +214,10 @@ final class NoticiasTest extends TestCase
         $sinFoto = $this->noticia(['slug' => 'sin-foto']);
         $this->assertGreaterThan(0, $sinFoto);
 
-        $respuesta = $this->get('/api/v1/noticias/foto/imagen')->assertOk();
+        // Con el `Referer` del dominio de la sede, como lo manda el navegador en cada <img> (T9.7: nginx no guarda
+        // respuestas con `Set-Cookie`, y una sesión abierta aquí dejaría sin caché a todas las imágenes).
+        $respuesta = $this->withHeaders(['Referer' => 'http://'.((array) config('sanctum.stateful'))[0].'/'])
+            ->get('/api/v1/noticias/foto/imagen')->assertOk();
         $this->assertStringStartsWith('image/png', (string) $respuesta->headers->get('Content-Type'));
         $this->assertStringContainsString('public', (string) $respuesta->headers->get('Cache-Control'));
         $this->assertNotNull($respuesta->headers->get('ETag'));

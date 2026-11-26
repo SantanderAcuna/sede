@@ -4,13 +4,16 @@
  * Un `419` (sesión o token CSRF perdidos) llegaba al formulario como un error más y la
  * persona seguía «dentro» sin poder guardar, sin saber por qué. La decisión (José,
  * 2026-11-18): ante un `419` el panel NO navega ni cierra la sesión local; abre un aviso
- * para volver a entrar ahí mismo, con la MISMA cuenta, y lo escrito queda intacto. El `401`
- * y el `429` siguen como hoy.
+ * para volver a entrar ahí mismo, con la MISMA cuenta, y lo escrito queda intacto.
+ *
+ * Ampliación (2026-11-26, delegada por José tras medir en staging): el `401` con sesión
+ * abierta hace lo mismo que el `419`, salvo en `/panel/login` y `/panel/logout`, cuyo 401 es el
+ * resultado de entrar o salir. El `429` sigue como hoy. Ver `sesion-vencida-integracion.test.ts`.
  *
  * Qué protege:
- *   1. El interceptor REAL de `client.ts` (no un doble): un 419 con sesión activa levanta el
- *      aviso y conserva el usuario; sin sesión (pantalla de acceso) no hace nada; 401 y 429
- *      no cambian.
+ *   1. El interceptor REAL de `client.ts` (no un doble): un 419 o un 401 con sesión activa
+ *      levantan el aviso y conservan el usuario; sin sesión (pantalla de acceso) no hace nada;
+ *      el 429 no cambia; las respuestas de una sesión anterior se ignoran.
  *   2. El store: `reautenticar` usa el correo de la sesión, nunca otro; una contraseña mala,
  *      otra cuenta o un acceso que pide doble factor NO cierran el aviso.
  *   3. El modal: pide solo la contraseña, no permite cambiar de cuenta, muestra el error y
@@ -113,16 +116,94 @@ describe('1. interceptor de client.ts', () => {
     expect(sesion.avisoSesionVencida).toBe(true)
   })
 
-  it('401 sigue como hoy: cierra la sesión local y no levanta el aviso', async () => {
+  it('401 con sesión iniciada: mismo aviso que el 419; no cierra la sesión local ni llama a logout', async () => {
     const sesion = await conSesion()
     responderCon(401, 'No autenticado.')
 
     await expect(http.get('/panel/noticias')).rejects.toBeTruthy()
     await flushPromises()
 
-    expect(authModule.logout).toHaveBeenCalledTimes(1)
-    expect(sesion.iniciada).toBe(false)
+    expect(sesion.avisoSesionVencida).toBe(true)
+    expect(sesion.iniciada).toBe(true)
+    expect(authModule.logout).not.toHaveBeenCalled()
+  })
+
+  it('401 de /panel/login (credenciales malas) NO es una sesión perdida: no toca nada', async () => {
+    const sesion = await conSesion()
+    responderCon(401, 'Las credenciales no son válidas.')
+
+    await expect(http.post('/panel/login', {})).rejects.toBeTruthy()
+    await flushPromises()
+
     expect(sesion.avisoSesionVencida).toBe(false)
+    expect(sesion.iniciada).toBe(true)
+    expect(authModule.logout).not.toHaveBeenCalled()
+  })
+
+  it('401 o 419 de /panel/logout no levantan el aviso', async () => {
+    const sesion = await conSesion()
+    for (const estado of [401, 419]) {
+      responderCon(estado)
+      await expect(http.post('/panel/logout')).rejects.toBeTruthy()
+    }
+    expect(sesion.avisoSesionVencida).toBe(false)
+  })
+
+  it('un 401 con explicación del servidor la conserva como motivo; el genérico y el 419 no', async () => {
+    const sesion = await conSesion()
+
+    responderCon(401, 'La sesión terminó porque la cuenta ya no está activa.')
+    await http.post('/panel/noticias', {}).catch(() => undefined)
+    expect(sesion.motivoSesionVencida).toBe('La sesión terminó porque la cuenta ya no está activa.')
+
+    sesion.descartarAvisoSesionVencida()
+    responderCon(401, 'No autenticado.')
+    await http.get('/panel/noticias').catch(() => undefined)
+    expect(sesion.motivoSesionVencida).toBeNull()
+
+    sesion.descartarAvisoSesionVencida()
+    responderCon(419)
+    await http.post('/panel/noticias', {}).catch(() => undefined)
+    expect(sesion.motivoSesionVencida).toBeNull()
+  })
+
+  it('lectura 401 y después guardado 419: el aviso sigue (antes el 401 borraba la sesión y el 419 no abría nada)', async () => {
+    const sesion = await conSesion()
+
+    responderCon(401, 'No autenticado.')
+    await http.get('/panel/noticias').catch(() => undefined)
+    responderCon(419)
+    await http.post('/panel/noticias', {}).catch(() => undefined)
+
+    expect(sesion.avisoSesionVencida).toBe(true)
+    expect(sesion.iniciada).toBe(true)
+  })
+
+  it('una respuesta tardía de una petición ANTERIOR al nuevo acceso no reabre el aviso; una posterior sí', async () => {
+    const sesion = await conSesion()
+    sesion.marcarSesionVencida()
+    let soltar!: () => void
+    http.defaults.adapter = (config: InternalAxiosRequestConfig) =>
+      new Promise((_, rechazar) => {
+        soltar = () =>
+          rechazar(new AxiosError('x', 'ERR_BAD_REQUEST', config, null, {
+            status: 401, statusText: '', headers: {}, config,
+            data: { success: false, message: 'No autenticado.', data: null, errors: null },
+          }))
+      })
+    const tardia = http.get('/panel/noticias').catch(() => undefined)
+
+    vi.mocked(authModule.login).mockResolvedValueOnce(respuestaLogin(usuarioApi))
+    await sesion.reautenticar('clave-nueva')
+    expect(sesion.avisoSesionVencida).toBe(false)
+
+    soltar()
+    await tardia
+    expect(sesion.avisoSesionVencida).toBe(false)
+
+    responderCon(401, 'No autenticado.')
+    await http.get('/panel/noticias').catch(() => undefined)
+    expect(sesion.avisoSesionVencida).toBe(true)
   })
 
   it('429 sigue como hoy: no toca la sesión ni levanta el aviso', async () => {
@@ -218,6 +299,19 @@ describe('2. store: reautenticar', () => {
     expect(sesion.iniciada).toBe(false)
   })
 
+  it('con un cierre de sesión en vuelo no se levanta el aviso (la persona ya pidió salir)', async () => {
+    const sesion = await conSesion()
+    let terminar!: () => void
+    vi.mocked(authModule.logout).mockReturnValueOnce(new Promise<void>((r) => { terminar = r }))
+    const saliendo = sesion.cerrarSesion()
+
+    sesion.marcarSesionVencida()
+    expect(sesion.avisoSesionVencida).toBe(false)
+
+    terminar()
+    await saliendo
+  })
+
   it('marcarSesionVencida sin sesión no hace nada', () => {
     const sesion = useSesionStore()
     sesion.marcarSesionVencida()
@@ -306,6 +400,43 @@ describe('3. modal SesionVencidaModal', () => {
     expect(enCuerpo().querySelector('[role="dialog"]')).not.toBeNull()
     expect(enCuerpo().querySelector('[role="alert"]')).not.toBeNull()
     expect(sesion.avisoSesionVencida).toBe(true)
+    w.unmount()
+  })
+
+  it('muestra el motivo que dio el servidor', async () => {
+    const sesion = await conSesion()
+    const w = await montarModal()
+    sesion.marcarSesionVencida('La sesión terminó porque la contraseña cambió. Vuelva a iniciar sesión.')
+    await flushPromises()
+
+    expect(enCuerpo().querySelector('[role="dialog"]')!.textContent).toContain('la contraseña cambió')
+    w.unmount()
+  })
+
+  it('«Salir» cierra la sesión y lleva al acceso (la cuenta bloqueada no puede volver a entrar)', async () => {
+    const sesion = await conSesion()
+    const { default: SesionVencidaModal } = await import('../src/components/feedback/SesionVencidaModal.vue')
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: { template: '<div />' } },
+        { path: '/acceso', name: 'acceso.entrar', component: { template: '<div />' } },
+      ],
+    })
+    await router.push('/')
+    await router.isReady()
+    const w = mount(SesionVencidaModal, { attachTo: document.body, global: { plugins: [router] } })
+    sesion.marcarSesionVencida()
+    await flushPromises()
+
+    const salir = Array.from(enCuerpo().querySelectorAll('button')).find((b) => /salir/i.test(b.textContent ?? ''))
+    expect(salir).toBeTruthy()
+    salir!.click()
+    await flushPromises()
+
+    expect(authModule.logout).toHaveBeenCalledTimes(1)
+    expect(sesion.iniciada).toBe(false)
+    expect(router.currentRoute.value.name).toBe('acceso.entrar')
     w.unmount()
   })
 

@@ -9,6 +9,33 @@ import axios, { type AxiosInstance, type AxiosError } from 'axios'
 import type { ApiEnvelope, PaginatedEnvelope, PageMeta, CollectionLinks } from '@/types/api'
 import { useSesionStore } from '@/stores/sesion'
 
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    /** Generación de la sesión con la que salió la petición (ver `generacionActual`). */
+    generacionSesion?: number
+  }
+}
+
+/**
+ * Generación de la sesión del panel: un número que sube cada vez que se abre una sesión nueva
+ * (acceso, o nuevo acceso desde el aviso de sesión vencida). Cada petición sale con la que había.
+ * Una respuesta 401 o 419 de una petición ANTERIOR al nuevo acceso describe una sesión que ya no
+ * existe y no debe reabrir el aviso: sin esto, una lectura lenta que salió antes de volver a
+ * entrar llegaba después y volvía a tapar la pantalla con el aviso recién cerrado.
+ *
+ * Vive aquí, y no en un archivo propio, porque `client.ts` es quien sella las peticiones y
+ * `estructura-api.test.ts` fija los archivos de `src/api` (un archivo por recurso).
+ */
+let generacion = 0
+
+export function generacionActual(): number {
+  return generacion
+}
+
+export function avanzarGeneracion(): void {
+  generacion += 1
+}
+
 /**
  * Error con la forma del contrato, para que la interfaz pueda explicarlo.
  *
@@ -46,38 +73,63 @@ export const http: AxiosInstance = axios.create({
   timeout: 15_000,
 })
 
+/** Cada petición anota con qué generación de sesión salió (ver `generacionActual`). */
+http.interceptors.request.use((config) => {
+  config.generacionSesion = generacionActual()
+  return config
+})
+
 /**
- * Interceptor que maneja errores 401, 419 y 429.
+ * Rutas de acceso. Su 401 es el RESULTADO de entrar o salir (credenciales malas, sesión ya
+ * muerta al cerrar), no la pérdida de una sesión abierta. Tratarlo como pérdida cerraba la
+ * sesión local cuando una contraseña mal escrita dentro del aviso de sesión vencida.
+ */
+const RUTAS_DE_ACCESO = /\/panel\/(login|logout)$/
+
+/** Explicación genérica del servidor para un 401: no aporta nada a quien la lee. */
+const MENSAJE_GENERICO_401 = 'No autenticado.'
+
+/**
+ * Interceptor de errores: 401, 419 y 429.
  *
- * 401 — Sesión expirada o inválida. Se limpia el estado local del store.
- * El guardia del router se encargará de redirigir en la siguiente navegación
- * (porque sesion.iniciada será false).
+ * 401 y 419 — con una sesión abierta en el panel significan lo mismo: el servidor ya no la
+ * reconoce. Medido en staging (2026-11-26): una lectura sin sesión da 401; una escritura con
+ * la sesión vencida da 419 (el token CSRF se comprueba antes que la autenticación); una
+ * escritura con la sesión viva pero la cuenta bloqueada o la contraseña cambiada da 401
+ * (`SesionDelPanelVigente`, que corre después del CSRF). Como una persona recibe uno u otro
+ * según lo que hiciera primero, los dos hacen lo mismo (T9.8, D-0C.8): se levanta el aviso de
+ * `SesionVencidaModal` y NO se cierra la sesión local ni se navega, para que lo escrito se
+ * conserve. Antes un 401 de lectura borraba la sesión local y el 419 del guardado siguiente
+ * no encontraba sesión que avisar: la persona se quedaba sin salida.
  *
- * 419 — Sesión o token CSRF perdidos (T9.8, D-0C.8). NO se cierra la sesión local ni se
- * navega: la persona sigue en su pantalla con lo que escribió. Se levanta el aviso que abre
- * `SesionVencidaModal` para volver a entrar ahí mismo, con la misma cuenta. El error llega a
- * quien hizo la petición, como siempre. Sin sesión (pantalla de acceso) no hace nada.
+ *   - Sin sesión (pantalla de acceso) no se hace nada: allí es un error del formulario.
+ *   - `/panel/login` y `/panel/logout` quedan fuera (ver `RUTAS_DE_ACCESO`).
+ *   - Una respuesta de una petición anterior al último acceso se ignora.
+ *   - Si el 401 trae su explicación (cuenta inactiva, contraseña cambiada) se muestra en el aviso.
  *
- * 429 — Límite de peticiones. NO se redirige: el error llega a quien hizo la
- * petición (el formulario de acceso, una tabla) con la respuesta intacta, y
- * `mensajeDeError()` construye el aviso con el `Retry-After`. Antes cualquier 429,
- * también de una consulta cualquiera, sacaba a la persona del panel hacia el login
- * y borraba lo que estaba haciendo (H-14).
+ * 429 — Límite de peticiones. NO se redirige: el error llega a quien hizo la petición (el
+ * formulario de acceso, una tabla) con la respuesta intacta, y `mensajeDeError()` construye el
+ * aviso con el `Retry-After`. Antes cualquier 429, también de una consulta cualquiera, sacaba a
+ * la persona del panel hacia el login y borraba lo que estaba haciendo (H-14).
  */
 http.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiEnvelope<never>>) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      const sesion = useSesionStore()
-      // Solo actúa si la sesión estaba activa. Si la sesión ya estaba cerrada,
-      // cerrarSesion() es no-op gracias a logoutEnVuelo.
-      if (sesion.iniciada) {
-        // No await: el interceptor no debe bloquear.
-        sesion.cerrarSesion()
+    if (axios.isAxiosError(error)) {
+      const estado = error.response?.status
+      const perdioLaSesion = estado === 401 || estado === 419
+      const esDeAcceso = RUTAS_DE_ACCESO.test(error.config?.url ?? '')
+      const esDeUnaSesionAnterior =
+        error.config?.generacionSesion !== undefined && error.config.generacionSesion < generacionActual()
+
+      if (perdioLaSesion && !esDeAcceso && !esDeUnaSesionAnterior) {
+        const mensaje = error.response?.data?.message
+        const motivo =
+          estado === 401 && typeof mensaje === 'string' && mensaje !== '' && mensaje !== MENSAJE_GENERICO_401
+            ? mensaje
+            : undefined
+        useSesionStore().marcarSesionVencida(motivo)
       }
-    }
-    if (axios.isAxiosError(error) && error.response?.status === 419) {
-      useSesionStore().marcarSesionVencida()
     }
     return Promise.reject(error)
   }

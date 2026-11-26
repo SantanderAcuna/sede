@@ -11,6 +11,7 @@
  * lo escrito por una persona se guardaría con la identidad de otra.
  */
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import BaseButton from '@/components/base/BaseButton.vue'
 import BaseModal from '@/components/base/BaseModal.vue'
@@ -19,6 +20,7 @@ import { mensajeDeError } from '@/api/client'
 import { useSesionStore } from '@/stores/sesion'
 
 const sesion = useSesionStore()
+const router = useRouter()
 
 const password = ref('')
 const error = ref<string | null>(null)
@@ -40,6 +42,16 @@ watch(abierto, (ahora) => {
   }
 })
 
+/**
+ * Salir sin volver a entrar: con la cuenta inactiva o la contraseña cambiada, volver a entrar
+ * puede no ser posible. Cierra la sesión y lleva al acceso; lo que no se guardó se pierde, y el
+ * texto del aviso lo dice antes.
+ */
+async function salir() {
+  await sesion.cerrarSesion()
+  await router?.push({ name: 'acceso.entrar' })
+}
+
 async function entrar() {
   if (cargando.value || !password.value) return
 
@@ -60,8 +72,12 @@ async function entrar() {
   <BaseModal v-model="abierto" title="Tu sesión venció" size="sm" :close-on-backdrop="false">
     <form class="space-y-4" novalidate @submit.prevent="entrar">
       <p class="text-sm text-slate-600">
-        Vuelve a entrar para seguir. Lo que escribiste no se perdió: después de entrar, pulsa
-        «Guardar» otra vez.
+        Vuelve a entrar para seguir. Lo que escribiste no se perdió: después de entrar, repite
+        la acción (por ejemplo, pulsa «Guardar» otra vez).
+      </p>
+
+      <p v-if="sesion.motivoSesionVencida" class="text-sm font-medium text-slate-800" role="status">
+        {{ sesion.motivoSesionVencida }}
       </p>
 
       <p class="text-sm text-slate-700">
@@ -88,6 +104,17 @@ async function entrar() {
         <template v-if="cargando">Entrando…</template>
         <template v-else>Volver a entrar</template>
       </BaseButton>
+
+      <div class="border-t border-slate-200 pt-3 text-center">
+        <button
+          type="button"
+          class="text-sm text-slate-600 underline hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-gov-blue"
+          @click="salir"
+        >
+          Salir
+        </button>
+        <p class="mt-1 text-xs text-slate-500">Salir descarta lo que no hayas guardado.</p>
+      </div>
     </form>
   </BaseModal>
 </template>

@@ -15,6 +15,7 @@
  */
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { avanzarGeneracion } from '@/api/client'
 import { login as loginApi, logout as logoutApi, perfil as perfilApi, type Credenciales, type UsuarioItem } from '@/api/auth'
 
 export interface UsuarioSesion {
@@ -36,6 +37,8 @@ export const useSesionStore = defineStore('sesion', () => {
    * porque de él sale la cuenta con la que se vuelve a entrar.
    */
   const avisoSesionVencida = ref(false)
+  /** Lo que dijo el servidor al cortar la sesión (cuenta inactiva, contraseña cambiada), si dijo algo útil. */
+  const motivoSesionVencida = ref<string | null>(null)
 
   // Promesas en vuelo compartidas. Garantizar que init() y cerrarSesion()
   // son idempotentes: llamadas concurrentes esperan la misma operación.
@@ -101,6 +104,7 @@ export const useSesionStore = defineStore('sesion', () => {
         nombre: respuesta.user.email.split('@')[0] ?? 'usuario',
         permisos: extraerPermisos(respuesta.user.roles),
       }
+      avanzarGeneracion()
       // Marcar como inicializado: la sesión está activa.
       inicializado.value = true
       // Cancelar cualquier init() en vuelo: ya no es necesario.
@@ -112,13 +116,18 @@ export const useSesionStore = defineStore('sesion', () => {
    * Levanta el aviso de sesión vencida (D-0C.8). Sin sesión no hace nada: en la pantalla de
    * acceso un `419` es un error del formulario, no una sesión que restablecer.
    */
-  function marcarSesionVencida(): void {
-    if (usuario.value !== null) avisoSesionVencida.value = true
+  function marcarSesionVencida(motivo?: string): void {
+    // Con un cierre de sesión en vuelo la persona ya pidió salir: el 401 o 419 de ese mismo cierre
+    // no debe levantar un aviso para volver a entrar.
+    if (usuario.value === null || logoutEnVuelo !== null) return
+    avisoSesionVencida.value = true
+    motivoSesionVencida.value = motivo ?? null
   }
 
   /** La persona cierra el aviso sin volver a entrar; el siguiente `419` lo levanta de nuevo. */
   function descartarAvisoSesionVencida(): void {
     avisoSesionVencida.value = false
+    motivoSesionVencida.value = null
   }
 
   /**
@@ -145,7 +154,9 @@ export const useSesionStore = defineStore('sesion', () => {
     }
 
     usuario.value = { ...actual, permisos: extraerPermisos(respuesta.user.roles) }
+    avanzarGeneracion()
     avisoSesionVencida.value = false
+    motivoSesionVencida.value = null
   }
 
   /**
@@ -168,6 +179,7 @@ export const useSesionStore = defineStore('sesion', () => {
       } finally {
         usuario.value = null
         avisoSesionVencida.value = false
+        motivoSesionVencida.value = null
         inicializado.value = true // Login correcto: ya no hay sesión que verificar.
         initEnVuelo = null
         logoutEnVuelo = null
@@ -225,6 +237,7 @@ export const useSesionStore = defineStore('sesion', () => {
   function $reset(): void {
     usuario.value = null
     avisoSesionVencida.value = false
+    motivoSesionVencida.value = null
     inicializado.value = false
     initEnVuelo = null
     logoutEnVuelo = null
@@ -234,6 +247,7 @@ export const useSesionStore = defineStore('sesion', () => {
     usuario,
     inicializado,
     avisoSesionVencida,
+    motivoSesionVencida,
     iniciada,
     permisos,
     tienePermiso,

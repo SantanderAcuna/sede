@@ -11,6 +11,7 @@ import { computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
 import AuthLayout from '@/layouts/AuthLayout.vue'
+import SesionVencidaModal from '@/components/feedback/SesionVencidaModal.vue'
 
 const ruta = useRoute()
 const disposicion = computed(() => ruta.meta.layout ?? 'blank')
@@ -21,4 +22,6 @@ const disposicion = computed(() => ruta.meta.layout ?? 'blank')
     <RouterView />
   </AuthLayout>
   <RouterView v-else />
+  <!-- Fuera de las disposiciones: un 419 puede llegar desde cualquier pantalla del panel. -->
+  <SesionVencidaModal />
 </template>

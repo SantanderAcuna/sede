@@ -137,7 +137,14 @@ arriba y no hay nada que revertir. Dos consecuencias:
    más de 24 h sin renovarse; ver el archivo 0010). Si aparece como `unhealthy`, el `healthcheck: disable`
    de `compose.yaml` se perdió. La caché vive en el volumen `<APP_NAME>-cache-sede`; se rellena sola con
    las peticiones, así que perderla no pierde datos.
-6. Si algo falla (migrar, sembrar o responder), vuelve solo a la versión anterior.
+6. Cuando la sede ya responde, **limpia las imágenes viejas**: conserva la versión desplegada y la anterior
+   de cada entorno del servidor (`/var/lib/sede/*/version` y `version.anterior`) y borra con `docker rmi`
+   (sin `-f`) las demás de `sede-app`, `sede-nginx` y `sede-sitio`; las colgantes se limpian con
+   `image prune -f`. No toca `postgres`, `redis` ni nada ajeno al proyecto. Tiene un tope de 240 s
+   (`SEDE_LIMPIEZA_SEGUNDOS`): lo que no alcance queda para el siguiente despliegue. Un fallo aquí es un
+   aviso, nunca revierte un despliegue bueno, y en un despliegue fallido no se borra nada.
+   Sin esta limpieza el disco se llenaba: el 2026-11-26 había 194 versiones de cada imagen (137 GB).
+7. Si algo falla (migrar, sembrar o responder), vuelve solo a la versión anterior.
 
 ### Por qué siembra, y por qué así
 

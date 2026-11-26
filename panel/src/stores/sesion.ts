@@ -29,6 +29,14 @@ export const useSesionStore = defineStore('sesion', () => {
   const usuario = ref<UsuarioSesion | null>(null)
   const inicializado = ref(false)
 
+  /**
+   * La sesión del servidor se perdió (un `419` al guardar) pero la persona sigue en su
+   * pantalla con lo que escribió. Mientras sea `true`, `SesionVencidaModal` le pide volver a
+   * entrar ahí mismo. NO es lo mismo que no tener sesión: `usuario` se conserva a propósito,
+   * porque de él sale la cuenta con la que se vuelve a entrar.
+   */
+  const avisoSesionVencida = ref(false)
+
   // Promesas en vuelo compartidas. Garantizar que init() y cerrarSesion()
   // son idempotentes: llamadas concurrentes esperan la misma operación.
   let initEnVuelo: Promise<void> | null = null
@@ -101,6 +109,46 @@ export const useSesionStore = defineStore('sesion', () => {
   }
 
   /**
+   * Levanta el aviso de sesión vencida (D-0C.8). Sin sesión no hace nada: en la pantalla de
+   * acceso un `419` es un error del formulario, no una sesión que restablecer.
+   */
+  function marcarSesionVencida(): void {
+    if (usuario.value !== null) avisoSesionVencida.value = true
+  }
+
+  /** La persona cierra el aviso sin volver a entrar; el siguiente `419` lo levanta de nuevo. */
+  function descartarAvisoSesionVencida(): void {
+    avisoSesionVencida.value = false
+  }
+
+  /**
+   * Vuelve a entrar con la MISMA cuenta de la sesión, sin navegar.
+   *
+   * El correo sale del usuario ya cargado y no de lo que escriba la persona: así lo que dejó
+   * a medias nunca se guarda con otra identidad. Si el servidor, aun así, devolviera otra
+   * cuenta, la cookie ya es de otra persona: se cierra la sesión en lugar de dejar la
+   * pantalla creyendo que sigue siendo la anterior. Un acceso que pide doble factor no se
+   * puede completar aquí y se dice.
+   */
+  async function reautenticar(password: string): Promise<void> {
+    const actual = usuario.value
+    if (!actual) throw new Error('No hay una sesión que restablecer.')
+
+    const respuesta = await loginApi({ email: actual.email, password })
+
+    if (respuesta.require_mfa || !respuesta.user) {
+      throw new Error('Esta cuenta necesita una verificación adicional. Cierra la sesión y entra desde la pantalla de acceso.')
+    }
+    if (respuesta.user.id !== actual.id) {
+      await cerrarSesion()
+      throw new Error('El acceso devolvió otra cuenta. Por seguridad se cerró la sesión; vuelve a entrar.')
+    }
+
+    usuario.value = { ...actual, permisos: extraerPermisos(respuesta.user.roles) }
+    avisoSesionVencida.value = false
+  }
+
+  /**
    * Cierra la sesión actual.
    *
    * Es idempotente: llamadas concurrentes esperan la misma promesa de logout.
@@ -119,6 +167,7 @@ export const useSesionStore = defineStore('sesion', () => {
         // localmente. No interesa propagar el error.
       } finally {
         usuario.value = null
+        avisoSesionVencida.value = false
         inicializado.value = true // Login correcto: ya no hay sesión que verificar.
         initEnVuelo = null
         logoutEnVuelo = null
@@ -175,6 +224,7 @@ export const useSesionStore = defineStore('sesion', () => {
    */
   function $reset(): void {
     usuario.value = null
+    avisoSesionVencida.value = false
     inicializado.value = false
     initEnVuelo = null
     logoutEnVuelo = null
@@ -183,10 +233,14 @@ export const useSesionStore = defineStore('sesion', () => {
   return {
     usuario,
     inicializado,
+    avisoSesionVencida,
     iniciada,
     permisos,
     tienePermiso,
     iniciarSesion,
+    marcarSesionVencida,
+    descartarAvisoSesionVencida,
+    reautenticar,
     cerrarSesion,
     init,
     $reset,

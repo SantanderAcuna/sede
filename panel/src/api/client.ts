@@ -47,11 +47,16 @@ export const http: AxiosInstance = axios.create({
 })
 
 /**
- * Interceptor que maneja errores 401 y 429.
+ * Interceptor que maneja errores 401, 419 y 429.
  *
  * 401 — Sesión expirada o inválida. Se limpia el estado local del store.
  * El guardia del router se encargará de redirigir en la siguiente navegación
  * (porque sesion.iniciada será false).
+ *
+ * 419 — Sesión o token CSRF perdidos (T9.8, D-0C.8). NO se cierra la sesión local ni se
+ * navega: la persona sigue en su pantalla con lo que escribió. Se levanta el aviso que abre
+ * `SesionVencidaModal` para volver a entrar ahí mismo, con la misma cuenta. El error llega a
+ * quien hizo la petición, como siempre. Sin sesión (pantalla de acceso) no hace nada.
  *
  * 429 — Límite de peticiones. NO se redirige: el error llega a quien hizo la
  * petición (el formulario de acceso, una tabla) con la respuesta intacta, y
@@ -70,6 +75,9 @@ http.interceptors.response.use(
         // No await: el interceptor no debe bloquear.
         sesion.cerrarSesion()
       }
+    }
+    if (axios.isAxiosError(error) && error.response?.status === 419) {
+      useSesionStore().marcarSesionVencida()
     }
     return Promise.reject(error)
   }
@@ -111,6 +119,12 @@ export function mensajeDeError(error: unknown, porDefecto = 'No se pudo conectar
 
   const { status, data, headers } = error.response
   const delServidor = (data as Partial<ApiEnvelope<never>> | undefined)?.message
+
+  // El servidor dice «CSRF token mismatch.»: exacto para quien depura, inútil para quien guarda
+  // una noticia. La causa real para la persona es que la sesión venció.
+  if (status === 419) {
+    return 'Tu sesión venció. Vuelve a entrar y repite la acción.'
+  }
 
   if (status === 429) {
     const segundos = Number.parseInt(String(headers?.['retry-after'] ?? ''), 10)

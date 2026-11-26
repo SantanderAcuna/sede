@@ -15,6 +15,7 @@
  */
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { avanzarGeneracion } from '@/api/client'
 import { login as loginApi, logout as logoutApi, perfil as perfilApi, type Credenciales, type UsuarioItem } from '@/api/auth'
 
 export interface UsuarioSesion {
@@ -28,6 +29,16 @@ export const useSesionStore = defineStore('sesion', () => {
   // Estado en memoria — la sesión real vive en la cookie HttpOnly del navegador.
   const usuario = ref<UsuarioSesion | null>(null)
   const inicializado = ref(false)
+
+  /**
+   * La sesión del servidor se perdió (un `419` al guardar) pero la persona sigue en su
+   * pantalla con lo que escribió. Mientras sea `true`, `SesionVencidaModal` le pide volver a
+   * entrar ahí mismo. NO es lo mismo que no tener sesión: `usuario` se conserva a propósito,
+   * porque de él sale la cuenta con la que se vuelve a entrar.
+   */
+  const avisoSesionVencida = ref(false)
+  /** Lo que dijo el servidor al cortar la sesión (cuenta inactiva, contraseña cambiada), si dijo algo útil. */
+  const motivoSesionVencida = ref<string | null>(null)
 
   // Promesas en vuelo compartidas. Garantizar que init() y cerrarSesion()
   // son idempotentes: llamadas concurrentes esperan la misma operación.
@@ -93,11 +104,59 @@ export const useSesionStore = defineStore('sesion', () => {
         nombre: respuesta.user.email.split('@')[0] ?? 'usuario',
         permisos: extraerPermisos(respuesta.user.roles),
       }
+      avanzarGeneracion()
       // Marcar como inicializado: la sesión está activa.
       inicializado.value = true
       // Cancelar cualquier init() en vuelo: ya no es necesario.
       initEnVuelo = null
     }
+  }
+
+  /**
+   * Levanta el aviso de sesión vencida (D-0C.8). Sin sesión no hace nada: en la pantalla de
+   * acceso un `419` es un error del formulario, no una sesión que restablecer.
+   */
+  function marcarSesionVencida(motivo?: string): void {
+    // Con un cierre de sesión en vuelo la persona ya pidió salir: el 401 o 419 de ese mismo cierre
+    // no debe levantar un aviso para volver a entrar.
+    if (usuario.value === null || logoutEnVuelo !== null) return
+    avisoSesionVencida.value = true
+    motivoSesionVencida.value = motivo ?? null
+  }
+
+  /** La persona cierra el aviso sin volver a entrar; el siguiente `419` lo levanta de nuevo. */
+  function descartarAvisoSesionVencida(): void {
+    avisoSesionVencida.value = false
+    motivoSesionVencida.value = null
+  }
+
+  /**
+   * Vuelve a entrar con la MISMA cuenta de la sesión, sin navegar.
+   *
+   * El correo sale del usuario ya cargado y no de lo que escriba la persona: así lo que dejó
+   * a medias nunca se guarda con otra identidad. Si el servidor, aun así, devolviera otra
+   * cuenta, la cookie ya es de otra persona: se cierra la sesión en lugar de dejar la
+   * pantalla creyendo que sigue siendo la anterior. Un acceso que pide doble factor no se
+   * puede completar aquí y se dice.
+   */
+  async function reautenticar(password: string): Promise<void> {
+    const actual = usuario.value
+    if (!actual) throw new Error('No hay una sesión que restablecer.')
+
+    const respuesta = await loginApi({ email: actual.email, password })
+
+    if (respuesta.require_mfa || !respuesta.user) {
+      throw new Error('Esta cuenta necesita una verificación adicional. Cierra la sesión y entra desde la pantalla de acceso.')
+    }
+    if (respuesta.user.id !== actual.id) {
+      await cerrarSesion()
+      throw new Error('El acceso devolvió otra cuenta. Por seguridad se cerró la sesión; vuelve a entrar.')
+    }
+
+    usuario.value = { ...actual, permisos: extraerPermisos(respuesta.user.roles) }
+    avanzarGeneracion()
+    avisoSesionVencida.value = false
+    motivoSesionVencida.value = null
   }
 
   /**
@@ -119,6 +178,8 @@ export const useSesionStore = defineStore('sesion', () => {
         // localmente. No interesa propagar el error.
       } finally {
         usuario.value = null
+        avisoSesionVencida.value = false
+        motivoSesionVencida.value = null
         inicializado.value = true // Login correcto: ya no hay sesión que verificar.
         initEnVuelo = null
         logoutEnVuelo = null
@@ -175,6 +236,8 @@ export const useSesionStore = defineStore('sesion', () => {
    */
   function $reset(): void {
     usuario.value = null
+    avisoSesionVencida.value = false
+    motivoSesionVencida.value = null
     inicializado.value = false
     initEnVuelo = null
     logoutEnVuelo = null
@@ -183,10 +246,15 @@ export const useSesionStore = defineStore('sesion', () => {
   return {
     usuario,
     inicializado,
+    avisoSesionVencida,
+    motivoSesionVencida,
     iniciada,
     permisos,
     tienePermiso,
     iniciarSesion,
+    marcarSesionVencida,
+    descartarAvisoSesionVencida,
+    reautenticar,
     cerrarSesion,
     init,
     $reset,

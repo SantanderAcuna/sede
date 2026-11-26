@@ -64,6 +64,10 @@ COPY docker/nginx/snippets/ /etc/nginx/snippets/
 # de nginx gracias al mecanismo /docker-entrypoint.d/ de la imagen oficial.
 COPY --chmod=0755 docker/nginx/entrypoint/40-csp-modo.sh /docker-entrypoint.d/40-csp-modo.sh
 
+# Barrido de la caché de imágenes y documentos (T9.7). No lo ejecuta nginx: lo ejecuta el servicio
+# `cache-barrido` de compose.yaml con ESTA misma imagen, sin red y como el usuario de nginx.
+COPY --chmod=0755 docker/nginx/barrido-cache.sh /usr/local/bin/barrido-cache.sh
+
 # La SPA compilada se sirve desde disco.
 # La carpeta en disco acompaña a la ruta pública `/admin`: así `root` y la URI
 # siguen cuadrando sin `alias`, cuyo `try_files` es una fuente clásica de sorpresas.

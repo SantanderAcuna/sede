@@ -30,6 +30,12 @@ final class LecturasPublicasSinCookiesTest extends TestCase
             'noticias' => ['/api/v1/noticias'],
             'banners' => ['/api/v1/banners'],
             'trámites' => ['/api/v1/tramites'],
+            // T9.7: nginx guarda estas respuestas como copia de respaldo y NO guarda ninguna que traiga `Set-Cookie`.
+            // Si una de estas rutas abriera sesión, la caché dejaría de funcionar y el navegador quedaría con la
+            // cookie del panel (que hace que nginx se salte la caché para siempre).
+            'imagen de banner' => ['/api/v1/banners/00000000-0000-4000-8000-000000000000/imagen'],
+            'imagen de noticia' => ['/api/v1/noticias/no-existe/imagen'],
+            'imagen de contenido' => ['/api/v1/contenido/imagenes/00000000-0000-4000-8000-000000000000'],
             'búsqueda' => ['/api/v1/buscar?q=licencia'],
             'sugerencias' => ['/api/v1/busqueda/sugerencias?q=lic'],
         ];

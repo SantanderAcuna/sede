@@ -88,6 +88,9 @@ services:
       # modificarlos ni ver la clave de la autoridad.
       - ${SEDE_CERTS_DIR:-./docker/nginx/certs}:/etc/nginx/certs:ro,z
       - certbot-webroot:/var/www/certbot:ro
+      # Caché de imágenes y documentos de políticas (T9.7): volumen con nombre, porque el contenedor es
+      # de solo lectura y el tmpfs son 64 MB. Tope: 1 GiB + 512 MiB (nginx.conf).
+      - cache-sede:/var/cache/sede
     read_only: true
     tmpfs:
       - /var/cache/nginx:size=64m
@@ -100,6 +103,29 @@ services:
     # La memoria de un servidor web es pequeña: no acumula estado.
     mem_limit: 256m
     pids_limit: 256
+
+  # ---------------------------------------------------------------------------
+  # Barrido de la caché de nginx (T9.7, ADR-0010): borra lo que lleva más de 24 h sin renovarse.
+  # Misma imagen y mismo volumen que nginx, el usuario de nginx (101) y nada más: sin red, sin
+  # capacidades, solo lectura. Hereda el HEALTHCHECK de la imagen de nginx (https://127.0.0.1/health)
+  # y sin red quedaría `unhealthy`, por eso se desactiva.
+  # ---------------------------------------------------------------------------
+  cache-barrido:
+    image: ${REGISTRY:-sede}/${APP_NAME:-sede}-nginx:${APP_VERSION:-dev}
+    entrypoint: ["/usr/local/bin/barrido-cache.sh"]
+    restart: unless-stopped
+    user: "101:101"
+    network_mode: none
+    read_only: true
+    volumes:
+      - cache-sede:/var/cache/sede
+    healthcheck:
+      disable: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 32m
+    pids_limit: 8
 
   # ---------------------------------------------------------------------------
   # Aplicación: PHP-FPM. No publica nada; nginx le habla por la red interna.
@@ -530,6 +556,10 @@ volumes:
     name: ${APP_NAME:-sede}-datos-redis
   almacenamiento-app:
     name: ${APP_NAME:-sede}-almacenamiento-app
+  # Caché de imágenes y documentos de políticas de nginx (T9.7). Se puede borrar entera sin perder
+  # nada: se rellena sola con la siguiente petición.
+  cache-sede:
+    name: ${APP_NAME:-sede}-cache-sede
   # Copias de seguridad de la base. Volumen PROPIO, separado del almacenamiento de
   # la aplicación. Sigue estando en el mismo servidor: protege de errores lógicos y
   # borrados, no de perder la máquina (docs/copias-de-seguridad.md).

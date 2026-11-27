@@ -1,10 +1,9 @@
 # Verificación de la Fase 0C, sitio público resistente (2026-11-26)
 
-Estado: **pendiente de aprobación de José.** Este documento solo registra lo medido; las decisiones están en
+Estado: **cerrada por José el 2026-11-26.** Este documento solo registra lo medido; las decisiones están en
 `docs/adr/0009-respaldo-de-la-ultima-respuesta-valida-del-sitio.md` y
 `docs/adr/0010-cache-de-nginx-para-imagenes-y-documentos-de-politicas.md`.
-Cuando José apruebe la fase, se reemplaza esta línea por «cerrada por José el AAAA-MM-DD» y los archivos 0009 y 0010
-ya figuran como ACEPTADA.
+Los archivos 0009 y 0010 figuran como ACEPTADA.
 
 ## Tareas y evidencia en el repositorio (HECHO: cada commit está en `develop`)
 
@@ -57,4 +56,4 @@ Conteo de pruebas en `develop` `8be202d`, medido el 2026-11-26: sitio 1083 pasan
 - Decisión pendiente sobre `rotar-secretos.py --github`.
 - Antes de promover a `main`: comprobar en GitHub la variable `SEDE_DESPLIEGUE_PRODUCCION` (no se puede leer desde el entorno de Claude). `main` (`9d91290`) está 105 archivos atrás de `staging`.
 - Comprobación local de José (`make local`, 2026-11-26): terminó con «Listo» y la siembra completa. `sede-redis-1`, `sede-postgres-1`, `sede-app-1` y `sede-sitio-1` en `Healthy`; `sede-nginx-1`, `sede-cache-barrido-1` y `sede-correo-1` arriba. Faltan en lo que pegó los pasos 3 y 4 (migraciones) y las comprobaciones desde el navegador en `https://localhost:8443`; no se leen como verificadas. Necesitó `POSTGRES_PUERTO_LOCAL=5434 REDIS_PUERTO_LOCAL=6380` porque su PC tiene otros contenedores en 5432, 5433, 6379 y otros puertos (conflicto de su máquina, no de la pila).
-- Defecto hallado en esa corrida y corregido en #742: `make local` con un `.env` anterior a T9.5 no agregaba `REDIS_SITIO_PASSWORD` y Compose se negaba a arrancar; prueba nueva `deploy/pruebas/prueba-local-env.sh` (3 fallas en rojo antes, verde después). Mientras #742 no esté fusionada, un `.env` viejo sigue necesitando esa variable a mano.
+- Defecto hallado en esa corrida y corregido en #742: `make local` con un `.env` anterior a T9.5 no agregaba `REDIS_SITIO_PASSWORD` y Compose se negaba a arrancar; prueba nueva `deploy/pruebas/prueba-local-env.sh` (3 fallas en rojo antes, verde después). #742 está fusionada en `develop`.

@@ -476,6 +476,8 @@ jobs:
           bash deploy/pruebas/prueba-render-entorno.sh
           # `make local` con un .env viejo (sin REDIS_SITIO_PASSWORD) debe completarlo.
           bash deploy/pruebas/prueba-local-env.sh
+          # La sonda de disponibilidad (DISP-01) contra un servidor simulado.
+          bash deploy/pruebas/prueba-sonda-sitio.sh
       - name: Las copias de seguridad encajan con la pila
         run: |
           # Tres desencajes que no fallan donde se introducen y sólo se descubren al

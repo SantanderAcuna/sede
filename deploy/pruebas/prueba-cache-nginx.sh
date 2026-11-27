@@ -192,6 +192,15 @@ for recurso in "$P" "$B"; do
   v "$recurso: estado STALE" "$(estado_cache $recurso)" STALE
   sleep 1.2
 done
+
+sec "8c. Rutas dinámicas sin copia con el origen colgado: error en pocos segundos, no en 60"
+# Con `app` parado, cada petición a estas rutas retenía un worker de nginx 60 s (el valor por omisión de
+# `fastcgi_connect_timeout`). Sin copia que servir lo correcto es fallar rápido (504).
+for ruta in /health /sanctum/csrf-cookie "/api/v1/noticias?per_page=1" /storage/no-existe; do
+  t0="$(ms)"; c="$(curl -sk --max-time 20 -o /dev/null -w '%{http_code}' "$U$ruta")"; t1="$(ms)"
+  v "$ruta con el origen colgado: 504 (salió $c)" "$c" 504
+  v "$ruta: falla en menos de 10 s (tardó $((t1 - t0)) ms)" "$([ $((t1 - t0)) -lt 10000 ] && echo si || echo no)" si
+done
 kill "$COLGADO_PID" 2>/dev/null; wait "$COLGADO_PID" 2>/dev/null
 python3 "$APOYO/origen-fastcgi.py" "$T/estado" 9000 >/dev/null 2>"$T/origen.log" & ORIGEN_PID=$!; PIDS+=("$ORIGEN_PID")
 sleep 0.5

@@ -1,9 +1,16 @@
 # Sonda de disponibilidad desde fuera (DISP-01). Cada 15 minutos pide a la sede lo que pediría un
-# visitante y avisa si algo no responde o si la API está caída y el sitio sirve copias.
+# visitante y avisa si algo no responde.
 #
-# Qué comprueba y qué no: ver el encabezado de `deploy/sonda-sitio.sh`. NO vigila la memoria de
-# Redis, `evicted_keys` ni `ACL LOG` (ADR 0009): viven dentro del servidor y siguen siendo una
-# comprobación manual.
+# Qué comprueba y qué no: ver el encabezado de `deploy/sonda-sitio.sh`. NO ve si el sitio sirve
+# copias por una API caída (la cabecera `X-Sede-Respaldo` no llega a las peticiones de un
+# visitante) ni la memoria de Redis, `evicted_keys` o `ACL LOG`: de esas tres se encarga
+# `php artisan monitoreo:redis`, dentro del servidor.
+#
+# Códigos de salida de la sonda: 0 sana; 1 caída (abre incidencia); 2 «no verificable»: Cloudflare
+# desafió al ejecutor de GitHub (`cf-mitigated: challenge`). El 2 NO abre incidencia ni cierra una
+# abierta: deja un aviso en el resumen del trabajo. Para que la sonda vea la sede de verdad hay que
+# crear el secreto `VERIFICADOR_VINCULOS_TOKEN` y una regla de Cloudflare que exima la cabecera
+# `X-Verificador-Vinculos` con ese valor.
 #
 # Cómo se avisa. Una incidencia con la etiqueta `sitio-caido`, asignada al dueño del repositorio:
 # GitHub la notifica por el correo y los canales que esa cuenta tenga configurados en
@@ -53,14 +60,17 @@ jobs:
 
       - name: Sondear
         id: sonda
-        # El resultado se evalúa después: primero hay que dejar el informe y avisar.
-        continue-on-error: true
         env:
           BASE_URL: ${{ inputs.base_url || 'https://staging.santamarta.gov.co' }}
           INFORME: ${{ runner.temp }}/informe-sonda.md
           # Opcional, como en la verificación de vínculos: si el borde desafía a los ejecutores.
           VERIFICADOR_TOKEN: ${{ secrets.VERIFICADOR_VINCULOS_TOKEN }}
-        run: bash deploy/sonda-sitio.sh "$BASE_URL"
+        # El código de salida (0, 1 o 2) se guarda y el paso termina bien: primero hay que dejar el
+        # informe y avisar, y un paso rojo cada 15 minutos añadiría correos repetidos.
+        run: |
+          set +e
+          bash deploy/sonda-sitio.sh "$BASE_URL"
+          echo "codigo=$?" >> "$GITHUB_OUTPUT"
 
       - name: Publicar el informe en el resumen del trabajo
         if: always()
@@ -71,8 +81,14 @@ jobs:
             echo "La sonda no llegó a escribir el informe." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Avisar que no se pudo verificar (desafío del borde)
+        if: steps.sonda.outputs.codigo == '2'
+        run: |
+          echo "::warning title=Sonda: no verificable::Cloudflare desafió al ejecutor de GitHub (cf-mitigated). No se abre incidencia: el desafío no prueba que la sede esté caída. Ver deploy/sonda-sitio.sh."
+
       - name: Avisar (incidencia, una por caída)
-        if: steps.sonda.outcome == 'failure'
+        # Cualquier código que no sea 0 (sana) ni 2 (no verificable): 1, o uno inesperado (127, 130…).
+        if: steps.sonda.outputs.codigo != '0' && steps.sonda.outputs.codigo != '2'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -95,11 +111,11 @@ jobs:
             --body-file "$RUNNER_TEMP/cuerpo.md"
 
       - name: Cerrar la incidencia si la sede volvió
-        if: steps.sonda.outcome == 'success'
+        if: steps.sonda.outputs.codigo == '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
           for numero in $(gh issue list --label "$ETIQUETA" --state open --json number --jq '.[].number'); do
-            gh issue close "$numero" --comment "La sonda de la ejecución $GITHUB_RUN_ID encontró la sede respondiendo y sin la API degradada. Se cierra sola."
+            gh issue close "$numero" --comment "La sonda de la ejecución $GITHUB_RUN_ID encontró la sede respondiendo. Se cierra sola."
           done

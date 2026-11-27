@@ -138,6 +138,9 @@ comprueba("fastcgi_read_timeout 5s;" in b_img and "fastcgi_connect_timeout 2s;" 
           "imágenes: espera de 5 s al origen y 2 s de conexión", "imágenes: faltan fastcgi_read_timeout 5s / fastcgi_connect_timeout 2s")
 comprueba("fastcgi_read_timeout" not in b_pol, "documentos: conservan los 60 s globales (el PDF/A se genera al vuelo)",
           "documentos: no deben bajar fastcgi_read_timeout")
+comprueba("fastcgi_connect_timeout 2s;" in b_pol,
+          "documentos: 2 s de conexión (con app parado la copia sale en 2 s, no en 60)",
+          "documentos: falta fastcgi_connect_timeout 2s; con el valor por omisión (60 s) la copia vieja tarda un minuto con app parado")
 comprueba("fastcgi_cache_lock_timeout 60s;" in b_pol and "fastcgi_cache_lock_age 60s;" in b_pol,
           "documentos: el bloqueo espera hasta 60 s (varias descargas en frío = una sola generación)",
           "documentos: faltan fastcgi_cache_lock_timeout 60s y fastcgi_cache_lock_age 60s")

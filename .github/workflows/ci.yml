@@ -474,6 +474,8 @@ jobs:
           #                            CLAVE=valor.
           bash deploy/pruebas/guarda-entorno.sh
           bash deploy/pruebas/prueba-render-entorno.sh
+          # `make local` con un .env viejo (sin REDIS_SITIO_PASSWORD) debe completarlo.
+          bash deploy/pruebas/prueba-local-env.sh
       - name: Las copias de seguridad encajan con la pila
         run: |
           # Tres desencajes que no fallan donde se introducen y sólo se descubren al

@@ -159,11 +159,11 @@ final class VigilarRedisTest extends TestCase
     {
         config(['monitoreo.correo' => '']);
         $this->lector->bytesSitio = (int) (448 * 1024 * 1024 * 0.3);
-        Log::spy();
+        $registro = Log::spy();
 
         $this->assertSame(1, $this->correr());
         Mail::assertNothingSent();
-        Log::shouldHaveReceived('error')->atLeast()->once();
+        $registro->shouldHaveReceived('error')->atLeast()->once();
     }
 
     public function test_si_redis_no_responde_avisa_y_termina_con_error(): void
@@ -178,10 +178,10 @@ final class VigilarRedisTest extends TestCase
     {
         Mail::shouldReceive('to')->andThrow(new \RuntimeException('SMTP caído'));
         $this->lector->bytesSitio = (int) (448 * 1024 * 1024 * 0.3);
-        Log::spy();
+        $registro = Log::spy();
 
         $this->assertSame(1, $this->correr());
-        Log::shouldHaveReceived('error')->atLeast()->twice();
+        $registro->shouldHaveReceived('error')->atLeast()->twice();
     }
 
     public function test_esta_en_la_agenda_cada_15_minutos_sin_solaparse(): void

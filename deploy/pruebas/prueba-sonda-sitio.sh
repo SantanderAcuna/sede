@@ -4,7 +4,11 @@
 #   1. todo sano                                   -> 0
 #   2. una ruta responde 503 siempre               -> 1 y nombra la ruta
 #   3. fallo transitorio que se recupera           -> 0 (un despliegue no despierta a nadie)
-#   4. API degradada (X-Sede-Respaldo presente)    -> 1 y dice «degradado»
+#   4. el borde desafía a la sonda (403 + cf-mitigated) -> 2 («no verificable»): NO es una caída
+#   4b. desafío en una ruta y caída real en otra   -> 1 (la caída manda)
+#   4c. 403 SIN la cabecera del desafío            -> 1 (un 403 cualquiera sí es un fallo)
+#   4d. X-Sede-Respaldo en /api/v1 no cambia el resultado: esa cabecera sólo existe en la ruta
+#       interna del sitio; nginx manda /api/v1 directo a PHP, así que desde fuera no puede verse
 #   5. respuesta más lenta que el tope             -> 1
 #   6. nada escucha en el puerto                   -> 1
 #   7. el informe nombra cada ruta y su resultado
@@ -44,10 +48,24 @@ grep -q '^| / |.*503' "$T/informe.md" && ok "el informe nombra la ruta y el 503"
 echo "3. fallo transitorio (2 de 3 intentos fallan, el tercero responde)"
 arrancar '{"/health":{"fallar_primeras":2},"/":{},"/api/v1/tramites?per_page=1":{}}'; sonda; [ $? = 0 ] && ok "se recupera: sale con 0" || mal "un fallo transitorio disparó la alarma"
 
-echo "4. API degradada"
-arrancar '{"/health":{},"/":{},"/api/v1/tramites?per_page=1":{"cabeceras":{"X-Sede-Respaldo":"412"}}}'; sonda; c=$?
+echo "4. el borde desafía a la sonda"
+DESAF='{"estado":403,"cabeceras":{"cf-mitigated":"challenge"}}'
+arrancar "{\"/health\":$DESAF,\"/\":$DESAF,\"/api/v1/tramites?per_page=1\":$DESAF}"; sonda; c=$?
+[ $c = 2 ] && ok "sale con 2 (no verificable)" || mal "salió con $c"
+grep -qi "no verificable" "$T/informe.md" && ok "el informe dice «no verificable»" || mal "el informe no dice «no verificable»"
+grep -q "| FALLA |" "$T/informe.md" && mal "el desafío se contó como FALLA" || ok "no se cuenta como FALLA"
+
+echo "4b. desafío en una ruta y caída real en otra"
+arrancar "{\"/health\":{\"estado\":503},\"/\":$DESAF,\"/api/v1/tramites?per_page=1\":{}}"; sonda; c=$?
 [ $c = 1 ] && ok "sale con 1" || mal "salió con $c"
-grep -qi "degradado" "$T/informe.md" && ok "dice «degradado»" || mal "no dice «degradado»"
+
+echo "4c. 403 sin la cabecera del desafío"
+arrancar '{"/health":{},"/":{"estado":403},"/api/v1/tramites?per_page=1":{}}'; sonda; c=$?
+[ $c = 1 ] && ok "sale con 1" || mal "salió con $c"
+
+echo "4d. X-Sede-Respaldo en /api/v1 no cambia el resultado"
+arrancar '{"/health":{},"/":{},"/api/v1/tramites?per_page=1":{"cabeceras":{"X-Sede-Respaldo":"412"}}}'; sonda; c=$?
+[ $c = 0 ] && ok "sale con 0: la sonda no finge ver lo que no puede ver" || mal "salió con $c"
 
 echo "5. respuesta más lenta que el tope"
 arrancar '{"/health":{"demora":3},"/":{},"/api/v1/tramites?per_page=1":{}}'; TOPE=1 INTENTOS=2 sonda; [ $? = 1 ] && ok "sale con 1" || mal "no detectó la lentitud"

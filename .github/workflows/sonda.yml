@@ -1,0 +1,105 @@
+# Sonda de disponibilidad desde fuera (DISP-01). Cada 15 minutos pide a la sede lo que pediría un
+# visitante y avisa si algo no responde o si la API está caída y el sitio sirve copias.
+#
+# Qué comprueba y qué no: ver el encabezado de `deploy/sonda-sitio.sh`. NO vigila la memoria de
+# Redis, `evicted_keys` ni `ACL LOG` (ADR 0009): viven dentro del servidor y siguen siendo una
+# comprobación manual.
+#
+# Cómo se avisa. Una incidencia con la etiqueta `sitio-caido`, asignada al dueño del repositorio:
+# GitHub la notifica por el correo y los canales que esa cuenta tenga configurados en
+# Settings → Notifications. Una sola incidencia por caída (las siguientes ejecuciones fallidas no
+# comentan, para no inundar el correo cada 15 minutos) y se cierra sola, con un comentario, cuando
+# la sede vuelve a responder. El trabajo NO falla: la incidencia es el aviso, y un trabajo rojo
+# cada 15 minutos añadiría correos repetidos.
+#
+# Límites de GitHub que importan aquí (documentación de eventos de flujos de trabajo):
+#   · los trabajos programados sólo corren desde la rama por defecto, `main`, con su último
+#     commit: este archivo no hace nada hasta que llegue a `main`;
+#   · en un repositorio público se desactivan tras 60 días sin actividad;
+#   · pueden retrasarse con carga alta, sobre todo al inicio de cada hora, por eso los minutos
+#     de abajo no son 0 ni 30.
+# Vigila `staging`: el dominio de producción sigue sin decidirse (ver deploy/publicar-entorno.sh).
+
+name: Sonda de disponibilidad
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Dirección de la sede a sondear'
+        required: false
+        default: 'https://staging.santamarta.gov.co'
+
+concurrency:
+  group: sonda
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  ETIQUETA: sitio-caido
+
+jobs:
+  sonda:
+    name: Sonda
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Sondear
+        id: sonda
+        # El resultado se evalúa después: primero hay que dejar el informe y avisar.
+        continue-on-error: true
+        env:
+          BASE_URL: ${{ inputs.base_url || 'https://staging.santamarta.gov.co' }}
+          INFORME: ${{ runner.temp }}/informe-sonda.md
+          # Opcional, como en la verificación de vínculos: si el borde desafía a los ejecutores.
+          VERIFICADOR_TOKEN: ${{ secrets.VERIFICADOR_VINCULOS_TOKEN }}
+        run: bash deploy/sonda-sitio.sh "$BASE_URL"
+
+      - name: Publicar el informe en el resumen del trabajo
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/informe-sonda.md" ]; then
+            cat "$RUNNER_TEMP/informe-sonda.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "La sonda no llegó a escribir el informe." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Avisar (incidencia, una por caída)
+        if: steps.sonda.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create "$ETIQUETA" --color B60205 \
+            --description "La sede no responde o la API está caída (sonda de disponibilidad)" 2>/dev/null || true
+          abierta=$(gh issue list --label "$ETIQUETA" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$abierta" ]; then
+            echo "Ya hay una incidencia abierta (#$abierta): no se repite el aviso."
+            exit 0
+          fi
+          if [ -f "$RUNNER_TEMP/informe-sonda.md" ]; then
+            cp "$RUNNER_TEMP/informe-sonda.md" "$RUNNER_TEMP/cuerpo.md"
+          else
+            echo "La sonda falló antes de escribir el informe. Ver la ejecución." > "$RUNNER_TEMP/cuerpo.md"
+          fi
+          printf '\nEjecución: %s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$RUNNER_TEMP/cuerpo.md"
+          gh issue create --label "$ETIQUETA" --assignee "${{ github.repository_owner }}" \
+            --title "La sede no responde o la API está caída (sonda)" \
+            --body-file "$RUNNER_TEMP/cuerpo.md"
+
+      - name: Cerrar la incidencia si la sede volvió
+        if: steps.sonda.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for numero in $(gh issue list --label "$ETIQUETA" --state open --json number --jq '.[].number'); do
+            gh issue close "$numero" --comment "La sonda de la ejecución $GITHUB_RUN_ID encontró la sede respondiendo y sin la API degradada. Se cierra sola."
+          done

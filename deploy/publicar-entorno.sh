@@ -84,6 +84,9 @@ S3_SECRET_KEY="$(valor "S3_SECRET_KEY_$SUFIJO")"
 
 SERVIDOR_IP="$(valor SERVIDOR_IP)"
 
+# Opcional: destinatario de los avisos internos de Redis (no se versiona; el repositorio es público).
+MONITOREO_NOTIFICACION_CORREO="$(valor MONITOREO_NOTIFICACION_CORREO)"
+
 # El super-admin que siembra el despliegue. La clave vive en el registro, que no
 # se versiona: publicarla en el repositorio —que es público— dejaría la cuenta de
 # máximo privilegio de la Sede al alcance de cualquiera.
@@ -121,7 +124,7 @@ paso "1. Renderizado del entorno ($ENTORNO)"
 export APP_KEY DB_PASSWORD DB_APP_PASSWORD DB_LECTURA_PASSWORD REDIS_PASSWORD REDIS_SITIO_PASSWORD BACKUP_PASSPHRASE
 export S3_ACCESS_KEY S3_SECRET_KEY
 export DOMINIO ENTORNO
-export SUPER_ADMIN_EMAIL SUPER_ADMIN_NAME SUPER_ADMIN_PASSWORD
+export SUPER_ADMIN_EMAIL SUPER_ADMIN_NAME SUPER_ADMIN_PASSWORD MONITOREO_NOTIFICACION_CORREO
 
 export DB_DATABASE="sede"
 export DB_USERNAME="sede"
@@ -276,8 +279,11 @@ trap 'rm -f "$RENDERIZADO" "$SECRETOS_TMP"; rm -rf "$PAQUETE"' EXIT
   for nombre in APP_KEY DB_PASSWORD DB_APP_PASSWORD DB_LECTURA_PASSWORD REDIS_PASSWORD REDIS_SITIO_PASSWORD BACKUP_PASSPHRASE; do
     printf '%s=%s\n' "$nombre" "${!nombre}"
   done
+  # MONITOREO_NOTIFICACION_CORREO no es un secreto, pero el repositorio es público y el destinatario no se versiona: viaja
+  # aquí y PISA el valor vacío de `valores-<entorno>.env` (el archivo de secretos se carga después). No está en
+  # `secretos-requeridos.txt` a propósito: así un `desplegar.sh` instalado antes de este cambio sigue sirviendo.
   for nombre in SUPER_ADMIN_EMAIL SUPER_ADMIN_NAME SUPER_ADMIN_PASSWORD \
-                S3_ACCESS_KEY S3_SECRET_KEY; do
+                S3_ACCESS_KEY S3_SECRET_KEY MONITOREO_NOTIFICACION_CORREO; do
     [ -n "${!nombre}" ] && printf '%s=%s\n' "$nombre" "${!nombre}"
   done
   # Este `true` NO es decorativo. Con `set -e`, si el ÚLTIMO secreto opcional está

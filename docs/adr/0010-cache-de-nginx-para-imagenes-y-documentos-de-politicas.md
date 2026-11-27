@@ -29,6 +29,7 @@ nginx guarda esas respuestas y, si PHP falla o no contesta, sirve la última cop
 
 - Una caída de PHP-FPM ya no rompe las imágenes de la portada ni las descargas de políticas ya vistas en la última hora.
 - El primer visitante tras un reinicio, o tras una hora sin que nadie pida un recurso, no tiene copia: si PHP está caído en ese momento, ve el error.
+- Con `app` caído y **sin copia** de un documento, las descargas simultáneas del mismo documento hacen cola en el bloqueo de caché y cada una agota sus 2 s de conexión por turno (medido con nginx real y un origen que no acepta conexiones: 6 simultáneas, de 2 a 12 s hasta el 504). Es el precio de que varias descargas en frío generen el PDF/A una sola vez; con copia vieja no hay cola (salen `UPDATING`/`STALE`).
 - La edad de la copia vieja es **menor de 24 h** (barrido), no «24 h exactas»: la cuantifica la prueba con tiempos escalados, no un reloj de 24 h.
 - `cache=$upstream_cache_status` en el registro de nginx (`MISS`, `HIT`, `EXPIRED`, `STALE`, `BYPASS`) permite medir la caché. El umbral de alerta y el aviso de `[crit]` son de DISP-01 (monitoreo).
 - **No resuelve:** los 300 s de `max-age` del navegador y de Cloudflare (una imagen despublicada se sigue viendo hasta 5 min allí) ni los 86 400 s de la imagen de contenido (decisión de la D9, ficha del 2026-11-23, observación 1).

@@ -487,6 +487,9 @@ jobs:
           bash deploy/pruebas/prueba-local-env.sh
           # La sonda de disponibilidad (DISP-01) contra un servidor simulado.
           bash deploy/pruebas/prueba-sonda-sitio.sh
+          # `publicar-entorno.sh`: el arranque (.env y compose.yaml) no pisa un entorno desplegado y
+          # no falla en un servidor limpio. Ejecuta el guion remoto sin servidor ni privilegios.
+          bash deploy/pruebas/prueba-publicar-arranque.sh
       - name: Las copias de seguridad encajan con la pila
         run: |
           # Tres desencajes que no fallan donde se introducen y sólo se descubren al

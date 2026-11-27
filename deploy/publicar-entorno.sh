@@ -24,9 +24,14 @@
 #
 # El `.env` y el `compose.yaml` los RENDERIZA AHORA `desplegar.sh` en el servidor, en
 # cada despliegue, desde la plantilla y los valores que viajan dentro de la imagen de
-# la versión. Aquí se siguen publicando como ARRANQUE —para que la primera vez haya
-# algo coherente y para poder volver a una versión anterior a este mecanismo—, pero ya
-# NO hay que acordarse de publicar el entorno al cambiar una variable: un cambio en
+# la versión. Aquí se publican como ARRANQUE —para que la primera vez haya algo
+# coherente y para poder volver a una versión anterior a este mecanismo—, y SÓLO si el
+# entorno todavía no tiene una versión desplegada (`/var/lib/sede/<entorno>/version`).
+# Con una versión en marcha se CONSERVAN los que corren: `desplegar.sh` copia a
+# `.anterior` justo lo que encuentra, así que un arranque publicado desde otra rama y un
+# despliegue posterior fallido dejaban el código de una versión con la configuración de
+# otra. Para reescribirlos a propósito: `FORZAR_ARRANQUE=1 ./publicar-entorno.sh <entorno>`.
+# Ya NO hay que acordarse de publicar el entorno al cambiar una variable: un cambio en
 # `deploy/plantilla.env` o en `deploy/valores-<entorno>.env` viaja con el siguiente
 # despliegue.
 #
@@ -211,12 +216,25 @@ PWSEC=$(printf %s '@@PW@@' | base64 -d)
 printf '%s\n' "$PWSEC" | sudo -S -k -p '' bash -c '
   set -eu
   DESTINO="@@DESTINO@@"
+  ESTADO="/var/lib/sede/@@ENTORNO@@"
+  FORZAR="@@FORZAR@@"
   install -d -m 750 "$DESTINO"
   rm -rf /tmp/sede-entorno && install -d -m 700 /tmp/sede-entorno
   printf %s "@@ENV@@" | base64 -d > /tmp/sede-entorno/entorno.tar.gz
-    tar -xzf /tmp/sede-entorno/entorno.tar.gz -C "$DESTINO"
+  tar -xzf /tmp/sede-entorno/entorno.tar.gz -C /tmp/sede-entorno
   install -d -m 750 "$DESTINO/certs"
-  mv "$DESTINO/sede.env" "$DESTINO/.env"
+
+  # ARRANQUE SÓLO SI NO HAY NADA EN MARCHA. Con una versión desplegada, `desplegar.sh`
+  # renderiza el entorno de cada versión y copia a `.anterior` el que encuentra: pisarlo
+  # aquí con el de OTRA rama dejaría, tras un despliegue fallido, el código de una versión
+  # con la configuración de otra. `FORZAR_ARRANQUE=1` lo reescribe a propósito.
+  if [ -s "$ESTADO/version" ] && [ -z "$FORZAR" ]; then
+    echo "    ya hay una versión desplegada ($(cat "$ESTADO/version")): se CONSERVAN .env y compose.yaml"
+  else
+    mv -f /tmp/sede-entorno/sede.env "$DESTINO/.env"
+    mv -f /tmp/sede-entorno/compose.yaml "$DESTINO/compose.yaml"
+    echo "    arranque instalado: .env y compose.yaml"
+  fi
 
   # PERTENENCIA Y PERMISOS: la llave de despliegue entra como la cuenta de
   # despliegue y `desplegar.sh` corre con `sudo` (esa cuenta ya no pertenece al
@@ -226,14 +244,16 @@ printf '%s\n' "$PWSEC" | sudo -S -k -p '' bash -c '
   # migración a `sudo` el guion corría como esa cuenta y este reparto era además
   # lo que le permitía leer el `.env`; hoy sigue siendo lo correcto.
   chown root:deploy "$DESTINO" && chmod 750 "$DESTINO"
-  chown root:deploy "$DESTINO/.env" && chmod 640 "$DESTINO/.env"
-  chown root:deploy "$DESTINO/compose.yaml" && chmod 644 "$DESTINO/compose.yaml"
-  chown -R root:deploy "$DESTINO/docker" && chmod -R a+rX "$DESTINO/docker"
+  if [ -f "$DESTINO/.env" ]; then chown root:deploy "$DESTINO/.env" && chmod 640 "$DESTINO/.env"; fi
+  if [ -f "$DESTINO/compose.yaml" ]; then chown root:deploy "$DESTINO/compose.yaml" && chmod 644 "$DESTINO/compose.yaml"; fi
+  # `docker/` ya no viaja en el paquete: en un servidor limpio no existe y un `chown -R` sin
+  # comprobarlo abortaba aquí, con `set -eu`, antes de dejar el entorno publicado.
+  if [ -d "$DESTINO/docker" ]; then chown -R root:deploy "$DESTINO/docker" && chmod -R a+rX "$DESTINO/docker"; fi
 
   # El ESTADO lo escribe la cuenta de despliegue, así que vive en /var/lib y le
   # pertenece. Separarlo de la configuración es lo que permite que esa cuenta
   # pueda anotar qué versión corre sin poder reescribir el entorno que ejecuta.
-  install -d -m 750 -o deploy -g deploy "/var/lib/sede/@@ENTORNO@@"
+  install -d -m 750 -o deploy -g deploy "$ESTADO"
   rm -rf /tmp/sede-entorno
   echo "    publicado en $DESTINO"
   ls -la "$DESTINO" | sed "s/^/      /"
@@ -245,6 +265,7 @@ GUION=${GUION//@@PW@@/$B64_PW}
 GUION=${GUION//@@DESTINO@@/$DESTINO}
 GUION=${GUION//@@ENTORNO@@/$ENTORNO}
 GUION=${GUION//@@ENV@@/$B64_ENV}
+GUION=${GUION//@@FORZAR@@/${FORZAR_ARRANQUE:-}}
 
 printf '%s\n' "$GUION" | timeout 180 ssh -F /dev/null -i "$HOME/.ssh/id_ed25519" \
   -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=25 \

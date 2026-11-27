@@ -2,9 +2,17 @@
 
 declare(strict_types=1);
 
+use Illuminate\Console\Scheduling\Schedule as Agenda;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+
+// La agenda no depende de Redis (la caché por omisión en el servidor): con Redis caído, `schedule:run`
+// lanzaba antes de ejecutar nada, y ni `monitoreo:redis` ni las copias corrían (AgendaSinRedisTest).
+// Sin consulta de pausa ni interrupción (no se usan: no hay tareas de menos de un minuto) y con los
+// candados de `withoutOverlapping()` en disco, válidos porque hay un solo programador (compose.yaml).
+Agenda::withoutInterruptionPolling();
+Schedule::useCache('file');
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

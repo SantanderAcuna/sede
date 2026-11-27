@@ -49,7 +49,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=prueba" \
 chmod 644 "$T/certs/"*
 
 # El origen FastCGI (puerto 9000) y un «sitio» vacío (puerto 3000, solo para que el upstream exista).
-python3 "$APOYO/origen-fastcgi.py" "$T/estado" 9000 >/dev/null 2>"$T/origen.log" & PIDS+=("$!")
+python3 "$APOYO/origen-fastcgi.py" "$T/estado" 9000 >/dev/null 2>"$T/origen.log" & ORIGEN_PID=$!; PIDS+=("$ORIGEN_PID")
 ( cd "$T/sitio" && exec python3 -m http.server 3000 --bind 127.0.0.1 >/dev/null 2>&1 ) & PIDS+=("$!")
 sleep 0.5
 
@@ -175,6 +175,26 @@ for _ in 1 2 3 4; do ( curl -sk -o /dev/null "$U/politicas/pesada.pdf" ) & pids+
 wait "${pids[@]}"
 v "4 descargas simultáneas en frío generan el documento una sola vez" "$(grep -c pesada "$T/origen.log")" 1
 rm -f "$T/estado/politicas_pesada.pdf"
+
+sec "8b. Origen que no acepta conexiones (app parado): la copia sale en pocos segundos"
+# En staging, con `app` detenido, el documento tardó 60,0 s en salir como copia vieja: el bloque de
+# políticas no fijaba `fastcgi_connect_timeout` y nginx usa 60 s por omisión (medido 2026-11-26).
+# Aquí el origen deja de aceptar conexiones (no las rechaza: las deja colgadas, como el contenedor parado).
+ms() { echo $(( $(date +%s%N) / 1000000 )); }
+codigo "$U$P" >/dev/null; codigo "$U$B" >/dev/null; sleep 2
+kill "$ORIGEN_PID" 2>/dev/null; wait "$ORIGEN_PID" 2>/dev/null
+python3 "$APOYO/origen-colgado.py" 9000 >"$T/colgado.out" 2>&1 & COLGADO_PID=$!; PIDS+=("$COLGADO_PID")
+for _ in $(seq 1 20); do grep -q listo "$T/colgado.out" 2>/dev/null && break; sleep 0.1; done
+for recurso in "$P" "$B"; do
+  t0="$(ms)"; c="$(curl -sk --max-time 20 -o /dev/null -w '%{http_code}' "$U$recurso")"; t1="$(ms)"
+  v "$recurso con el origen colgado: 200 con la copia" "$c" 200
+  v "$recurso: la copia sale en menos de 10 s (salió en $((t1 - t0)) ms)" "$([ $((t1 - t0)) -lt 10000 ] && echo si || echo no)" si
+  v "$recurso: estado STALE" "$(estado_cache $recurso)" STALE
+  sleep 1.2
+done
+kill "$COLGADO_PID" 2>/dev/null; wait "$COLGADO_PID" 2>/dev/null
+python3 "$APOYO/origen-fastcgi.py" "$T/estado" 9000 >/dev/null 2>"$T/origen.log" & ORIGEN_PID=$!; PIDS+=("$ORIGEN_PID")
+sleep 0.5
 
 sec "9. Barrido (contenedor aparte: uid 101, sin red, sin capacidades, solo lectura)"
 codigo "$U$B" >/dev/null; sleep 2

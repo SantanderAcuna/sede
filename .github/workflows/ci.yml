@@ -55,6 +55,13 @@ jobs:
     name: Backend
     runs-on: ubuntu-latest
     services:
+      # `LectorRedisRealTest` (monitoreo:redis) se prueba contra el Redis real, sin contraseña y desechable.
+      redis:
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
       postgres:
         image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
@@ -75,6 +82,8 @@ jobs:
       CACHE_STORE: array
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
+      REDIS_PRUEBA_HOST: 127.0.0.1
+      REDIS_PRUEBA_PORT: '6379'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0

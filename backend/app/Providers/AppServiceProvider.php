@@ -64,6 +64,8 @@ use App\Services\EntidadService;
 use App\Services\FilesMediaService;
 use App\Services\IdentidadService;
 use App\Services\ImagenContenidoService;
+use App\Services\Monitoreo\LectorRedis;
+use App\Services\Monitoreo\LectorRedisReal;
 use App\Services\NoticiaService;
 use App\Services\RolPanelService;
 use App\Services\TramitePanelService;
@@ -90,6 +92,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(LectorRedis::class, LectorRedisReal::class);
         $this->app->bind(TramiteRepositoryInterface::class, TramiteRepository::class);
         $this->app->bind(TramiteServiceInterface::class, TramiteService::class);
 

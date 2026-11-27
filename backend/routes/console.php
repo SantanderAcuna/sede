@@ -53,3 +53,7 @@ Schedule::command('archivos:verificar')->dailyAt('03:00')->timezone('America/Bog
 // más de 7 días sin tocarse. A las 03:30 de Bogotá, después de la verificación de huellas (03:00) y mucho antes de la vigilancia de
 // la copia (06:00); la copia (01:30) ya terminó, así que no borra nada que ella esté leyendo.
 Schedule::command('archivos:limpiar-sin-uso')->dailyAt('03:30')->timezone('America/Bogota')->withoutOverlapping();
+
+// Vigilancia interna de Redis (DISP-01, ADR-0009): memoria de `sitio:*`, `evicted_keys` y rechazos ACL del usuario
+// `sitio`. Cada 15 minutos; solo lee. Lo que la sonda de fuera (`sonda.yml`) no puede ver.
+Schedule::command('monitoreo:redis')->everyFifteenMinutes()->withoutOverlapping();

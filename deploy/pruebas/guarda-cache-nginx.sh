@@ -88,6 +88,12 @@ for archivo, nombre in esperados.items():
 comprueba(len(re.findall(r"^\s*fastcgi_read_timeout\b", nginx_s, re.M)) == 1,
           "nginx.conf declara fastcgi_read_timeout una vez (contexto http)",
           "nginx.conf debe declarar fastcgi_read_timeout exactamente una vez en el contexto http")
+comprueba(len(re.findall(r"^\s*fastcgi_connect_timeout 2s;", nginx_s, re.M)) == 1,
+          "nginx.conf declara fastcgi_connect_timeout 2s una vez (contexto http)",
+          "nginx.conf debe declarar fastcgi_connect_timeout 2s exactamente una vez: con el valor por omisión (60 s) y app parado cada petición retiene un worker un minuto")
+comprueba("fastcgi_connect_timeout" not in fastcgi_s,
+          "snippets/fastcgi.conf no fija fastcgi_connect_timeout",
+          "snippets/fastcgi.conf fija fastcgi_connect_timeout: repetido en un location que lo redefine, nginx no arranca")
 comprueba("fastcgi_read_timeout" not in fastcgi_s,
           "snippets/fastcgi.conf ya no fija fastcgi_read_timeout",
           "snippets/fastcgi.conf vuelve a fijar fastcgi_read_timeout: repetido en un location que lo redefine, nginx no arranca")

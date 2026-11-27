@@ -64,4 +64,5 @@ Schedule::command('archivos:limpiar-sin-uso')->dailyAt('03:30')->timezone('Ameri
 
 // Vigilancia interna de Redis (DISP-01, ADR-0009): memoria de `sitio:*`, `evicted_keys` y rechazos ACL del usuario
 // `sitio`. Cada 15 minutos; solo lee. Lo que la sonda de fuera (`sonda.yml`) no puede ver.
-Schedule::command('monitoreo:redis')->everyFifteenMinutes()->withoutOverlapping();
+// El candado caduca a los 10 min: si un SIGKILL lo deja puesto, la siguiente corrida no se pierde un día.
+Schedule::command('monitoreo:redis')->everyFifteenMinutes()->withoutOverlapping(10);

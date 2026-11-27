@@ -77,4 +77,17 @@ comprobar(
     "las frases anteriores conservan el valor que tenían antes de rotar",
 )
 
+# `--github` y `--empujar` copian los secretos de la APLICACIÓN a GitHub. Ningún flujo los lee (sólo
+# DEPLOY_*, VERIFICADOR_VINCULOS_TOKEN y GITHUB_TOKEN) y el ADR-0019 deja los valores sólo en el
+# servidor: quien lo use tiene que saberlo antes de que se empuje nada.
+salida = io.StringIO()
+with contextlib.redirect_stdout(salida):
+    rotar.avisar_github()
+aviso = " ".join(salida.getvalue().split()).lower()   # sin saltos de línea ni mayúsculas: se prueba el sentido
+doc = " ".join(rotar.__doc__.split())
+comprobar("ningún flujo" in aviso, "el aviso de --github dice que ningún flujo lee esos secretos")
+comprobar("adr-0019" in aviso, "el aviso de --github remite al ADR-0019")
+comprobar("--github" in doc and "no los aplica" in doc,
+          "el docstring ya no promete que la aplicación al servidor ocurra en la misma ejecución")
+
 sys.exit(1 if fallos else 0)

@@ -522,6 +522,14 @@ jobs:
           # Evalúa los `if:` reales de despliegue.yml para empujes y lanzamientos a mano desde
           # cada rama. Antes, lanzar «staging» a mano desde main disparaba también producción.
           python3 deploy/pruebas/prueba-condiciones-despliegue.py
+      - name: Los secretos y su rotación
+        run: |
+          # `prueba-rotar-secretos.py` y `prueba-agregar-secretos-roles.py` existían y no las ejecutaba nadie
+          # (docs/copias-de-seguridad.md las citaba como puerta de CI). La guarda impide que un flujo lea un
+          # secreto de la aplicación: viven sólo en el servidor (ADR-0019).
+          python3 deploy/pruebas/prueba-rotar-secretos.py
+          python3 deploy/pruebas/prueba-agregar-secretos-roles.py
+          bash deploy/pruebas/guarda-secretos-workflows.sh
       - name: El TLS a la base se exige y el certificado se emite y se renueva
         run: |
           # Contra el servicio `postgres` real de compose.yaml: una conexión sin cifrar es

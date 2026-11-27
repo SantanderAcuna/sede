@@ -10,7 +10,7 @@ make local-limpio   # detiene y BORRA los datos locales
 
 - Sitio y API: <https://localhost:8443> (certificado autofirmado: el navegador pide aceptarlo).
 - Correo de prueba: <http://localhost:8025>.
-- `.env` y los certificados se crean con `scripts/local.sh` **sin pisar** los que ya existan; están en
+- `.env` y los certificados se crean con `scripts/local.sh` **sin pisar** los que ya existan; están en Si tu `.env` es anterior a una variable nueva que la pila exige (hoy `REDIS_SITIO_PASSWORD`), el guion agrega solo esa variable y no toca el resto.
   `.gitignore` y no salen de la máquina. Los secretos son aleatorios y propios de esta máquina.
 - La aplicación corre con el rol `sede_app` y la base usa TLS, como en producción. El servicio
   `migrar` es el único que lleva la clave del dueño `sede` (ver ADR-0004).

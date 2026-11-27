@@ -22,8 +22,28 @@ accion="${1:-arriba}"
 
 aleatorio() { openssl rand -hex 24; }
 
+# Un `.env` creado antes de que el entorno exigiera una variable no la tiene, y Compose se
+# niega a arrancar sin ella (REDIS_SITIO_PASSWORD, T9.5). Se agrega SOLO lo que falta o está
+# vacío; el resto del archivo y sus permisos no se tocan.
+completar_env() {
+  if grep -q '^REDIS_SITIO_PASSWORD=.' .env; then
+    echo "  .env ya existe y está completo: no se toca."
+    return
+  fi
+  if grep -q '^REDIS_SITIO_PASSWORD=$' .env; then
+    sed -i "s|^REDIS_SITIO_PASSWORD=\$|REDIS_SITIO_PASSWORD=$(aleatorio)|" .env
+  else
+    [ -n "$(tail -c1 .env)" ] && echo >> .env   # el archivo no termina en salto de línea
+    printf '# Usuario ACL sitio del respaldo del sitio (T9.5): otra contraseña, a propósito.\nREDIS_SITIO_PASSWORD=%s\n' "$(aleatorio)" >> .env
+  fi
+  echo "  .env ya existe: se agregó REDIS_SITIO_PASSWORD (lo demás no se toca)."
+}
+
 crear_env() {
-  [ -f .env ] && { echo "  .env ya existe: no se toca."; return; }
+  if [ -f .env ]; then
+    completar_env
+    return
+  fi
   local clave_app
   clave_app="base64:$(openssl rand -base64 32)"
   ( umask 077

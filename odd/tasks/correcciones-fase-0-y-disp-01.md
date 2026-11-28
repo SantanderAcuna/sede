@@ -11,7 +11,7 @@ what cannot be fixed without a decision from José.
 ## Evidence base (verified 2026-11-27)
 
 - Active plan: `plan-correccion-bd-modulos-2026-11-13.md` (v3.5, phases 0–8), approved 2026-11-13. Its three
-  files are not on `develop` and not on disk, but they ARE in git: commit `88c48e2` (José, 2026-11-17 23:57Z)
+  files were not on `develop` nor on disk, but they WERE in git: commit `88c48e2` (José, 2026-11-17 23:57Z)
   on `origin/feat/0b-t6-panel-api`, made 20 min after PR #621 merged (23:37Z), so it never reached `develop`.
   Same commit: `sede-electronica-doc/03-servicios-tramites/decisiones-reconstruccion-tramites.md`. Against the
   copies recovered from session `0728262f`: plan and panel status identical except a trailing blank line; the
@@ -47,10 +47,10 @@ what cannot be fixed without a decision from José.
     setUp/tearDown (no flaky leftovers) and pins that pause/interrupt are off (ADR 0009 states it).
   - Full suite on disposable Postgres/Redis: 1047 tests, 1043 passed, 4 errors = `LectorRedisRealTest` (`Class "Redis"
     not found`: the host PHP has no phpredis, `php -m` confirms; CI installs it). Pint and PHPStan clean.
-- [ ] D1 Bring the plan v3.5 documents from `88c48e2` to `develop`, or leave them only on that branch —
-  decision of José. They are already public there. No decision to keep them unversioned exists: on
-  2026-11-17 22:05Z an agent reported them as untracked and left them alone because they looked like his
-  deliverables, and they were committed 2 h later (see the evidence base).
+- [x] D1 José decided (2026-11-28) to bring the four files of `88c48e2` to `develop`; they are copied
+  byte for byte. No decision to keep them unversioned ever existed: on 2026-11-17 22:05Z an agent reported
+  them as untracked and left them alone because they looked like his deliverables, and they were committed
+  2 h later (see the evidence base).
 - [ ] D2 `pm.max_children` value for production — decision of José with load test (sheet 0C).
 - [ ] D3 Fix or source the "auditoría H3" reference — needs the audit José refers to. It was added by
   `a06ff56` (#741, 2026-11-26) with no source. Searched with no match: every local and remote branch, the
@@ -67,4 +67,4 @@ what cannot be fixed without a decision from José.
 
 ## Next step
 
-T1–T3 are on `develop` and `staging` (PR #754). José decides D1–D8.
+T1–T3 are on `develop` and `staging` (PR #754); D1 done. José decides D2–D8.

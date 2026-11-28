@@ -4,14 +4,23 @@
 Existe por una razón concreta: rotar a mano es generar un valor, aplicarlo en un
 sitio y olvidar registrarlo en otro. Así fue como la contraseña de `ops` del
 droplet nuevo quedó asignada y sin registrar, y como un registro acabó apuntando
-a un servidor que ya no existía. Aquí la generación, la aplicación y el registro
-ocurren en la misma ejecución, o no ocurren.
+a un servidor que ya no existía. La generación y el registro ocurren en la misma
+ejecución, o no ocurren. La APLICACIÓN al servidor sólo la hace este guion con la contraseña
+de `ops` (`--ops`); los secretos de la aplicación (`--aplicacion`) los registra pero no los
+aplica: los instala `deploy/publicar-entorno.sh` (ADR-0019), y hasta entonces el servidor sigue
+con los valores viejos.
+
+`--github` y `--empujar` copian a GitHub los secretos de la APLICACIÓN. Ningún flujo de
+`.github/workflows` los lee (sólo `DEPLOY_*`, `VERIFICADOR_VINCULOS_TOKEN` y `GITHUB_TOKEN`) y el
+ADR-0019 deja esos valores únicamente en el servidor: una copia más es una superficie más, no una
+necesidad. `deploy/pruebas/guarda-secretos-workflows.sh` impide que un flujo los empiece a leer
+sin que alguien lo decida a propósito.
 
 Nunca imprime un valor. Sólo longitudes y comprobaciones.
 
     ./rotar-secretos.py --comprobar            # no cambia nada
     ./rotar-secretos.py --aplicacion           # secretos de la aplicación
-    ./rotar-secretos.py --aplicacion --github  # y los empuja a GitHub
+    ./rotar-secretos.py --aplicacion --github  # y los copia a GitHub (nadie los lee: ver abajo)
     ./rotar-secretos.py --aplicacion --frase-copias  # incluye la frase de las copias (ver abajo)
     ./rotar-secretos.py --ops                  # contraseña de ops en el servidor
     ./rotar-secretos.py --servidor             # datos del servidor en el registro
@@ -172,6 +181,15 @@ def gh(*args: str, entrada: str | None = None, intentos: int = 4) -> None:
         time.sleep(espera)
 
 
+def avisar_github() -> None:
+    """Dice, ANTES de empujar, qué se está haciendo y por qué quizá no hace falta."""
+    print("AVISO: se van a copiar a GitHub los secretos de la APLICACIÓN (APP_KEY, contraseñas de la base y")
+    print("       de Redis, claves de S3, frase de las copias). Ningún flujo de .github/workflows los lee: sólo")
+    print("       DEPLOY_*, VERIFICADOR_VINCULOS_TOKEN y GITHUB_TOKEN. El ADR-0019 deja estos valores únicamente")
+    print("       en el servidor (/etc/sede/<entorno>.secretos.env). Cada copia extra es otro sitio donde se")
+    print("       pueden filtrar; continúa sólo si una canalización los va a consumir.\n")
+
+
 def empujar_github() -> None:
     """Empuja a GitHub los valores YA registrados, sin generar ninguno nuevo.
 
@@ -186,6 +204,7 @@ def empujar_github() -> None:
             k, v = linea.split("=", 1)
             valores[k.strip()] = v.strip()
 
+    avisar_github()
     print("Empujando a los secretos de entorno de GitHub (sin regenerar)")
     for clave, (k_staging, k_produccion) in APLICACION.items():
         for entorno, k_env in (("staging", k_staging), ("production", k_produccion)):
@@ -356,7 +375,9 @@ def rotar_aplicacion(hacia_github: bool, incluir_frase_copias: bool = False) -> 
         print("\n  (no se tocó GitHub: repite con --github para empujarlos)")
         return
 
-    print("\nEmpujando a los secretos de entorno de GitHub")
+    print()
+    avisar_github()
+    print("Empujando a los secretos de entorno de GitHub")
     for clave, valor in generados:
         entorno = "staging" if clave.endswith("_STAGING") else "production"
         nombre = clave[: -len("_STAGING")] if entorno == "staging" else clave[: -len("_PRODUCTION")]
@@ -465,8 +486,8 @@ def main() -> None:
     p.add_argument("--comprobar", action="store_true", help="no cambia nada")
     p.add_argument("--aplicacion", action="store_true", help="rota APP_KEY y las contraseñas (NO la frase de copias)")
     p.add_argument("--frase-copias", action="store_true", help="con --aplicacion: rota TAMBIÉN la frase de copias (invalida las copias existentes)")
-    p.add_argument("--github", action="store_true", help="empuja también a los secretos de GitHub")
-    p.add_argument("--empujar", action="store_true", help="empuja los valores ya registrados, sin regenerar")
+    p.add_argument("--github", action="store_true", help="copia también a GitHub los secretos de la aplicación (ningún flujo los lee; ver el aviso)")
+    p.add_argument("--empujar", action="store_true", help="copia a GitHub los valores ya registrados, sin regenerar (ningún flujo los lee)")
     p.add_argument("--ops", action="store_true", help="rota la contraseña de ops en el servidor")
     p.add_argument("--servidor", action="store_true", help="actualiza los datos del servidor")
     p.add_argument("--ip", help="dirección del servidor, sólo para corregir un registro obsoleto")

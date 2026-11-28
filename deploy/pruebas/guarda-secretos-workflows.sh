@@ -30,8 +30,10 @@
 # línea partida con `\`) se ve como lo que GitHub recibe. Se recorren todos los valores y claves del
 # documento, también los repetidos.
 #
-# Salida: 0 sin lecturas prohibidas, 1 con alguna (una línea «archivo: lectura» por cada una), 3 si un
-# flujo no se pudo leer (YAML inválido, no UTF-8). Un error nunca se confunde con una detección.
+# Salida: 0 sin lecturas prohibidas, 1 con alguna (una línea «archivo: lectura» por cada una), 3 si la
+# revisión no se pudo completar: un flujo ilegible (YAML inválido, no UTF-8), PyYAML ausente o cualquier
+# fallo inesperado del revisor. Un error nunca sale con 1, y un flujo ilegible no impide revisar los demás:
+# las lecturas que se hallen se informan igual.
 #
 # Autoprueba: antes de mirar los flujos reales comprueba que la guarda falla con cada forma de lectura de
 # un secreto de la aplicación y pasa con las legítimas; una guarda que no puede fallar no sirve.
@@ -47,56 +49,59 @@ import pathlib
 import re
 import sys
 
-import yaml
-
 SIN_LECTURAS, CON_LECTURAS, ERROR = 0, 1, 3
 
+try:
+    import yaml
+except ImportError as error:
+    print(f"  no se puede revisar: falta PyYAML ({error})", file=sys.stderr)
+    sys.exit(ERROR)
+
 lista, carpeta = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
-prohibidos = {
-    linea.split()[0].upper()
-    for linea in lista.read_text(encoding="utf-8").splitlines()
-    if linea.strip() and not linea.lstrip().startswith("#")
-}
+# Nombres de la lista, en mayúsculas; `principal()` los carga dentro de la frontera de errores.
+prohibidos: set[str] = set()
+
+
+def cargar_prohibidos() -> None:
+    """Lee los nombres de `secretos-requeridos.txt` (primera palabra de cada línea que no es comentario)."""
+    prohibidos.update(
+        linea.split()[0].upper()
+        for linea in lista.read_text(encoding="utf-8").splitlines()
+        if linea.strip() and not linea.lstrip().startswith("#")
+    )
 
 # Un token de una expresión: una cadena entre comillas simples ('' es una comilla dentro), un nombre
 # (letras, cifras, `_` y `-`, como los nombres de propiedad de GitHub) o cualquier otro carácter suelto.
 TOKEN = re.compile(r"\s*(?:(?P<cadena>'(?:[^']|'')*')|(?P<nombre>[A-Za-z_][A-Za-z0-9_-]*)|(?P<otro>\S))", re.S)
 
 
-def escalares(nodo: yaml.Node) -> list[yaml.ScalarNode]:
-    """Todos los escalares del documento (claves y valores), sin perder claves repetidas."""
-    vistos, pendientes, encontrados = set(), [nodo], []
+def nodos(raiz: yaml.Node) -> list[yaml.Node]:
+    """Cada nodo del documento una sola vez; un alias de YAML apunta a un nodo ya visto y no se repite."""
+    vistos, pendientes, encontrados = set(), [raiz], []
     while pendientes:
         actual = pendientes.pop()
         if id(actual) in vistos:
             continue
         vistos.add(id(actual))
-        if isinstance(actual, yaml.ScalarNode):
-            encontrados.append(actual)
-        elif isinstance(actual, yaml.SequenceNode):
+        encontrados.append(actual)
+        if isinstance(actual, yaml.SequenceNode):
             pendientes.extend(actual.value)
         elif isinstance(actual, yaml.MappingNode):
-            pendientes.extend(nodo for par in actual.value for nodo in par)
+            pendientes.extend(hijo for par in actual.value for hijo in par)
     return encontrados
 
 
 def hereda_secretos(nodo: yaml.Node) -> bool:
-    """¿Hay en el documento un par `secrets: inherit`, con o sin comillas?"""
-    vistos, pendientes = set(), [nodo]
-    while pendientes:
-        actual = pendientes.pop()
-        if id(actual) in vistos or isinstance(actual, yaml.ScalarNode):
-            continue
-        vistos.add(id(actual))
-        if isinstance(actual, yaml.SequenceNode):
-            pendientes.extend(actual.value)
-            continue
-        for clave, valor in actual.value:
-            es_secrets = isinstance(clave, yaml.ScalarNode) and clave.value.lower() == "secrets"
-            if es_secrets and isinstance(valor, yaml.ScalarNode) and valor.value.lower() == "inherit":
-                return True
-            pendientes.extend((clave, valor))
-    return False
+    """¿Es este nodo una correspondencia con un par `secrets: inherit`, con o sin comillas?"""
+    if not isinstance(nodo, yaml.MappingNode):
+        return False
+    return any(
+        isinstance(clave, yaml.ScalarNode)
+        and isinstance(valor, yaml.ScalarNode)
+        and clave.value.lower() == "secrets"
+        and valor.value.lower() == "inherit"
+        for clave, valor in nodo.value
+    )
 
 
 def expresiones(texto: str) -> list[str]:
@@ -156,26 +161,40 @@ def revisar_flujo(flujo: pathlib.Path) -> list[str]:
     for documento in yaml.compose_all(flujo.read_text(encoding="utf-8")):
         if documento is None:
             continue
-        for escalar in escalares(documento):
-            malas += [lectura for e in expresiones(escalar.value) for lectura in lecturas(e)]
-        if hereda_secretos(documento):
-            malas.append("secrets: inherit")
+        for nodo in nodos(documento):
+            if isinstance(nodo, yaml.ScalarNode):
+                malas += [lectura for e in expresiones(nodo.value) for lectura in lecturas(e)]
+            elif hereda_secretos(nodo):
+                malas.append("secrets: inherit")
     return malas
 
 
-salida = SIN_LECTURAS
-for flujo in sorted([*carpeta.glob("*.yml"), *carpeta.glob("*.yaml")]):
-    if not flujo.is_file():
-        continue
-    try:
-        malas = revisar_flujo(flujo)
-    except (OSError, UnicodeDecodeError, yaml.YAMLError) as error:
-        print(f"  {flujo.name}: no se pudo leer ({type(error).__name__}: {error})", file=sys.stderr)
-        sys.exit(ERROR)
-    for lectura in malas:
-        print(f"  {flujo.name}: {lectura}")
-        salida = CON_LECTURAS
-sys.exit(salida)
+def principal() -> int:
+    """Revisa cada flujo de la carpeta; un flujo ilegible se informa y no detiene la revisión de los demás."""
+    cargar_prohibidos()
+    hay_lecturas, hay_errores = False, False
+    for flujo in sorted([*carpeta.glob("*.yml"), *carpeta.glob("*.yaml")]):
+        if not flujo.is_file():
+            continue
+        try:
+            malas = revisar_flujo(flujo)
+        except (OSError, UnicodeDecodeError, RecursionError, yaml.YAMLError) as error:
+            print(f"  {flujo.name}: no se pudo leer ({type(error).__name__}: {error})", file=sys.stderr)
+            hay_errores = True
+            continue
+        for lectura in malas:
+            print(f"  {flujo.name}: {lectura}")
+            hay_lecturas = True
+    if hay_errores:
+        return ERROR
+    return CON_LECTURAS if hay_lecturas else SIN_LECTURAS
+
+
+try:
+    sys.exit(principal())
+except Exception as error:  # Frontera del proceso: un fallo del revisor no puede salir con 1 (detección).
+    print(f"  fallo inesperado del revisor ({type(error).__name__}: {error})", file=sys.stderr)
+    sys.exit(ERROR)
 PY
 }
 
@@ -189,9 +208,9 @@ caso() {
   casos=$((casos+1)); mkdir "$T/$casos"; printf '%s\n' "$contenido" > "$T/$casos/a.yml"
   revisar "$T/$casos" >/dev/null 2>&1; obtenida=$?
   if [ "$obtenida" = "$esperada" ]; then
-    echo "  ✓ autoprueba (salida $obtenida): $contenido"
+    echo "  ✓ autoprueba (salida $obtenida): ${contenido:0:100}"
   else
-    echo "  ✗ autoprueba: se esperaba salida $esperada y fue $obtenida: $contenido" >&2; fallos=$((fallos+1))
+    echo "  ✗ autoprueba: se esperaba salida $esperada y fue $obtenida: ${contenido:0:100}" >&2; fallos=$((fallos+1))
   fi
 }
 
@@ -230,6 +249,25 @@ caso 0 '# X: ${{ secrets.DB_PASSWORD }} (comentario: GitHub no lo evalúa)'
 # --- Autoprueba: flujos ilegibles (salida 3, nunca 1) -----------------------------------------
 caso 3 'a: ['
 caso 3 "$(printf 'X: \xff\xfe')"
+caso 3 "$(python3 -c "print('X: ' + '[' * 3000 + ']' * 3000)")"
+# Sin PyYAML (simulado con un `yaml` que no importa) la salida es 3, no la de una detección.
+mkdir "$T/sin-yaml"; echo 'raise ImportError("PyYAML ausente (simulado)")' > "$T/sin-yaml/yaml.py"
+mkdir "$T/flujo-sin-yaml"; printf 'X: ${{ secrets.DEPLOY_HOST }}\n' > "$T/flujo-sin-yaml/a.yml"
+PYTHONPATH="$T/sin-yaml" revisar "$T/flujo-sin-yaml" >/dev/null 2>&1; obtenida=$?
+if [ "$obtenida" = 3 ]; then
+  echo "  ✓ autoprueba (salida 3): sin PyYAML"
+else
+  echo "  ✗ autoprueba: sin PyYAML se esperaba salida 3 y fue $obtenida" >&2; fallos=$((fallos+1))
+fi
+# Un flujo ilegible no esconde la lectura de otro: se revisan todos y se informan las dos cosas.
+mkdir "$T/mixto"; printf 'a: [\n' > "$T/mixto/a.yml"; printf 'X: ${{ secrets.DB_PASSWORD }}\n' > "$T/mixto/b.yml"
+mixto="$(revisar "$T/mixto" 2>/dev/null)"; obtenida=$?
+if [ "$obtenida" = 3 ] && printf '%s' "$mixto" | grep -q 'b.yml: secrets.DB_PASSWORD'; then
+  echo "  ✓ autoprueba (salida 3): un flujo ilegible no esconde la lectura de otro"
+else
+  echo "  ✗ autoprueba: con un flujo ilegible se perdió la lectura del otro (salida $obtenida)" >&2
+  fallos=$((fallos+1))
+fi
 # Un directorio con nombre de flujo no es un flujo: se salta, no rompe la guarda.
 mkdir -p "$T/dir/b.yml"; printf 'X: ${{ secrets.DEPLOY_HOST }}\n' > "$T/dir/a.yml"
 if revisar "$T/dir" >/dev/null 2>&1; then
@@ -246,7 +284,11 @@ elif [ "$estado" = 1 ]; then
   echo "  ✗ estos flujos leen secretos de la APLICACIÓN (ADR-0019: viven sólo en el servidor):" >&2
   printf '%s\n' "$salida" >&2; fallos=$((fallos+1))
 else
-  echo "  ✗ no se pudieron revisar los flujos (salida $estado): el error está arriba" >&2; fallos=$((fallos+1))
+  echo "  ✗ no se pudieron revisar todos los flujos (salida $estado): el error está arriba" >&2; fallos=$((fallos+1))
+  if [ -n "$salida" ]; then
+    echo "  ✗ y en los que sí se revisaron hay lecturas de secretos de la APLICACIÓN:" >&2
+    printf '%s\n' "$salida" >&2
+  fi
 fi
 
 [ "$fallos" = 0 ] && exit 0

@@ -275,9 +275,14 @@ printf 'DB_PASSWORD \xff\xfe obligatorio\n' > "$T/lista-rota.txt"
 autoprueba 3 "lista de secretos ilegible" revisar "$T/flujo-con-lista-rota" "$T/lista-rota.txt"
 # Un flujo ilegible no esconde la lectura de otro: se revisan todos y se informan las dos cosas.
 mkdir "$T/mixto"; printf 'a: [\n' > "$T/mixto/a.yml"; printf 'X: ${{ secrets.DB_PASSWORD }}\n' > "$T/mixto/b.yml"
-informa_las_dos() { local salida estado; salida="$(revisar "$T/mixto" 2>/dev/null)"; estado=$?
-  [ "$estado" = 3 ] && printf '%s' "$salida" | grep -q 'b.yml: secrets.DB_PASSWORD'; }
-autoprueba 0 "un flujo ilegible no esconde la lectura de otro" informa_las_dos
+autoprueba 3 "un flujo ilegible (a.yml) hace salir con 3" revisar "$T/mixto"
+# La segunda comprobación mira la SALIDA de la guarda, no su código: sale con 0 si informa la lectura de b.yml.
+informa_la_lectura_de_b() {
+  local salida
+  salida="$(revisar "$T/mixto" 2>/dev/null)"
+  grep -q 'b.yml: secrets.DB_PASSWORD' <<< "$salida"
+}
+autoprueba 0 "y aun así informa la lectura de b.yml (secrets.DB_PASSWORD)" informa_la_lectura_de_b
 # Un directorio con nombre de flujo no es un flujo: se salta, no rompe la guarda.
 mkdir -p "$T/dir/b.yml"; printf 'X: ${{ secrets.DEPLOY_HOST }}\n' > "$T/dir/a.yml"
 autoprueba 0 "un directorio llamado b.yml se salta" revisar "$T/dir"

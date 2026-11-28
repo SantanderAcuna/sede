@@ -195,5 +195,9 @@ final class VigilarRedisTest extends TestCase
         $this->assertNotNull($tarea, 'monitoreo:redis no está en la agenda');
         $this->assertSame('*/15 * * * *', $tarea->expression);
         $this->assertTrue($tarea->withoutOverlapping);
+        // El candado caduca antes de la corrida siguiente. Con `pcntl` se suelta al recibir SIGTERM, pero un
+        // SIGKILL (falta de memoria en el contenedor de 256 MB, `docker kill`) lo deja puesto: con los 1440
+        // minutos por omisión de Laravel, la vigilancia de Redis quedaría muda un día entero.
+        $this->assertSame(10, $tarea->expiresAt);
     }
 }

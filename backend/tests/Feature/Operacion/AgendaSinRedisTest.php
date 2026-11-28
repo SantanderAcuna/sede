@@ -40,6 +40,10 @@ final class AgendaSinRedisTest extends TestCase
         // hace ANTES de romper la caché porque solo interesa lo que pasa al ejecutar, no al listar.
         Artisan::call('schedule:list');
 
+        // Candados que dejó una corrida anterior interrumpida: sin esto, el primer `assertFalse` de abajo
+        // fallaría por una prueba que ya no existe.
+        $this->soltarCandados();
+
         Cache::extend('caido', fn (): Repository => Cache::repository(new AlmacenCacheCaido));
         config([
             'cache.stores.caido' => ['driver' => 'caido'],
@@ -105,8 +109,27 @@ final class AgendaSinRedisTest extends TestCase
         }
     }
 
+    /** Quita de disco los candados de todas las tareas, también si una aserción falló a medias. */
+    private function soltarCandados(): void
+    {
+        foreach ($this->tareasSinSolapamiento() as $tarea) {
+            $tarea->mutex->forget($tarea);
+        }
+    }
+
+    public function test_la_agenda_no_se_pausa_ni_se_interrumpe_desde_la_cache(): void
+    {
+        // `schedule:pause` y `schedule:interrupt` escriben en la caché; con Redis caído no se puede leer,
+        // así que la agenda las ignora a propósito (ADR-0009). Esta prueba fija esa decisión: quien la
+        // cambie debe saber que `schedule:pause` dejaría de ser inofensivo. Para detener la agenda se
+        // detiene el servicio `scheduler`.
+        $this->assertFalse(Schedule::$pausable);
+        $this->assertFalse(Schedule::$interruptible);
+    }
+
     protected function tearDown(): void
     {
+        $this->soltarCandados();
         Carbon::setTestNow();
 
         parent::tearDown();

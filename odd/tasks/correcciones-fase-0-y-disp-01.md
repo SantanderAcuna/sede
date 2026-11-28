@@ -35,6 +35,13 @@ what cannot be fixed without a decision from José.
     the file store: lock held at +9 min, free at +11 min. Pint and PHPStan clean; full suite 1044 tests, 1040 passed, 4 skipped, 0 failed.
   - Why: with `pcntl` loaded the lock is released on SIGTERM, but a SIGKILL (OOM in the 256 MB scheduler
     container, `docker kill`) leaves it in place for 24 h and silences Redis monitoring for a day.
+- [x] T3 The five daily tasks' locks expire in 23 h instead of 1440 min (inline: 1 source file + test).
+  - RED: `consentimientos:depurar` lock still held at 2026-11-28 02:15:00 after a kill at 02:15:05 (expires at 1440 min).
+    GREEN with `withoutOverlapping(23 * 60)`. `AgendaCandadosTest` checks every locked task against its own next run.
+  - Also from the RDD review of T1/T2 (approved, 2 advisory findings): `AgendaSinRedisTest` now releases the locks in
+    setUp/tearDown (no flaky leftovers) and pins that pause/interrupt are off (ADR 0009 states it).
+  - Full suite on disposable Postgres/Redis: 1047 tests, 1043 passed, 4 errors = `LectorRedisRealTest` (`Class "Redis"
+    not found`: the host PHP has no phpredis, `php -m` confirms; CI installs it). Pint and PHPStan clean.
 - [ ] D1 Restore the three plan v3.5 documents in the repository, or keep them outside — decision of José
   (they were deliberately kept untracked; the repository is public).
 - [ ] D2 `pm.max_children` value for production — decision of José with load test (sheet 0C).
@@ -47,4 +54,4 @@ what cannot be fixed without a decision from José.
 
 ## Next step
 
-RDD review of the branch once the `claude` CLI is signed in again.
+RDD review of T3 (lineage of T1/T2 is acknowledged and burned).

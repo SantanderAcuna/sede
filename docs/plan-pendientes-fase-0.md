@@ -15,7 +15,7 @@ implementado**.
 | D2 medición | Prueba de carga en local contra la pila local, sin acceso al servidor. CAP-01 queda pendiente hasta que exista un entorno equivalente a producción. |
 | D3, D7, D8 | Cambiar las citas sin fuente por las fuentes que existen y dejar constancia de que las fichas 0C y 0D no se conservan. |
 | D9 secretos en GitHub | Fuera de este plan (la evidencia queda abajo). |
-| Auditorías 0C | Verificar cada punto, incluir solo los abiertos y versionar los dos archivos de auditoría. |
+| Auditorías 0C | Verificar cada punto e incluir solo los abiertos. Las auditorías y los informes con datos del servidor van a `docs/privado/`, que no se versiona (PR #757). |
 
 ## Evidencia (verificada el 2026-11-28 sobre `origin/develop` `898e839`)
 
@@ -28,7 +28,8 @@ implementado**.
 - **Requisitos.** CAP-01 (`entidad-transparencia/.../criterios-aceptacion-fuente-de-verdad.md:322`): 1000 VUs ×
   10 min, 0 × 5xx, p95 ≤ 500 ms, «contra un entorno equivalente a producción, no contra staging compartido».
   REND-01: TTFB p95 ≤ 200 ms con 100 VUs × 5 min. Staging y producción comparten servidor: `DEPLOY_HOST` es un único
-  secreto de repositorio.
+  secreto de repositorio. Ese servidor tiene 4 vCPU, 7,8 GB de RAM y 154 GB de disco, medido el 2026-11-26 según
+  `docs/privado/informe-disco-imagenes-docker-2026-11-26.md` (líneas 3-5; dato de ese informe, no medido de nuevo).
 - **Alertas hoy.** `sonda.yml` abre una incidencia asignada al dueño (no necesita SMTP). `VigilarRedis` envía
   `AvisoRedis` por correo (`VigilarRedis.php:98-104`); con `MAIL_MAILER=log` solo llega al registro. nginx escribe
   `cache=$upstream_cache_status` en su registro de accesos (`nginx.conf:75-81`); topes de caché: imágenes 1 GB,
@@ -50,8 +51,7 @@ implementado**.
 
 ## Puntos de la auditoría 0C, verificados uno por uno
 
-Fuente: `docs/investigacion/auditoria-pendientes-fase-0c-revision-2-2026-11-27.md`, §7 (sin versionar en la copia
-principal).
+Fuente: `docs/privado/auditoria-pendientes-fase-0c-revision-2-2026-11-27.md`, §7 (carpeta privada, no se versiona).
 
 | Punto de la auditoría | Estado hoy | Evidencia |
 |---|---|---|
@@ -89,10 +89,11 @@ disparador de delegación van en su PR.
   (`nginx.conf:162`). `ci.yml:206,211` y `sitio/server/utils/almacen-respaldo.ts:141` citan el PR #704 en lugar de
   «ficha 0C». Los dos documentos de verificación dejan constancia de que las fichas 0C y 0D no se conservan.
   `ci.yml` es configuración de CI: el cambio es solo de comentarios y se señala en el PR.
-- [ ] **T4 Documentación que contradice el código** (escritor delegado: 3 documentos y 2 archivos nuevos).
+- [ ] **T4 Documentación que contradice el código** (escritor delegado: 4 documentos).
   Verificado hoy:
   - `verificacion-fase-0c:53` dice que no se ha visto el barrido; la auditoría de la revisión 2 registra una prueba
-    controlada el 2026-11-27 a las 01:50, que se cita como medición de la auditoría.
+    controlada el 2026-11-27 a las 01:50. Como esa auditoría es privada, el documento público dice qué se midió y
+    cuándo, sin enlazarla.
   - `verificacion-fase-0c:57` dice que `SEDE_DESPLIEGUE_PRODUCCION` no se puede leer; se lee y vale `true`. El número
     de archivos se recalcula al escribirlo.
   - `docs/despliegue-secretos.md:25-36` habla de «seis» secretos obligatorios: hoy son siete, S3 es opcional y
@@ -100,8 +101,8 @@ disparador de delegación van en su PR.
     que no hay reglas de protección (`production` tiene política de ramas).
   - `deploy/README.md:324-326` dice que producción se lanza a mano desde `staging`; el trabajo exige
     `github.ref_name == 'main'` (línea 478), así que no se ejecuta nunca.
-  - Se versionan las dos auditorías de la 0C en `docs/investigacion/`, y se corrige la frase del ADR-0019 sobre los
-    secretos en GitHub Actions (`docs/adr/README.md:711`) con los hechos de D9.
+  - Se corrige la frase del ADR-0019 sobre los secretos en GitHub Actions (`docs/adr/README.md:711`) con los hechos
+    de D9.
 - [ ] **T5 D2 `pm.max_children`** (escritor delegado: archivo de pool, Dockerfile, prueba y ADR). Cargar la pila
   local con `ab` en `/`, `/api/v1/tramites` y `/api/v1/entidad` y muestrear el pico de memoria de cada worker de FPM;
   calcular el valor con la fórmula del §15.3 usando ese pico medido en vez de `memory_limit`, con el tope de

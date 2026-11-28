@@ -26,6 +26,9 @@ final class AgendaCandadosTest extends TestCase
     /** Segundos que tarda `schedule:work` en lanzar una tarea después de empezar el minuto. */
     private const RETRASO_DE_ARRANQUE = 5;
 
+    /** Minutos que el candado debe dejar libres antes de la corrida siguiente, para absorber un arranque tardío. */
+    private const MARGEN_MINUTOS = 2;
+
     /** @var list<Event> */
     private array $tareas = [];
 
@@ -80,6 +83,56 @@ final class AgendaCandadosTest extends TestCase
                 $tarea->shouldSkipDueToOverlapping(),
                 "El candado de {$tarea->command} sigue vigente a las {$siguiente->toDateTimeString()}: "
                 ."la corrida se saltaría. Caduca a los {$tarea->expiresAt} min.",
+            );
+
+            $tarea->mutex->forget($tarea);
+        }
+    }
+
+    public function test_el_candado_sigue_tomado_a_mitad_de_una_corrida_legitima(): void
+    {
+        // El límite inferior: una caducidad demasiado corta (por ejemplo `withoutOverlapping(1)` en `backup:run`)
+        // dejaría arrancar una segunda copia mientras la primera, lenta pero viva, sigue trabajando. Se exige que el
+        // candado aguante al menos medio intervalo entre corridas: si una tarea tarda más que eso, ya se pisa con la
+        // siguiente y el problema es otro.
+        foreach ($this->tareas as $tarea) {
+            $primera = $tarea->nextRunDate('2026-11-27 00:00:00')->addSeconds(self::RETRASO_DE_ARRANQUE);
+            $intervalo = (int) abs($tarea->nextRunDate($primera, 0)->diffInSeconds($primera));
+            $mitad = $primera->copy()->addSeconds(intdiv($intervalo, 2));
+
+            Carbon::setTestNow($primera);
+            $this->assertFalse($tarea->shouldSkipDueToOverlapping(), "No se pudo tomar el candado de {$tarea->command}.");
+
+            // A mitad del intervalo la primera corrida sigue viva: una segunda debe saltarse.
+            Carbon::setTestNow($mitad);
+            $this->assertTrue(
+                $tarea->shouldSkipDueToOverlapping(),
+                "El candado de {$tarea->command} ya caducó a las {$mitad->toDateTimeString()}, a mitad del intervalo: "
+                ."una segunda corrida podría pisar a la primera. Caduca a los {$tarea->expiresAt} min.",
+            );
+
+            $tarea->mutex->forget($tarea);
+        }
+    }
+
+    public function test_el_candado_caduca_con_margen_antes_de_la_siguiente_corrida(): void
+    {
+        // La prueba anterior supone que la tarea arranca 5 s después del minuto. `schedule:run` lanza las tareas en
+        // primer plano una tras otra, así que una tarea que comparte minuto con otra lenta puede arrancar más tarde.
+        // El margen exige que el candado de un arranque a tiempo ya esté libre MARGEN_MINUTOS antes de la corrida
+        // siguiente, para que un retraso de ese tamaño no se trague la corrida.
+        foreach ($this->tareas as $tarea) {
+            $primera = $tarea->nextRunDate('2026-11-27 00:00:00')->addSeconds(self::RETRASO_DE_ARRANQUE);
+            $conMargen = $tarea->nextRunDate($primera, 0)->subMinutes(self::MARGEN_MINUTOS);
+
+            Carbon::setTestNow($primera);
+            $this->assertFalse($tarea->shouldSkipDueToOverlapping(), "No se pudo tomar el candado de {$tarea->command}.");
+
+            Carbon::setTestNow($conMargen);
+            $this->assertFalse(
+                $tarea->shouldSkipDueToOverlapping(),
+                "El candado de {$tarea->command} sigue vigente a las {$conMargen->toDateTimeString()}, "
+                .self::MARGEN_MINUTOS." min antes de la corrida siguiente. Caduca a los {$tarea->expiresAt} min.",
             );
 
             $tarea->mutex->forget($tarea);

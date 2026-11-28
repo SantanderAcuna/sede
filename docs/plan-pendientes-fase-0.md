@@ -74,16 +74,25 @@ Fuente: `docs/privado/auditoria-pendientes-fase-0c-revision-2-2026-11-27.md`, §
 Heurística de tamaño: unas 400 líneas por tarea (solo orientativa). La ruta de cada tarea y la evidencia de cada
 disparador de delegación van en su PR.
 
-- [ ] **T1 Pruebas de candados: límite inferior y margen** (directa, 1 archivo de prueba). En `AgendaCandadosTest`,
+- [x] **T1 Pruebas de candados: límite inferior y margen** (directa, 1 archivo de prueba). En `AgendaCandadosTest`,
   un candado tomado en la primera corrida sigue tomado a mitad de una corrida legítima, y cada caducidad deja al
   menos 5 minutos antes de la corrida siguiente. RED: cambiar una caducidad en una copia y ver fallar cada aserción
   nueva. Comprobaciones: suite, Pint y PHPStan.
-- [ ] **T2 Guarda de secretos: sugerencias de la revisión** (directa, 1 guion). Comentar por qué la autoprueba
+  - Hecho (PR #759, `a4d99f2`, fusionado como `6c1bc77`). RED con `backup:run` a 1 min (falla solo el límite inferior)
+    y `monitoreo:redis` a 14 min (falla solo el margen); GREEN 4/4 con el código real. Margen elegido: 2 min. Suite
+    1049/1049 (las 4 de `LectorRedisRealTest` dentro de la imagen `sede-app`); Pint y PHPStan limpios. Evaluación
+    nativa: riesgo medio, `under_budget`.
+- [x] **T2 Guarda de secretos: sugerencias de la revisión** (directa, 1 guion). Comentar por qué la autoprueba
   anida 3000 corchetes (`RecursionError`) y por qué los mensajes se cortan a 100 caracteres; un único ayudante para
   las autopruebas escritas a mano; `cargar_prohibidos()` devuelve el conjunto en vez de rellenar una variable
   global; una autoprueba de que una lista ilegible sale con 3. Primero el RED de la autoprueba nueva.
   Comprobaciones: `bash deploy/pruebas/guarda-secretos-workflows.sh` y la mutación sobre una copia de los flujos
   reales.
+  - Hecho (PR #760, `cb67400` y `bed40c3`, fusionado como `f5ec927`). RED: la autoprueba de lista ilegible salía
+    con 0. 37 autopruebas más los flujos reales. Mutaciones: error con salida 1 (fallan 6 autopruebas), lista
+    alternativa ignorada (falla la nueva), revisión cortada tras un flujo ilegible (falla «informa la lectura de
+    b.yml»). Revisión de 4 lentes aprobada dos veces; el aviso de la primera (salida engañosa de la autoprueba mixta)
+    se corrigió en `bed40c3`.
 - [ ] **T3 Citas de D3, D7 y D8** (escritor delegado: 4 archivos). `docs/verificacion-fase-0c-2026-11-26.md:51` cita
   el plan archivado §15.3 y F10.3 en lugar de «auditoría H3», y dice que el tope global de conexión ya es de 2 s
   (`nginx.conf:162`). `ci.yml:206,211` y `sitio/server/utils/almacen-respaldo.ts:141` citan el PR #704 en lugar de

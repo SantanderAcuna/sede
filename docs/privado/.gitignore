@@ -1,0 +1,5 @@
+# Carpeta para documentos con información sensible: informes con datos del servidor, auditorías con rutas
+# internas, mediciones de infraestructura. Nada de lo que se guarde aquí se versiona, salvo este archivo,
+# que existe para que la carpeta y la regla viajen con el repositorio (que es público).
+*
+!.gitignore

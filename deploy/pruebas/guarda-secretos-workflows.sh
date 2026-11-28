@@ -42,9 +42,10 @@ RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LISTA="$RAIZ/deploy/secretos-requeridos.txt"
 [ -f "$LISTA" ] || { echo "Falta $LISTA" >&2; exit 2; }
 
-# revisar <carpeta de flujos>: imprime «archivo: lectura» por cada lectura prohibida. Salida 0, 1 o 3 (arriba).
+# revisar <carpeta de flujos> [lista de secretos]: imprime «archivo: lectura» por cada lectura prohibida. Salida 0, 1
+# o 3 (arriba). La lista es `secretos-requeridos.txt` salvo que la autoprueba pase otra.
 revisar() {
-  python3 - "$LISTA" "$1" <<'PY'
+  python3 - "${2:-$LISTA}" "$1" <<'PY'
 import pathlib
 import re
 import sys
@@ -58,13 +59,14 @@ except ImportError as error:
     sys.exit(ERROR)
 
 lista, carpeta = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
-# Nombres de la lista, en mayúsculas; `principal()` los carga dentro de la frontera de errores.
-prohibidos: set[str] = set()
 
 
-def cargar_prohibidos() -> None:
-    """Lee los nombres de `secretos-requeridos.txt` (primera palabra de cada línea que no es comentario)."""
-    prohibidos.update(
+def cargar_prohibidos() -> frozenset[str]:
+    """Nombres de `secretos-requeridos.txt` en mayúsculas (primera palabra de cada línea que no es comentario).
+
+    Se llama desde `principal()`, dentro de la frontera de errores: una lista ilegible sale con 3, no con 1.
+    """
+    return frozenset(
         linea.split()[0].upper()
         for linea in lista.read_text(encoding="utf-8").splitlines()
         if linea.strip() and not linea.lstrip().startswith("#")
@@ -139,8 +141,8 @@ def nombre_leido(siguientes: list[tuple[str, str]]) -> str:
     return ""
 
 
-def lecturas(expresion: str) -> list[str]:
-    """Lecturas prohibidas de una expresión: un nombre de la lista o un uso de `secrets` sin nombre fijo."""
+def lecturas(expresion: str, prohibidos: frozenset[str]) -> list[str]:
+    """Lecturas prohibidas de una expresión: un nombre de `prohibidos` o un uso de `secrets` sin nombre fijo."""
     tokens = [(m.lastgroup, m.group(m.lastgroup)) for m in TOKEN.finditer(expresion)]
     malas = []
     for i, (tipo, valor) in enumerate(tokens):
@@ -155,7 +157,7 @@ def lecturas(expresion: str) -> list[str]:
     return malas
 
 
-def revisar_flujo(flujo: pathlib.Path) -> list[str]:
+def revisar_flujo(flujo: pathlib.Path, prohibidos: frozenset[str]) -> list[str]:
     """Lecturas prohibidas de un archivo de flujo, en todos sus documentos YAML."""
     malas = []
     for documento in yaml.compose_all(flujo.read_text(encoding="utf-8")):
@@ -163,7 +165,7 @@ def revisar_flujo(flujo: pathlib.Path) -> list[str]:
             continue
         for nodo in nodos(documento):
             if isinstance(nodo, yaml.ScalarNode):
-                malas += [lectura for e in expresiones(nodo.value) for lectura in lecturas(e)]
+                malas += [lectura for e in expresiones(nodo.value) for lectura in lecturas(e, prohibidos)]
             elif hereda_secretos(nodo):
                 malas.append("secrets: inherit")
     return malas
@@ -171,13 +173,13 @@ def revisar_flujo(flujo: pathlib.Path) -> list[str]:
 
 def principal() -> int:
     """Revisa cada flujo de la carpeta; un flujo ilegible se informa y no detiene la revisión de los demás."""
-    cargar_prohibidos()
+    prohibidos = cargar_prohibidos()
     hay_lecturas, hay_errores = False, False
     for flujo in sorted([*carpeta.glob("*.yml"), *carpeta.glob("*.yaml")]):
         if not flujo.is_file():
             continue
         try:
-            malas = revisar_flujo(flujo)
+            malas = revisar_flujo(flujo, prohibidos)
         except (OSError, UnicodeDecodeError, RecursionError, yaml.YAMLError) as error:
             print(f"  {flujo.name}: no se pudo leer ({type(error).__name__}: {error})", file=sys.stderr)
             hay_errores = True
@@ -201,17 +203,27 @@ PY
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 fallos=0
 casos=0
+# Caracteres del contenido que se muestran en cada línea de la autoprueba: algunos casos tienen miles (el YAML
+# anidado de abajo), y una línea así taparía el resto del informe.
+declare -r LIMITE_MENSAJE=100
+
+# autoprueba <salida esperada> <descripción> <orden…>: ejecuta la orden y anota si salió con lo esperado.
+autoprueba() {
+  local esperada="$1" descripcion="$2" obtenida
+  shift 2
+  "$@" >/dev/null 2>&1; obtenida=$?
+  if [ "$obtenida" = "$esperada" ]; then
+    echo "  ✓ autoprueba (salida $obtenida): ${descripcion:0:$LIMITE_MENSAJE}"
+  else
+    echo "  ✗ autoprueba: se esperaba salida $esperada y fue $obtenida: ${descripcion:0:$LIMITE_MENSAJE}" >&2
+    fallos=$((fallos+1))
+  fi
+}
 
 # caso <salida esperada: 0 acepta, 1 detecta, 3 error> <contenido del flujo>
 caso() {
-  local esperada="$1" contenido="$2" obtenida
-  casos=$((casos+1)); mkdir "$T/$casos"; printf '%s\n' "$contenido" > "$T/$casos/a.yml"
-  revisar "$T/$casos" >/dev/null 2>&1; obtenida=$?
-  if [ "$obtenida" = "$esperada" ]; then
-    echo "  ✓ autoprueba (salida $obtenida): ${contenido:0:100}"
-  else
-    echo "  ✗ autoprueba: se esperaba salida $esperada y fue $obtenida: ${contenido:0:100}" >&2; fallos=$((fallos+1))
-  fi
+  casos=$((casos+1)); mkdir "$T/$casos"; printf '%s\n' "$2" > "$T/$casos/a.yml"
+  autoprueba "$1" "$2" revisar "$T/$casos"
 }
 
 # --- Autoprueba: lecturas prohibidas (salida 1) -----------------------------------------------
@@ -249,32 +261,31 @@ caso 0 '# X: ${{ secrets.DB_PASSWORD }} (comentario: GitHub no lo evalúa)'
 # --- Autoprueba: flujos ilegibles (salida 3, nunca 1) -----------------------------------------
 caso 3 'a: ['
 caso 3 "$(printf 'X: \xff\xfe')"
+# 3000 niveles de anidación superan el límite de recursión de Python (1000 por omisión): el compositor de PyYAML es
+# recursivo y lanza RecursionError, que debe salir con 3. Con menos de 1000 niveles el YAML se lee bien.
 caso 3 "$(python3 -c "print('X: ' + '[' * 3000 + ']' * 3000)")"
 # Sin PyYAML (simulado con un `yaml` que no importa) la salida es 3, no la de una detección.
 mkdir "$T/sin-yaml"; echo 'raise ImportError("PyYAML ausente (simulado)")' > "$T/sin-yaml/yaml.py"
 mkdir "$T/flujo-sin-yaml"; printf 'X: ${{ secrets.DEPLOY_HOST }}\n' > "$T/flujo-sin-yaml/a.yml"
-PYTHONPATH="$T/sin-yaml" revisar "$T/flujo-sin-yaml" >/dev/null 2>&1; obtenida=$?
-if [ "$obtenida" = 3 ]; then
-  echo "  ✓ autoprueba (salida 3): sin PyYAML"
-else
-  echo "  ✗ autoprueba: sin PyYAML se esperaba salida 3 y fue $obtenida" >&2; fallos=$((fallos+1))
-fi
+revisar_sin_yaml() { PYTHONPATH="$T/sin-yaml" revisar "$1"; }
+autoprueba 3 "sin PyYAML" revisar_sin_yaml "$T/flujo-sin-yaml"
+# Una lista de secretos ilegible (no UTF-8) también es un error del revisor, no una detección.
+mkdir "$T/flujo-con-lista-rota"; printf 'X: ${{ secrets.DEPLOY_HOST }}\n' > "$T/flujo-con-lista-rota/a.yml"
+printf 'DB_PASSWORD \xff\xfe obligatorio\n' > "$T/lista-rota.txt"
+autoprueba 3 "lista de secretos ilegible" revisar "$T/flujo-con-lista-rota" "$T/lista-rota.txt"
 # Un flujo ilegible no esconde la lectura de otro: se revisan todos y se informan las dos cosas.
 mkdir "$T/mixto"; printf 'a: [\n' > "$T/mixto/a.yml"; printf 'X: ${{ secrets.DB_PASSWORD }}\n' > "$T/mixto/b.yml"
-mixto="$(revisar "$T/mixto" 2>/dev/null)"; obtenida=$?
-if [ "$obtenida" = 3 ] && printf '%s' "$mixto" | grep -q 'b.yml: secrets.DB_PASSWORD'; then
-  echo "  ✓ autoprueba (salida 3): un flujo ilegible no esconde la lectura de otro"
-else
-  echo "  ✗ autoprueba: con un flujo ilegible se perdió la lectura del otro (salida $obtenida)" >&2
-  fallos=$((fallos+1))
-fi
+autoprueba 3 "un flujo ilegible (a.yml) hace salir con 3" revisar "$T/mixto"
+# La segunda comprobación mira la SALIDA de la guarda, no su código: sale con 0 si informa la lectura de b.yml.
+informa_la_lectura_de_b() {
+  local salida
+  salida="$(revisar "$T/mixto" 2>/dev/null)"
+  grep -q 'b.yml: secrets.DB_PASSWORD' <<< "$salida"
+}
+autoprueba 0 "y aun así informa la lectura de b.yml (secrets.DB_PASSWORD)" informa_la_lectura_de_b
 # Un directorio con nombre de flujo no es un flujo: se salta, no rompe la guarda.
 mkdir -p "$T/dir/b.yml"; printf 'X: ${{ secrets.DEPLOY_HOST }}\n' > "$T/dir/a.yml"
-if revisar "$T/dir" >/dev/null 2>&1; then
-  echo "  ✓ autoprueba (salida 0): un directorio llamado b.yml se salta"
-else
-  echo "  ✗ autoprueba: un directorio llamado b.yml rompió la guarda" >&2; fallos=$((fallos+1))
-fi
+autoprueba 0 "un directorio llamado b.yml se salta" revisar "$T/dir"
 
 # --- Flujos reales ---------------------------------------------------------------------------
 salida="$(revisar "$RAIZ/.github/workflows")"; estado=$?
